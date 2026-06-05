@@ -5,8 +5,9 @@ Propagates changes from upstream-mirror to integration through a
 verification pipeline: Sync → Gate(Syntax/Lint/Tests) → Promote.
 
 Usage:
-    python3 tooling/sync-upstreams/upstream_ingest_pipeline.py           # full sync
-    python3 tooling/sync-upstreams/upstream_ingest_pipeline.py --dry-run # gates only
+    python3 tooling/sync-upstreams/upstream_ingest_pipeline.py                        # full sync
+    python3 tooling/sync-upstreams/upstream_ingest_pipeline.py --dry-run              # gates only
+    python3 tooling/sync-upstreams/upstream_ingest_pipeline.py --skip-tests           # sync, skip pytest (CI mode)
 """
 
 import argparse
@@ -225,10 +226,11 @@ class SyncManager:
 
 
 class GateKeeper:
-    def __init__(self, git: _GitRunner) -> None:
+    def __init__(self, git: _GitRunner, skip_tests: bool = False) -> None:
         self._git = git
         self._python = _resolve_python()
         self._ruff = _resolve_ruff()
+        self._skip_tests = skip_tests
 
     def verify(self) -> bool:
         return self._gate_syntax() and self._gate_lint() and self._gate_tests()
@@ -274,6 +276,9 @@ class GateKeeper:
         return True
 
     def _gate_tests(self) -> bool:
+        if self._skip_tests:
+            log_warn("Gate 3/3: Pytest skipped (--skip-tests / CI mode).")
+            return True
         logger.info("Gate 3/3: Pytest smoke tests...")
         try:
             pytest_cmd = _resolve_pytest()
@@ -320,12 +325,12 @@ class UpstreamIngestPipeline:
     integration  [ff-only merge + LKG tag]
     """
 
-    def __init__(self, dry_run: bool = False) -> None:
+    def __init__(self, dry_run: bool = False, skip_tests: bool = False) -> None:
         self._git = _GitRunner(REPO_ROOT)
         self._dry_run = dry_run
         self.preflight = PreFlight(self._git)
         self.sync = SyncManager(self._git)
-        self.gates = GateKeeper(self._git)
+        self.gates = GateKeeper(self._git, skip_tests=skip_tests)
         self.promotion = PromotionEngine(self._git)
 
     def run(self) -> SyncResult:
@@ -381,9 +386,14 @@ def main() -> None:
         action="store_true",
         help="Run all gates against current state without syncing or promoting.",
     )
+    parser.add_argument(
+        "--skip-tests",
+        action="store_true",
+        help="Skip the pytest gate. Used in CI where installing test deps is impractical.",
+    )
     args = parser.parse_args()
 
-    orch = UpstreamIngestPipeline(dry_run=args.dry_run)
+    orch = UpstreamIngestPipeline(dry_run=args.dry_run, skip_tests=args.skip_tests)
     result = orch.run()
 
     if result.success:
