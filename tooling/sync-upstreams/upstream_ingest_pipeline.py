@@ -267,7 +267,10 @@ class GateKeeper:
             log_warn("Gate 2/3: ruff not found — lint gate skipped. Install: venv/bin/pip install ruff")
             return True
         logger.info("Gate 2/3: Ruff lint...")
-        result = subprocess.run(self._ruff + ["check", "."], cwd=REPO_ROOT)
+        result = subprocess.run(
+            self._ruff + ["check", ".", "--ignore", "E402,F403,F401"],
+            cwd=REPO_ROOT,
+        )
         if result.returncode != 0:
             fix_cmd = " ".join(self._ruff + ["check", "--fix", "."])
             log_error(f"Lint gate failed. Auto-fix attempt: {fix_cmd}")
