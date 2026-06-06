@@ -45,10 +45,4 @@ jobs:
 
       - name: Run ingest pipeline (CI mode — syntax + lint, no pytest)
         run: |
-          python tooling/sync-upstreams/upstream_ingest_pipeline.py --skip-tests
-
-      - name: Push integration branch and tags
-        run: |
-          git push origin integration
-          git push origin upstream-mirror
-          git push origin --tags
+          python tooling/sync-upstreams/upstream_ingest_pipeline.py --skip-tests --push
