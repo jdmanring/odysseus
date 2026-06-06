@@ -35,6 +35,7 @@ REQUIRED_REMOTES = {"upstream", "origin"}
 # Extend this list as you add fork-specific patches.
 PROTECTED_FILES: list[str] = [
     "tooling/sync-upstreams/upstream_ingest_pipeline.py",
+    ".github/workflows/sync-upstream.yml",
     ".env.example",               # may diverge if we add fork-specific env vars
 ]
 
@@ -270,6 +271,7 @@ class GateKeeper:
         result = subprocess.run(
             self._ruff + ["check", "."],
             cwd=REPO_ROOT,
+            capture_output=True,
         )
         if result.returncode != 0:
             log_warn("Lint warnings present in upstream code — not blocking sync.")
@@ -327,9 +329,10 @@ class UpstreamIngestPipeline:
     integration  [ff-only merge + LKG tag]
     """
 
-    def __init__(self, dry_run: bool = False, skip_tests: bool = False) -> None:
+    def __init__(self, dry_run: bool = False, skip_tests: bool = False, push: bool = False) -> None:
         self._git = _GitRunner(REPO_ROOT)
         self._dry_run = dry_run
+        self._push = push
         self.preflight = PreFlight(self._git)
         self.sync = SyncManager(self._git)
         self.gates = GateKeeper(self._git, skip_tests=skip_tests)
@@ -367,6 +370,14 @@ class UpstreamIngestPipeline:
             if not self.sync.staging_branch:
                 raise RuntimeError("staging_branch is None after create_staging — this is a bug")
             tag = self.promotion.promote(self.sync.staging_branch)
+            if self._push:
+                log_info("Pushing integration, upstream-mirror, and tags to origin...")
+                self._git.run(["git", "push", "origin", INTEGRATION_BRANCH])
+                self._git.run(["git", "push", "origin", MIRROR_BRANCH])
+                self._git.run(["git", "push", "origin", "--tags"])
+                log_success("Pushed.")
+            else:
+                log_warn("Not pushing — run with --push or push manually: git push origin integration upstream-mirror --follow-tags")
             return SyncResult(True, "PROMOTION", "Sync complete.", lkg_tag=tag)
 
         except (RuntimeError, subprocess.CalledProcessError, OSError) as e:
@@ -393,9 +404,14 @@ def main() -> None:
         action="store_true",
         help="Skip the pytest gate. Used in CI where installing test deps is impractical.",
     )
+    parser.add_argument(
+        "--push",
+        action="store_true",
+        help="Push integration, upstream-mirror, and tags to origin after promotion.",
+    )
     args = parser.parse_args()
 
-    orch = UpstreamIngestPipeline(dry_run=args.dry_run, skip_tests=args.skip_tests)
+    orch = UpstreamIngestPipeline(dry_run=args.dry_run, skip_tests=args.skip_tests, push=args.push)
     result = orch.run()
 
     if result.success:
