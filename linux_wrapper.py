@@ -11,11 +11,12 @@ _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
 sys.stdout = _log_file
 sys.stderr = _log_file
 
-# System python-pyqt6-webengine (pacman) is built with Wayland/ozone support.
-# Qt auto-detects Wayland from WAYLAND_DISPLAY — no QT_QPA_PLATFORM override needed.
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--no-sandbox "
-    "--ozone-platform=wayland "
+    "--ignore-gpu-blocklist "
+    "--enable-gpu-rasterization "
+    "--enable-zero-copy "
+    "--enable-features=DefaultANGLEVulkan "
     f"--enable-logging --log-file={os.path.join(LOG_DIR, 'chrome_debug.log')}"
 )
 
