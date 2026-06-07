@@ -75,7 +75,7 @@ def _enforce_chat_privileges(request, sess) -> None:
     allowlist, or HTTPException(429) if the user has hit their daily message
     cap. No-op for unauthenticated callers or when auth_manager is absent
     (single-user mode). Admins receive ADMIN_PRIVILEGES from get_privileges,
-    which means empty allowed_models / zero cap → no-op for them.
+    which means unrestricted allowed_models / zero cap -> no-op for them.
     """
     try:
         user = get_current_user(request)
@@ -88,8 +88,10 @@ def _enforce_chat_privileges(request, sess) -> None:
         return
 
     privs = auth_manager.get_privileges(user) or {}
-    allowed = privs.get("allowed_models") or []
-    if allowed and sess.model and sess.model not in allowed:
+    allowed_raw = privs.get("allowed_models")
+    allowed = allowed_raw if isinstance(allowed_raw, list) else []
+    restricted = bool(privs.get("allowed_models_restricted")) or bool(allowed)
+    if restricted and sess.model and sess.model not in allowed:
         raise HTTPException(403, f"Your account is not allowed to use model '{sess.model}'.")
 
     cap = int(privs.get("max_messages_per_day") or 0)
@@ -772,7 +774,19 @@ def save_assistant_response(
 ):
     """Add assistant response to session history. In incognito mode, keeps in-memory context but skips DB persistence."""
     md = dict(last_metrics) if last_metrics else {}
-    md["model"] = sess.model
+    def _model_value(value) -> str:
+        if value is None:
+            return ""
+        if not isinstance(value, str):
+            value = str(value)
+        return value.strip()
+
+    requested_model = _model_value(md.get("requested_model") or md.get("selected_model") or getattr(sess, "model", ""))
+    actual_model = _model_value(md.get("model") or md.get("actual_model") or requested_model)
+    if requested_model:
+        md["requested_model"] = requested_model
+    if actual_model:
+        md["model"] = actual_model
     if character_name:
         md["character_name"] = character_name
     if web_sources:
