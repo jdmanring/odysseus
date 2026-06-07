@@ -20,14 +20,13 @@ os.dup2(_log_file.fileno(), 2)   # redirect fd 2: Chromium renderer stderr → o
 sys.stdout = _log_file
 sys.stderr = _log_file
 
-_CHROME_LOG = os.path.join(LOG_DIR, "chrome.log")
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--no-sandbox "
     "--ignore-gpu-blocklist "
     "--enable-gpu-rasterization "
     "--enable-zero-copy "
     "--enable-features=DefaultANGLEVulkan,WebGPU,SharedArrayBuffer "
-    f"--enable-logging=stderr --log-level=1 --log-file={_CHROME_LOG}"
+    "--enable-logging=stderr --log-level=1"  # output captured via os.dup2 into wrapper_system.log
 )
 
 import signal
