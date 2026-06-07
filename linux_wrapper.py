@@ -23,10 +23,12 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
 import signal
 import subprocess
 import time
-from PyQt6.QtWidgets import QApplication, QMainWindow
+from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
-from PyQt6.QtCore import QUrl
+from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
+from PyQt6.QtWebChannel import QWebChannel
+from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
+from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, pyqtSlot, pyqtSignal
 
 INSTALL_DIR = "/home/james/Projects/odysseus"
 VENV_PYTHON = "/home/james/Projects/odysseus/venv/bin/python"
@@ -95,12 +97,98 @@ def _signal_handler(sig, frame):
     sys.exit(0)
 
 
+class NativeBridge(QObject):
+    colorPicked = pyqtSignal(str)
+
+    @pyqtSlot()
+    def openColorPicker(self):
+        bus = QDBusConnection.sessionBus()
+        portal = QDBusInterface(
+            'org.freedesktop.portal.Desktop',
+            '/org/freedesktop/portal/desktop',
+            'org.freedesktop.portal.Screenshot',
+            bus,
+        )
+        if not portal.isValid():
+            self._fallback()
+            return
+
+        reply = portal.call('PickColor', '', {})
+        if reply.type() != QDBusMessage.MessageType.ReplyMessage:
+            self._fallback()
+            return
+
+        request_path = str(reply.arguments()[0])
+        bus.connect(
+            'org.freedesktop.portal.Desktop',
+            request_path,
+            'org.freedesktop.portal.Request',
+            'Response',
+            self._on_response,
+        )
+
+    @pyqtSlot('uint', 'QVariantMap')
+    def _on_response(self, response, results):
+        QDBusConnection.sessionBus().disconnect(
+            'org.freedesktop.portal.Desktop', '',
+            'org.freedesktop.portal.Request', 'Response',
+            self._on_response,
+        )
+        if response == 0 and 'color' in results:
+            try:
+                color = results['color']
+                try:
+                    r, g, b = color
+                except TypeError:
+                    color.beginStructure()
+                    r, g, b = color.asVariant(), color.asVariant(), color.asVariant()
+                    color.endStructure()
+                self.colorPicked.emit('#{:02x}{:02x}{:02x}'.format(
+                    round(r * 255), round(g * 255), round(b * 255)
+                ))
+                return
+            except Exception as e:
+                print(f'Color portal error: {e}')
+        self.colorPicked.emit('')
+
+    def _fallback(self):
+        color = QColorDialog.getColor()
+        self.colorPicked.emit(color.name() if color.isValid() else '')
+
+
 class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
         super().__init__()
         self.setWindowTitle(WINDOW_TITLE)
         self.browser = QWebEngineView()
         page = QWebEnginePage(profile, self.browser)
+
+        # Inject synchronous flag so JS knows it's running inside the Qt wrapper
+        flag_script = QWebEngineScript()
+        flag_script.setSourceCode("window.__QT_WRAPPER__ = true;")
+        flag_script.setName("qt-wrapper-flag")
+        flag_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+        flag_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        page.scripts().insert(flag_script)
+
+        # Inject Qt's qwebchannel.js from Qt's internal resources
+        _f = QFile(":/qtwebchannel/qwebchannel.js")
+        _f.open(QIODevice.OpenModeFlag.ReadOnly)
+        _qwc_js = bytes(_f.readAll()).decode()
+        _f.close()
+        qwc_script = QWebEngineScript()
+        qwc_script.setSourceCode(_qwc_js)
+        qwc_script.setName("qwebchannel.js")
+        qwc_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+        qwc_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        page.scripts().insert(qwc_script)
+
+        # Native bridge — held as instance attrs to prevent GC
+        self._bridge = NativeBridge()
+        self._channel = QWebChannel(page)
+        self._channel.registerObject("bridge", self._bridge)
+        page.setWebChannel(self._channel)
+
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
