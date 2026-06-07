@@ -25,20 +25,22 @@ import subprocess
 import time
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 from PyQt6.QtCore import QUrl
 
 INSTALL_DIR = "/home/james/Projects/odysseus"
 VENV_PYTHON = "/home/james/Projects/odysseus/venv/bin/python"
 PORT = "8000"
 WINDOW_TITLE = "Odysseus"
+PROFILE_NAME = "odysseus"
+DATA_DIR = os.path.expanduser("~/.local/share/odysseus/webengine")
+CACHE_DIR = os.path.expanduser("~/.cache/odysseus/webengine")
 
-# Specific pattern that matches uvicorn but NOT this wrapper script
 _UVICORN_PATTERN = "uvicorn app:app"
 _server_proc = None
 
 
 def kill_zombies():
-    """Kill leftover uvicorn processes from a previous run, then wait for port release."""
     result = subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
     if result.returncode == 0:
         print("Killed stale uvicorn process(es), waiting for port to release...")
@@ -84,7 +86,6 @@ def stop_server():
             except Exception:
                 pass
         _server_proc = None
-    # Belt-and-suspenders: catch any orphaned uvicorn not tracked by _server_proc
     subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
     print("Server stopped.")
 
@@ -95,10 +96,12 @@ def _signal_handler(sig, frame):
 
 
 class OdysseusWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, profile: QWebEngineProfile):
         super().__init__()
         self.setWindowTitle(WINDOW_TITLE)
         self.browser = QWebEngineView()
+        page = QWebEnginePage(profile, self.browser)
+        self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)
@@ -116,6 +119,21 @@ if __name__ == "__main__":
     start_server()
 
     app = QApplication(sys.argv)
-    win = OdysseusWindow()
+    # Tell KDE which .desktop file owns this window so it groups with the
+    # pinned taskbar entry and shows the correct icon instead of the X logo.
+    app.setDesktopFileName("odysseus")
+
+    # Named persistent profile — cookies, localStorage, and session data
+    # survive between restarts. Without this the login is lost on every close.
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    profile = QWebEngineProfile(PROFILE_NAME, None)
+    profile.setPersistentStoragePath(DATA_DIR)
+    profile.setCachePath(CACHE_DIR)
+    profile.setPersistentCookiesPolicy(
+        QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
+    )
+
+    win = OdysseusWindow(profile)
     win.show()
     sys.exit(app.exec())
