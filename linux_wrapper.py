@@ -11,10 +11,13 @@ _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
 sys.stdout = _log_file
 sys.stderr = _log_file
 
+# Qt must use the Wayland backend so the Chromium subprocess inherits it
+os.environ.setdefault("QT_QPA_PLATFORM", "wayland")
+
 os.environ["QT_LOGGING_RULES"] = "qt.webengine.*=true"
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
-    "--enable-zero-copy --disable-gpu-compositing --ignore-gpu-blocklist "
-    "--no-sandbox --use-gl=desktop --ozone-platform-hint=auto "
+    "--no-sandbox "
+    "--ozone-platform=wayland "
     f"--enable-logging --v=1 --log-file={os.path.join(LOG_DIR, 'chrome_debug.log')}"
 )
 
