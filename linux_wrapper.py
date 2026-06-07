@@ -11,12 +11,11 @@ _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
 sys.stdout = _log_file
 sys.stderr = _log_file
 
-# PyQt6's bundled Chromium has no Wayland ozone compiled in — must run
-# through XWayland. Force xcb so Qt doesn't try the native Wayland backend.
-os.environ["QT_QPA_PLATFORM"] = "xcb"
-
+# System python-pyqt6-webengine (pacman) is built with Wayland/ozone support.
+# Qt auto-detects Wayland from WAYLAND_DISPLAY — no QT_QPA_PLATFORM override needed.
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--no-sandbox "
+    "--ozone-platform=wayland "
     f"--enable-logging --log-file={os.path.join(LOG_DIR, 'chrome_debug.log')}"
 )
 
