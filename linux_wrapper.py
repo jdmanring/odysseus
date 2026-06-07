@@ -16,7 +16,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--ignore-gpu-blocklist "
     "--enable-gpu-rasterization "
     "--enable-zero-copy "
-    "--enable-features=DefaultANGLEVulkan "
+    "--enable-features=DefaultANGLEVulkan,WebGPU,SharedArrayBuffer "
     f"--enable-logging --log-file={os.path.join(LOG_DIR, 'chrome_debug.log')}"
 )
 
@@ -107,6 +107,7 @@ class OdysseusWindow(QMainWindow):
         self.resize(1280, 800)
 
     def closeEvent(self, event):
+        self.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.browser))
         stop_server()
         event.accept()
 
