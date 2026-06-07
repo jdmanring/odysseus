@@ -1,5 +1,7 @@
 import unittest
 import subprocess
+import shutil
+import tempfile
 from pathlib import Path
 from tooling.bin_manager import BinManager
 
@@ -20,6 +22,42 @@ class TestBinManager(unittest.TestCase):
         self.assertIsNotNone(path, "BinManager failed to find or install aria2c")
         self.assertTrue(Path(path).exists(), f"BinManager returned path {path} but it does not exist on disk")
         self.assertTrue(Path(path).is_file(), f"BinManager returned path {path} but it is not a file")
+
+    def test_reinstall_aria2c(self):
+        """
+        Verify that BinManager actually performs a fresh installation 
+        if the binary is missing.
+        """
+        # 1. Get the current working binary
+        original_path = BinManager.ensure_binary("aria2c")
+        self.assertIsNotNone(original_path, "Setup failed: aria2c not found.")
+        
+        # 2. Create a backup and remove the original
+        # We use a temp file to avoid messing up the user's actual bin dir permanently
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_dir_path = Path(tmpdir)
+            backup_path = tmp_dir_path / "aria2c_backup"
+            
+            # Move original out of the way
+            shutil.move(str(original_path), str(backup_path))
+            
+            # 3. Ensure the binary is now "missing" from the manager's perspective
+            self.assertIsNone(BinManager.get_binary_path("aria2c"), "BinManager still thinks aria2c is present")
+            
+            # 4. Attempt to re-install
+            new_path = BinManager.ensure_binary("aria2c")
+            
+            # 5. Verify re-installation
+            self.assertIsNotNone(new_path, "BinManager failed to re-install aria2c")
+            self.assertTrue(new_path.exists(), "New binary does not exist")
+            self.assertNotEqual(new_path, original_path, "New binary path is same as old one; it didn't re-install")
+            
+            # 6. Verify it actually works
+            result = subprocess.run([str(new_path), "--version"], capture_output=True, text=True, check=True)
+            self.assertIn("aria2", result.stdout.lower())
+            
+            # 7. Clean up: Restore the original for the system
+            shutil.move(str(backup_path), str(original_path))
 
     def test_binary_execution(self):
         """

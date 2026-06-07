@@ -23,9 +23,48 @@ Both crashes confirmed via V8 log evidence: `ERROR:v8_initializer.cc:844] V8 pro
 ### Fix Applied (Partial)
 - **`linux_wrapper.py`** (commit `564dd5c`): `renderProcessTerminated` signal handler auto-reloads on crash; 60s memory monitor; OS-level fd redirect so renderer logs go to `logs/wrapper_system.log`; uvicorn access log enabled to `logs/server_access.log`.
 
-### Fix Pending (Full)
-- **DOM virtualization** — `MessageWindow` class with IntersectionObserver-based load pagination + live pruning. Detailed plan: `personal_docs/plan-dom-virtualization.md`. Upstream issue filed: pewdiepie-archdaemon/odysseus (see contribution doc `docs/fork/contributions/upstream/06-dom-oom-virtualization.md`).
-- **`streamingTTS` scope fix** — secondary bug in `chat.js:2923`, 3-line fix. Upstream issue filed (see `docs/fork/contributions/upstream/07-streamingtts-scope-fix.md`).
+### Fix Applied (Partial) — streamingTTS scope
+- **`chat.js`** (commit `9fabdc6`): `streamingTTS` hoisted from `const` inside try to `let` before try — fixes ReferenceError in catch block on every stream error.
 
-### Secondary Bug Found During Investigation
-`streamingTTS` declared with `const` inside `try` block (chat.js:1077), referenced in `catch` block (line 2923). `const` is block-scoped — causes `ReferenceError` on every stream error (503, network failure, etc.), aborting the catch handler early. Confirmed 6 occurrences in one session's logs.
+### Fix Pending — DOM virtualization
+- **Branch:** `fix/dom-oom-virtualization` (in progress)
+- `MessageWindow` class with IntersectionObserver load pagination + live pruning
+- Detailed plan: `personal_docs/plan-dom-virtualization.md`
+- Upstream staging: `docs/fork/contributions/upstream/06-dom-oom-virtualization.md`
+
+---
+
+## [ISSUE-002] Project Not Self-Describing for AI Agent Onboarding
+**Status:** Open  
+**Severity:** Medium  
+**Reported:** James (2026-06-07)  
+
+### Problem
+When an AI agent starts a new session on this project, it has no intuitive entry point
+that tells it: what the project is, what's in progress, what the rules are, and where
+to find everything. The agent has to rediscover context from scratch each session —
+reading memory files, scanning dirs, looking at git log. This costs time and causes
+mistakes (e.g. not knowing aria2c is the turbo downloader's core tool, not understanding
+the upstream contribution workflow without reading CONTRIBUTING.md manually).
+
+The project should have a single top-level orientation document that an agent can read
+in the first 30 seconds of a session and immediately know:
+- What this repo is and what it does
+- The two-repo model (fork vs upstream)
+- Active branches and what's on each
+- Where the rules live (contribution workflow, working conventions)
+- Where in-progress work is tracked
+- Key tooling and what it does (aria2c, QWebChannel, etc.)
+- What NOT to do (never sudo, never file upstream without authorization)
+
+### Fix Needed
+Create `docs/fork/AGENT_CONTEXT.md` — a short, dense orientation document that:
+1. Describes the project in 2-3 sentences
+2. Lists the two remotes and their roles
+3. Maps the branch structure
+4. Links to: UPSTREAM_CONTRIBUTION_WORKFLOW.md, testing.md, ISSUE_LOG.md, CHANGELOG.md
+5. Explains key tools (aria2c = turbo downloader via BinManager; QWebChannel = JS↔Python bridge; QWebEngineView = Qt browser wrapper)
+6. States the hard rules (no sudo, no upstream filing without James, verify before coding)
+7. Lists active work and where to find task tracking
+
+This file should be the FIRST thing any agent reads after MEMORY.md.
