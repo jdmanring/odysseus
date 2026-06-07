@@ -298,21 +298,37 @@ def setup_cookbook_routes() -> APIRouter:
         _dl_shell = _shell_path(_dl_base) if _dl_base else None      # for hf CLI / bash
         _dl_pyarg = (", local_dir=os.path.expanduser(" + repr(_dl_base) + ")") if _dl_base else ""
 
-        # Build the hf download command. Redirection to suppress the interactive
-        # "update available? [Y/n]" prompt is added per-platform further down
-        # (< /dev/null on bash, $null | on PowerShell).
-        hf_cmd = f"hf download {req.repo_id}"
-        if req.include:
-            hf_cmd += f" --include '{req.include}'"
-        if _dl_shell:
-            hf_cmd += f" --local-dir {_dl_shell}"
+        # Build the download command.
+        if req.turbo:
+            # Use the turbo script which leverages aria2c for high-performance downloads.
+            token_quoted = _bash_squote(req.hf_token) if req.hf_token else "''"
+            include_quoted = _bash_squote(req.include) if req.include else "''"
+            local_dir_quoted = _bash_squote(_dl_base) if _dl_base else "''"
+            hf_cmd = (
+                f"python3 ~/.cookbook/tooling/turbo_download.py "
+                f"--repo {req.repo_id} "
+                f"--token {token_quoted} "
+                f"--local-dir {local_dir_quoted} "
+                f"--include {include_quoted}"
+            )
+        else:
+            # Standard hf download command. Redirection to suppress the interactive
+            # "update available? [Y/n]" prompt is added per-platform further down
+            # (< /dev/null on bash, $null | on PowerShell).
+            hf_cmd = f"hf download {req.repo_id}"
+            if req.include:
+                hf_cmd += f" --include '{req.include}'"
+            if _dl_shell:
+                hf_cmd += f" --local-dir {_dl_shell}"
 
         # Build the shell wrapper — runs hf download directly in tmux (which is a TTY)
         # No script/tee needed — we'll use tmux capture-pane to read output
         lines = ["#!/bin/bash"]
         lines.extend(_user_shell_path_bootstrap())
         if req.hf_token:
-            lines.append(f"export HF_TOKEN='{_bash_squote(req.hf_token)}'")
+            token_quoted = _bash_squote(req.hf_token)
+            lines.append(f"export HF_TOKEN='{token_quoted}'")
+            lines.append(f"export HUGGING_FACE_HUB_TOKEN='{token_quoted}'")
         # Ensure pip-user scripts (e.g. hf CLI installed via --user) are on PATH
         lines.append('export PATH="$HOME/.local/bin:$PATH"')
         # When Odysseus runs from a venv (e.g. native macOS install), put its bin
@@ -357,7 +373,9 @@ def setup_cookbook_routes() -> APIRouter:
             ps_lines.append('$env:PYTHONIOENCODING = "utf-8"')
             ps_lines.append('$env:PYTHONUTF8 = "1"')
             if req.hf_token:
-                ps_lines.append(f"$env:HF_TOKEN = '{_ps_squote(req.hf_token)}'")
+                token_quoted = _ps_squote(req.hf_token)
+                ps_lines.append(f"$env:HF_TOKEN = '{token_quoted}'")
+                ps_lines.append(f"$env:HUGGING_FACE_HUB_TOKEN = '{token_quoted}'")
             if req.env_prefix:
                 ps_lines.append(_safe_env_prefix(req.env_prefix))
             # Try hf CLI, fall back to Python huggingface_hub, then auto-install
@@ -402,7 +420,8 @@ def setup_cookbook_routes() -> APIRouter:
                 f"-NoNewWindow -PassThru | ForEach-Object {{ $_.Id | Out-File \\\"$sd\\{session_id}.pid\\\" }}"
             )
             setup_cmd = (
-                f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner} && "
+                f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner} "
+                f"{' && ssh ' + _Pf + remote + ' \"mkdir -p ~/.cookbook\" && scp -O -r tooling ' + remote + ':~/.cookbook/' if req.turbo else ''} && "
                 f'ssh {_pf}{remote} "powershell -Command \\"{launch_ps}\\""'
             )
 
@@ -414,7 +433,9 @@ def setup_cookbook_routes() -> APIRouter:
             runner_lines.append("# Auto-detect environment")
             runner_lines.append("deactivate 2>/dev/null; hash -r")
             if req.hf_token:
-                runner_lines.append(f"export HF_TOKEN='{_bash_squote(req.hf_token)}'")
+                token_quoted = _bash_squote(req.hf_token)
+                runner_lines.append(f"export HF_TOKEN='{token_quoted}'")
+                runner_lines.append(f"export HUGGING_FACE_HUB_TOKEN='{token_quoted}'")
             if req.env_prefix:
                 runner_lines.append(_safe_env_prefix(req.env_prefix))
             else:
@@ -474,7 +495,8 @@ def setup_cookbook_routes() -> APIRouter:
             _pf = f"-P {_port} " if _port and _port != "22" else ""
             _spf = f"-p {_port} " if _port and _port != "22" else ""
             setup_cmd = (
-                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner} && "
+                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner} "
+                f"{' && ssh ' + _spf + remote + ' \"mkdir -p ~/.cookbook\" && scp -r tooling ' + remote + ':~/.cookbook/' if req.turbo else ''} && "
                 f"ssh {_spf}{remote} 'chmod +x {remote_runner} && tmux new-session -d -s {session_id} \"./{remote_runner}\"'"
             )
         else:
