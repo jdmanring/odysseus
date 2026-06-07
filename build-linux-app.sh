@@ -45,13 +45,13 @@ echo "Installed launcher: $LAUNCHER_BIN"
 
 # --- Icon (SVG is the icon; docs/*.jpg are screenshots, not icons) ---
 ICON_PATH="$ICON_DIR_SCALABLE/$APP_NAME.svg"
-if [ -f "$INSTALL_DIR/docs/$APP_NAME.svg" ]; then
-    cp "$INSTALL_DIR/docs/$APP_NAME.svg" "$ICON_PATH"
+if [ -f "$INSTALL_DIR/assets/$APP_NAME.svg" ]; then
+    cp "$INSTALL_DIR/assets/$APP_NAME.svg" "$ICON_PATH"
     echo "Installed SVG icon: $ICON_PATH"
-elif [ -f "$INSTALL_DIR/docs/$APP_NAME.png" ]; then
+elif [ -f "$INSTALL_DIR/assets/$APP_NAME.png" ]; then
     ICON_DIR_256="$HOME/.local/share/icons/hicolor/256x256/apps"
     mkdir -p "$ICON_DIR_256"
-    cp "$INSTALL_DIR/docs/$APP_NAME.png" "$ICON_DIR_256/$APP_NAME.png"
+    cp "$INSTALL_DIR/assets/$APP_NAME.png" "$ICON_DIR_256/$APP_NAME.png"
     ICON_PATH="$ICON_DIR_256/$APP_NAME.png"
     echo "Installed PNG icon: $ICON_PATH"
 elif false; then
