@@ -5,6 +5,20 @@ worth contributing back to `pewdiepie-archdaemon/odysseus`. Each entry includes
 what was found, why it matters, and the proposed fix so an agent can implement
 and open a PR without re-researching.
 
+## Status Summary
+
+| # | Title | Issue Filed | PR Status |
+|---|-------|-------------|-----------|
+| 1 | HF token not saved outside Cookbook tab | — | Pending |
+| 2 | QWebEngineView localStorage persistence | — | Fork-only |
+| 3 | `pytest-timeout` not in test requirements | — | Pending |
+| 4 | SearXNG JSON format not documented | — | Pending |
+| 5 | Native Linux app / build script | — | In progress (fork) |
+| 6 | DOM OOM / no message virtualization | Staged | Pending |
+| 7 | `streamingTTS` ReferenceError in catch | Staged | Ready |
+
+Full detail for each: `docs/fork/contributions/upstream/0N-*.md`
+
 ---
 
 ## 1. HF token not saved when set outside Cookbook tab
