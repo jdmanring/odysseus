@@ -1763,6 +1763,8 @@ body.bg-pattern-sparkles {
     }
     :root.light select { color-scheme: light; }
     .chat-container {
+      will-change: transform;
+      transform: translateZ(0);
       flex:1;
       display:flex;
       flex-direction:column;
@@ -2162,6 +2164,8 @@ body.bg-pattern-sparkles {
 
     /* Unified chat input bar */
     .chat-input-bar {
+      will-change: transform;
+      transform: translateZ(0);
       background: var(--input-bg, var(--panel));
       border: 1px solid var(--input-border, var(--border));
       border-radius: 16px;
@@ -2212,6 +2216,8 @@ body.bg-pattern-sparkles {
       color: color-mix(in srgb, var(--fg) 30%, transparent);
     }
     .chat-input-bar textarea#message {
+      will-change: transform;
+      transform: translateZ(0);
       width: 100%;
       background: transparent;
       border: none;
@@ -2240,7 +2246,9 @@ body.bg-pattern-sparkles {
        then the model picker — textarea + send button always stay. Container
        queries so it responds to *bar width*, not viewport width (the bar
        can be in a split pane). */
-    .chat-input-bar { container-type: inline-size; container-name: chatbar; }
+    .chat-input-bar {
+      will-change: transform;
+      transform: translateZ(0); container-type: inline-size; container-name: chatbar; }
     @container chatbar (max-width: 340px) {
       .chat-input-right .mode-toggle { display: none !important; }
     }
@@ -4049,7 +4057,9 @@ body.bg-pattern-sparkles {
     }
     @media (max-width:768px){
       .box { max-height:none; }
-      .chat-container { padding:10px; flex:1; margin-top:0; padding-top:42px; min-height:0; }
+      .chat-container {
+      will-change: transform;
+      transform: translateZ(0); padding:10px; flex:1; margin-top:0; padding-top:42px; min-height:0; }
       .scroll-nav-btn { width:44px; height:44px; font-size:14px; margin-bottom:0; }
       .send-btn { width:48px; height:48px !important; border-radius:12px; }
       .send-btn svg { width:22px; height:22px; }
@@ -4334,6 +4344,8 @@ body.bg-pattern-sparkles {
       }
       /* Safe area padding for notched devices */
       .chat-input-bar {
+      will-change: transform;
+      transform: translateZ(0);
         padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
       }
       /* Mode toggle — larger touch targets */
