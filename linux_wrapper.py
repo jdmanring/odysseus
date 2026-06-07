@@ -1,23 +1,33 @@
 import os
 import sys
+import time as _time
 
 # ==============================================================================
-# CRITICAL: These must be set BEFORE any PyQt6/QtWebEngine imports
+# CRITICAL: Logging setup must happen BEFORE any PyQt6/QtWebEngine imports.
+#
+# sys.stdout/stderr alone is not enough — Chromium renderer subprocesses inherit
+# OS-level file descriptors (fd 1, fd 2), not Python's sys.stdout/stderr.
+# os.dup2 replaces the OS fds so all child process output lands in our log.
 # ==============================================================================
 LOG_DIR = "/home/james/Projects/odysseus/logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
 _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
+sys.stdout.flush()
+sys.stderr.flush()
+os.dup2(_log_file.fileno(), 1)   # redirect fd 1: Chromium renderer stdout → our log
+os.dup2(_log_file.fileno(), 2)   # redirect fd 2: Chromium renderer stderr → our log
 sys.stdout = _log_file
 sys.stderr = _log_file
 
+_CHROME_LOG = os.path.join(LOG_DIR, "chrome.log")
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--no-sandbox "
     "--ignore-gpu-blocklist "
     "--enable-gpu-rasterization "
     "--enable-zero-copy "
     "--enable-features=DefaultANGLEVulkan,WebGPU,SharedArrayBuffer "
-    f"--enable-logging --log-file={os.path.join(LOG_DIR, 'chrome_debug.log')}"
+    f"--enable-logging=stderr --log-level=1 --log-file={_CHROME_LOG}"
 )
 
 import signal
@@ -28,7 +38,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
-from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, pyqtSlot, pyqtSignal
 
 INSTALL_DIR = "/home/james/Projects/odysseus"
 VENV_PYTHON = "/home/james/Projects/odysseus/venv/bin/python"
@@ -52,15 +62,17 @@ def kill_zombies():
 def start_server():
     global _server_proc
     print(f"Starting Odysseus server on port {PORT}...")
-    cmd = [VENV_PYTHON, "-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", PORT]
+    cmd = [VENV_PYTHON, "-m", "uvicorn", "app:app",
+           "--host", "127.0.0.1", "--port", PORT, "--access-log"]
     env = os.environ.copy()
     env["ODYSSEUS_LOG_FILE"] = os.path.join(LOG_DIR, "server.log")
+    _access_log = open(os.path.join(LOG_DIR, "server_access.log"), "a", buffering=1)
     _server_proc = subprocess.Popen(
         cmd,
         cwd=INSTALL_DIR,
         env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=_access_log,
+        stderr=_access_log,
         start_new_session=True,
     )
     for _ in range(30):
@@ -188,6 +200,45 @@ class OdysseusWindow(QMainWindow):
         self._channel = QWebChannel(page)
         self._channel.registerObject("bridge", self._bridge)
         page.setWebChannel(self._channel)
+
+        # Renderer crash recovery — auto-reload on OOM or hard crash
+        self._crash_times = []
+        def _on_renderer_crash(status, exit_code):
+            label = {0: 'Normal', 1: 'Abnormal', 2: 'Crashed', 3: 'Killed(OOM)'}.get(
+                status.value, f'Unknown({status.value})')
+            print(f'[RENDERER] {label} exit={exit_code} at {_time.strftime("%H:%M:%S")}',
+                  flush=True)
+            if status.value == 0:
+                return
+            now = _time.monotonic()
+            self._crash_times = [t for t in self._crash_times if now - t < 10]
+            if self._crash_times:
+                print('[RENDERER] Crash loop — not reloading', flush=True)
+                return
+            self._crash_times.append(now)
+            print('[RENDERER] Scheduling reload in 1s', flush=True)
+            QTimer.singleShot(1000, lambda: self.browser.page().triggerAction(
+                QWebEnginePage.WebAction.Reload))
+        page.renderProcessTerminated.connect(_on_renderer_crash)
+
+        # Periodic renderer memory snapshot (every 60s)
+        def _log_renderer_memory():
+            try:
+                import subprocess as _sp
+                r = _sp.run(['pgrep', '-f', 'QtWebEngineProcess'], capture_output=True, text=True)
+                for pid_s in r.stdout.strip().split():
+                    try:
+                        with open(f'/proc/{pid_s}/status') as f:
+                            for line in f:
+                                if line.startswith(('VmRSS', 'VmPeak')):
+                                    print(f'[MEM] pid={pid_s} {line.rstrip()}', flush=True)
+                    except OSError:
+                        pass
+            except Exception as e:
+                print(f'[MEM] error: {e}', flush=True)
+        self._mem_timer = QTimer()
+        self._mem_timer.timeout.connect(_log_renderer_memory)
+        self._mem_timer.start(60_000)
 
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
