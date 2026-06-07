@@ -43,20 +43,20 @@ LAUNCHER
 chmod +x "$LAUNCHER_BIN"
 echo "Installed launcher: $LAUNCHER_BIN"
 
-# --- Icon (SVG preferred; fallback to PNG/JPG converted via ImageMagick) ---
+# --- Icon (SVG is the icon; docs/*.jpg are screenshots, not icons) ---
 ICON_PATH="$ICON_DIR_SCALABLE/$APP_NAME.svg"
 if [ -f "$INSTALL_DIR/docs/$APP_NAME.svg" ]; then
     cp "$INSTALL_DIR/docs/$APP_NAME.svg" "$ICON_PATH"
     echo "Installed SVG icon: $ICON_PATH"
 elif [ -f "$INSTALL_DIR/docs/$APP_NAME.png" ]; then
-    # Convert to SVG container or just copy to a size-specific dir
     ICON_DIR_256="$HOME/.local/share/icons/hicolor/256x256/apps"
     mkdir -p "$ICON_DIR_256"
     cp "$INSTALL_DIR/docs/$APP_NAME.png" "$ICON_DIR_256/$APP_NAME.png"
     ICON_PATH="$ICON_DIR_256/$APP_NAME.png"
     echo "Installed PNG icon: $ICON_PATH"
-elif [ -f "$INSTALL_DIR/docs/$APP_NAME.jpg" ]; then
-    # Convert JPG → PNG using ImageMagick if available, otherwise skip
+elif false; then
+    # JPG files in docs/ are screenshots, not icons — do not use
+    : # placeholder to keep elif/fi structure
     ICON_DIR_256="$HOME/.local/share/icons/hicolor/256x256/apps"
     mkdir -p "$ICON_DIR_256"
     if command -v convert &>/dev/null; then
