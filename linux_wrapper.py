@@ -11,14 +11,13 @@ _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
 sys.stdout = _log_file
 sys.stderr = _log_file
 
-# Qt must use the Wayland backend so the Chromium subprocess inherits it
-os.environ.setdefault("QT_QPA_PLATFORM", "wayland")
+# PyQt6's bundled Chromium has no Wayland ozone compiled in — must run
+# through XWayland. Force xcb so Qt doesn't try the native Wayland backend.
+os.environ["QT_QPA_PLATFORM"] = "xcb"
 
-os.environ["QT_LOGGING_RULES"] = "qt.webengine.*=true"
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--no-sandbox "
-    "--ozone-platform=wayland "
-    f"--enable-logging --v=1 --log-file={os.path.join(LOG_DIR, 'chrome_debug.log')}"
+    f"--enable-logging --log-file={os.path.join(LOG_DIR, 'chrome_debug.log')}"
 )
 
 import signal
