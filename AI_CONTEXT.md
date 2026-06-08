@@ -4,6 +4,11 @@
 > Hard rules are in `AI_RULES.md` and `CLAUDE.md` (auto-loaded). Active work: `docs/fork/active-work.md`.
 > Branch and pipeline rules: `docs/dev/git-branch-workflow.md` — read before touching any branch.
 
+> **Fork purpose:** This fork is a contribution workbench, not a divergent product. Every fix,
+> feature, and document — including this file — defaults to upstream-candidate. Fork-only is
+> the narrow exception: the sync pipeline, fork CI, and fork management docs. See `CLAUDE.md`
+> for the full list. When in doubt, assume upstream-candidate.
+
 ---
 
 ## What It Is

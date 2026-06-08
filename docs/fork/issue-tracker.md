@@ -32,11 +32,18 @@ work, create one first.
 
 | Label | Meaning |
 |-------|---------|
-| `upstream-candidate` | Fix/feature worth contributing to `pewdiepie-archdaemon/odysseus` |
-| `fork-only` | Work that belongs only in this fork (Qt wrapper, sync tooling, docs) |
+| `upstream-candidate` | Default for almost all work — fixes, features, docs, new files |
+| `fork-only` | Narrow exception: sync pipeline, fork CI, fork management docs only |
 | `bug` | Something broken |
 | `enhancement` | New feature or improvement |
 | `documentation` | Docs work |
+
+**Label guidance:** When in doubt, use `upstream-candidate`. The `fork-only` label applies
+only to work that manages the fork/upstream relationship itself — the sync pipeline
+(`tooling/sync-upstreams/`), `.github/workflows/sync-upstream.yml`, and the docs in
+`docs/fork/` and `docs/dev/git-branch-workflow.md`. Everything else — including the Qt
+wrapper, the download stack, AI documentation, and application bug fixes — is
+`upstream-candidate` regardless of how large or fork-specific it feels.
 
 ---
 

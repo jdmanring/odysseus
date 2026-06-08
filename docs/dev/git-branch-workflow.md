@@ -25,13 +25,17 @@ and the full issue-to-upstream-PR lifecycle. Read it completely before touching 
 
 This is the most important thing to get right. There are two categories of work and they require different branch origins.
 
-### Category 1: Upstream-Candidate (fixes/features to share with `pewdiepie-archdaemon/odysseus`)
+**The default is upstream-candidate.** Fork-only is the narrow exception — only the sync
+pipeline (`tooling/sync-upstreams/`), fork CI (`.github/workflows/sync-upstream.yml`),
+and fork management docs (`docs/fork/`, `docs/dev/git-branch-workflow.md`). Everything
+else defaults to upstream-candidate, including new files, large features, and documentation.
+
+### Category 1: Upstream-Candidate (the default — almost all work)
 
 These branches are staging for upstream pull requests. They must:
-- Contain **only the changes for that one fix or feature** — nothing fork-specific
+- Contain **only the changes for that one fix or feature** — nothing from the fork-only list above
 - Start from `upstream-mirror` so they have no fork history
 - Have a **single clean commit** (or a small number of tightly related commits)
-- Never include: Qt wrapper code, sync pipeline code, fork docs, `linux_wrapper.py`, fork-specific settings
 
 ```bash
 # Always fetch first to ensure upstream-mirror is current
@@ -53,9 +57,10 @@ git checkout fix/short-description   # branch stays — it's the upstream PR sta
 
 The branch itself is kept permanently as the upstream PR staging. Do not delete it after cherry-picking to develop.
 
-### Category 2: Fork-Only (Qt wrapper, sync pipeline, docs, fork-specific config)
+### Category 2: Fork-Only (sync pipeline, fork CI, fork management docs — nothing else)
 
 These branches will never go upstream. They branch from `develop` and merge back.
+If you are unsure whether something belongs here, it belongs in Category 1.
 
 ```bash
 git checkout develop
@@ -249,6 +254,7 @@ All upstream PRs target `upstream:dev`, never `upstream:main`.
 
 | Mistake | Why bad | Correct action |
 |---------|---------|----------------|
+| Classifying work as fork-only without a specific reason | Prevents valid upstream contributions; breaks issue tracking | Default to upstream-candidate; fork-only is only the sync pipeline, fork CI, and fork management docs |
 | Branching an upstream-candidate off `develop` | Pollutes branch with 100+ fork commits; PR would be unusable | Branch from `origin/upstream-mirror` |
 | Committing to `upstream-mirror` | Commits destroyed on next sync | Use `upstream-mirror` as branch origin only; never commit there |
 | Cherry-picking from `upstream/dev` directly to `develop` | Bypasses gates; no syntax/lint/test verification | Run the ingest pipeline |

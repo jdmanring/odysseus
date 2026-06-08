@@ -6,6 +6,27 @@ Branch and pipeline rules: `docs/dev/git-branch-workflow.md` — read before tou
 
 ---
 
+## The Purpose of This Fork
+
+**This fork is a contribution workbench, not a divergent product.**
+
+James uses it to develop fixes and features and stage them as upstream pull requests to `pewdiepie-archdaemon/odysseus`. The fork is not meant to stay separate — everything that improves Odysseus should go upstream.
+
+**The default classification for any fix, feature, or documentation is upstream-candidate.**
+
+Fork-only is the narrow exception, reserved for the workshop tooling itself:
+- `CLAUDE.md` — these instructions
+- `docs/fork/` — fork management state (active-work, issue-tracker, pr-status, changes-from-upstream)
+- `docs/dev/git-branch-workflow.md` — the fork/upstream workflow doc
+- `tooling/sync-upstreams/` — the sync pipeline
+- `.github/workflows/sync-upstream.yml` — CI for the sync
+
+Everything else defaults to upstream-candidate: bug fixes, features, `linux_wrapper.py`, the download stack, UI work, `AI_CONTEXT.md`, `AI_RULES.md`, architecture docs, user docs. If it makes Odysseus better, it belongs upstream.
+
+**Never classify something as fork-only without a specific reason it cannot go upstream.** "It touches fork-specific code" is not a reason — that code is usually itself upstream-candidate. When in doubt, assume upstream-candidate.
+
+---
+
 ## Hard Rules (non-negotiable)
 
 **No sudo.** Write `! sudo <command>` for James to run. Never execute elevated commands yourself.
@@ -32,10 +53,12 @@ There are two kinds of work branches and they have different origins:
 
 | Work type | Branch origin | Merge destination |
 |-----------|--------------|-------------------|
-| **Upstream-candidate** (fixes/features to share upstream) | `upstream-mirror` | cherry-pick to `develop`; branch stays for upstream PR |
-| **Fork-only** (Qt wrapper, pipeline, docs, fork-specific) | `develop` | merge to `develop`; close issue |
+| **Upstream-candidate** (default — almost everything) | `upstream-mirror` | cherry-pick to `develop`; branch stays for upstream PR |
+| **Fork-only** (sync pipeline, fork management docs, fork CI) | `develop` | merge to `develop`; close issue |
 
 Getting this wrong contaminates upstream-candidate branches with fork-specific history and makes them unusable as PRs.
+
+**If you are unsure which category a piece of work belongs to, it is upstream-candidate.** The fork-only category is small and well-defined. See the Fork Purpose section above.
 
 ---
 
