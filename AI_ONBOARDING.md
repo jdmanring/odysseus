@@ -1,7 +1,7 @@
 # AI Onboarding — Odysseus Fork
 
 > **Start here.** This primer gives you the code mental model and fork context.
-> Hard rules are in `CLAUDE.md` (auto-loaded). Active work is in `docs/fork/active-work.md`.
+> Hard rules are in `AGENTS.md`. Active work is in `docs/fork/active-work.md`.
 
 ---
 

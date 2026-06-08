@@ -28,7 +28,7 @@ Upstream's own CONTRIBUTING.md states:
 > underlying fix is correct."
 
 Agent responsibilities:
-- Maintain the staged docs in `docs/fork/contributions/upstream/`
+- Maintain the staged docs in `docs/fork/upstream/drafts/`
 - Keep each staged doc current and copy-paste ready
 - **Never run `gh issue create`, `gh pr create`, or any equivalent targeting `upstream`**
 - Inform James when a contribution is ready to file and what to do
@@ -55,7 +55,7 @@ with upstream contribution — the fork always gets the fix regardless.
 
 ### 2. Stage the contribution doc
 
-Each upstream contribution lives in `docs/fork/contributions/upstream/NN-name.md`.
+Each upstream contribution lives in `docs/fork/upstream/drafts/NN-name.md`.
 The document has two sections that exactly mirror upstream's GitHub templates:
 
 - **Staged Issue** — matches `bug_report.yml` or `feature_request.yml`
@@ -131,7 +131,7 @@ Before marking a contribution as ready to file, verify all of the following:
 
 ## Contribution Doc Format
 
-Each `docs/fork/contributions/upstream/NN-name.md` follows this template:
+Each `docs/fork/upstream/drafts/NN-name.md` follows this template:
 
 ```
 # [UPSTREAM] Title
@@ -164,13 +164,5 @@ LLM agent: read this section before doing anything.
 
 ## Index of Staged Contributions
 
-| # | File | Type | Status |
-|---|------|------|--------|
-| 01 | `01-hf-token-persistence.md` | Bug | Not filed |
-| 02 | `02-pytest-timeout-dependency.md` | Bug | Not filed |
-| 03 | `03-searxng-json-docs.md` | Bug/Docs | Not filed |
-| 04 | `04-basicsr-python314-compat.md` | Bug | Not filed |
-| 05 | `05-agent-tool-budget.md` | Bug | Not filed |
-| 06 | `06-dom-oom-virtualization.md` | Bug | Not filed |
-| 07 | `07-streamingtts-scope-fix.md` | Bug | Not filed |
-| 08 | `08-aria2c-downloader.md` | Feature | Not filed — tests passing, ready to file |
+See `docs/fork/upstream/pr-status.md` — that file is the authoritative index and is
+kept current. The drafts themselves are in `docs/fork/upstream/drafts/`.
