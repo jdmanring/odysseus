@@ -18410,6 +18410,10 @@ body.gallery-selecting .gallery-dl-btn,
 .dl-stats-row [data-dl-eta-sep] {
   opacity: 0.4;
 }
+.dl-file-ctx {
+  color: var(--fg-muted, color-mix(in srgb, var(--fg) 45%, transparent));
+  font-size: 10px;
+}
 .dl-conn-badge {
   display: inline-block;
   font-size: 9px;
