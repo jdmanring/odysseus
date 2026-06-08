@@ -53,6 +53,7 @@ work, create one first.
 | [#16](https://github.com/jdmanring/odysseus/issues/16) | Download UI overhaul (depends on #12) | upstream-candidate | `feat/download-ui-overhaul` |
 | [#18](https://github.com/jdmanring/odysseus/issues/18) | AI-first documentation system (fork docs) | fork-only | `feat/ai-documentation-system` |
 | [#21](https://github.com/jdmanring/odysseus/issues/21) | AGENTS.md — AI agent entry point (upstream) | upstream-candidate | `upstream/agents-md` (to build) |
+| [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_ONBOARDING.md — architecture primer (upstream) | upstream-candidate | `upstream/ai-onboarding` (to build) |
 | [#19](https://github.com/jdmanring/odysseus/issues/19) | Move media assets from docs/ to assets/ | upstream-candidate | `refactor/assets-move` |
 
 For upstream filing status (which are ready, which need screenshots, blockers):
