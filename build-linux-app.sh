@@ -9,9 +9,9 @@
 #   - venv built with server dependencies (uvicorn, fastapi, etc.)
 #   - System PyQt6 with Wayland support installed via pacman:
 #       sudo pacman -S python-pyqt6 python-pyqt6-webengine
-#   - linux_wrapper.py present in repo root
+#   - qt_wrapper.py present in repo root
 #
-# The display layer (linux_wrapper.py) runs under the SYSTEM python3 so it
+# The display layer (qt_wrapper.py) runs under the SYSTEM python3 so it
 # can use the system-built PyQt6/WebEngine with native Wayland support.
 # The backend (uvicorn) runs under the venv python where all server deps live.
 # ==============================================================================
@@ -25,7 +25,7 @@ SYSTEM_PYTHON="/usr/bin/python3"
 BIN_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
 ICON_DIR_SCALABLE="$HOME/.local/share/icons/hicolor/scalable/apps"
-WRAPPER_PATH="$INSTALL_DIR/linux_wrapper.py"
+WRAPPER_PATH="$INSTALL_DIR/qt_wrapper.py"
 
 echo "Building Odysseus native Linux app from $INSTALL_DIR..."
 
@@ -36,7 +36,7 @@ if [ ! -f "$VENV_PATH/bin/python" ]; then
 fi
 
 if [ ! -f "$WRAPPER_PATH" ]; then
-    echo "ERROR: linux_wrapper.py not found at $WRAPPER_PATH." >&2
+    echo "ERROR: qt_wrapper.py not found at $WRAPPER_PATH." >&2
     exit 1
 fi
 
