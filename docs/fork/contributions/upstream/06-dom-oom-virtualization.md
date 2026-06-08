@@ -3,10 +3,11 @@
 ## Status
 - Issue filed: Not yet filed
 - PR opened: Not yet opened
-- Fix in fork: In progress — `fix/dom-oom-virtualization` branch
+- Fix in fork: **Applied to `develop`** (2026-06-08)
   - Crash recovery stopgap: committed (`linux_wrapper.py` `renderProcessTerminated` handler)
-  - Phase 1 (load-time pagination): pending
-  - Phase 2 (live pruning): pending
+  - Phase 1 (load-time pagination): applied — `static/js/chatHistory.js`, `sessions.js`, `index.html`, `style.css`
+  - Phase 2 (live pruning): applied — `chatHistory.js` `MessageWindow` live pruning + bidirectional pruning
+  - **Blocker before filing:** screenshots per PR checklist (session with 200+ messages, scroll-up batch load, DevTools DOM count during agent run)
 
 ## Notes
 This is a UI/frontend change touching `static/js/`. The upstream PR **requires screenshots**
@@ -73,7 +74,7 @@ Log evidence (two crashes, same day):
 ```
 
 Key source locations:
-- `static/js/sessions.js:1646` — unbounded `for` loop rendering all messages on load
+- `static/js/sessions.js` — `selectSession()` bulk-load loop (now replaced by `chatHistory.load()`)
 - `static/js/chatRenderer.js:addMessage()` — appends to `#chat-history`, never removes
 - `static/js/chat.js` — streaming path appends nodes, never prunes
 

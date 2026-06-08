@@ -12,3 +12,25 @@
 3. **Avoid** trying to hack the core tool execution logic until the UI configuration has been verified.
 
 **Action Item:** Improve user-facing documentation to explicitly explain the Workspace flag's impact on tool permissions.
+
+---
+
+## Misread Symptoms → Hours of Wrong Debugging (Download Progress Case)
+
+**Issue:** Download progress appeared to show double the expected size (e.g., 18 GB
+reported as 36 GB). An AI agent diagnosed this as zombie aria2c processes running in
+parallel and spent hours destroying system state, killing processes, and iterating
+nonsense fixes.
+
+**Cause:** It was a display bug. The `_dlFileTracker` in `cookbookRunning.js` was only
+summing the 4 actively-downloading files, not the full model. The "doubling" was a
+coincidence of model shard count and file sizes making the partial sum look doubled.
+
+**Lesson:** Before assuming process-level failures (zombie processes, race conditions,
+double-spawning), verify the symptom source. A number that looks wrong is far more likely
+to be a display/calculation bug than an actual infrastructure failure. Fix the tracker
+that reads the number before dismantling the system that produces it.
+
+The correct fix was a 20-line change to `cookbookRunning.js` (`_dlFileTracker` Map to
+accumulate completed-file bytes). The wrong path was `pkill`, port analysis, and process
+archaeology that changed nothing.
