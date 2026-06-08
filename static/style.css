@@ -36896,3 +36896,10 @@ body.theme-frosted .modal {
    the input beside it (.confirm-btn won't stretch on its own). */
 .ask-user-other-send { flex-shrink: 0; white-space: nowrap; min-height: 39px; }
 .ask-user-other-send:disabled { opacity: 0.5; cursor: default; }
+
+/* DOM virtualization sentinels — prevent Chrome scroll-anchor from double-compensating programmatic scrollTop */
+.chat-history-sentinel,
+.chat-history-bottom-sentinel,
+.chat-history-spacer {
+  overflow-anchor: none;
+}
