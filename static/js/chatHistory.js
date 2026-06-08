@@ -123,7 +123,7 @@
       if (!entries[0].isIntersecting) return;
       self._sObs.disconnect();
       self._loadOlder();
-    }, { threshold: 0 });
+    }, { root: this._c, rootMargin: '300px 0px 0px 0px', threshold: 0 });
     this._sObs.observe(s);
   };
 
@@ -205,6 +205,10 @@
     var from = Math.max(0, this._startIdx - BATCH_SIZE);
     var upTo = this._startIdx;
     if (from >= upTo) { this._attachSentinel(); return; }
+
+    // Remove stale spacers before measuring — they should be replaced by real content
+    var _spcs = this._c.querySelectorAll('.chat-history-spacer');
+    for (var _si = 0; _si < _spcs.length; _si++) _spcs[_si].remove();
 
     var before    = this._c.scrollHeight;
     var insertRef = this._sentinel ? this._sentinel.nextSibling : this._c.firstChild;
@@ -444,11 +448,20 @@
     var delta = before - this._c.scrollHeight;
     this._attachSentinel();
 
-    if (delta > 0) {
+    // Collapse any leftover spacers from previous prune events into one
+    var existingSpacers = this._c.querySelectorAll('.chat-history-spacer');
+    var accHeight = 0;
+    for (var ei = 0; ei < existingSpacers.length; ei++) {
+      accHeight += parseInt(existingSpacers[ei].style.height, 10) || 0;
+      existingSpacers[ei].remove();
+    }
+
+    var totalDelta = delta + accHeight;
+    if (totalDelta > 0) {
       var spacer = document.createElement('div');
       spacer.className  = 'chat-history-spacer';
       spacer.style.cssText = (
-        'height:' + delta + 'px;flex-shrink:0;min-height:32px;display:flex;' +
+        'height:' + totalDelta + 'px;flex-shrink:0;min-height:32px;display:flex;' +
         'align-items:center;justify-content:center;' +
         'color:var(--fg);opacity:0.35;font-size:0.8rem'
       );
