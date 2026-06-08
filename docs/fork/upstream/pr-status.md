@@ -12,18 +12,25 @@ explicit per-action authorization. Agents stage; James files.**
 
 | Branch | Issue | Type | Status |
 |--------|-------|------|--------|
-| `fix/agent-tool-budget` | [#10](https://github.com/jdmanring/odysseus/issues/10) | Bug | Ready to file |
-| `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Bug | Ready to file |
-| `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Bug/Docs | Ready to file — rebuilt 2026-06-08 from current upstream-mirror |
-| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Bug | Ready to file |
-| `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Bug | Ready to file — rebuilt 2026-06-08 from current upstream-mirror |
+| `fix/agent-tool-budget` | [#10](https://github.com/jdmanring/odysseus/issues/10) | Bug | Ready to file — see pr-drafts/ |
+| `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Bug | Ready to file — see pr-drafts/ |
+| `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Bug/Docs | Ready to file — see pr-drafts/ |
+| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Bug | Ready to file — see pr-drafts/ |
+| `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Bug | Ready to file — see pr-drafts/ |
 | `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Refactor | Ready to file |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Bug | Needs verification — rebuilt 2026-06-08; fix was broken in prior cherry-pick |
-| `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Needs squash (2 commits → 1) + screenshot before filing |
+| `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Needs squash (2 commits → 1); no screenshot needed — see pr-drafts/ |
 | `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) | Feature | Needs integration test run + screenshot |
 | `feat/download-ui-overhaul` | [#16](https://github.com/jdmanring/odysseus/issues/16) | Feature | File after aria2c (#12) merges upstream |
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Needs screenshots before filing |
 | `fix/hf-token-persistence` | [#7](https://github.com/jdmanring/odysseus/issues/7) | Bug | WIP — proper fix not implemented yet |
+
+## PR Drafts
+
+Staged PR descriptions live in `docs/fork/upstream/pr-drafts/`, one file per branch
+(named after the branch with `/` → `-`). Each draft contains the proposed title,
+description body, and filing notes for James. The description is written for upstream
+reviewers — it does not assume they have seen our fork's issue tracker.
 
 ## Filing Procedure
 

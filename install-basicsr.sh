@@ -14,28 +14,9 @@ curl -s -L "https://files.pythonhosted.org/packages/source/b/basicsr/basicsr-1.4
     -o "$TMPDIR/basicsr.tar.gz"
 tar -xzf "$TMPDIR/basicsr.tar.gz" -C "$TMPDIR"
 
-echo "Patching setup.py for Python 3.13+ compatibility..."
-"$VENV_PYTHON" - <<'PYEOF'
-import pathlib, sys, os
-setup = pathlib.Path(os.environ["BASICSR_SRC"]) / "setup.py"
-src = setup.read_text()
-old = ("def get_version():\n"
-       "    with open(version_file, 'r') as f:\n"
-       "        exec(compile(f.read(), version_file, 'exec'))\n"
-       "    return locals()['__version__']")
-new = ("def get_version():\n"
-       "    with open(version_file, 'r') as f:\n"
-       "        ns = {}\n"
-       "        exec(compile(f.read(), version_file, 'exec'), ns)\n"
-       "    return ns['__version__']")
-if old not in src:
-    print("ERROR: get_version() pattern not found — basicsr may have changed.")
-    sys.exit(1)
-setup.write_text(src.replace(old, new))
-print("Patched get_version() OK.")
-PYEOF
-
 export BASICSR_SRC="$TMPDIR/basicsr-1.4.2"
+
+echo "Patching setup.py for Python 3.13+ compatibility..."
 "$VENV_PYTHON" - <<'PYEOF'
 import pathlib, sys, os
 setup = pathlib.Path(os.environ["BASICSR_SRC"]) / "setup.py"
