@@ -173,4 +173,4 @@ LLM agent: read this section before doing anything.
 | 05 | `05-agent-tool-budget.md` | Bug | Not filed |
 | 06 | `06-dom-oom-virtualization.md` | Bug | Not filed |
 | 07 | `07-streamingtts-scope-fix.md` | Bug | Not filed |
-| 08 | `08-turbo-downloader.md` | Feature | Not filed |
+| 08 | `08-aria2c-downloader.md` | Feature | Not filed — tests passing, ready to file |

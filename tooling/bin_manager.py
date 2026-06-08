@@ -65,13 +65,18 @@ class BinManager:
         os_name = platform.system() # 'Linux', 'Darwin', 'Windows'
         arch_name = platform.machine() # 'x86_64', 'aarch64', 'AMD64' (Windows)
         
-        # Normalize architecture names
+        # Normalize architecture names.
+        # macOS arm64 (M1/M2/M3) and Linux aarch64 are kept distinct because the
+        # TOOL_MAP uses ("Darwin", "arm64") vs ("Linux", "aarch64") to match the
+        # different static build filenames.
         if os_name == "Windows" and arch_name.upper() == "AMD64":
             arch_name = "AMD64"
         elif arch_name.lower() in ["x86_64", "amd64"]:
             arch_name = "x86_64"
-        elif arch_name.lower() in ["aarch64", "arm64"]:
-            arch_name = "aarch64"
+        elif arch_name.lower() == "aarch64":
+            arch_name = "aarch64"          # Linux ARM servers
+        elif arch_name.lower() == "arm64":
+            arch_name = "arm64"            # macOS Apple Silicon
             
         return os_name, arch_name
 

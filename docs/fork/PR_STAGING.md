@@ -21,7 +21,7 @@ The short version: file the issue first, get the number, then open the PR.
 | 05 | agent_max_tool_calls Defaults to 0 | Bug | Not filed | Not opened | Fixed in `data/settings.json` |
 | 06 | Renderer OOM — No DOM Virtualization | Bug | Not filed | Not opened | Stopgap in `linux_wrapper.py`; fix in progress on `fix/dom-oom-virtualization` |
 | 07 | streamingTTS ReferenceError in catch Block | Bug | Not filed | Not opened | Fixed in `develop` (commit `9fabdc6`) |
-| 08 | Turbo Downloader — Replace hf_transfer with aria2c | Feature | Not filed | Not opened | Implemented in `develop` |
+| 08 | aria2c Downloader — Replace hf_transfer with aria2c | Feature | Not filed | Not opened | Implemented in `develop` |
 
 ---
 

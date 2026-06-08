@@ -304,13 +304,16 @@ def setup_cookbook_routes() -> APIRouter:
         _dl_pyarg = (", local_dir=os.path.expanduser(" + repr(_dl_base) + ")") if _dl_base else ""
 
         # Build the download command.
-        if req.turbo:
-            # Use the turbo script which leverages aria2c for high-performance downloads.
+        if req.use_aria2c:
+            # aria2c path: runs aria2c_download.py in the tmux session.
+            _aria2c_script = (
+                Path(__file__).resolve().parent.parent / "tooling" / "aria2c_download.py"
+            ).as_posix()
             token_quoted = _bash_squote(req.hf_token) if req.hf_token else "''"
             include_quoted = _bash_squote(req.include) if req.include else "''"
             local_dir_quoted = _bash_squote(_dl_base) if _dl_base else "''"
             hf_cmd = (
-                f"python3 ~/.cookbook/tooling/turbo_download.py "
+                f"python3 {_bash_squote(_aria2c_script)} "
                 f"--repo {req.repo_id} "
                 f"--token {token_quoted} "
                 f"--local-dir {local_dir_quoted} "
@@ -426,7 +429,7 @@ def setup_cookbook_routes() -> APIRouter:
             )
             setup_cmd = (
                 f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner} "
-                f"{' && ssh ' + _Pf + remote + ' \"mkdir -p ~/.cookbook\" && scp -O -r tooling ' + remote + ':~/.cookbook/' if req.turbo else ''} && "
+                f"{' && ssh ' + _Pf + remote + ' \"mkdir -p ~/.cookbook\" && scp -O -r tooling ' + remote + ':~/.cookbook/' if req.use_aria2c else ''} && "
                 f'ssh {_pf}{remote} "powershell -Command \\"{launch_ps}\\""'
             )
 
@@ -501,7 +504,7 @@ def setup_cookbook_routes() -> APIRouter:
             _spf = f"-p {_port} " if _port and _port != "22" else ""
             setup_cmd = (
                 f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner} "
-                f"{' && ssh ' + _spf + remote + ' \"mkdir -p ~/.cookbook\" && scp -r tooling ' + remote + ':~/.cookbook/' if req.turbo else ''} && "
+                f"{' && ssh ' + _spf + remote + ' \"mkdir -p ~/.cookbook\" && scp -r tooling ' + remote + ':~/.cookbook/' if req.use_aria2c else ''} && "
                 f"ssh {_spf}{remote} 'chmod +x {remote_runner} && tmux new-session -d -s {session_id} \"./{remote_runner}\"'"
             )
         else:
