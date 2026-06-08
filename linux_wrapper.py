@@ -38,6 +38,7 @@ from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineS
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, pyqtSlot, pyqtSignal
+from PyQt6.QtGui import QDesktopServices
 
 INSTALL_DIR = "/home/james/Projects/odysseus"
 VENV_PYTHON = "/home/james/Projects/odysseus/venv/bin/python"
@@ -167,12 +168,27 @@ class NativeBridge(QObject):
         self.colorPicked.emit(color.name() if color.isValid() else '')
 
 
+class OdysseusPage(QWebEnginePage):
+    """QWebEnginePage subclass that routes external links to the system browser."""
+
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        if is_main_frame and url.host() not in ('localhost', '127.0.0.1'):
+            QDesktopServices.openUrl(url)
+            return False
+        return super().acceptNavigationRequest(url, nav_type, is_main_frame)
+
+    def createWindow(self, win_type):
+        page = QWebEnginePage(self.profile(), self)
+        page.urlChanged.connect(lambda url: (QDesktopServices.openUrl(url), page.deleteLater()))
+        return page
+
+
 class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
         super().__init__()
         self.setWindowTitle(WINDOW_TITLE)
         self.browser = QWebEngineView()
-        page = QWebEnginePage(profile, self.browser)
+        page = OdysseusPage(profile, self.browser)
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
@@ -216,8 +232,8 @@ class OdysseusWindow(QMainWindow):
                 return
             self._crash_times.append(now)
             print('[RENDERER] Scheduling reload in 1s', flush=True)
-            QTimer.singleShot(1000, lambda: self.browser.page().triggerAction(
-                QWebEnginePage.WebAction.Reload))
+            QTimer.singleShot(1000, lambda: self.browser.setUrl(
+                QUrl(f"http://localhost:{PORT}")))
         page.renderProcessTerminated.connect(_on_renderer_crash)
 
         # Periodic renderer memory snapshot (every 60s)

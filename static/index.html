@@ -1270,17 +1270,17 @@
 
     bottomBtn.addEventListener('click', () => {
       cancelAutoScroll();
-      const target = container.scrollHeight - container.clientHeight;
       _scrollingToBottom = true;
       function step() {
         if (!_scrollingToBottom) return;
+        const target = container.scrollHeight - container.clientHeight;
         const diff = target - container.scrollTop;
         if (diff <= 8) { container.scrollTop = target; _scrollingToBottom = false; return; }
         container.scrollTop += diff * 0.2;
         _scrollRaf = requestAnimationFrame(step);
       }
       step();
-      _scrollTimeout = setTimeout(() => { if (_scrollingToBottom) { container.scrollTop = target; _scrollingToBottom = false; } }, 1500);
+      _scrollTimeout = setTimeout(() => { if (_scrollingToBottom) { container.scrollTop = container.scrollHeight - container.clientHeight; _scrollingToBottom = false; } }, 1500);
     });
     new ResizeObserver(reposition).observe(chatBar);
     new MutationObserver(update).observe(container, {childList:true, subtree:true});
@@ -2287,6 +2287,8 @@
 
 <!-- Qt native bridge — must load before modules so qtBridge is available at click time -->
 <script src="/static/js/qt-bridge.js"></script>
+<!-- DOM virtualization — must load before modules; sets window.chatHistory -->
+<script src="/static/js/chatHistory.js"></script>
 
 <!-- Load modules in this order -->
 <script type="module" src="/static/js/storage.js"></script>

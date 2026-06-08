@@ -1629,6 +1629,7 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
       chatHistory.style.opacity = '0';
       await new Promise(r => setTimeout(r, 120));
       if (navToken !== _sessionNavToken || currentSessionId !== id) return;
+      if (window.chatHistory) window.chatHistory.reset();
       chatHistory.innerHTML = '';
     }
 
@@ -1643,27 +1644,32 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
          <p>Messages will be routed through your OpenClaw agent. The agent has access to tools, memory, and skills configured in your OpenClaw workspace.</p>`,
         'OpenClaw');
     } else if (msgHistory.length) {
+      const _preparedMsgs = [];
       for (const msg of msgHistory) {
         const meta = msg.metadata ? { ...msg.metadata, _fromHistory: true } : null;
         let displayContent;
         if (typeof msg.content === 'string') {
           displayContent = msg.content;
         } else if (Array.isArray(msg.content)) {
-          // Multimodal (image/audio attachments): extract text parts, skip binary
           displayContent = msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n').trim();
         } else {
           displayContent = '';
         }
-        // Clean up doc selection context for display
         if (msg.role === 'user') {
-          // Hide "Continue where you left off" bubbles
           if (displayContent.trim() === 'Continue where you left off' || displayContent.trim().startsWith('Your message was cut off.') || displayContent.trim().startsWith('Your previous response was interrupted.') || displayContent.includes('[Instruction: Rewrite') || displayContent.includes('[Instruction: Explain')) continue;
           const docEditMatch = displayContent.match(/^In the document, edit this specific text \((lines? [\d-]+)\):\n```\n([\s\S]*?)\n```\n\nInstruction: ([\s\S]*)$/);
           if (docEditMatch) {
             displayContent = `[Doc edit: ${docEditMatch[1]}] ${docEditMatch[3]}`;
           }
         }
-        window.chatModule.addMessage(msg.role, markdownModule.renderContent(displayContent), modelName, meta);
+        _preparedMsgs.push({ role: msg.role, content: markdownModule.renderContent(displayContent), modelName, meta });
+      }
+      if (window.chatHistory) {
+        window.chatHistory.load(_preparedMsgs);
+      } else {
+        for (const m of _preparedMsgs) {
+          window.chatModule.addMessage(m.role, m.content, m.modelName, m.meta);
+        }
       }
     } else {
       if (window.chatModule && window.chatModule.showWelcomeScreen) window.chatModule.showWelcomeScreen();
