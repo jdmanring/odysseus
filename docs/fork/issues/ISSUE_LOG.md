@@ -44,7 +44,7 @@ When an AI agent starts a new session on this project, it has no intuitive entry
 that tells it: what the project is, what's in progress, what the rules are, and where
 to find everything. The agent has to rediscover context from scratch each session —
 reading memory files, scanning dirs, looking at git log. This costs time and causes
-mistakes (e.g. not knowing aria2c is the turbo downloader's core tool, not understanding
+mistakes (e.g. not knowing aria2c is the aria2c downloader's core tool, not understanding
 the upstream contribution workflow without reading CONTRIBUTING.md manually).
 
 The project should have a single top-level orientation document that an agent can read
@@ -63,7 +63,7 @@ Create `docs/fork/AGENT_CONTEXT.md` — a short, dense orientation document that
 2. Lists the two remotes and their roles
 3. Maps the branch structure
 4. Links to: UPSTREAM_CONTRIBUTION_WORKFLOW.md, testing.md, ISSUE_LOG.md, CHANGELOG.md
-5. Explains key tools (aria2c = turbo downloader via BinManager; QWebChannel = JS↔Python bridge; QWebEngineView = Qt browser wrapper)
+5. Explains key tools (aria2c = aria2c downloader via BinManager; QWebChannel = JS↔Python bridge; QWebEngineView = Qt browser wrapper)
 6. States the hard rules (no sudo, no upstream filing without James, verify before coding)
 7. Lists active work and where to find task tracking
 

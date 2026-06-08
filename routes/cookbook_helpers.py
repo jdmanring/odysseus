@@ -728,7 +728,7 @@ class ModelDownloadRequest(BaseModel):
     platform: str | None = None    # "linux", "termux", or "windows"
     local_dir: str | None = None   # base dir to download into (a per-model subfolder is created under it); None = default HF cache
     disable_hf_transfer: bool = True  # skip the Rust hf_transfer downloader — slower but far more reliable on large files (used by retries)
-    turbo: bool = False
+    use_aria2c: bool = False
 
 
 class ServeRequest(BaseModel):

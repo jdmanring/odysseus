@@ -1,6 +1,15 @@
 # Roadmap / Help Wanted
 
+## Recently Completed
+- **aria2c Download System (v1.0)**: Implemented a high-speed, managed model download pipeline.
+    - Moved from CLI wrappers to an RPC-based orchestrator (`aria2c` daemon).
+    - Integrated real-time aggregate progress tracking in the UI.
+    - Added support for gated models via Authorization header passing through RPC.
+    - Implemented a "Cancel" kill-switch for managed downloads.
+    - Verified via "Full Circuit" integration tests.
+
 Odysseus is on a voyage, but not home yet. It works great for me (lol), but this ship is moving fast and feedback/help would be appreciated! (I don't know what I'm doing, help).
+
 
 If you see weird CSS, strange layout behavior, or a suspiciously murky corner of
 the codebase, you are probably right to stay away.
