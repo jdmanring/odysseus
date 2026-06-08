@@ -1,13 +1,10 @@
-# PR Draft: feat/qt-native-linux-app-rebuild → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: feat/qt-native-linux-app → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:feat/qt-native-linux-app-rebuild`
+**Branch:** `jdmanring/odysseus:feat/qt-native-linux-app`
 **Issue:** [#14](https://github.com/jdmanring/odysseus/issues/14) (fork tracking)
 **Screenshot:** `docs/fork/screenshots/qt-native-linux-app.png`
 **Status:** Ready to file
 
-Note: Use `feat/qt-native-linux-app-rebuild`, not `feat/qt-native-linux-app`.
-The rebuild branch is clean (1 commit, 5 files). The original branch accumulated
-unrelated history and should not be filed.
 
 ---
 
@@ -108,7 +105,6 @@ for server installs or Docker).
 
 1. File issue on `pewdiepie-archdaemon/odysseus` first; add its number here
    before opening the PR.
-2. Use branch `feat/qt-native-linux-app-rebuild`, not `feat/qt-native-linux-app`.
 3. The screenshot path in the description above uses the repo-relative path.
    Attach the image directly in the GitHub PR description instead (drag and
    drop into the text box) — GitHub renders it inline and it won't depend on
