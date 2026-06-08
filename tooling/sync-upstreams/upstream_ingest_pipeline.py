@@ -413,13 +413,16 @@ class UpstreamIngestPipeline:
                 raise RuntimeError("staging_branch is None after create_staging — this is a bug")
             tag = self.promotion.promote(self.sync.staging_branch)
             if self._push:
-                log_info("Pushing integration, upstream-mirror, and tags to origin...")
+                # upstream-mirror is not pushed: it mirrors upstream's raw code which may include
+                # workflow files that GITHUB_TOKEN cannot push (GitHub restriction). The pipeline
+                # always re-fetches upstream-mirror fresh from upstream/dev, so the remote copy
+                # does not need to stay current. Push only integration and tags.
+                log_info("Pushing integration and tags to origin...")
                 self._git.run(["git", "push", "origin", INTEGRATION_BRANCH])
-                self._git.run(["git", "push", "origin", MIRROR_BRANCH])
                 self._git.run(["git", "push", "origin", "--tags"])
                 log_success("Pushed.")
             else:
-                log_warn("Not pushing — run with --push or push manually: git push origin integration upstream-mirror --follow-tags")
+                log_warn("Not pushing — run with --push or push manually: git push origin integration --follow-tags")
             return SyncResult(True, "PROMOTION", "Sync complete.", lkg_tag=tag)
 
         except (RuntimeError, subprocess.CalledProcessError, OSError) as e:
