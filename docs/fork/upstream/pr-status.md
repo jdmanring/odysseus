@@ -22,7 +22,8 @@ The short version: file the issue first, get the number, then open the PR.
 | [07](upstream/drafts/07-streamingtts-scope-fix.md) | streamingTTS ReferenceError in catch Block | Bug | [#11](https://github.com/jdmanring/odysseus/issues/11) | Not filed | `fix/streamingtts-scope` | Fix on branch — cherry-picked from `develop` onto `upstream/dev` |
 | [08](upstream/drafts/08-aria2c-downloader.md) | aria2c Downloader — Replace hf_transfer | Feature | [#12](https://github.com/jdmanring/odysseus/issues/12) | Not filed | `feat/aria2c-downloader` | Implemented on `develop` — tests + screenshot needed |
 | [09](upstream/drafts/09-qt-native-linux-app.md) | Native Linux Desktop App (Qt Wrapper) | Feature | [#14](https://github.com/jdmanring/odysseus/issues/14) | Not filed | `feat/qt-native-linux-app` | Implemented on `develop` — screenshots needed; constants check required |
-| 10 | Move media assets from docs/ to assets/ | Refactor | [#19](https://github.com/jdmanring/odysseus/issues/19) | Not filed | `refactor/assets-move` | Branch ready — clean commit on `upstream/dev` |
+| [10](upstream/drafts/10-agents-md-ai-entry-point.md) | AGENTS.md — AI Agent Entry Point | Docs | [#21](https://github.com/jdmanring/odysseus/issues/21) | Not filed | `upstream/agents-md` (to build) | Staged — upstream-only content separated from fork rules |
+| 11 | Move media assets from docs/ to assets/ | Refactor | [#19](https://github.com/jdmanring/odysseus/issues/19) | Not filed | `refactor/assets-move` | Branch ready — clean commit on `upstream/dev` |
 
 ---
 
@@ -39,6 +40,8 @@ The short version: file the issue first, get the number, then open the PR.
 | 07 | Yes | — |
 | 08 | No | Run `python -m pytest tests/test_aria2c_circuit.py -v` + screenshot of download in progress |
 | 09 | No | Screenshots (taskbar, external link → system browser, color picker dialog); audit `linux_wrapper.py` for hardcoded paths against `src/constants.py` before filing |
+| 10 | Yes | Documentation only — no app changes, no screenshot needed. Build clean branch from `upstream-mirror`. |
+| 11 | Yes | Branch already built clean from `upstream/dev` |
 
 ---
 
