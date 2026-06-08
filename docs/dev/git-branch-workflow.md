@@ -174,11 +174,25 @@ The pipeline restores these files to their `integration` state after every upstr
 | Protected | Why |
 |-----------|-----|
 | `tooling/sync-upstreams/upstream_ingest_pipeline.py` | The pipeline itself |
-| `.github/workflows/` | GITHUB_TOKEN can't push workflow files; also fork-specific CI |
+| `.github/workflows/sync-upstream.yml` | Fork-only workflow — does not exist upstream |
 | `.env.example` | Fork may add env vars upstream doesn't have |
 | `README.md` | Fork uses `assets/` paths; upstream uses `docs/` |
 
-To add a new fork-specific file to protection, add it to `PROTECTED_FILES` in the pipeline source.
+To add a new fork-specific file to protection, add it to `PROTECTED_FILES` in the pipeline source. To protect an entire directory, suffix the path with `/` — the pipeline uses `git checkout ref -- dir/` and also removes any files upstream added that aren't in the integration ref.
+
+**Note on `.github/workflows/`:** The whole directory was previously protected but that froze all upstream workflow improvements. Now only `sync-upstream.yml` is protected. Upstream's other workflow files (ci.yml, issue-description-check.yml, pr-description-check.yml, etc.) flow through normally.
+
+### How the pipeline handles the assets/ move
+
+This fork moved upstream's media files (`docs/*.gif`, `docs/*.webm`, etc.) to `assets/`. Upstream still keeps them in `docs/`. Every time a sync merge runs, upstream may re-add those files to `docs/` — the pipeline removes them automatically.
+
+**Automation**: `_restore_protected_files` in the pipeline iterates `docs/` after every merge and removes any file whose extension is in `_MOVED_TO_ASSETS_EXTS` **and** whose canonical copy already exists in `assets/`. This means:
+
+- The file must exist in `assets/` for the `docs/` copy to be removed. If you add a new media file, add it to `assets/`, not `docs/`.
+- Supported extensions: `.gif .webm .jpg .jpeg .png .svg .webp`. If upstream ever adds a new media format, add its extension to `_MOVED_TO_ASSETS_EXTS` in the pipeline source.
+- Only the top level of `docs/` is scanned. Subdirectory media (e.g. `docs/images/foo.png`) is not cleaned automatically — add explicit `PROTECTED_FILES` entries or extend the scan if needed.
+
+This automation is why the `refactor/assets-move` branch (issue #19) is safe to contribute upstream: we can accept the PR merge there while the pipeline keeps our `docs/` clean on every subsequent sync.
 
 ### When the pipeline fails
 
