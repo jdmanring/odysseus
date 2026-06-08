@@ -230,24 +230,28 @@ function wireHandlers(p) {
     }
   });
 
-  if (window.EyeDropper) {
+  if (window.__QT_WRAPPER__ || window.EyeDropper) {
     eye.addEventListener('click', async (ev) => {
       ev.stopPropagation();
-      // Suppress the outside-click close while the OS eyedropper is open.
-      // Without this, the user's pixel-pick fires a window click that
-      // hits our document-capture listener and closes the popover.
       const wasOnOutside = _onOutside;
       _detachOutsideHandlers();
       try {
-        const r = await new window.EyeDropper().open();
-        if (r && r.sRGBHex) {
-          setFromHex(r.sRGBHex);
-          applyToInput(true);
-          commitCurrent();
+        let hex = null;
+        if (window.qtBridge) {
+          hex = await new Promise((resolve, reject) => {
+            const handler = (h) => {
+              window.qtBridge.colorPicked.disconnect(handler);
+              h ? resolve(h) : reject(new Error('cancelled'));
+            };
+            window.qtBridge.colorPicked.connect(handler);
+            window.qtBridge.openColorPicker();
+          });
+        } else if (window.EyeDropper) {
+          const r = await new window.EyeDropper().open();
+          hex = r?.sRGBHex ?? null;
         }
+        if (hex) { setFromHex(hex); applyToInput(true); commitCurrent(); }
       } catch (_) { /* user cancelled */ }
-      // Re-arm outside-click handler after a frame so the eyedropper's
-      // own pick-click doesn't immediately re-close us.
       if (wasOnOutside && _popover) {
         requestAnimationFrame(() => {
           if (!_popover) return;
