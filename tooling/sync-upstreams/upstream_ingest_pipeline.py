@@ -118,7 +118,13 @@ class _GitRunner:
         self.root = root
 
     def run(self, cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, check=check)
+        result = subprocess.run(cmd, cwd=self.root, capture_output=True, text=True)
+        if check and result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(
+                f"Command {cmd!r} failed (exit {result.returncode}):\n{detail}"
+            )
+        return result
 
     def output(self, cmd: list[str]) -> str:
         return self.run(cmd).stdout.strip()
