@@ -592,7 +592,11 @@ def _recent_context_for_retrieval(messages: List[Dict], max_user: int = 3, max_c
         if isinstance(content, list):
             content = " ".join(b.get("text", "") for b in content if isinstance(b, dict))
         content = (content or "").strip()
-        if not content:
+        # Skip injected tool-result envelopes — not human input.
+        # New records use role=system (filtered before reaching here by the role
+        # check above), but pre-fix records in existing databases have role=user
+        # with this prefix, so the startswith guard keeps those excluded too.
+        if not content or content.startswith("[Tool execution results]"):
             continue
         collected.append(content)
         if len(collected) >= max_user:
@@ -1225,7 +1229,7 @@ def _append_tool_results(
             msg["reasoning_content"] = round_reasoning
         messages.append(msg)
         messages.append(
-            {"role": "user", "content": f"[Tool execution results]\n\n{tool_output_text}"}
+            {"role": "system", "content": f"[Tool execution results]\n\n{tool_output_text}"}
         )
 
 
