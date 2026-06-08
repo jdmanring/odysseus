@@ -1,93 +1,151 @@
 # AI Onboarding — Odysseus Fork
 
-## What This Project Is
-
-Odysseus is a self-hosted AI workspace: FastAPI backend, browser-based chat UI, SQLite +
-ChromaDB storage, running locally at `127.0.0.1:8000`. James runs it on KDE/Artix Linux
-as his personal AI stack. This repo is a fork of `pewdiepie-archdaemon/odysseus`.
-
-The native desktop entry point is `linux_wrapper.py` — a PyQt6 app that wraps the web UI
-in a Qt window, manages server lifecycle, GPU acceleration flags, and crash recovery.
-
-Core capabilities: chat with LLMs (Ollama/OpenAI), Plan mode, Agent mode with tools,
-memory (ChromaDB RAG), model download and serving via the Cookbook, skills/slash commands.
+> **Start here.** This primer gives you the code mental model and fork context.
+> Hard rules are in `CLAUDE.md` (auto-loaded). Active work is in `docs/fork/active-work.md`.
 
 ---
 
-## Read This First
+## What It Is
 
-Before writing a single line of code, read in order:
+Self-hosted AI workspace. FastAPI backend + browser UI, running locally at
+`127.0.0.1:8000`. Supports chat (Ollama/OpenAI/Anthropic), Agent mode (tool use),
+Plan mode, memory (RAG via ChromaDB), model downloads, TTS/STT, MCP servers,
+calendar, email, notes, documents, gallery. Single-user.
 
-1. **`docs/fork/AGENT_CONTEXT.md`** — 60 seconds. Branch map, key tools glossary, hard
-   rules, where things live, active work. This is the authoritative technical orientation.
-2. **`docs/ai/agent_operational_protocols.md`** — How to collaborate with James.
-3. **`docs/dev/tribal_knowledge.md`** — Non-obvious behaviors that will surprise you.
-4. **`docs/audit/friction_points.md`** — Known UX problems; don't introduce more.
-
----
-
-## How James Works
-
-- **Verify before coding.** Read the relevant source first. Report what you find, then
-  wait for direction before implementing. Don't assume — ask if the direction is unclear.
-- **Concise responses.** No trailing summaries ("I've completed X and updated Y..."). James
-  reads the diff. One or two sentences at the end max.
-- **No surprises.** State your plan before executing non-trivial changes.
-- **Local only.** No remote hosts unless James says so. SSH wrappers in older code are
-  legacy artifacts.
-- **No sudo.** Write `! sudo <command>` for James to run in his terminal.
-- **No unnecessary files.** Don't create planning or analysis docs unless asked.
+On Linux it also runs as a native Qt app (`linux_wrapper.py`) — PyQt6 wraps the
+web UI in `QWebEngineView`, manages server lifecycle, GPU flags, crash recovery.
 
 ---
 
-## Hard Rules
+## How a Chat Request Flows
 
-| Rule | Detail |
-|------|--------|
-| Nothing to upstream without authorization | No issues, PRs, comments, or pushes to `pewdiepie-archdaemon/odysseus` without James's explicit per-action approval |
-| No direct upstream cherry-picks | Always go through the pipeline on `integration` branch |
-| Never commit to `upstream-mirror` | It is reset-only; commits there are lost |
-| No sudo | Write the command for James to run |
+```
+User types → chat.js → POST /api/chat_stream
+  → chat_routes.py → src/llm_core.py → LLM API (Ollama/OpenAI)
+  → SSE stream back → chatStream.js renders tokens live
+  → on complete: message saved to SQLite via core/database.py
+```
 
----
-
-## Documentation System
-
-This project uses a structured doc-first approach. Check here before proposing changes:
-
-| Question | Where to look |
-|----------|--------------|
-| Overall architecture? | `docs/architecture/system_overview.md` |
-| What's implemented vs. documented? | `docs/audit/feature_matrix.md` |
-| Known friction points? | `docs/audit/friction_points.md` |
-| What needs work most urgently? | `docs/audit/prioritization_matrix.md` |
-| Non-obvious behaviors? | `docs/dev/tribal_knowledge.md` |
-| Current bugs and active issues? | `docs/fork/issues/ISSUE_LOG.md` |
-| Past failures to avoid repeating? | `docs/lessons_learned/` |
-| Upstream contribution drafts? | `docs/fork/contributions/upstream/` |
-| Fork-only contributions? | `docs/fork/contributions/internal/` |
+Agent mode replaces `llm_core.py` with `src/agent_loop.py`, which calls tools,
+feeds results back, and loops until the model stops calling tools.
 
 ---
 
-## Key Architecture Points
+## Code Layout
 
-| Component | Detail |
-|-----------|--------|
-| Backend | FastAPI at `app.py`, routes in `routes/`, SQLite at `data/app.db` |
-| Frontend | Vanilla JS ES modules in `static/js/`, no build step |
-| AI models | Served via Ollama, managed through the Cookbook tab |
-| Downloads | `tooling/aria2c_download.py` — parallel aria2c, 4 files × 16 connections, resume via `.aria2` sidecars. No daemon, no RPC. |
-| Cookbook | Background job runner using tmux sessions. Each download/serve task = one tmux session, polled every 3s via `capture-pane` |
-| Memory | ChromaDB at `data/chroma/`, accessed via `routes/memory_routes.py` |
-| Native app | `linux_wrapper.py` — PyQt6, starts server, opens Qt window, handles GPU flags |
-| Binary management | `tooling/bin_manager.py` — auto-installs `aria2c` if missing |
+**Backend**
+
+| Path | Role |
+|------|------|
+| `app.py` | Thin FastAPI orchestrator — imports all routers, configures middleware, serves static |
+| `core/database.py` | SQLAlchemy models + SQLite session factory. All persistent data except embeddings |
+| `core/models.py` | Pydantic models shared across routes |
+| `core/auth.py` | Auth middleware (optional — off by default in `.env`) |
+| `routes/` | One file per feature area. Each registers an `APIRouter` included by `app.py` |
+| `src/` | Business logic called by routes — `llm_core.py`, `agent_loop.py`, `embeddings.py` |
+| `mcp_servers/` | MCP server implementations (email, image gen, memory, RAG) |
+| `tooling/` | Standalone utilities — `aria2c_download.py`, `bin_manager.py`, `hf_url_resolver.py` |
+
+**Frontend**
+
+No bundler. Plain ES modules loaded directly from `static/js/`. `static/index.html`
+is the SPA shell. `init.js` boots the UI.
+
+| File | Role |
+|------|------|
+| `init.js` | App bootstrap — event wiring, initial state load |
+| `chat.js` | Chat input, send logic, session switching |
+| `chatStream.js` | SSE consumer — feeds tokens to renderer |
+| `chatRenderer.js` | Turns message objects into DOM |
+| `cookbook*.js` | Model management UI (6 files — see Cookbook below) |
+| `theme.js` + `colorPicker.js` | Theme system and color picker |
+| `qt-bridge.js` | Non-module — sets up `window.qtBridge` for native Qt calls |
+| `platform.js` | Detects `window.__QT_WRAPPER__` to gate Qt-only features |
 
 ---
 
-## What NOT to Do
+## Data Storage
 
-- Do not assume any `aria2_manager.py`, `aria2_rpc.py`, or `provisioner.py` files exist.
-  They were deleted — ghosts of a discarded RPC-based architecture.
-- Do not invent documentation. Only document what you can verify in the code.
-- Do not file issues or PRs upstream. Stage them in `docs/fork/contributions/upstream/`.
-- Do not commit without being asked.
+| What | Where |
+|------|-------|
+| Conversations, sessions, messages | SQLite `data/app.db` via SQLAlchemy |
+| Memory / RAG embeddings | ChromaDB `data/chroma/` |
+| User preferences | `data/settings.json` |
+| Uploaded files | `uploads/` |
+| HuggingFace model cache | `~/.cache/huggingface/hub/` (standard HF layout) |
+
+---
+
+## The Cookbook (most complex subsystem)
+
+Lets users download, serve, and manage local AI models.
+
+| JS File | Role |
+|---------|------|
+| `cookbook.js` | Entry point, model list, tab switching |
+| `cookbookDownload.js` | Download form, initiates downloads |
+| `cookbookRunning.js` | Live download cards — polls `/api/cookbook/download/status`, renders aria2c progress |
+| `cookbookServe.js` | Serve/stop model, port management |
+| `cookbookSchedule.js` | Scheduled download jobs |
+| `cookbookProgressSignal.js` | Stale-download detection |
+
+**Download pipeline:** `cookbookDownload.js` → `POST /api/cookbook/download/start` →
+`cookbook_routes.py` spawns `aria2c_download.py` as a subprocess →
+`cookbookRunning.js` polls `GET /api/cookbook/download/status/{session_id}` every 2s →
+parses aria2c stdout, updates progress cards in-place.
+
+**aria2c progress format** (non-obvious — will bite you):
+Lines look like `·[#a1b2c3 1GiB/5GiB(21%) CN:4 DL:50MiB ETA:1m20s]` followed by
+`·FILE: /path/to/file`. The leading space before `[#` is literal — regexes must use
+`^\s*\[#` not `^\[#`.
+
+---
+
+## Fork Additions (James's code, not in upstream)
+
+**Entirely new files:**
+- `linux_wrapper.py` — the entire Qt native app
+- `static/js/qt-bridge.js` — QWebChannel setup
+- `tooling/aria2c_download.py` — HF download via aria2c
+- `tooling/bin_manager.py` — auto-install external binaries
+- `tooling/hf_url_resolver.py` — resolve HuggingFace signed URLs
+
+**Heavily modified from upstream:**
+- `static/js/cookbookRunning.js` — download card UI, per-file rows, `_dlFileTracker`
+- `static/js/colorPicker.js` — eyedropper uses Qt native dialog via `qtBridge`
+
+Full divergence record: `docs/fork/changes-from-upstream.md`
+
+---
+
+## Things That Will Bite You
+
+- **No bundler.** A new JS file needs a `<script>` tag in `index.html`. ES imports
+  between `static/js/` files work; `node_modules` doesn't exist.
+
+- **`linux_wrapper.py` starts the server.** When running the native app, don't also
+  run uvicorn — the wrapper spawns it and owns its lifecycle.
+
+- **`QWebEngineView` is Chromium but not a browser.** Web EyeDropper API is missing.
+  Check Qt compat when adding UI features touching Qt code paths.
+
+- **`_dlFileTracker` is module-level state.** Persists across poll ticks to accumulate
+  completed-file bytes. Resetting it breaks the overall model progress percentage.
+
+- **HF signed URLs expire.** `hf_url_resolver.py` re-resolves fresh on every download
+  start. Never cache resolved URLs across sessions.
+
+---
+
+## Where to Go Next
+
+| Need | File |
+|------|------|
+| What's different from upstream? | `docs/fork/changes-from-upstream.md` |
+| What's being worked on? | `docs/fork/active-work.md` |
+| Open bugs? | `docs/fork/issue-tracker.md` |
+| How to contribute upstream? | `docs/fork/upstream/how-to-contribute.md` |
+| Architecture deep-dive? | `docs/project/architecture.md` |
+| Things that will surprise you? | `docs/project/non-obvious-behaviors.md` |
+| Git workflow and branches? | `docs/dev/git-branch-workflow.md` |
+| Running locally? | `docs/dev/local-setup-and-running.md` |
