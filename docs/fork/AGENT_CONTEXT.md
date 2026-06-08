@@ -43,11 +43,8 @@ All upstream PRs target `upstream:dev`, never `upstream:main`.
 | `QWebEngineView` | Qt's Chromium browser widget — renders the Odysseus web UI inside the native window |
 | `QWebChannel` | Qt mechanism for bidirectional JS↔Python messaging — used to bridge web UI to native OS APIs (e.g. color picker dialog) |
 | `tooling/bin_manager.py` | Manages external binaries (auto-install if missing, path discovery). Downloads static platform builds from GitHub releases. Used for `aria2c`. |
-| `aria2c` | Multi-protocol download utility. 16 parallel connections per file, resume via `.aria2` sidecar files. Replaces `hf_transfer`. Two paths: **local** (BinManager→subprocess, no daemon) and **remote SSH** (BinManager→RPC daemon→SSH tunnel→UI polling). |
-| `tooling/aria2c_download.py` | LOCAL download entry point. `BinManager.ensure_binary("aria2c")` auto-installs → `HfUrlResolver` resolves HF file URLs → `aria2c` subprocess downloads each file with `--header=Authorization: Bearer {token}`. No daemon, no SSH. |
-| `services/model_downloader.py` | REMOTE download orchestrator. Launches `aria2c_download.py` on remote host via SSH, creates SSH tunnel to expose remote aria2c RPC port locally, polls progress for the UI overlay. Only used when `remote_host` is set. |
-| `tooling/aria2_manager.py` | Manages aria2c daemon lifecycle (start/stop/health). Uses BinManager for binary path — no assumption that aria2c is on system PATH. |
-| `tooling/aria2_rpc.py` | JSON-RPC client for talking to an aria2c daemon. Used by the remote SSH path only. |
+| `aria2c` | Multi-connection download utility. 64 total connections (4 files × 16 each), resume via `.aria2` sidecar files. Managed by `aria2c_download.py`. No daemon, no RPC. |
+| `tooling/aria2c_download.py` | Download entry point. `BinManager.ensure_binary("aria2c")` → `HfUrlResolver` resolves HF signed URLs → single aria2c subprocess with `--input-file`, 4 files × 16 connections in parallel. Resume via `.aria2` sidecar files. No daemon, no RPC. |
 | `tooling/sync-upstreams/upstream_ingest_pipeline.py` | Syncs `upstream/dev` through 3 gates (syntax, lint, tests) before promoting to `integration` branch. Run this, never cherry-pick upstream directly to `develop`. |
 | `static/js/qt-bridge.js` | Non-module script that sets up QWebChannel and exposes `window.qtBridge` for native OS calls from web JS |
 | `IntersectionObserver` | Browser API used for DOM virtualization — loads older chat messages on scroll, no new dependencies needed |
