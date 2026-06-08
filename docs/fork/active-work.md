@@ -8,7 +8,8 @@ Current in-progress items as of 2026-06-08.
 
 | Issue | Branch | Status |
 |-------|--------|--------|
-| [#18 AI-first documentation system](https://github.com/jdmanring/odysseus/issues/18) | `feat/ai-documentation-system` | Branch pushed, not yet merged to develop |
+| [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | WIP — workaround script only; backend endpoint + JS needed |
+| [#5 gh CLI unusable in Odysseus agent context](https://github.com/jdmanring/odysseus/issues/5) | none | Needs investigation — how should Odysseus handle non-interactive gh operations? |
 
 ---
 
