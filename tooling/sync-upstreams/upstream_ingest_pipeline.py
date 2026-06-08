@@ -30,12 +30,13 @@ MIRROR_BRANCH = "upstream-mirror"
 UPSTREAM_BRANCH = "dev"          # pewdiepie-archdaemon/odysseus default branch
 REQUIRED_REMOTES = {"upstream", "origin"}
 
-# Files owned by this fork that must not be overwritten by upstream merges.
+# Files or directories owned by this fork that must not be overwritten by upstream merges.
 # After each merge the pipeline restores these to their integration-branch state.
 # Extend this list as you add fork-specific patches.
+# Note: directory paths (ending with /) restore the entire tree via `git checkout ref -- dir/`.
 PROTECTED_FILES: list[str] = [
     "tooling/sync-upstreams/upstream_ingest_pipeline.py",
-    ".github/workflows/sync-upstream.yml",
+    ".github/workflows/",          # entire workflows dir — GITHUB_TOKEN cannot push workflow changes
     ".env.example",               # may diverge if we add fork-specific env vars
     "README.md",                  # assets/ paths diverge from upstream's docs/ paths
 ]
@@ -118,13 +119,7 @@ class _GitRunner:
         self.root = root
 
     def run(self, cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
-        result = subprocess.run(cmd, cwd=self.root, capture_output=True, text=True)
-        if check and result.returncode != 0:
-            detail = (result.stderr or result.stdout or "").strip()
-            raise RuntimeError(
-                f"Command {cmd!r} failed (exit {result.returncode}):\n{detail}"
-            )
-        return result
+        return subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, check=check)
 
     def output(self, cmd: list[str]) -> str:
         return self.run(cmd).stdout.strip()
@@ -134,9 +129,8 @@ class _GitRunner:
 
 
 class PreFlight:
-    def __init__(self, git: _GitRunner, skip_tests: bool = False) -> None:
+    def __init__(self, git: _GitRunner) -> None:
         self._git = git
-        self._skip_tests = skip_tests
 
     def check(self) -> bool:
         logger.info("Running pre-flight checks...")
@@ -156,14 +150,11 @@ class PreFlight:
                     "Integration branch has uncommitted changes — stash or commit before syncing."
                 )
 
-            # In CI (--skip-tests), no venv is required: syntax uses sys.executable and
-            # ruff resolves via shutil.which() after the workflow's pip install step.
-            if not self._skip_tests:
-                venv = REPO_ROOT / "venv"
-                if not venv.exists():
-                    raise RuntimeError(
-                        "venv not found. Create it: python3 -m venv venv && venv/bin/pip install -r requirements.txt"
-                    )
+            venv = REPO_ROOT / "venv"
+            if not venv.exists():
+                raise RuntimeError(
+                    "venv not found. Create it: python3 -m venv venv && venv/bin/pip install -r requirements.txt"
+                )
 
             log_success("Pre-flight passed.")
             return True
@@ -221,6 +212,14 @@ class SyncManager:
     def _restore_protected_files(self, integration_ref: str) -> None:
         for path in PROTECTED_FILES:
             self._git.run(["git", "checkout", integration_ref, "--", path], check=False)
+            # For directory entries: also remove any files upstream added that are not in
+            # integration_ref (git checkout doesn't delete files it doesn't know about).
+            if path.endswith("/"):
+                upstream_added = self._git.output(
+                    ["git", "diff", "--name-only", "--diff-filter=A", integration_ref, "--", path]
+                )
+                for added in upstream_added.splitlines():
+                    self._git.run(["git", "rm", "-f", "--cached", "--", added], check=False)
 
         # Remove any media files upstream re-added to docs/ that we moved to assets/.
         # Upstream has these in docs/; our fork moved them to assets/. If the merge
@@ -237,7 +236,13 @@ class SyncManager:
             log_info(f"Removed {len(removed_docs_media)} docs/ media file(s) re-added by upstream (canonical copies in assets/): {removed_docs_media}")
 
         staged = self._git.output(["git", "diff", "--cached", "--name-only"])
-        restored = [f for f in staged.splitlines() if f in PROTECTED_FILES or f.startswith("docs/")]
+        protected_prefixes = tuple(p for p in PROTECTED_FILES if p.endswith("/"))
+        restored = [
+            f for f in staged.splitlines()
+            if f in PROTECTED_FILES
+            or f.startswith("docs/")
+            or any(f.startswith(p) for p in protected_prefixes)
+        ]
         if restored:
             log_info(f"Restored/cleaned {len(restored)} fork-diverged file(s).")
             self._git.run(
@@ -362,7 +367,7 @@ class UpstreamIngestPipeline:
         self._git = _GitRunner(REPO_ROOT)
         self._dry_run = dry_run
         self._push = push
-        self.preflight = PreFlight(self._git, skip_tests=skip_tests)
+        self.preflight = PreFlight(self._git)
         self.sync = SyncManager(self._git)
         self.gates = GateKeeper(self._git, skip_tests=skip_tests)
         self.promotion = PromotionEngine(self._git)
