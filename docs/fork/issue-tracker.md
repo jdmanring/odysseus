@@ -51,28 +51,34 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 
 | # | Title | Label | Branch |
 |---|-------|-------|--------|
+| [#3](https://github.com/jdmanring/odysseus/issues/3) | External links don't navigate in Qt wrapper | upstream-candidate | `feat/qt-native-linux-app` |
 | [#4](https://github.com/jdmanring/odysseus/issues/4) | Tool results misattributed as user messages | upstream-candidate | `fix/tool-result-role` |
 | [#5](https://github.com/jdmanring/odysseus/issues/5) | gh CLI unusable in Odysseus agent context | bug | no branch yet |
 | [#6](https://github.com/jdmanring/odysseus/issues/6) | pytest-timeout not declared as dependency | upstream-candidate | `fix/pytest-timeout-dependency` |
 | [#7](https://github.com/jdmanring/odysseus/issues/7) | HF token not saved outside Cookbook tab | upstream-candidate | `fix/hf-token-persistence` |
 | [#8](https://github.com/jdmanring/odysseus/issues/8) | SearXNG JSON output not documented | upstream-candidate | `fix/searxng-json-docs` |
 | [#9](https://github.com/jdmanring/odysseus/issues/9) | realesrgan / basicsr broken on Python 3.14 | upstream-candidate | `fix/basicsr-python314-compat` |
-| [#10](https://github.com/jdmanring/odysseus/issues/10) | agent_max_tool_calls defaults to 0 | upstream-candidate | `fix/agent-tool-budget` |
 | [#12](https://github.com/jdmanring/odysseus/issues/12) | Replace hf_transfer with aria2c | upstream-candidate | `feat/aria2c-downloader` |
 | [#14](https://github.com/jdmanring/odysseus/issues/14) | Native Linux desktop app (Qt wrapper) | upstream-candidate | `feat/qt-native-linux-app` |
 | [#15](https://github.com/jdmanring/odysseus/issues/15) | Upstream sync pipeline | fork-only | `feat/upstream-sync-pipeline` |
 | [#16](https://github.com/jdmanring/odysseus/issues/16) | Download UI overhaul (depends on #12) | upstream-candidate | `feat/download-ui-overhaul` |
-| [#18](https://github.com/jdmanring/odysseus/issues/18) | AI-first documentation system (fork docs) | fork-only | `feat/ai-documentation-system` |
-| [#21](https://github.com/jdmanring/odysseus/issues/21) | AGENTS.md — AI agent entry point (upstream) | upstream-candidate | `upstream/agents-md` (to build) |
-| [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_ONBOARDING.md — architecture primer (upstream) | upstream-candidate | `upstream/ai-onboarding` (to build) |
+| [#18](https://github.com/jdmanring/odysseus/issues/18) | AI-first documentation system | upstream-candidate | `feat/ai-documentation-system` |
 | [#19](https://github.com/jdmanring/odysseus/issues/19) | Move media assets from docs/ to assets/ | upstream-candidate | `refactor/assets-move` |
+| [#20](https://github.com/jdmanring/odysseus/issues/20) | BinManager test suite | upstream-candidate | `develop` (direct — goes upstream with #12) |
+| [#21](https://github.com/jdmanring/odysseus/issues/21) | AI_RULES.md — AI agent rules (upstream) | upstream-candidate | `feat/ai-documentation-system` |
+| [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_CONTEXT.md — architecture primer (upstream) | upstream-candidate | `feat/ai-documentation-system` |
+| [#2](https://github.com/jdmanring/odysseus/issues/2) | Renderer OOM — DOM virtualization | upstream-candidate | `fix/dom-oom-virtualization` |
 
 For upstream filing status (which are ready, which need screenshots, blockers):
 `docs/fork/upstream/pr-status.md`
 
-**Note:** #16 (Download UI) has no upstream staging draft yet. Draft 08 covers the aria2c
-backend only and explicitly defers the UI. Create the draft for #16 after #12 merges upstream.
+**Note:** #10 (agent_max_tool_calls) — closed. Fix landed in develop (11274a2). Staging branch `fix/agent-tool-budget` needs rebuild from current upstream-mirror before filing upstream.
+
+**Note:** #16 (Download UI) has no upstream staging draft yet. Create after #12 merges upstream.
 
 **Note:** #5 (gh CLI non-interactive) is a genuine Odysseus bug — the agent cannot use gh
 CLI because gh requires interactive prompts the agent cannot satisfy. Needs a fix or
 documented workaround inside Odysseus.
+
+**Note:** #21 and #22 track the upstream contributions of AI_RULES.md and AI_CONTEXT.md
+respectively. The work lives on the `feat/ai-documentation-system` branch alongside #18.
