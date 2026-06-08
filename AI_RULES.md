@@ -24,6 +24,11 @@ a single PR. Each PR must be reviewable in isolation.
 **Verify the fix in the running app.** Tests are not sufficient. Before any PR is
 considered ready, the fix must be confirmed end-to-end in the actual application.
 
+**Verification Protocol:**
+1. **Logs:** Tail the terminal running `app.py` or check the `logs/` directory for tracebacks.
+2. **Tests:** Run `pytest tests/[feature_name]` to ensure no regressions.
+3. **UI:** Perform the specific user action in the browser that triggered the bug.
+
 **Visual changes require screenshots.** Any PR touching `static/js/`, HTML, or CSS
 must include a screenshot or clip. See `CONTRIBUTING.md` for details.
 
@@ -45,10 +50,14 @@ The following rules apply only when working in this fork. They have no meaning i
 upstream source project.
 
 - **Never push to the `upstream` remote** or file issues/PRs there without James's
-  explicit per-action authorization. Stage contribution drafts in
-  `docs/fork/upstream/drafts/` for James to file manually.
-- **Never commit to `upstream-mirror`.** This branch is reset-only; any commits are lost.
+  explicit per-action authorization. Agents stage work on clean branches; James files the PRs.
+- **Never commit to `upstream-mirror`.** This branch is reset-only; any commits are lost on next sync.
 - **Never cherry-pick upstream → `develop` directly.** Use the sync pipeline:
   `tooling/sync-upstreams/upstream_ingest_pipeline.py` → promotes to `integration` → merge to `develop`.
-- **Fork docs:** `AI_ONBOARDING.md` (code mental model), `docs/fork/active-work.md`
-  (current branch status), `docs/fork/issue-tracker.md` (open issues and branches).
+- **Branch origin matters.** Upstream-candidate branches must start from `upstream-mirror`, not `develop`.
+  Fork-only branches start from `develop`. Getting this wrong contaminates upstream PRs with fork history.
+  Full rules: `docs/dev/git-branch-workflow.md`.
+- **Never close issues without verification.** An issue is closed only when the fix is confirmed working.
+- **Fork docs:** `AI_CONTEXT.md` (code mental model), `docs/fork/active-work.md`
+  (current branch status), `docs/fork/issue-tracker.md` (open issues and branches),
+  `docs/dev/git-branch-workflow.md` (full pipeline + branch procedure).

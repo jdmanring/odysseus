@@ -1,7 +1,8 @@
 # AI Onboarding — Odysseus Fork
 
 > **Start here.** This primer gives you the code mental model and fork context.
-> Hard rules are in `AGENTS.md`. Active work is in `docs/fork/active-work.md`.
+> Hard rules are in `AI_RULES.md` and `CLAUDE.md` (auto-loaded). Active work: `docs/fork/active-work.md`.
+> Branch and pipeline rules: `docs/dev/git-branch-workflow.md` — read before touching any branch.
 
 ---
 
@@ -63,6 +64,14 @@ is the SPA shell. `init.js` boots the UI.
 | `platform.js` | Detects `window.__QT_WRAPPER__` to gate Qt-only features |
 
 ---
+
+## Configuration
+
+| Item | Location | Note |
+|------|-----------|------|
+| API Keys / Secrets | `.env` | Base environment variables (see `.env.example`) |
+| App Settings | `data/settings.json` | Persistent user-configurable settings |
+| Port Config | `app.py` / `.env` | Default is `8000` |
 
 ## Data Storage
 
@@ -136,6 +145,13 @@ Full divergence record: `docs/fork/changes-from-upstream.md`
   start. Never cache resolved URLs across sessions.
 
 ---
+
+## Tooling Index
+
+The `tooling/` directory contains critical utilities. Check here before writing new scripts:
+- `aria2c_download.py`: Specialized HF download logic with progress parsing.
+- `bin_manager.py`: Handles external binary installation/verification.
+- `hf_url_resolver.py`: Resolves signed HF URLs.
 
 ## Where to Go Next
 

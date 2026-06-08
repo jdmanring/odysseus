@@ -13,11 +13,15 @@ what its status is, and what branch carries the fix.
 
 ```
 1. Create issue on https://github.com/jdmanring/odysseus/issues
-2. Create branch: fix/short-description or feat/short-description
-3. Do the work on that branch
-4. Merge to develop when complete, close the issue
-5. If upstream-candidate: stage a draft in docs/fork/upstream/drafts/ for James to file
+2. Determine branch origin:
+   - upstream-candidate → branch from upstream-mirror
+   - fork-only          → branch from develop
+3. Do the work on that branch (upstream-candidate: one clean commit, fork files only)
+4. Merge/cherry-pick to develop; close the issue when fix is verified
+5. If upstream-candidate: update docs/fork/upstream/pr-status.md — branch IS the staging
 ```
+
+Full branch procedure is in `docs/dev/git-branch-workflow.md`.
 
 Agents do not create branches without a corresponding issue. If no issue exists for the
 work, create one first.
