@@ -39,6 +39,7 @@ try:
         _classify_agent_request,
         _compute_final_metrics,
         _append_tool_results,
+        _recent_context_for_retrieval,
         _MCP_KEYWORDS,
     )
     _IMPORTED_AGENT_LOOP = sys.modules.get("src.agent_loop")
@@ -341,10 +342,10 @@ class TestAppendToolResultsNativeContent:
         )
         assert messages[0]["content"] == "Let me check that page."
 
-    def test_non_native_path_unaffected(self):
-        # The text-block fallback path wraps results in a system message
-        # (role changed user→system in ccf5342 so tool results don't surface
-        # as user turns in the UI or retrieval queries).
+    def test_non_native_path_uses_system_role(self):
+        # The text-block fallback wraps results in a role=system message so they
+        # don't appear as user turns in the UI or in retrieval context queries.
+        # _build_anthropic_payload routes these inline for Anthropic providers.
         messages = []
         _append_tool_results(
             messages, "thinking...", [], ["tool output"], [],
@@ -353,6 +354,7 @@ class TestAppendToolResultsNativeContent:
         assert messages[0]["role"] == "assistant"
         assert messages[0]["content"] == "thinking..."
         assert messages[1]["role"] == "system"
+        assert messages[1]["content"].startswith("[Tool execution results]")
         assert "tool output" in messages[1]["content"]
 
 
@@ -469,3 +471,61 @@ class TestWebSearchSourcesKeyLookup:
         src_text = result.get("output") or result.get("results") or result.get("stdout") or ""
         assert src_text != ""
         assert "SOURCES" in src_text
+
+
+# ---------------------------------------------------------------------------
+# _recent_context_for_retrieval — tool result exclusion (pre- and post-fix)
+# ---------------------------------------------------------------------------
+
+class TestRecentContextForRetrieval:
+    """_recent_context_for_retrieval must exclude tool result envelopes from
+    both pre-fix databases (role=user, [Tool execution results] prefix) and
+    post-fix records (role=system, excluded by the role guard).  Only genuine
+    user turns should surface as retrieval context."""
+
+    def test_includes_user_turns(self):
+        msgs = [{"role": "user", "content": "What files are in /tmp?"}]
+        assert "What files" in _recent_context_for_retrieval(msgs)
+
+    def test_excludes_old_format_tool_results(self):
+        # Pre-fix DB records: role=user, content starts with [Tool execution results].
+        # The startswith guard retains backward compat with existing databases.
+        msgs = [
+            {"role": "user", "content": "What files are in /tmp?"},
+            {"role": "user", "content": "[Tool execution results]\n\nfoo.txt\nbar.txt"},
+            {"role": "user", "content": "Now sort them."},
+        ]
+        result = _recent_context_for_retrieval(msgs)
+        assert "Now sort them." in result
+        assert "What files" in result
+        assert "[Tool execution results]" not in result
+
+    def test_excludes_new_format_tool_results(self):
+        # Post-fix records: role=system, excluded by the role != 'user' guard.
+        msgs = [
+            {"role": "user", "content": "List files"},
+            {"role": "system", "content": "[Tool execution results]\n\nfoo.txt"},
+            {"role": "user", "content": "Sort them"},
+        ]
+        result = _recent_context_for_retrieval(msgs)
+        assert "Sort them" in result
+        assert "[Tool execution results]" not in result
+
+    def test_assistant_turns_not_included(self):
+        msgs = [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi, how can I help?"},
+        ]
+        result = _recent_context_for_retrieval(msgs)
+        assert "Hi, how can I help?" not in result
+        assert "Hello" in result
+
+    def test_empty_messages_returns_empty(self):
+        assert _recent_context_for_retrieval([]) == ""
+
+    def test_max_user_turns_respected(self):
+        msgs = [{"role": "user", "content": f"Turn {i}"} for i in range(10)]
+        result = _recent_context_for_retrieval(msgs, max_user=3)
+        # Should contain 3 turns, newest first (reversed order in join)
+        lines = result.split("\n")
+        assert len(lines) == 3
