@@ -119,7 +119,11 @@ class _GitRunner:
         self.root = root
 
     def run(self, cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, check=check)
+        result = subprocess.run(cmd, cwd=self.root, capture_output=True, text=True)
+        if check and result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(f"Command {cmd!r} failed (exit {result.returncode}):\n{detail}")
+        return result
 
     def output(self, cmd: list[str]) -> str:
         return self.run(cmd).stdout.strip()
@@ -129,8 +133,9 @@ class _GitRunner:
 
 
 class PreFlight:
-    def __init__(self, git: _GitRunner) -> None:
+    def __init__(self, git: _GitRunner, skip_tests: bool = False) -> None:
         self._git = git
+        self._skip_tests = skip_tests
 
     def check(self) -> bool:
         logger.info("Running pre-flight checks...")
@@ -150,11 +155,14 @@ class PreFlight:
                     "Integration branch has uncommitted changes — stash or commit before syncing."
                 )
 
-            venv = REPO_ROOT / "venv"
-            if not venv.exists():
-                raise RuntimeError(
-                    "venv not found. Create it: python3 -m venv venv && venv/bin/pip install -r requirements.txt"
-                )
+            # In CI (--skip-tests), no venv is required: syntax uses sys.executable and
+            # ruff resolves via shutil.which() after the workflow's pip install step.
+            if not self._skip_tests:
+                venv = REPO_ROOT / "venv"
+                if not venv.exists():
+                    raise RuntimeError(
+                        "venv not found. Create it: python3 -m venv venv && venv/bin/pip install -r requirements.txt"
+                    )
 
             log_success("Pre-flight passed.")
             return True
@@ -367,7 +375,7 @@ class UpstreamIngestPipeline:
         self._git = _GitRunner(REPO_ROOT)
         self._dry_run = dry_run
         self._push = push
-        self.preflight = PreFlight(self._git)
+        self.preflight = PreFlight(self._git, skip_tests=skip_tests)
         self.sync = SyncManager(self._git)
         self.gates = GateKeeper(self._git, skip_tests=skip_tests)
         self.promotion = PromotionEngine(self._git)
