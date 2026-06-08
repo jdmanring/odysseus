@@ -30,12 +30,13 @@ MIRROR_BRANCH = "upstream-mirror"
 UPSTREAM_BRANCH = "dev"          # pewdiepie-archdaemon/odysseus default branch
 REQUIRED_REMOTES = {"upstream", "origin"}
 
-# Files owned by this fork that must not be overwritten by upstream merges.
+# Files or directories owned by this fork that must not be overwritten by upstream merges.
 # After each merge the pipeline restores these to their integration-branch state.
 # Extend this list as you add fork-specific patches.
+# Note: directory paths (ending with /) restore the entire tree via `git checkout ref -- dir/`.
 PROTECTED_FILES: list[str] = [
     "tooling/sync-upstreams/upstream_ingest_pipeline.py",
-    ".github/workflows/sync-upstream.yml",
+    ".github/workflows/",          # entire workflows dir — GITHUB_TOKEN cannot push workflow changes
     ".env.example",               # may diverge if we add fork-specific env vars
     "README.md",                  # assets/ paths diverge from upstream's docs/ paths
 ]
@@ -211,6 +212,14 @@ class SyncManager:
     def _restore_protected_files(self, integration_ref: str) -> None:
         for path in PROTECTED_FILES:
             self._git.run(["git", "checkout", integration_ref, "--", path], check=False)
+            # For directory entries: also remove any files upstream added that are not in
+            # integration_ref (git checkout doesn't delete files it doesn't know about).
+            if path.endswith("/"):
+                upstream_added = self._git.output(
+                    ["git", "diff", "--name-only", "--diff-filter=A", integration_ref, "--", path]
+                )
+                for added in upstream_added.splitlines():
+                    self._git.run(["git", "rm", "-f", "--cached", "--", added], check=False)
 
         # Remove any media files upstream re-added to docs/ that we moved to assets/.
         # Upstream has these in docs/; our fork moved them to assets/. If the merge
@@ -227,7 +236,13 @@ class SyncManager:
             log_info(f"Removed {len(removed_docs_media)} docs/ media file(s) re-added by upstream (canonical copies in assets/): {removed_docs_media}")
 
         staged = self._git.output(["git", "diff", "--cached", "--name-only"])
-        restored = [f for f in staged.splitlines() if f in PROTECTED_FILES or f.startswith("docs/")]
+        protected_prefixes = tuple(p for p in PROTECTED_FILES if p.endswith("/"))
+        restored = [
+            f for f in staged.splitlines()
+            if f in PROTECTED_FILES
+            or f.startswith("docs/")
+            or any(f.startswith(p) for p in protected_prefixes)
+        ]
         if restored:
             log_info(f"Restored/cleaned {len(restored)} fork-diverged file(s).")
             self._git.run(
