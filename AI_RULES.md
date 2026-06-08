@@ -49,6 +49,14 @@ project already exposes. See `CONTRIBUTING.md` — Code conventions.
 The following rules apply only when working in this fork. They have no meaning in the
 upstream source project.
 
+**This fork is a contribution workbench.** Its purpose is to develop and stage upstream
+pull requests to `pewdiepie-archdaemon/odysseus`. Every fix, feature, and document
+defaults to upstream-candidate. Fork-only is the narrow exception: the sync pipeline
+(`tooling/sync-upstreams/`), the fork CI workflow (`sync-upstream.yml`), and the fork
+management docs (`docs/fork/`, `docs/dev/git-branch-workflow.md`). Everything else —
+including `AI_CONTEXT.md`, `AI_RULES.md`, the Qt wrapper, the download stack, all
+application documentation — belongs upstream. When in doubt, assume upstream-candidate.
+
 - **Never push to the `upstream` remote** or file issues/PRs there without James's
   explicit per-action authorization. Agents stage work on clean branches; James files the PRs.
 - **Never commit to `upstream-mirror`.** This branch is reset-only; any commits are lost on next sync.
@@ -58,6 +66,9 @@ upstream source project.
   Fork-only branches start from `develop`. Getting this wrong contaminates upstream PRs with fork history.
   Full rules: `docs/dev/git-branch-workflow.md`.
 - **Never close issues without verification.** An issue is closed only when the fix is confirmed working.
+- **Never classify work as fork-only without a specific reason it cannot go upstream.**
+  "It touches new files" or "it's a big feature" are not reasons. The Qt wrapper, the aria2c
+  download stack, and the AI documentation are all upstream-candidate despite being new.
 - **Fork docs:** `AI_CONTEXT.md` (code mental model), `docs/fork/active-work.md`
   (current branch status), `docs/fork/issue-tracker.md` (open issues and branches),
   `docs/dev/git-branch-workflow.md` (full pipeline + branch procedure).
