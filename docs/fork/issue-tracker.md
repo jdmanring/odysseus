@@ -47,6 +47,7 @@ work, create one first.
 | [#9](https://github.com/jdmanring/odysseus/issues/9) | realesrgan / basicsr broken on Python 3.14 | upstream-candidate | `fix/basicsr-python314-compat` |
 | [#10](https://github.com/jdmanring/odysseus/issues/10) | agent_max_tool_calls defaults to 0 | upstream-candidate | `fix/agent-tool-budget` |
 | [#12](https://github.com/jdmanring/odysseus/issues/12) | Replace hf_transfer with aria2c | upstream-candidate | `feat/aria2c-downloader` |
+| [#16](https://github.com/jdmanring/odysseus/issues/16) | Download UI overhaul (depends on #12) | upstream-candidate | `feat/download-ui-overhaul` |
 | [#14](https://github.com/jdmanring/odysseus/issues/14) | Native Linux desktop app (Qt wrapper) | upstream-candidate | `feat/qt-native-linux-app` |
 | [#15](https://github.com/jdmanring/odysseus/issues/15) | Upstream sync pipeline | fork-only | `feat/upstream-sync-pipeline` |
 | [#16](https://github.com/jdmanring/odysseus/issues/16) | Download UI overhaul | upstream-candidate | `feat/download-ui-overhaul` |
@@ -55,3 +56,6 @@ work, create one first.
 
 For upstream filing status (which are ready, which need screenshots, blockers):
 `docs/fork/upstream/pr-status.md`
+
+**Note:** #16 (Download UI) has no upstream staging draft yet. Draft 08 covers the aria2c
+backend only and explicitly defers the UI. Create the draft for #16 after #12 merges upstream.
