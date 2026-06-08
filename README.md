@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/odysseus-wordmark.png" alt="Odysseus" width="280">
+  <img src="assets/odysseus-wordmark.png" alt="Odysseus" width="280">
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/odysseus.jpg" alt="Odysseus interface">
+  <img src="assets/landingpage.jpg" alt="Odysseus interface">
 </p>
 
 ---
