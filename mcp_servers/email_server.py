@@ -31,7 +31,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 server = Server("email")
 EMAIL_SOCKET_TIMEOUT = float(os.environ.get("EMAIL_SOCKET_TIMEOUT", "20"))
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+from src.constants import DATA_DIR as _DATA_DIR, APP_DB, EMAIL_CACHE_DB, SETTINGS_FILE as _SETTINGS_FILE, MAIL_ATTACHMENTS_DIR
+DATA_DIR = Path(_DATA_DIR)
 
 
 def _b(value) -> bytes:
@@ -63,7 +64,7 @@ def _clean_header_value(value) -> str:
 
 
 def _db_path() -> Path:
-    return DATA_DIR / "app.db"
+    return Path(APP_DB)
 
 
 def _list_accounts_raw() -> list:
@@ -162,7 +163,7 @@ def _load_config(account: str | None = None) -> dict:
         "trash_folder": os.environ.get("TRASH_FOLDER", "Trash"),
         "cache_db": os.environ.get(
             "EMAIL_CACHE_DB",
-            str(DATA_DIR / "email_cache.db"),
+            EMAIL_CACHE_DB,
         ),
         "account_id": None,
         "account_name": None,
@@ -204,7 +205,7 @@ def _load_config(account: str | None = None) -> dict:
     else:
         # Legacy fallback: settings.json flat keys
         try:
-            settings_path = Path(__file__).resolve().parent.parent / "data" / "settings.json"
+            settings_path = Path(_SETTINGS_FILE)
             if settings_path.exists():
                 settings = json.loads(settings_path.read_text(encoding="utf-8"))
                 for key in (
@@ -244,10 +245,27 @@ def _imap_connect(account: str | None = None):
             timeout=EMAIL_SOCKET_TIMEOUT,
         )
         if cfg["imap_starttls"]:
-            conn.starttls()
+            try:
+                conn.starttls()
+            except Exception:
+                # Don't leak the open plain socket on a rejected STARTTLS. (#3174)
+                try:
+                    conn.shutdown()
+                except Exception:
+                    pass
+                raise
     if getattr(conn, "sock", None):
         conn.sock.settimeout(EMAIL_SOCKET_TIMEOUT)
-    conn.login(cfg["imap_user"], cfg["imap_password"])
+    try:
+        conn.login(cfg["imap_user"], cfg["imap_password"])
+    except Exception:
+        # A failed login otherwise orphans the connected socket; close it
+        # before propagating (shutdown() is the pre-auth low-level close). (#3174)
+        try:
+            conn.shutdown()
+        except Exception:
+            pass
+        raise
     return conn
 
 
@@ -777,7 +795,16 @@ def _smtp_connect(account=None, cfg=None):
             port,
             timeout=EMAIL_SOCKET_TIMEOUT,
         )
-        conn.starttls()
+        try:
+            conn.starttls()
+        except Exception:
+            # Don't leak the open plain socket on a rejected STARTTLS. SMTP has
+            # no shutdown(); close() is the low-level socket close (no QUIT). (#3174)
+            try:
+                conn.close()
+            except Exception:
+                pass
+            raise
     elif security == "ssl":
         conn = smtplib.SMTP_SSL(
             cfg["smtp_host"],
@@ -791,7 +818,16 @@ def _smtp_connect(account=None, cfg=None):
             timeout=EMAIL_SOCKET_TIMEOUT,
         )
     if cfg["smtp_user"] and cfg["smtp_password"]:
-        conn.login(cfg["smtp_user"], cfg["smtp_password"])
+        try:
+            conn.login(cfg["smtp_user"], cfg["smtp_password"])
+        except Exception:
+            # A failed login otherwise orphans the connected socket; close it
+            # before propagating (SMTP has no shutdown(); close() = socket close). (#3174)
+            try:
+                conn.close()
+            except Exception:
+                pass
+            raise
     return conn
 
 
@@ -1061,7 +1097,7 @@ def _download_attachment(uid, index, folder="INBOX", account=None):
     raw = msg_data[0][1]
     msg = email.message_from_bytes(raw)
 
-    target_dir = DATA_DIR / "mail-attachments" / f"{folder}_{uid}"
+    target_dir = Path(MAIL_ATTACHMENTS_DIR) / f"{folder}_{uid}"
     filepath = _extract_attachment_to_disk(msg, index, target_dir)
     if not filepath:
         return {"error": f"Attachment index {index} not found"}
