@@ -452,6 +452,13 @@ function _endpointFromAdvertisedUrl(rawUrl, currentHost, fallbackPort = '11434')
   }
 }
 
+// Persistent tracker for multi-batch parallel downloads.
+// aria2c shows only the N active files at a time; files that completed are gone.
+// We track their sizes so overall progress reflects the full model, not just
+// the current batch of 4.
+const _dlFileTracker = new Map();
+// sessionId → { totalFileCount, knownFiles: Map<name,bytes>, activeNames, completedBytes, completedCount }
+
 // ── aria2c download output parser ──
 // Parses the raw tmux capture-pane snapshot from aria2c_download.py into a
 // structured state object used to drive the download progress card.
@@ -497,7 +504,7 @@ function _fmtEtaSecs(secs) {
   return `${s}s`;
 }
 
-function _parseDownloadState(text) {
+function _parseDownloadState(text, sessionId) {
   const out = String(text || '');
   const done     = out.includes('DOWNLOAD_OK');
   const failed   = out.includes('DOWNLOAD_FAILED');
@@ -548,13 +555,13 @@ function _parseDownloadState(text) {
   const perFileData = [];
   if (progMatches.length > 0) {
     const pLines = progressWindow.split('\n');
-    const pBlockRe = /^\[#([0-9a-f]+) ([^\s/]+)\/([^(]+)\((\d+)%\)\s+CN:(\d+)\s+DL:([^\s]+)/;
+    const pBlockRe = /^\s*\[#([0-9a-f]+) ([^\s/]+)\/([^(]+)\((\d+)%\)\s+CN:(\d+)\s+DL:([^\s]+)/;
     for (let _i = 0; _i < pLines.length; _i++) {
       const bm = pLines[_i].match(pBlockRe);
       if (!bm) continue;
       let fileName = '';
       for (let _j = _i + 1; _j < Math.min(_i + 4, pLines.length); _j++) {
-        const fm = pLines[_j].match(/^FILE:\s*(\S+)/);
+        const fm = pLines[_j].match(/^\s*FILE:\s*(\S+)/);
         if (fm) { fileName = fm[1].split('/').pop(); break; }
       }
       perFileData.push({
@@ -572,6 +579,64 @@ function _parseDownloadState(text) {
   // Parallel mode: "[*] N file(s) (M in parallel)" line
   const parallelMatch = out.match(/\[\*\] Downloading \d+ file\(s\) \((\d+) in parallel\)/);
   const isParallel = !!parallelMatch;
+
+  // ── Persistent multi-batch tracker ──
+  // Accumulates completed-file bytes across poll ticks so overall progress
+  // reflects the full model, not just the currently active 4 files.
+  let completedCount = 0;
+  if (sessionId && !done && !failed && perFileData.length > 0) {
+    if (!_dlFileTracker.has(sessionId)) {
+      _dlFileTracker.set(sessionId, {
+        totalFileCount: 0,
+        knownFiles: new Map(),
+        activeNames: new Set(),
+        completedBytes: 0,
+        completedCount: 0,
+      });
+    }
+    const tr = _dlFileTracker.get(sessionId);
+
+    // Refresh total file count from script banner (printed before aria2c starts)
+    const countMatch = out.match(/\[\*\] (\d+) file\(s\) to download/);
+    if (countMatch) tr.totalFileCount = parseInt(countMatch[1], 10);
+
+    // Record sizes of files we see for the first time
+    for (const f of perFileData) {
+      if (f.fileName && f.totalBytes > 0 && !tr.knownFiles.has(f.fileName)) {
+        tr.knownFiles.set(f.fileName, f.totalBytes);
+      }
+    }
+
+    // Files that were active last tick but aren't now have completed
+    const curNames = new Set(perFileData.filter(f => f.fileName).map(f => f.fileName));
+    for (const name of tr.activeNames) {
+      if (!curNames.has(name) && tr.knownFiles.has(name)) {
+        tr.completedBytes += tr.knownFiles.get(name);
+        tr.completedCount++;
+      }
+    }
+    tr.activeNames = curNames;
+    completedCount = tr.completedCount;
+
+    // Recompute pct / dlSize / totalSize using overall model progress
+    if (tr.totalFileCount > 0 && tr.knownFiles.size > 0) {
+      const activeDl    = perFileData.reduce((s, f) => s + f.dlBytes,    0);
+      const overallDl   = tr.completedBytes + activeDl;
+      const knownSizes  = [...tr.knownFiles.values()];
+      const avgFileSize = knownSizes.reduce((s, v) => s + v, 0) / knownSizes.length;
+      const estTotal    = Math.round(avgFileSize * tr.totalFileCount);
+      if (estTotal > 0) {
+        pct       = Math.min(99, Math.round(overallDl / estTotal * 100));
+        dlSize    = _fmtIecBytes(overallDl);
+        totalSize = _fmtIecBytes(estTotal);
+      }
+    }
+  } else if (done && sessionId) {
+    // On completion show 100% and clean up the tracker
+    const tr = _dlFileTracker.get(sessionId);
+    completedCount = tr ? tr.totalFileCount : completedCount;
+    _dlFileTracker.delete(sessionId);
+  }
 
   let phase = 'initializing';
   if (done)                                             phase = 'done';
@@ -592,7 +657,7 @@ function _parseDownloadState(text) {
   }
 
   return { phase, totalFiles, currentFile, pct, dlSize, totalSize, speed, eta,
-           connections, activeDownloads, isParallel, done, failed, errorMsg, perFileData };
+           connections, activeDownloads, isParallel, done, failed, errorMsg, perFileData, completedCount };
 }
 
 // ── Download progress card ──
@@ -626,9 +691,9 @@ function _buildSingleFileRow(f) {
 }
 
 function _buildDownloadCardHtml(task, state) {
-  const st = state || _parseDownloadState(task.output || '');
+  const st = state || _parseDownloadState(task.output || '', task.sessionId);
   const { pct, dlSize, totalSize, speed, eta, connections, activeDownloads,
-          isParallel, currentFile, totalFiles, errorMsg, perFileData } = st;
+          isParallel, currentFile, totalFiles, errorMsg, perFileData, completedCount } = st;
   // Allow task.status to override the phase — e.g. 'paused' is set by the Pause
   // button and is not derivable from the tmux output alone.
   const phase = task.status === 'paused' ? 'paused' : st.phase;
@@ -640,6 +705,9 @@ function _buildDownloadCardHtml(task, state) {
   const phaseLabels = { initializing: 'Initializing…', starting: 'Starting aria2c…', resolving: 'Resolving file list…' };
   const phaseLabel = phaseLabels[phase] || phaseLabels.initializing;
   const pctLabel = pct ? `${pct}%` : '';
+  const fileCtx = totalFiles > 0
+    ? `${completedCount} of ${totalFiles} files`
+    : '';
   const fileRows = perFileData && perFileData.length > 1
     ? perFileData.map(_buildSingleFileRow).join('')
     : '';
@@ -664,6 +732,8 @@ function _buildDownloadCardHtml(task, state) {
         <span class="dl-stat dl-stat-speed" data-dl-speed>${esc(speed)}${speed ? connBadge : ''}</span>
         <span class="dl-stat-sep" data-dl-eta-sep>${eta ? '\xb7' : ''}</span>
         <span class="dl-stat dl-stat-eta" data-dl-eta>${esc(eta)}</span>
+        <span class="dl-stat-sep dl-file-ctx-sep" data-dl-file-ctx-sep>${fileCtx ? '\xb7' : ''}</span>
+        <span class="dl-stat dl-file-ctx" data-dl-file-ctx>${esc(fileCtx)}</span>
       </div>
       <div class="dl-files-list" data-dl-files>${fileRows}</div>
     </div>
@@ -706,7 +776,7 @@ function _updateDownloadCard(el, task, snapshot) {
   // Don't update the card if the task is paused — the Pause handler already
   // set the correct phase and the reconnect loop has been aborted.
   if (task.status === 'paused') return;
-  const st = _parseDownloadState(snapshot);
+  const st = _parseDownloadState(snapshot, task.sessionId);
   const prev = card.dataset.dlPhase;
 
   if (st.phase !== prev) {
@@ -759,6 +829,15 @@ function _updateDownloadCard(el, task, snapshot) {
 
     const etaEl = card.querySelector('[data-dl-eta]');
     if (etaEl) etaEl.textContent = st.eta;
+
+    // Files context: "X of N files"
+    const fileCtxEl  = card.querySelector('[data-dl-file-ctx]');
+    const fileCtxSep = card.querySelector('[data-dl-file-ctx-sep]');
+    if (fileCtxEl) {
+      const fileCtx = st.totalFiles > 0 ? `${st.completedCount} of ${st.totalFiles} files` : '';
+      fileCtxEl.textContent = fileCtx;
+      if (fileCtxSep) fileCtxSep.textContent = fileCtx ? '\xb7' : '';
+    }
 
     // Per-file rows: update in-place by GID; add new rows, remove completed ones
     if (st.perFileData && st.perFileData.length > 1) {
@@ -2237,7 +2316,7 @@ export function _renderRunningTab() {
     const _bdg = _taskBadge(task);
     const _bdgTitle = (task._unreachable && task.status === 'running') ? ' title="Server not responding — it may have crashed"' : '';
     const _isDl = task.type === 'download';
-    const _dlState = _isDl ? _parseDownloadState(task.output || '') : null;
+    const _dlState = _isDl ? _parseDownloadState(task.output || '', task.sessionId) : null;
     const _queuePos = _isDl && task.status === 'queued'
       ? (() => { const all = _loadTasks(); const qs = all.filter(t => t.type === 'download' && t.status === 'queued'); return qs.findIndex(t => t.sessionId === task.sessionId) + 1; })()
       : 0;
