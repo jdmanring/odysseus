@@ -54,9 +54,7 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 | [#3](https://github.com/jdmanring/odysseus/issues/3) | External links don't navigate in Qt wrapper | upstream-candidate | `feat/qt-native-linux-app` |
 | [#4](https://github.com/jdmanring/odysseus/issues/4) | Tool results misattributed as user messages | upstream-candidate | `fix/tool-result-role` |
 | [#5](https://github.com/jdmanring/odysseus/issues/5) | gh CLI unusable in Odysseus agent context | bug | no branch yet |
-| [#6](https://github.com/jdmanring/odysseus/issues/6) | pytest-timeout not declared as dependency | upstream-candidate | `fix/pytest-timeout-dependency` |
 | [#7](https://github.com/jdmanring/odysseus/issues/7) | HF token not saved outside Cookbook tab | upstream-candidate | `fix/hf-token-persistence` |
-| [#8](https://github.com/jdmanring/odysseus/issues/8) | SearXNG JSON output not documented | upstream-candidate | `fix/searxng-json-docs` |
 | [#9](https://github.com/jdmanring/odysseus/issues/9) | realesrgan / basicsr broken on Python 3.14 | upstream-candidate | `fix/basicsr-python314-compat` |
 | [#12](https://github.com/jdmanring/odysseus/issues/12) | Replace hf_transfer with aria2c | upstream-candidate | `feat/aria2c-downloader` |
 | [#14](https://github.com/jdmanring/odysseus/issues/14) | Native Linux desktop app (Qt wrapper) | upstream-candidate | `feat/qt-native-linux-app` |
@@ -67,12 +65,9 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 | [#20](https://github.com/jdmanring/odysseus/issues/20) | BinManager test suite | upstream-candidate | `develop` (direct — goes upstream with #12) |
 | [#21](https://github.com/jdmanring/odysseus/issues/21) | AI_RULES.md — AI agent rules (upstream) | upstream-candidate | `feat/ai-documentation-system` |
 | [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_CONTEXT.md — architecture primer (upstream) | upstream-candidate | `feat/ai-documentation-system` |
-| [#2](https://github.com/jdmanring/odysseus/issues/2) | Renderer OOM — DOM virtualization | upstream-candidate | `fix/dom-oom-virtualization` |
 
 For upstream filing status (which are ready, which need screenshots, blockers):
 `docs/fork/upstream/pr-status.md`
-
-**Note:** #10 (agent_max_tool_calls) — closed. Fix landed in develop (11274a2). Staging branch `fix/agent-tool-budget` needs rebuild from current upstream-mirror before filing upstream.
 
 **Note:** #16 (Download UI) has no upstream staging draft yet. Create after #12 merges upstream.
 
@@ -82,3 +77,19 @@ documented workaround inside Odysseus.
 
 **Note:** #21 and #22 track the upstream contributions of AI_RULES.md and AI_CONTEXT.md
 respectively. The work lives on the `feat/ai-documentation-system` branch alongside #18.
+
+---
+
+## Closed Issues
+
+Branches remain open for upstream PR filing. PR drafts are in `docs/fork/upstream/pr-drafts/`.
+
+| # | Title | Branch | PR Draft |
+|---|-------|--------|----------|
+| [#2](https://github.com/jdmanring/odysseus/issues/2) | Renderer OOM — DOM virtualization | `fix/dom-oom-virtualization` | `fix-dom-oom-virtualization.md` — needs squash (2→1) |
+| [#6](https://github.com/jdmanring/odysseus/issues/6) | pytest-timeout not declared as dependency | `fix/pytest-timeout-dependency` | `fix-pytest-timeout-dependency.md` |
+| [#8](https://github.com/jdmanring/odysseus/issues/8) | SearXNG JSON output not documented | `fix/searxng-json-docs` | `fix-searxng-json-docs.md` |
+| [#10](https://github.com/jdmanring/odysseus/issues/10) | agent_max_tool_calls defaults to 0 | `fix/agent-tool-budget` | `fix-agent-tool-budget.md` |
+| [#11](https://github.com/jdmanring/odysseus/issues/11) | streamingTTS ReferenceError in catch | `fix/streamingtts-scope` | `fix-streamingtts-scope.md` |
+| [#13](https://github.com/jdmanring/odysseus/issues/13) | Qt native color picker | part of `feat/qt-native-linux-app` | covered by #14 PR draft (upstream-candidate) |
+| [#17](https://github.com/jdmanring/odysseus/issues/17) | QWebEngineView localStorage persistence | part of `feat/qt-native-linux-app` | covered by #14 PR draft (upstream-candidate) |
