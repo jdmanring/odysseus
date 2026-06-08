@@ -22,7 +22,7 @@ explicit per-action authorization. Agents stage; James files.**
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Needs squash (2 commits → 1); no screenshot needed — see pr-drafts/ |
 | `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) | Feature | Needs integration test run + screenshot |
 | `feat/download-ui-overhaul` | [#16](https://github.com/jdmanring/odysseus/issues/16) | Feature | File after aria2c (#12) merges upstream |
-| `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Needs screenshots before filing |
+| `feat/qt-native-linux-app-rebuild` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Ready to file — screenshot in docs/fork/screenshots/; see pr-drafts/ |
 | `fix/hf-token-persistence` | [#7](https://github.com/jdmanring/odysseus/issues/7) | Bug | WIP — proper fix not implemented yet |
 
 ## PR Drafts
