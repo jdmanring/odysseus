@@ -19,7 +19,7 @@ explicit per-action authorization. Agents stage; James files.**
 | `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Bug | Ready to file |
 | `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Refactor | Ready to file |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Bug | Ready to file |
-| `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Needs screenshot before filing |
+| `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Needs squash (2 commits → 1) + screenshot before filing |
 | `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) | Feature | Needs integration test run + screenshot |
 | `feat/download-ui-overhaul` | [#16](https://github.com/jdmanring/odysseus/issues/16) | Feature | File after aria2c (#12) merges upstream |
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Needs screenshots before filing |

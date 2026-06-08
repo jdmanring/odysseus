@@ -17,7 +17,7 @@ Current in-progress items as of 2026-06-08.
 
 | Issue | Branch | Notes |
 |-------|--------|-------|
-| [#2 Renderer OOM — DOM virtualization](https://github.com/jdmanring/odysseus/issues/2) | `fix/dom-oom-virtualization` | `chatHistory.js` load pagination + live pruning. Upstream draft staged — needs screenshots. |
+| [#2 Renderer OOM — DOM virtualization](https://github.com/jdmanring/odysseus/issues/2) | `fix/dom-oom-virtualization` | `chatHistory.js` load pagination + live pruning. Three bugs fixed post-merge: IO root (scroll-up load not triggering), duplicate spacers, stale spacers on reload. Staging branch needs squash → 1 commit before filing. Needs screenshots. |
 | [#3 External links don't navigate in Qt wrapper](https://github.com/jdmanring/odysseus/issues/3) | `feat/qt-native-linux-app` | `OdysseusPage` subclass routes external URLs to system browser |
 | [#4 Tool results misattributed as user messages](https://github.com/jdmanring/odysseus/issues/4) | `fix/tool-result-role` | `agent_loop.py` + `llm_core.py` Anthropic payload builder fix |
 | [#11 streamingTTS ReferenceError in catch block](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | `let` hoisted out of try block. Upstream draft staged — ready to file. |
