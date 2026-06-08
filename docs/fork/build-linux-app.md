@@ -94,7 +94,3 @@ All logs go to `$REPO/logs/`:
 Browser storage (cookies, localStorage, session) lives at:
 - `~/.local/share/odysseus/webengine/` — persistent data
 - `~/.cache/odysseus/webengine/` — network/GPU cache
-
-## Upstream sync notes
-
-`README.md` is in `PROTECTED_FILES` in the ingest pipeline — upstream's `docs/` media paths will not overwrite our `assets/` paths on sync. Any docs/ media files upstream re-adds are automatically removed by the post-merge cleanup step (canonical copies are in `assets/`).
