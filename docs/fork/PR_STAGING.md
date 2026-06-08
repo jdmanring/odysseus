@@ -1,7 +1,7 @@
 # Upstream Contribution Staging Index
 
 Full draft docs (issue + PR templates, ready for copy-paste) are in
-`docs/fork/upstream/drafts/`.
+`docs/fork/contributions/upstream/`.
 
 **Workflow:** Read `docs/fork/upstream/how-to-contribute.md` before filing anything.
 The short version: file the issue first, get the number, then open the PR.
@@ -11,16 +11,17 @@ The short version: file the issue first, get the number, then open the PR.
 
 ## Upstream Contributions
 
-| # | Title | Type | Issue | PR | Tests | Fork Status |
-|---|-------|------|-------|----|-------|-------------|
-| [01](drafts/01-hf-token-persistence.md) | HF Token Not Saved Outside Cookbook Tab | Bug | Not filed | Not opened | None | No fix yet |
-| [02](drafts/02-pytest-timeout-dependency.md) | pytest-timeout Not Declared as Dependency | Bug | Not filed | Not opened | N/A — `pyproject.toml` change | N/A |
-| [03](drafts/03-searxng-json-docs.md) | SearXNG JSON Format Undocumented | Bug/Docs | Not filed | Not opened | N/A — `.env.example` change | Documented internally |
-| [04](drafts/04-basicsr-python314-compat.md) | realesrgan / basicsr Broken on Python 3.14 | Bug | Not filed | Not opened | N/A — install script patch | Patched via `install-basicsr.sh` |
-| [05](drafts/05-agent-tool-budget.md) | agent_max_tool_calls Defaults to 0 | Bug | Not filed | Not opened | None — needs a settings default test | Fixed in `data/settings.json` |
-| [06](drafts/06-dom-oom-virtualization.md) | Renderer OOM — No DOM Virtualization | Bug | Not filed | Not opened | Manual steps documented in draft — visual verification required before filing | Fix applied to `develop` — screenshots needed before filing |
-| [07](drafts/07-streamingtts-scope-fix.md) | streamingTTS ReferenceError in catch Block | Bug | Not filed | Not opened | Manual steps documented in draft — single-line fix, no automated test | Fixed in `develop` (commit `9fabdc6`) |
-| [08](drafts/08-aria2c-downloader.md) | aria2c Downloader — Replace hf_transfer | Feature | Not filed | Not opened | `tests/test_aria2c_circuit.py` — 8 tests: BinManager install, executable check, `--version` smoke, URL resolution, real download of `gpt2/tokenizer.json`, resume idempotency, PATH fallback | Implemented in `develop` |
+| # | Title | Type | Fork issue | Upstream issue | Branch | Fork Status |
+|---|-------|------|-----------|----------------|--------|-------------|
+| [01](contributions/upstream/01-hf-token-persistence.md) | HF Token Not Saved Outside Cookbook Tab | Bug | [#7](https://github.com/jdmanring/odysseus/issues/7) | Not filed | `fix/hf-token-persistence` | Workaround only — proper fix not yet implemented |
+| [02](contributions/upstream/02-pytest-timeout-dependency.md) | pytest-timeout Not Declared as Dependency | Bug | [#6](https://github.com/jdmanring/odysseus/issues/6) | Not filed | `fix/pytest-timeout-dependency` | Fix on branch — `requirements.txt` |
+| [03](contributions/upstream/03-searxng-json-docs.md) | SearXNG JSON Format Undocumented | Bug/Docs | [#8](https://github.com/jdmanring/odysseus/issues/8) | Not filed | `fix/searxng-json-docs` | Fix on branch — `.env.example` |
+| [04](contributions/upstream/04-basicsr-python314-compat.md) | realesrgan / basicsr Broken on Python 3.14 | Bug | [#9](https://github.com/jdmanring/odysseus/issues/9) | Not filed | `fix/basicsr-python314-compat` | Fix on branch — `install-basicsr.sh` |
+| [05](contributions/upstream/05-agent-tool-budget.md) | agent_max_tool_calls Defaults to 0 | Bug | [#10](https://github.com/jdmanring/odysseus/issues/10) | Not filed | `fix/agent-tool-budget` | Fix on branch — `src/settings.py` default changed to 20 |
+| [06](contributions/upstream/06-dom-oom-virtualization.md) | Renderer OOM — No DOM Virtualization | Bug | [#2](https://github.com/jdmanring/odysseus/issues/2) | Not filed | `fix/dom-oom-virtualization` | Fix on `develop` — screenshots needed before filing |
+| [07](contributions/upstream/07-streamingtts-scope-fix.md) | streamingTTS ReferenceError in catch Block | Bug | [#11](https://github.com/jdmanring/odysseus/issues/11) | Not filed | `fix/streamingtts-scope` | Fix on branch — cherry-picked from `develop` onto `upstream/dev` |
+| [08](contributions/upstream/08-aria2c-downloader.md) | aria2c Downloader — Replace hf_transfer | Feature | [#12](https://github.com/jdmanring/odysseus/issues/12) | Not filed | `feat/aria2c-downloader` | Implemented on `develop` — tests + screenshot needed |
+| [09](contributions/upstream/09-qt-native-linux-app.md) | Native Linux Desktop App (Qt Wrapper) | Feature | [#14](https://github.com/jdmanring/odysseus/issues/14) | Not filed | `feat/qt-native-linux-app` | Implemented on `develop` — screenshots needed; constants check required |
 
 ---
 
@@ -28,24 +29,35 @@ The short version: file the issue first, get the number, then open the PR.
 
 | # | Ready to file? | Blocker |
 |---|---------------|---------|
-| 01 | No | No fix implemented yet |
+| 01 | No | Proper fix not implemented — backend endpoint + JS needed |
 | 02 | Yes | — |
 | 03 | Yes | — |
 | 04 | Yes | — |
-| 05 | No | No automated test for the settings default |
-| 06 | No | Fix applied to `develop` — take screenshots per PR checklist, then file |
+| 05 | Yes | Review whether upstream wants `src/settings.py` change or a first-run migration |
+| 06 | No | Screenshots per PR checklist (long session, scroll-up batch load, DevTools DOM count) |
 | 07 | Yes | — |
-| 08 | Yes | Run `python -m pytest tests/test_aria2c_circuit.py -v` + screenshot of running download before filing |
+| 08 | No | Run `python -m pytest tests/test_aria2c_circuit.py -v` + screenshot of download in progress |
+| 09 | No | Screenshots (taskbar, external link → system browser, color picker dialog); audit `linux_wrapper.py` for hardcoded paths against `src/constants.py` before filing |
 
 ---
 
-## Internal (Fork-Only) Contributions
+## Roadmap Alignment
 
-Tracked in `docs/fork/fork-only/`. Not appropriate for upstream (Qt integration,
-Linux native app, sync tooling).
+Contributions that close or advance items in the upstream ROADMAP.md:
 
-| # | Title | Status |
-|---|-------|--------|
-| [01](../fork-only/01-native-linux-app.md) | Native Linux Application (Qt Wrapper) | Active development |
-| [02](../fork-only/02-qwebengine-localstorage.md) | QWebEngineView localStorage Persistence | Complete |
-| [03](../fork-only/03-sync-pipeline-tooling.md) | Upstream Sync Pipeline Tooling | Complete |
+| # | Roadmap item addressed |
+|---|----------------------|
+| 06 | "SQUASH BUGS" — V8 Oilpan OOM crashes from unbounded DOM growth |
+| 07 | "SQUASH BUGS" — ReferenceError aborting catch block on every stream error |
+| 09 | "Fresh install smoke tests on Linux" — complete native Linux install and launch story |
+| 09 | "SQUASH BUGS" — crash recovery for renderer OOM in the native app |
+| 09 | "Cookbook reliability on other computers" — `build-linux-app.sh` reproducible Linux install |
+
+---
+
+## Fork-Only Work (not appropriate for upstream)
+
+| Title | Status | Notes |
+|-------|--------|-------|
+| Upstream sync pipeline (`tooling/sync-upstreams/`) | Complete | Manages fork/upstream relationship — not applicable upstream |
+| Docs system (`CLAUDE.md`, `AI_ONBOARDING.md`, `docs/fork/`) | Complete | Fork-specific AI agent orientation and fork management docs |
