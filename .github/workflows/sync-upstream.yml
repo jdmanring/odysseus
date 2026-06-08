@@ -18,7 +18,7 @@ jobs:
         with:
           ref: integration
           fetch-depth: 0        # full history needed for merge and rev-list
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       - name: Configure git identity
         run: |
