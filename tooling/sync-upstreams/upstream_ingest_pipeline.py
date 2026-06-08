@@ -37,7 +37,12 @@ PROTECTED_FILES: list[str] = [
     "tooling/sync-upstreams/upstream_ingest_pipeline.py",
     ".github/workflows/sync-upstream.yml",
     ".env.example",               # may diverge if we add fork-specific env vars
+    "README.md",                  # assets/ paths diverge from upstream's docs/ paths
 ]
+
+# Media file extensions that were moved from docs/ to assets/.
+# If upstream re-adds these to docs/ during a merge, the post-merge cleanup removes them.
+_MOVED_TO_ASSETS_EXTS = {".gif", ".webm", ".jpg", ".jpeg", ".png", ".svg", ".webp"}
 
 
 class Colors:
@@ -123,8 +128,9 @@ class _GitRunner:
 
 
 class PreFlight:
-    def __init__(self, git: _GitRunner) -> None:
+    def __init__(self, git: _GitRunner, skip_tests: bool = False) -> None:
         self._git = git
+        self._skip_tests = skip_tests
 
     def check(self) -> bool:
         logger.info("Running pre-flight checks...")
@@ -144,11 +150,14 @@ class PreFlight:
                     "Integration branch has uncommitted changes — stash or commit before syncing."
                 )
 
-            venv = REPO_ROOT / "venv"
-            if not venv.exists():
-                raise RuntimeError(
-                    "venv not found. Create it: python3 -m venv venv && venv/bin/pip install -r requirements.txt"
-                )
+            # In CI (--skip-tests), no venv is required: syntax uses sys.executable and
+            # ruff resolves via shutil.which() after the workflow's pip install step.
+            if not self._skip_tests:
+                venv = REPO_ROOT / "venv"
+                if not venv.exists():
+                    raise RuntimeError(
+                        "venv not found. Create it: python3 -m venv venv && venv/bin/pip install -r requirements.txt"
+                    )
 
             log_success("Pre-flight passed.")
             return True
@@ -207,10 +216,24 @@ class SyncManager:
         for path in PROTECTED_FILES:
             self._git.run(["git", "checkout", integration_ref, "--", path], check=False)
 
+        # Remove any media files upstream re-added to docs/ that we moved to assets/.
+        # Upstream has these in docs/; our fork moved them to assets/. If the merge
+        # re-adds them to docs/, remove the docs/ copy so assets/ stays canonical.
+        docs_dir = REPO_ROOT / "docs"
+        assets_dir = REPO_ROOT / "assets"
+        removed_docs_media = []
+        if docs_dir.exists() and assets_dir.exists():
+            for f in docs_dir.iterdir():
+                if f.suffix.lower() in _MOVED_TO_ASSETS_EXTS and (assets_dir / f.name).exists():
+                    self._git.run(["git", "rm", "-f", "--ignore-unmatch", str(f.relative_to(REPO_ROOT))], check=False)
+                    removed_docs_media.append(f.name)
+        if removed_docs_media:
+            log_info(f"Removed {len(removed_docs_media)} docs/ media file(s) re-added by upstream (canonical copies in assets/): {removed_docs_media}")
+
         staged = self._git.output(["git", "diff", "--cached", "--name-only"])
-        restored = [f for f in staged.splitlines() if f in PROTECTED_FILES]
+        restored = [f for f in staged.splitlines() if f in PROTECTED_FILES or f.startswith("docs/")]
         if restored:
-            log_info(f"Restored {len(restored)} protected file(s): {restored}")
+            log_info(f"Restored/cleaned {len(restored)} fork-diverged file(s).")
             self._git.run(
                 ["git", "commit", "-m", "chore(sync): restore fork-owned files after upstream merge"]
             )
@@ -333,7 +356,7 @@ class UpstreamIngestPipeline:
         self._git = _GitRunner(REPO_ROOT)
         self._dry_run = dry_run
         self._push = push
-        self.preflight = PreFlight(self._git)
+        self.preflight = PreFlight(self._git, skip_tests=skip_tests)
         self.sync = SyncManager(self._git)
         self.gates = GateKeeper(self._git, skip_tests=skip_tests)
         self.promotion = PromotionEngine(self._git)
