@@ -36,7 +36,7 @@ REQUIRED_REMOTES = {"upstream", "origin"}
 # Note: directory paths (ending with /) restore the entire tree via `git checkout ref -- dir/`.
 PROTECTED_FILES: list[str] = [
     "tooling/sync-upstreams/upstream_ingest_pipeline.py",
-    ".github/workflows/",          # entire workflows dir — GITHUB_TOKEN cannot push workflow changes
+    ".github/workflows/sync-upstream.yml",  # fork-only workflow — does not exist upstream
     ".env.example",               # may diverge if we add fork-specific env vars
     "README.md",                  # assets/ paths diverge from upstream's docs/ paths
 ]
