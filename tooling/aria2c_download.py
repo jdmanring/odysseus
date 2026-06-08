@@ -37,6 +37,7 @@ def download_file(
     filename: str,
     token: Optional[str],
 ) -> bool:
+    """Download a single file. Used by tests."""
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         str(aria2c),
@@ -64,6 +65,25 @@ def main() -> None:
     parser.add_argument("--include", help="File glob filter (e.g. '*.safetensors')")
     args = parser.parse_args()
 
+    # Guard: refuse to start if another download for the same repo is already
+    # running. Checks by PID so stale lock files from crashed runs are ignored.
+    lock_path = Path(f"/tmp/aria2c_dl_{args.repo.replace('/', '_')}.pid")
+    if lock_path.exists():
+        try:
+            pid = int(lock_path.read_text().strip())
+            os.kill(pid, 0)   # raises OSError if PID is not running
+            print(f"[!] Download for {args.repo} is already running (PID {pid}). Exiting.")
+            sys.exit(0)
+        except (ValueError, ProcessLookupError, OSError):
+            lock_path.unlink(missing_ok=True)  # stale lock
+    lock_path.write_text(str(os.getpid()))
+    try:
+        _main(args)
+    finally:
+        lock_path.unlink(missing_ok=True)
+
+
+def _main(args) -> None:
     # 1. Get aria2c binary
     aria2c = get_aria2c()
     if aria2c is None:
@@ -90,17 +110,8 @@ def main() -> None:
     if commit and commit != "main":
         print(f"[*] Commit: {commit[:12]}")
 
-    # 3. Determine destination directory.
-    # When no --local-dir is given, lay out the HF hub cache in the format that
-    # huggingface_hub recognises:
-    #
-    #   {hub_cache}/models--{org}--{repo}/
-    #     refs/main          ← contains the commit SHA so snapshot_download()
-    #                          resolves locally without an API round-trip
-    #     snapshots/{sha}/   ← actual model files (no symlink indirection needed)
-    #
-    # scan_hf() in cookbook_helpers.py finds models--* dirs and falls back to
-    # scanning snapshots/ subdirs directly, so this structure works both ways.
+    # 3. Determine destination directory using the standard HF hub cache layout.
+    # snapshot_download(repo_id) will find files here without re-downloading.
     if args.local_dir:
         base_dir = Path(args.local_dir)
     else:
@@ -110,26 +121,24 @@ def main() -> None:
         ).expanduser()
         dir_name = "models--" + args.repo.replace("/", "--")
         model_root = hub_cache / dir_name
-        snapshot_name = commit  # real SHA when available, "main" as fallback
+        snapshot_name = commit
         base_dir = model_root / "snapshots" / snapshot_name
         base_dir.mkdir(parents=True, exist_ok=True)
-        # Write refs/main pointing to the real commit SHA so huggingface_hub's
-        # snapshot_download(repo_id) resolves directly to this snapshot directory
-        # without re-fetching from the API or re-downloading files.
         refs_dir = model_root / "refs"
         refs_dir.mkdir(exist_ok=True)
         (refs_dir / "main").write_text(snapshot_name)
     base_dir.mkdir(parents=True, exist_ok=True)
     print(f"[*] Saving to: {base_dir}")
 
-    # 4. Download all files in parallel via aria2c input-file.
-    #    4 concurrent files × 4 connections each = 16 total connections (same
-    #    bandwidth budget as before, but spread across multiple files so large
-    #    multi-shard models finish significantly faster end-to-end).
-    max_concurrent = 4
-    conn_per_file   = max(1, 16 // max_concurrent)   # 4 connections per file
+    # 4. Download all files in parallel via a single aria2c invocation.
+    #
+    # All URLs go into an input file. aria2c reads it, downloads up to
+    # max_concurrent files simultaneously, and exits with code 0 when ALL
+    # files are complete. It is a one-shot subprocess — not a daemon, no RPC.
+    max_concurrent = 4   # files in parallel
+    conn_per_file  = 16  # connections per file — 4×16 = 64 total
 
-    # Ensure all output subdirectories exist before aria2c starts
+    # Create any subdirectories that appear in relative paths
     for _, rel_path in urls:
         (base_dir / rel_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -144,7 +153,6 @@ def main() -> None:
             for url, rel_path in urls:
                 f.write(f"{url}\n")
                 f.write(f"  out={rel_path}\n")
-                f.write(f"  dir={base_dir}\n")
                 if args.token:
                     f.write(f"  header=Authorization: Bearer {args.token}\n")
                 f.write("\n")
@@ -157,8 +165,11 @@ def main() -> None:
             f"--max-connection-per-server={conn_per_file}",
             f"--split={conn_per_file}",
             "--min-split-size=1M",
+            "--file-allocation=none",
+            "--disk-cache=64M",
             "--console-log-level=notice",
-            "--summary-interval=10",
+            "--summary-interval=3",
+            f"--dir={base_dir}",
             f"--input-file={input_path}",
         ]
         result = subprocess.run(cmd)
