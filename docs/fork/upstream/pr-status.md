@@ -1,7 +1,7 @@
 # Upstream Contribution Staging Index
 
 Full draft docs (issue + PR templates, ready for copy-paste) are in
-`docs/fork/contributions/upstream/`.
+`docs/fork/upstream/drafts/`.
 
 **Workflow:** Read `docs/fork/upstream/how-to-contribute.md` before filing anything.
 The short version: file the issue first, get the number, then open the PR.
@@ -13,15 +13,15 @@ The short version: file the issue first, get the number, then open the PR.
 
 | # | Title | Type | Fork issue | Upstream issue | Branch | Fork Status |
 |---|-------|------|-----------|----------------|--------|-------------|
-| [01](contributions/upstream/01-hf-token-persistence.md) | HF Token Not Saved Outside Cookbook Tab | Bug | [#7](https://github.com/jdmanring/odysseus/issues/7) | Not filed | `fix/hf-token-persistence` | Workaround only — proper fix not yet implemented |
-| [02](contributions/upstream/02-pytest-timeout-dependency.md) | pytest-timeout Not Declared as Dependency | Bug | [#6](https://github.com/jdmanring/odysseus/issues/6) | Not filed | `fix/pytest-timeout-dependency` | Fix on branch — `requirements.txt` |
-| [03](contributions/upstream/03-searxng-json-docs.md) | SearXNG JSON Format Undocumented | Bug/Docs | [#8](https://github.com/jdmanring/odysseus/issues/8) | Not filed | `fix/searxng-json-docs` | Fix on branch — `.env.example` |
-| [04](contributions/upstream/04-basicsr-python314-compat.md) | realesrgan / basicsr Broken on Python 3.14 | Bug | [#9](https://github.com/jdmanring/odysseus/issues/9) | Not filed | `fix/basicsr-python314-compat` | Fix on branch — `install-basicsr.sh` |
-| [05](contributions/upstream/05-agent-tool-budget.md) | agent_max_tool_calls Defaults to 0 | Bug | [#10](https://github.com/jdmanring/odysseus/issues/10) | Not filed | `fix/agent-tool-budget` | Fix on branch — `src/settings.py` default changed to 20 |
-| [06](contributions/upstream/06-dom-oom-virtualization.md) | Renderer OOM — No DOM Virtualization | Bug | [#2](https://github.com/jdmanring/odysseus/issues/2) | Not filed | `fix/dom-oom-virtualization` | Fix on `develop` — screenshots needed before filing |
-| [07](contributions/upstream/07-streamingtts-scope-fix.md) | streamingTTS ReferenceError in catch Block | Bug | [#11](https://github.com/jdmanring/odysseus/issues/11) | Not filed | `fix/streamingtts-scope` | Fix on branch — cherry-picked from `develop` onto `upstream/dev` |
-| [08](contributions/upstream/08-aria2c-downloader.md) | aria2c Downloader — Replace hf_transfer | Feature | [#12](https://github.com/jdmanring/odysseus/issues/12) | Not filed | `feat/aria2c-downloader` | Implemented on `develop` — tests + screenshot needed |
-| [09](contributions/upstream/09-qt-native-linux-app.md) | Native Linux Desktop App (Qt Wrapper) | Feature | [#14](https://github.com/jdmanring/odysseus/issues/14) | Not filed | `feat/qt-native-linux-app` | Implemented on `develop` — screenshots needed; constants check required |
+| [01](upstream/drafts/01-hf-token-persistence.md) | HF Token Not Saved Outside Cookbook Tab | Bug | [#7](https://github.com/jdmanring/odysseus/issues/7) | Not filed | `fix/hf-token-persistence` | Workaround only — proper fix not yet implemented |
+| [02](upstream/drafts/02-pytest-timeout-dependency.md) | pytest-timeout Not Declared as Dependency | Bug | [#6](https://github.com/jdmanring/odysseus/issues/6) | Not filed | `fix/pytest-timeout-dependency` | Fix on branch — `requirements.txt` |
+| [03](upstream/drafts/03-searxng-json-docs.md) | SearXNG JSON Format Undocumented | Bug/Docs | [#8](https://github.com/jdmanring/odysseus/issues/8) | Not filed | `fix/searxng-json-docs` | Fix on branch — `.env.example` |
+| [04](upstream/drafts/04-basicsr-python314-compat.md) | realesrgan / basicsr Broken on Python 3.14 | Bug | [#9](https://github.com/jdmanring/odysseus/issues/9) | Not filed | `fix/basicsr-python314-compat` | Fix on branch — `install-basicsr.sh` |
+| [05](upstream/drafts/05-agent-tool-budget.md) | agent_max_tool_calls Defaults to 0 | Bug | [#10](https://github.com/jdmanring/odysseus/issues/10) | Not filed | `fix/agent-tool-budget` | Fix on branch — `src/settings.py` default changed to 20 |
+| [06](upstream/drafts/06-dom-oom-virtualization.md) | Renderer OOM — No DOM Virtualization | Bug | [#2](https://github.com/jdmanring/odysseus/issues/2) | Not filed | `fix/dom-oom-virtualization` | Fix on `develop` — screenshots needed before filing |
+| [07](upstream/drafts/07-streamingtts-scope-fix.md) | streamingTTS ReferenceError in catch Block | Bug | [#11](https://github.com/jdmanring/odysseus/issues/11) | Not filed | `fix/streamingtts-scope` | Fix on branch — cherry-picked from `develop` onto `upstream/dev` |
+| [08](upstream/drafts/08-aria2c-downloader.md) | aria2c Downloader — Replace hf_transfer | Feature | [#12](https://github.com/jdmanring/odysseus/issues/12) | Not filed | `feat/aria2c-downloader` | Implemented on `develop` — tests + screenshot needed |
+| [09](upstream/drafts/09-qt-native-linux-app.md) | Native Linux Desktop App (Qt Wrapper) | Feature | [#14](https://github.com/jdmanring/odysseus/issues/14) | Not filed | `feat/qt-native-linux-app` | Implemented on `develop` — screenshots needed; constants check required |
 | 10 | Move media assets from docs/ to assets/ | Refactor | [#19](https://github.com/jdmanring/odysseus/issues/19) | Not filed | `refactor/assets-move` | Branch ready — clean commit on `upstream/dev` |
 
 ---
