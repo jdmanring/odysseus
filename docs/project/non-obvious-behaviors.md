@@ -110,3 +110,17 @@ loop at zero tool calls.
 In the upstream project, stopping a model is a `tmux kill-session` operation — the
 Cookbook does not just `kill` a subprocess. This means tmux must be installed on
 the host for the serve feature to work.
+
+**aria2c zombie process doubles download sizes.**
+If a user reports download sizes doubling (e.g., 18 GB becomes 36 GB), assume a zombie
+aria2c on port 6800. The cleanup logic targets the session's unique port only — a legacy
+process on the default port 6800 survives and downloads simultaneously. Remediation:
+
+```bash
+fuser -k [UNIQUE_PORT]/tcp   # kill current session port
+fuser -k 6800/tcp            # always kill legacy default port
+pkill -9 aria2c              # catch any orphaned processes
+pkill -9 -f aria2c_download.py
+```
+
+Run all four. "Surgical" cleanup that only targets the unique port is insufficient.
