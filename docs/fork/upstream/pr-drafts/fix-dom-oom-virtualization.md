@@ -2,7 +2,7 @@
 
 **Branch:** `jdmanring/odysseus:fix/dom-oom-virtualization`
 **Issue:** [#2](https://github.com/jdmanring/odysseus/issues/2) (fork tracking)
-**Status:** Needs squash (2 commits → 1) before filing
+**Status:** Needs squash (3 commits → 1) before filing
 
 ---
 
@@ -63,6 +63,33 @@ the initial render of a freshly-loaded session (an agent session of 50 messages
 open, passing the full message list. `addMessage()` is unchanged — the
 `MutationObserver` picks up its appends automatically.
 
+**Hardening against live sessions (follow-up):**  
+The original implementation had three bugs that only manifested once the user
+and model started exchanging messages:
+
+1. `_pruneTop` used `continue` at `_histSep` instead of `break`, letting the
+   prune loop cross into live nodes (post-sep DOM with no `_all` entry).
+2. `_startIdx` was advanced by raw DOM node count. Agent-mode messages produce
+   5+ nodes each, so `_startIdx` overshot `_all.length`. `_loadOlder` then
+   accessed `_all[167]` on a 50-message array → `TypeError` crash that locked
+   the chat and made scroll stop working.
+3. `_maybePrune` used `_liveChildCount()` which counts post-sep live nodes that
+   can never be pruned, inflating the target and worsening bug 2.
+
+Fixed by: `break` at `_histSep`; derive `_startIdx` from `data-ch-idx` (same
+pattern `_loadNewer` already used); partial-message cleanup at the prune
+boundary; switch `_maybePrune` to `_histChildCount()` with a null guard for
+sessions where `load()` was never called.
+
+Also fixes a thinking-token leak in `chat.js` `resumeStream`: the server sends
+`{delta, thinking:true}` for reasoning tokens. The main handler wraps these in
+`<think>…</think>` so `addMessage` renders them in a collapsible section.
+`resumeStream` read `json.delta` without checking `json.thinking`, so raw
+thinking content rendered as plain text in the replay bubble on crash-recovery
+reload. Fixed by mirroring the main handler's `_thinkOpen` state machine,
+stripping thinking blocks from intermediate `renderDelta` display, and closing
+any unclosed block before finalization.
+
 ### Behavior
 
 To the user the experience is unchanged: the most recent messages are visible,
@@ -82,9 +109,10 @@ omitted content. No visual regression in normal-length sessions.
 
 ## Filing Notes (James)
 
-1. Squash the 2 commits on this branch to 1 before opening the PR.
-2. No screenshot required — the fix is behavioral (OOM prevention), not visual.
-   If upstream asks for evidence, offer to reproduce the crash on an unpatched
-   build or point to the memory growth mechanics in the code.
+1. Squash the 3 commits on this branch to 1 before opening the PR.
+2. No screenshot required — the fix is behavioral (OOM prevention + crash
+   recovery), not visual. If upstream asks for evidence, offer to reproduce the
+   crash on an unpatched build or point to the memory growth mechanics in the
+   code.
 3. File issue on `pewdiepie-archdaemon/odysseus` first; add its number here
    before opening the PR.
