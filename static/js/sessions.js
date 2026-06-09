@@ -1676,6 +1676,12 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
       // Don't highlight empty sessions — feels like nothing is selected
       document.querySelectorAll('.list-item.active-session').forEach(el => el.classList.remove('active-session'));
     }
+    // Snap to bottom while the container is still invisible. This mirrors upstream's
+    // original order and ensures the compositor layer is initialised with the correct
+    // scrollTop when the opacity fade-in transition begins. Setting scrollTop AFTER
+    // opacity='1' (our previous order) let Chrome initialise the compositor with
+    // scrollTop=0 (left by innerHTML='') and defer the correction.
+    uiModule.scrollHistoryInstant();
     // Fade in and re-enable message animations
     if (chatHistory) {
       chatHistory.style.transition = 'opacity 0.15s ease-in';
@@ -1687,11 +1693,9 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
         window.hljs.highlightElement(block);
       });
     }
-    // Scroll after hljs so any code-block height expansion that occurs
-    // above the viewport doesn't leave us short of the true bottom.
-    // overflow-anchor:none is required for _loadOlder() scroll compensation
-    // but disables Chrome's automatic scrollTop adjustment on content growth,
-    // so we must re-anchor manually as the last step before yielding.
+    // Re-anchor after hljs: overflow-anchor:none (required for _loadOlder scroll
+    // compensation) disables Chrome's automatic adjustment for hljs height growth,
+    // so a second snap is needed to land at the true bottom.
     uiModule.scrollHistoryInstant();
     // Hide research button on session switch — it's only for the session that started it
     var _rBtn = document.getElementById('research-toggle-btn');

@@ -78,26 +78,6 @@
         self._c.scrollTop = self._c.scrollHeight;
       });
     });
-    // sessions.js applies `opacity 0.15s ease-in` to the container when loading a
-    // session, which promotes it to a compositor layer. Chrome can defer main-thread
-    // scrollTop assignments while a compositor layer is being initialised, so the
-    // above rAF corrections may be ignored until the transition resolves. Fire one
-    // final correction on transitionend (≈150ms) to catch this case.
-    var _transFixed = false;
-    function _onTransEnd(e) {
-      if (e.propertyName !== 'opacity') return;
-      self._c.removeEventListener('transitionend', _onTransEnd);
-      _transFixed = true;
-      if (self._gen !== _lgen) return;
-      self._c.scrollTop = self._c.scrollHeight;
-    }
-    self._c.addEventListener('transitionend', _onTransEnd);
-    // Fallback for sessions loaded without a transition (e.g. first load, no animation).
-    setTimeout(function () {
-      if (_transFixed || self._gen !== _lgen) return;
-      self._c.removeEventListener('transitionend', _onTransEnd);
-      self._c.scrollTop = self._c.scrollHeight;
-    }, 300);
   };
 
   MessageWindow.prototype.reset = function () {
