@@ -1676,8 +1676,6 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
       // Don't highlight empty sessions — feels like nothing is selected
       document.querySelectorAll('.list-item.active-session').forEach(el => el.classList.remove('active-session'));
     }
-    uiModule.scrollHistoryInstant();
-
     // Fade in and re-enable message animations
     if (chatHistory) {
       chatHistory.style.transition = 'opacity 0.15s ease-in';
@@ -1689,6 +1687,12 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
         window.hljs.highlightElement(block);
       });
     }
+    // Scroll after hljs so any code-block height expansion that occurs
+    // above the viewport doesn't leave us short of the true bottom.
+    // overflow-anchor:none is required for _loadOlder() scroll compensation
+    // but disables Chrome's automatic scrollTop adjustment on content growth,
+    // so we must re-anchor manually as the last step before yielding.
+    uiModule.scrollHistoryInstant();
     // Hide research button on session switch — it's only for the session that started it
     var _rBtn = document.getElementById('research-toggle-btn');
     var _rChk = document.getElementById('research-toggle');
