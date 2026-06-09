@@ -513,7 +513,7 @@ function _parseDownloadState(text, sessionId) {
   const resolveErr = /\[!\] Failed to list files/.test(out);
 
   const filesMatch = out.match(/\[\*\] (\d+) file\(s\) to download/);
-  const totalFiles = filesMatch ? parseInt(filesMatch[1], 10) : 0;
+  let totalFiles = filesMatch ? parseInt(filesMatch[1], 10) : 0;
 
   // Sequential mode: "[*] [X/Y] rel_path" lines — last occurrence is current file
   const fileMatches = [...out.matchAll(/\[\*\] \[(\d+)\/(\d+)\] (.+)/g)];
@@ -599,6 +599,8 @@ function _parseDownloadState(text, sessionId) {
     // Refresh total file count from script banner (printed before aria2c starts)
     const countMatch = out.match(/\[\*\] (\d+) file\(s\) to download/);
     if (countMatch) tr.totalFileCount = parseInt(countMatch[1], 10);
+    // Banner scrolls out of capture window for long downloads — use cached value
+    if (!totalFiles && tr.totalFileCount) totalFiles = tr.totalFileCount;
 
     // Record sizes of files we see for the first time
     for (const f of perFileData) {
