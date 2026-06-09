@@ -420,6 +420,27 @@ class ToolIndex:
                    "show my", "the file", "my file", "the report", "the write-up",
                    "the writeup", "saved document", "in my library", "in the library"}):
             {"manage_documents", "edit_document"},
+        # Disk file access — read/write/edit/search files on the server.
+        # Separated from the "my files/docs" → manage_documents hint above
+        # because that maps to the editor panel, not the filesystem.
+        # Matches path-like strings (/foo, ~/foo), file extensions, and
+        # code-navigation verbs so the agent gets read_file/grep/ls/bash
+        # when the user is actually talking about on-disk project files.
+        frozenset({"read file", "open file", "view file", "show file",
+                   "read the file", "open the file", "view the file",
+                   "browse file", "browse the file", "browse files",
+                   "read source", "view source", "show source",
+                   "source code", "codebase", "the codebase",
+                   "search code", "search the code", "find in code",
+                   "find in files", "grep", "search files",
+                   "edit file", "edit the file", "modify file",
+                   "write to file", "write the file", "create file",
+                   "list directory", "list the directory", "list dir",
+                   ".py", ".js", ".ts", ".json", ".yaml", ".yml",
+                   ".toml", ".cfg", ".ini", ".md", ".txt", ".sh",
+                   "/home/", "/usr/", "/etc/", "~/", "the repo",
+                   "git repo", "my repo", "the project"}):
+            {"read_file", "write_file", "edit_file", "grep", "glob", "ls", "bash"},
         # Theme / UI control intent
         frozenset({"theme", "color scheme", "colors of the ui", "make it dark",
                    "make it light", "make the ui", "switch theme", "change theme",
