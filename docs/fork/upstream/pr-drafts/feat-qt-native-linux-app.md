@@ -76,6 +76,74 @@ permanently disabled with "not supported in this browser". When
 The selected hex value is returned via a `colorPicked` signal. Web EyeDropper
 remains the path in regular browsers.
 
+### Desktop wrapper approach: Qt over Electron or Tauri
+
+This section documents the tradeoffs considered. Reviewers aware of upstream
+issue #3309 and discussion #3609 will want to understand why Qt was chosen.
+
+**The alternative landscape**
+
+Issue #3309 requests an Electron-based desktop wrapper. Discussion #3609 shows
+a community Electron wrapper that already works on Linux, Windows, and macOS.
+Architecture document #605 explicitly recommends **Tauri** (not Electron) and
+notes that a wrapper should follow the planned frontend migration to
+React/TypeScript.
+
+**Why not Electron**
+
+Electron ships its own full copy of Chromium (~200 MB on disk, ~100–200 MB
+additional RAM per process). On Linux, this means installing and running a
+second Chromium runtime alongside whatever browser the user already has. For a
+Python application that already runs on the system, adding a Node.js + Electron
+runtime stack purely for a desktop window is a heavy dependency with a
+meaningful install cost.
+
+PyQt6-WebEngine also uses a Chromium-based rendering engine (Qt WebEngine), so
+there is no capability gap between the two approaches. The difference is that on
+Linux, PyQt6-WebEngine can use the Qt WebEngine packages available from the
+distribution's package manager — no bundled browser binary needed. The
+community wrapper in discussion #3609 works correctly but requires an
+`npm install electron` path that adds this runtime overhead.
+
+**Why not Tauri**
+
+The architecture document's Tauri recommendation is well-reasoned for its
+intended context: a post-React-migration frontend where Tauri's Rust toolchain
+integration and native webview usage are appropriate.
+
+Two reasons Tauri is not the right choice today:
+
+1. **Rendering engine**: Tauri uses WebKitGTK on Linux. WebKitGTK trails
+   Blink/Chrome in CSS and web platform feature support. Odysseus uses
+   `backdrop-filter`, `grid`, `container queries`, and progressive rendering
+   features that work on Chrome. Whether they work on the version of WebKitGTK
+   present on a given Linux distribution is untested and risky. Qt WebEngine
+   is Chromium-based and renders identically to the browser.
+
+2. **Toolchain**: Odysseus has no Rust code and no Rust toolchain. Adding Tauri
+   means adding a full Rust build environment as a mandatory dependency for a
+   desktop wrapper. PyQt6 is a native Python binding — no new toolchain required.
+
+When the React migration described in #605 is complete, revisiting Tauri may be
+the right call. This PR does not conflict with that path; `linux_wrapper.py` is
+optional and the server is unchanged.
+
+**Why Qt is appropriate for Linux**
+
+Qt is the standard native application toolkit on Linux distributions that use
+KDE, and is a first-class citizen on GNOME via GTK interop. PyQt6 is available
+from the package manager on Arch, Debian, Ubuntu, and Fedora. The GPU
+acceleration flags set in `linux_wrapper.py` (`--enable-gpu-rasterization`,
+`--enable-zero-copy`, `--use-vulkan`) are standard Chromium flags that take
+effect on NVIDIA/Wayland setups without any platform-specific code. None of
+this is novel: PyQt6-WebEngine wrappers are a well-understood pattern for
+Python web apps that need a desktop presence on Linux.
+
+This PR does not attempt to cover Windows or macOS. Issue #3528 addresses a
+Windows desktop mode separately. Cross-platform coverage via Electron or Tauri
+is a reasonable follow-up; this PR delivers the Linux case using the tooling
+that is already on every Linux machine in the target audience.
+
 ### No changes to server, API, or non-Qt JS paths
 
 All changes are either new files or guarded behind `window.__QT_WRAPPER__` /
