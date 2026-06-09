@@ -46,8 +46,10 @@ _AGENT_WORKDIR = DATA_DIR
 #   1. Sensitive-subpath deny list — checked FIRST. Blocks .ssh,
 #      .gnupg, shell rc files, token/env files even if the root above
 #      them is on the allowlist.
-#   2. Allowlist — only the directories the agent legitimately needs
-#      (project data/, system tmp). $HOME is NOT on the default list.
+#   2. Allowlist — project data/, system tmp, and $HOME. $HOME is
+#      included by default because admin users legitimately need to
+#      read project files on their own machine; credentials and shell
+#      configs are still blocked by the deny list above.
 #   3. Opt-in extra roots — admin can add broader roots via the
 #      "tool_path_extra_roots" setting (list of path strings).
 # ---------------------------------------------------------------------------
@@ -110,6 +112,13 @@ def _tool_path_roots() -> list[str]:
     tmpdir = os.environ.get("TMPDIR")
     if tmpdir:
         roots.append(tmpdir)
+
+    # $HOME — the user's home directory. Admin users need to read project
+    # files on their own machine. Credentials and shell configs are still
+    # blocked by the sensitive-subpath deny list above.
+    home = os.path.expanduser("~")
+    if home and home != "/":
+        roots.append(home)
 
     # Opt-in extra roots from settings.
     try:
