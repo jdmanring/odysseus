@@ -38,6 +38,7 @@
     this._histSep    = null;       // invisible div at boundary: historical | live
     this._mutObs     = null;
     this._loading    = false;      // true during load / _loadOlder (defer Phase 2)
+    this._prunePending = false;    // rAF guard for Phase 2 prune (collapses burst fires)
     this._bidiPending = false;     // rAF guard for scroll-based _loadNewer
     this._initMutObs();
     this._initScrollListener();
@@ -377,8 +378,14 @@
   MessageWindow.prototype._initMutObs = function () {
     var self = this;
     this._mutObs = new MutationObserver(function () {
-      if (self._loading) return;
-      self._maybePrune();
+      if (self._loading || self._prunePending) return;
+      // Collapse burst DOM mutations (streaming token appends) into one prune check
+      // per animation frame instead of an O(n) DOM walk on every individual fire.
+      self._prunePending = true;
+      requestAnimationFrame(function () {
+        self._prunePending = false;
+        if (!self._loading) self._maybePrune();
+      });
     });
     this._mutObs.observe(this._c, { childList: true });
   };
@@ -389,12 +396,17 @@
 
   MessageWindow.prototype._maybePrune = function () {
     if (!this._isAtBottom()) return;
-    // Only historical nodes (before _histSep) are prunable — live messages after
-    // _histSep have no _all entry to reload from, so we must never touch them.
     if (!this._histSep || !this._histSep.parentNode) return;
-    var hist = this._histChildCount();
-    if (hist <= PRUNE_AT) return;
-    this._pruneTop(hist - PRUNE_AT + PRUNE_COUNT);
+    // Threshold is based on total non-control DOM nodes (historical + live) so that
+    // a long live session (many turns after the history boundary) also triggers
+    // pruning — not just sessions where the user scrolled up through history.
+    // Pruning itself is still limited to historical nodes (before _histSep) because
+    // live nodes have no _all[] entry and cannot be reloaded once removed.
+    var total = this._liveChildCount();
+    if (total <= PRUNE_AT) return;
+    var hist  = this._histChildCount();
+    if (hist === 0) return;
+    this._pruneTop(Math.min(hist, total - PRUNE_AT + PRUNE_COUNT));
   };
 
   // Count all non-control DOM children (excludes sentinels, spacer, sep).
