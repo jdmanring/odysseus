@@ -17,12 +17,12 @@ explicit per-action authorization. Agents stage; James files.**
 | `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Bug/Docs | Ready to file — see pr-drafts/ |
 | `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Bug | Ready to file — see pr-drafts/ |
 | `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Bug | Ready to file — see pr-drafts/ |
-| `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Refactor | Ready to file |
+| `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Refactor | Ready to file — see pr-drafts/ |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Bug | Needs verification — rebuilt 2026-06-08; fix was broken in prior cherry-pick |
-| `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Needs squash (2 commits → 1); no screenshot needed — see pr-drafts/ |
-| `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Feature | Needs integration test run + screenshot |
+| `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Ready to file — see pr-drafts/ |
+| `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Feature | Needs integration test run + screenshot — see pr-drafts/ |
 | `feat/gguf-discovery` | [#24](https://github.com/jdmanring/odysseus/issues/24) | Feature | Ready to file after #12 merges — see pr-drafts/ |
-| `feat/download-ui-overhaul` | [#16](https://github.com/jdmanring/odysseus/issues/16) | Feature | File after aria2c (#12) merges upstream |
+| `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Docs | Branch needs rebuild from upstream-mirror (70 commits contaminated); content is in develop |
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Ready to file — screenshot in docs/fork/screenshots/; see pr-drafts/ |
 | `fix/hf-token-persistence` | [#7](https://github.com/jdmanring/odysseus/issues/7) | Bug | WIP — proper fix not implemented yet |
 
