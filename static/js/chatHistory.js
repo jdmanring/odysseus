@@ -68,7 +68,14 @@
     this._c.scrollTop = this._c.scrollHeight;
     var self = this;
     var _lgen = this._gen;
-    requestAnimationFrame(function () { if (self._gen === _lgen) self._loading = false; });
+    requestAnimationFrame(function () {
+      if (self._gen !== _lgen) return;
+      self._loading = false;
+      // Re-scroll after the browser has committed layout. The synchronous
+      // scrollTop set above can land short when the element was opacity:0 or
+      // when the browser deferred its reflow (happens after innerHTML clear).
+      self._c.scrollTop = self._c.scrollHeight;
+    });
   };
 
   MessageWindow.prototype.reset = function () {
@@ -524,11 +531,16 @@
       var spacer = document.createElement('div');
       spacer.className  = 'chat-history-spacer';
       spacer.style.cssText = (
-        'height:' + totalDelta + 'px;flex-shrink:0;min-height:32px;display:flex;' +
+        'height:' + totalDelta + 'px;flex-shrink:0;display:flex;' +
         'align-items:center;justify-content:center;' +
         'color:var(--fg);opacity:0.35;font-size:0.8rem'
       );
-      spacer.textContent = 'Earlier messages pruned — scroll up to reload';
+      // Only set text when the spacer is tall enough to display it legibly.
+      // min-height on the spacer would add extra height beyond totalDelta,
+      // creating a scroll geometry mismatch that causes visible position jumps.
+      if (totalDelta >= 32) {
+        spacer.textContent = 'Earlier messages pruned — scroll up to reload';
+      }
       var afterSentinel = this._sentinel ? this._sentinel.nextSibling : null;
       if (afterSentinel) {
         this._c.insertBefore(spacer, afterSentinel);
