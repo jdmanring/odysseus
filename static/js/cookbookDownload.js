@@ -6,6 +6,7 @@
 
 import uiModule from './ui.js';
 import { _diagnose, _showDiagnosis, _clearDiagnosis } from './cookbook-diagnosis.js';
+import { refreshCachedModelIds } from './cookbook-hwfit.js';
 
 // Shared state/functions injected by init()
 let _envState;
@@ -452,7 +453,7 @@ export async function _runPanelCmd(panel, cmd, opts = {}) {
 
 // ── Model download (dedicated endpoint, tmux-backed) ──
 
-async function _startManagedPolling(panel, sessionId, modelName) {
+async function _startManagedPolling(panel, sessionId, modelName, host) {
   const wrap = panel.querySelector('.cookbook-output-wrap');
   if (!wrap) return;
 
@@ -492,6 +493,7 @@ async function _startManagedPolling(panel, sessionId, modelName) {
       if (data.status === 'complete') {
         stats.textContent = 'Download Complete!';
         uiModule.showToast(`${modelName} downloaded successfully.`);
+        refreshCachedModelIds(host);
         clearInterval(timer);
         setTimeout(() => ui.remove(), 5000);
       }
@@ -690,7 +692,7 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
     _addTask(data.session_id, shortName, 'download', payload);
     uiModule.showToast(`Downloading ${shortName}...`);
     if (data.managed) {
-      _startManagedPolling(panel, data.session_id, shortName);
+      _startManagedPolling(panel, data.session_id, shortName, host);
     }
   } catch (e) {
     uiModule.showToast('Download failed: ' + e.message, 9000);
