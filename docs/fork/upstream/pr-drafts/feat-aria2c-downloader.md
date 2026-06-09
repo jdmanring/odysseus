@@ -1,7 +1,7 @@
 # PR Draft: feat/aria2c-downloader → pewdiepie-archdaemon/odysseus:dev
 
 **Branch:** `jdmanring/odysseus:feat/aria2c-downloader`
-**Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) (fork tracking)
+**Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) + [#25](https://github.com/jdmanring/odysseus/issues/25) (fork tracking)
 **Status:** Needs integration test run + screenshot before filing
 
 ---
@@ -96,6 +96,10 @@ URL construction, cache path logic, download verification.
 - [ ] Download a gated model with a valid HF token — verify auth works
 - [ ] Cancel mid-download — verify tmux session is killed and no partial files
   are left in an inconsistent state
+- [ ] After a successful download, verify the cached dot (●) appears on the
+  model row immediately without a page reload
+- [ ] Download a GGUF model — verify the cached dot appears using the GGUF
+  repo name, not the catalog entry name
 - [ ] Run `pytest tests/test_aria2c_circuit.py` — should pass
 
 ---
