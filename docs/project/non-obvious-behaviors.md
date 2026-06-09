@@ -82,6 +82,52 @@ Lines look like: `·[#a1b2c3 1GiB/5GiB(21%) CN:4 DL:50MiB ETA:1m20s]`
 The space before `[` is always present. Regexes must match `^\s*\[#` — not `^\[#`.
 Getting this wrong causes the progress parser to silently drop every status line.
 
+**tmux default 80-column terminal truncates FILE: paths → wrong filename in download card.**
+The tmux session for downloads is created without explicit width, defaulting to 80 columns.
+The `FILE:` line aria2c outputs after each `[#...]` block — e.g.,
+`FILE: /home/user/.cache/huggingface/hub/models--owner--ModelName/snapshots/{commit}/file.safetensors`
+— is routinely longer than 80 chars. tmux wraps it at column 80, and the JS progress
+parser's regex `(\S+)` captures only the first visual line, which ends on the HF cache
+directory name (`models--owner--ModelName`) rather than the actual filename. The result:
+per-file rows in the download card show the model directory as the "filename" instead
+of the real shard name (e.g., `model-00001-of-00005.safetensors`).
+
+Fix: pass `-x 220 -y 50` to every `tmux new-session` call in `cookbook_routes.py`. This
+ensures aria2c's FILE: output fits on one visual line for any realistic HF cache path.
+
+**`capture-pane -S -200` scrollback limit causes file count to disappear mid-download.**
+The JS background monitor polls `tmux capture-pane -S -200`, capturing 200 lines of
+scrollback. `aria2c_download.py` prints `[*] N file(s) to download` once at startup.
+With `--summary-interval=3` and 4 parallel files, each summary block is ~5 lines. After
+~200 lines (~3–4 minutes), the banner scrolls out of the capture window. When it's gone,
+`totalFiles` resolves to 0 in `_parseDownloadState` and the "X of N files" stat vanishes
+from the download card.
+
+The `_dlFileTracker` map caches `totalFileCount` across poll ticks once it sees the
+banner, but the `fileCtx` stat reads from the outer `totalFiles` variable (not the
+tracker), so the cached value was never used as a fallback.
+
+Fix: change `const totalFiles` to `let` in `_parseDownloadState` and fall back to
+`tr.totalFileCount` inside the tracker block when `totalFiles` is 0.
+
+**HuggingFace authentication flow for gated and private repos.**
+The download pipeline IS authenticated — token presence is confirmed by the
+`[odysseus] HF token: applied` line printed to the tmux log before the download starts
+(visible via "Show log" in the download card). The auth is applied in two ways:
+
+1. `HfUrlResolver` (`tooling/hf_url_resolver.py`) calls `HfApi(token=args.token)` to
+   enumerate repo files and commit hash. This requires auth for private/gated repos.
+2. `aria2c_download.py` writes `header=Authorization: Bearer {token}` into the aria2c
+   input file for every URL, so all parallel chunk requests carry the auth header.
+
+If the download fails with "not authorized" or 403, check:
+- Whether the token is set: Settings → Cookbook → HuggingFace Token
+- Whether the token has access to the specific repo (gated models require accepting terms)
+- The `[odysseus] HF token: applied` vs `NOT SET` message in the download log
+
+The auth status is NOT shown in the download card itself — only in the collapsed log.
+This is a known UX gap.
+
 ---
 
 ## Backend / LLM

@@ -46,7 +46,7 @@ mcp_servers/              ← MCP server implementations (memory, RAG, image gen
 tooling/                  ← Standalone utilities (subprocess-safe, no FastAPI dependency)
   aria2c_download.py      ← HF model download via aria2c subprocess
   bin_manager.py          ← Auto-install external binaries (aria2c, ffmpeg, etc.)
-  hf_url_resolver.py      ← Resolve HuggingFace signed URLs
+  hf_url_resolver.py      ← SINGLE SOURCE OF TRUTH for HuggingFace signed URLs and file resolution (used by routes and downloaders)
 ```
 
 ---
