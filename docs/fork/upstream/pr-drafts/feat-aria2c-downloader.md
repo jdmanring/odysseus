@@ -1,7 +1,7 @@
 # PR Draft: feat/aria2c-downloader → pewdiepie-archdaemon/odysseus:dev
 
 **Branch:** `jdmanring/odysseus:feat/aria2c-downloader`
-**Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) + [#25](https://github.com/jdmanring/odysseus/issues/25) (fork tracking)
+**Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) (fork tracking)
 **Status:** Needs integration test run + screenshot before filing
 
 ---
