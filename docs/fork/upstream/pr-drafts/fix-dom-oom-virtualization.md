@@ -2,7 +2,7 @@
 
 **Branch:** `jdmanring/odysseus:fix/dom-oom-virtualization`
 **Issue:** [#2](https://github.com/jdmanring/odysseus/issues/2) (fork tracking)
-**Status:** Needs squash (4 commits → 1) before filing. File upstream issue first.
+**Status:** Needs squash (5 commits → 1) before filing. File upstream issue first.
 
 ---
 
@@ -97,10 +97,15 @@ The virtualization module. Runs as a plain (non-module) `<script>` tag so
 is entirely self-contained; it has one external dependency (`window.chatModule
 .addMessage`) and exposes two public methods: `reset()` and `load(messages)`.
 
-**`static/js/sessions.js`** (9 lines changed)  
+**`static/js/sessions.js`** (~15 lines changed)  
 Before clearing `#chat-history.innerHTML`, call `window.chatHistory.reset()`.
 Replace the `msgHistory.forEach(addMessage)` loop with
-`window.chatHistory.load(_preparedMsgs)`.
+`window.chatHistory.load(_preparedMsgs)`. Move `scrollHistoryInstant()` to
+after the post-load `hljs` pass: `overflow-anchor: none` disables Chrome's
+automatic `scrollTop` compensation, so any DOM height increase after a manual
+scroll (e.g., hljs expanding a code block above the viewport) leaves the user
+short of the actual bottom. Calling `scrollHistoryInstant()` last ensures it
+reflects the final, fully-laid-out height.
 
 **`static/js/chat.js`** (resumeStream, ~15 lines changed)  
 Related fix discovered while testing the crash-recovery path. The server emits
@@ -119,7 +124,7 @@ triggers `resumeStream`. Without the DOM fix, OOM was fatal (nothing to
 recover); with it, crash recovery is a real path and the thinking-token bug
 becomes visible.
 
-**`static/style.css`** (3 changes)
+**`static/style.css`** (6 changes)
 
 - `.chat-history { overflow-anchor: none; }` — Required for correct scroll
   position management. Without it, Chrome's automatic scroll-anchor fires when
@@ -133,10 +138,29 @@ becomes visible.
   hover/state change, producing a 1–2 frame black-screen flash on menu open and
   sidebar hover. The `margin-left/right` transition on `.chat-container` does
   not require GPU promotion to animate smoothly on modern hardware.
+- `.chat-input-bar { will-change: transform; transform: translateZ(0); }`
+  removed (three occurrences: main rule, safe-area inset rule, container-query
+  rule) — Same compositor-layer issue, different trigger. The input bar's
+  `textarea` has `transition: height 0.12s ease-out`; as the user types and the
+  textarea grows, the GPU texture for `.chat-input-bar` is flushed, producing
+  a black-screen flash identical to the sidebar hover case.
+- `textarea#message { will-change: transform; transform: translateZ(0); }`
+  removed — The textarea itself was also promoted. `transition: height` is a
+  layout transition and does not require or benefit from GPU promotion.
 
 ### Correctness details worth noting for reviewers
 
 A few implementation points that warrant explanation:
+
+**Why does `load()` attach the sentinel before scrolling?**  
+The original order was: scroll then attach sentinel. `overflow-anchor: none`
+means the 34 px sentinel height is not auto-compensated into `scrollTop`, so
+the user ended up 34 px above the actual bottom. By attaching the sentinel
+first, the single `this._c.scrollTop = this._c.scrollHeight` call at the end
+of `load()` accounts for the sentinel's height in one shot. (IntersectionObserver
+callbacks are asynchronous — they never fire within the same JS task, so there
+is no risk of the observer triggering `_loadOlder()` before the scroll sets the
+sentinel out of view.)
 
 **Why a plain script rather than a module?**  
 `sessions.js` is an ES module that executes in the microtask queue. If
@@ -215,6 +239,13 @@ below were exercised directly.
   replays SSE buffer → thinking tokens render in collapsible block, not as
   visible text
 
+**Scroll position on session open**
+- Session with code blocks → opens exactly at bottom (last message fully
+  visible); scrollHistoryInstant() fires after hljs so code-block expansion
+  above viewport does not leave user short of bottom
+- Click scroll-to-bottom button while any content is unloaded → reaches live
+  section; bottom sentinel disappears
+
 **Regression check — normal-length sessions**
 - Sessions with 5, 15, 30 messages → all messages visible, no pagination UI,
   no spacer; behavior identical to pre-patch
@@ -229,7 +260,7 @@ backend endpoints and is not affected by this change.
 
 ## Filing notes (James only — do not paste upstream)
 
-1. **Squash the 4 commits on the staging branch to 1 before opening the PR.**
+1. **Squash the 5 commits on the staging branch to 1 before opening the PR.**
    Suggested squash message:
    ```
    fix(dom): virtual message window to prevent renderer OOM on long sessions
