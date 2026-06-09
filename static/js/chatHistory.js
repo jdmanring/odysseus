@@ -70,11 +70,17 @@
     var _lgen = this._gen;
     requestAnimationFrame(function () {
       if (self._gen !== _lgen) return;
-      self._loading = false;
-      // Re-scroll after the browser has committed layout. The synchronous
-      // scrollTop set above can land short when the element was opacity:0 or
-      // when the browser deferred its reflow (happens after innerHTML clear).
+      // First rAF: re-scroll after layout commits for the current paint.
       self._c.scrollTop = self._c.scrollHeight;
+      requestAnimationFrame(function () {
+        if (self._gen !== _lgen) return;
+        self._loading = false;
+        // Second rAF: catches layout finalized after the fade-in transition
+        // and any hljs/image height changes that occurred between load() and
+        // the first paint. _loading stays true through both frames so the
+        // MutationObserver cannot trigger a premature prune.
+        self._c.scrollTop = self._c.scrollHeight;
+      });
     });
   };
 
@@ -92,6 +98,18 @@
     this._all      = [];
     this._startIdx = 0;
     this._endIdx   = 0;
+  };
+
+  // Snap to the true bottom of history, draining all remaining _loadNewer() batches.
+  // Called by the scroll-to-bottom button. Instant snap (no animation) so atBottom is
+  // true at the start of each _loadNewer() call, keeping the rAF chain going until drained.
+  MessageWindow.prototype.scrollToBottom = function () {
+    this._c.scrollTop = this._c.scrollHeight - this._c.clientHeight;
+    if (this._endIdx < this._all.length && !this._loading) {
+      this._loadNewer();
+    }
+    // If _loading=true, the in-progress _loadNewer() rAF chain continues: we just
+    // snapped to the bottom so _isAtBottom() stays true each iteration.
   };
 
   // ---------------------------------------------------------------------------
@@ -286,6 +304,7 @@
   };
 
   MessageWindow.prototype._loadNewer = function () {
+    if (this._loading) return;
     if (this._endIdx >= this._all.length) return;
 
     // Captured before any DOM changes. When the user is at the very bottom
@@ -473,6 +492,10 @@
   // ---------------------------------------------------------------------------
 
   MessageWindow.prototype._pruneTop = function (count) {
+    // Save before any DOM mutation. Node removal reduces scrollHeight and the browser
+    // immediately clamps scrollTop to the new scrollHeight-clientHeight. The spacer
+    // restores scrollHeight but not the clamped scrollTop, causing a visible jump.
+    var savedScrollTop = this._c.scrollTop;
     var before   = this._c.scrollHeight;
     var removed  = 0;
     var highIdx  = -1;
@@ -548,6 +571,10 @@
         this._c.prepend(spacer);
       }
     }
+    // Spacer height ≈ removed nodes height, so scrollHeight ≈ original and
+    // savedScrollTop is still a valid position. Restoring it undoes the browser
+    // clamp that occurred during node removal.
+    this._c.scrollTop = savedScrollTop;
   };
 
   // Remove `count` historical DOM nodes from just above _histSep.

@@ -1250,17 +1250,11 @@
 
     bottomBtn.addEventListener('click', () => {
       cancelAutoScroll();
-      _scrollingToBottom = true;
-      function step() {
-        if (!_scrollingToBottom) return;
-        const target = container.scrollHeight - container.clientHeight;
-        const diff = target - container.scrollTop;
-        if (diff <= 8) { container.scrollTop = target; _scrollingToBottom = false; return; }
-        container.scrollTop += diff * 0.2;
-        _scrollRaf = requestAnimationFrame(step);
+      if (window.chatHistory) {
+        window.chatHistory.scrollToBottom();
+      } else {
+        container.scrollTop = container.scrollHeight - container.clientHeight;
       }
-      step();
-      _scrollTimeout = setTimeout(() => { if (_scrollingToBottom) { container.scrollTop = container.scrollHeight - container.clientHeight; _scrollingToBottom = false; } }, 1500);
     });
     new ResizeObserver(reposition).observe(chatBar);
     new MutationObserver(update).observe(container, {childList:true, subtree:true});
