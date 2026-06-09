@@ -40,6 +40,7 @@
     this._loading    = false;      // true during load / _loadOlder (defer Phase 2)
     this._prunePending = false;    // rAF guard for Phase 2 prune (collapses burst fires)
     this._bidiPending = false;     // rAF guard for scroll-based _loadNewer
+    this._draining   = false;      // true while scrollToBottom() is draining all batches
     this._gen        = 0;          // incremented on reset(); all rAF callbacks check this
     this._initMutObs();
     this._initScrollListener();
@@ -70,18 +71,33 @@
     var _lgen = this._gen;
     requestAnimationFrame(function () {
       if (self._gen !== _lgen) return;
-      // First rAF: re-scroll after layout commits for the current paint.
       self._c.scrollTop = self._c.scrollHeight;
       requestAnimationFrame(function () {
         if (self._gen !== _lgen) return;
         self._loading = false;
-        // Second rAF: catches layout finalized after the fade-in transition
-        // and any hljs/image height changes that occurred between load() and
-        // the first paint. _loading stays true through both frames so the
-        // MutationObserver cannot trigger a premature prune.
         self._c.scrollTop = self._c.scrollHeight;
       });
     });
+    // sessions.js applies `opacity 0.15s ease-in` to the container when loading a
+    // session, which promotes it to a compositor layer. Chrome can defer main-thread
+    // scrollTop assignments while a compositor layer is being initialised, so the
+    // above rAF corrections may be ignored until the transition resolves. Fire one
+    // final correction on transitionend (≈150ms) to catch this case.
+    var _transFixed = false;
+    function _onTransEnd(e) {
+      if (e.propertyName !== 'opacity') return;
+      self._c.removeEventListener('transitionend', _onTransEnd);
+      _transFixed = true;
+      if (self._gen !== _lgen) return;
+      self._c.scrollTop = self._c.scrollHeight;
+    }
+    self._c.addEventListener('transitionend', _onTransEnd);
+    // Fallback for sessions loaded without a transition (e.g. first load, no animation).
+    setTimeout(function () {
+      if (_transFixed || self._gen !== _lgen) return;
+      self._c.removeEventListener('transitionend', _onTransEnd);
+      self._c.scrollTop = self._c.scrollHeight;
+    }, 300);
   };
 
   MessageWindow.prototype.reset = function () {
@@ -91,6 +107,7 @@
     this._loading    = false;
     this._prunePending = false;
     this._bidiPending  = false;
+    this._draining   = false;
     this._detachSentinel();
     this._detachBottomSentinel();
     if (this._histSep && this._histSep.parentNode) this._histSep.remove();
@@ -101,15 +118,17 @@
   };
 
   // Snap to the true bottom of history, draining all remaining _loadNewer() batches.
-  // Called by the scroll-to-bottom button. Instant snap (no animation) so atBottom is
-  // true at the start of each _loadNewer() call, keeping the rAF chain going until drained.
+  // Called by the scroll-to-bottom button. Sets _draining so the rAF chain snaps to
+  // the bottom before each continuity check, defeating hljs height inflation between
+  // batches that would otherwise break the _isAtBottom() threshold test.
   MessageWindow.prototype.scrollToBottom = function () {
+    this._draining = true;
     this._c.scrollTop = this._c.scrollHeight - this._c.clientHeight;
     if (this._endIdx < this._all.length && !this._loading) {
       this._loadNewer();
     }
-    // If _loading=true, the in-progress _loadNewer() rAF chain continues: we just
-    // snapped to the bottom so _isAtBottom() stays true each iteration.
+    // If _loading=true, the in-progress _loadNewer() rAF chain will see _draining=true
+    // and snap + continue regardless of _isAtBottom().
   };
 
   // ---------------------------------------------------------------------------
@@ -403,15 +422,19 @@
     var self = this;
     var _ngen = this._gen;
     requestAnimationFrame(function () {
-      if (self._gen !== _ngen) return;
+      if (self._gen !== _ngen) { self._draining = false; return; }
       self._loading = false;
-      // Chain: if the user is still at the bottom after this batch (snap kept
-      // them there), keep loading without waiting for another scroll event.
-      // This drains all remaining batches on a single button press.
-      // For slow manual scrolling atBottom is false, so this never fires —
-      // the scroll listener handles that case instead.
-      if (self._endIdx < self._all.length && self._isAtBottom()) {
-        self._loadNewer();
+      if (self._endIdx < self._all.length) {
+        if (self._draining) {
+          // Drain mode (button press): snap before the continuity check so that
+          // hljs height inflation between batches cannot break the threshold test.
+          self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
+        }
+        if (self._draining || self._isAtBottom()) {
+          self._loadNewer();
+        }
+      } else {
+        self._draining = false;
       }
     });
   };
