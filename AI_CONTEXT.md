@@ -158,6 +158,43 @@ The `tooling/` directory contains critical utilities. Check here before writing 
 - `bin_manager.py`: Handles external binary installation/verification.
 - `hf_url_resolver.py`: Resolves signed HF URLs.
 
+## Fork Pipeline — Mental Model
+
+The fork has three main operations. All three are covered with exact commands in
+`AI_RULES.md` under "Fork Operations — Step-by-Step Procedures".
+
+**Ingest upstream changes:**
+```
+upstream/dev → upstream-mirror → sync/staging-* → (3 gates) → integration → develop
+```
+Run: `git checkout integration && python3 tooling/sync-upstreams/upstream_ingest_pipeline.py --skip-tests`
+Then: `git checkout develop && git merge integration`
+
+**Rebase a staging branch** (when upstream-mirror has advanced since the branch was created):
+```bash
+git checkout fix/branch-name
+git rebase upstream-mirror
+# Resolve conflicts: keep our fix + keep upstream's other changes (not just one or the other)
+# Then verify: git diff upstream-mirror fix/branch-name
+```
+
+**Create new upstream-candidate work** (branch from upstream-mirror, NEVER from develop):
+```bash
+git checkout -b fix/new-thing upstream-mirror
+# ... do work, commit ...
+git checkout develop && git cherry-pick <hash>   # put it in develop too
+```
+
+**Branch health check** — run this before any pipeline operation:
+```bash
+git fetch upstream
+git log --oneline upstream/dev ^upstream-mirror        # new upstream commits to ingest?
+git log --oneline integration ^develop                  # integration ahead of develop?
+git log --oneline upstream-mirror..fix/branch-name      # staging branch commit count?
+```
+
+---
+
 ## Where to Go Next
 
 | Need | File |
@@ -170,3 +207,4 @@ The `tooling/` directory contains critical utilities. Check here before writing 
 | Things that will surprise you? | `docs/project/non-obvious-behaviors.md` |
 | Git workflow and branches? | `docs/dev/git-branch-workflow.md` |
 | Running locally? | `docs/dev/local-setup-and-running.md` |
+| **Fork pipeline procedures (exact commands)** | **`AI_RULES.md` — Fork Operations section** |
