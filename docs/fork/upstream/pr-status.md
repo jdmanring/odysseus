@@ -22,7 +22,7 @@ explicit per-action authorization. Agents stage; James files.**
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Ready to file — see pr-drafts/ |
 | `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Feature | Needs integration test run + screenshot — see pr-drafts/ |
 | `feat/gguf-discovery` | [#24](https://github.com/jdmanring/odysseus/issues/24) | Feature | Ready to file after #12 merges — see pr-drafts/ |
-| `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Docs | Branch needs rebuild from upstream-mirror (70 commits contaminated); content is in develop |
+| `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Docs | Ready to file — see pr-drafts/ |
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Ready to file — screenshot in docs/fork/screenshots/; see pr-drafts/ |
 | `fix/hf-token-persistence` | [#7](https://github.com/jdmanring/odysseus/issues/7) | Bug | WIP — proper fix not implemented yet |
 
