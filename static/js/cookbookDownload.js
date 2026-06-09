@@ -518,7 +518,29 @@ async function _startManagedPolling(panel, sessionId, modelName) {
 }
 
 export async function _runModelDownload(panel, model, backend, hostOverride) {
-  const ggufSource = _ggufDownloadSource(model, backend);
+  let ggufSource = _ggufDownloadSource(model, backend);
+  
+  if (backend === 'llamacpp' && !ggufSource) {
+    const repoId = model?.repo_id || model?.name;
+    if (repoId) {
+      try {
+        const res = await fetch(`/api/cookbook/resolve-gguf?model=${encodeURIComponent(repoId)}`, {
+          credentials: 'same-origin',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.gguf_sources && data.gguf_sources.length > 0) {
+            // Inject discovered sources into the model object for this session
+            model.gguf_sources = data.gguf_sources;
+            ggufSource = _ggufDownloadSource(model, backend);
+          }
+        }
+      } catch (e) {
+        console.error('GGUF discovery failed:', e);
+      }
+    }
+  }
+
   if (backend === 'llamacpp' && !ggufSource) {
     uiModule.showToast(_missingGgufMessage(model));
     return;

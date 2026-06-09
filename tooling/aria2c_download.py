@@ -139,7 +139,7 @@ def _main(args) -> None:
     # max_concurrent files simultaneously, and exits with code 0 when ALL
     # files are complete. It is a one-shot subprocess — not a daemon, no RPC.
     max_concurrent = 4   # files in parallel
-    conn_per_file  = 16  # connections per file — 4×16 = 64 total
+    conn_per_file  = 3    # connections per file — 4×3 = 12 total
 
     # Create any subdirectories that appear in relative paths
     for _, rel_path in urls:
@@ -155,9 +155,9 @@ def _main(args) -> None:
         ) as f:
             for url, rel_path in urls:
                 f.write(f"{url}\n")
-                f.write(f"  out={rel_path}\n")
+                f.write(f"\tout={rel_path}\n")
                 if args.token:
-                    f.write(f"  header=Authorization: Bearer {args.token}\n")
+                    f.write(f"\theader=Authorization: Bearer {args.token}\n")
                 f.write("\n")
             input_path = Path(f.name)
 
@@ -173,7 +173,7 @@ def _main(args) -> None:
             "--disk-cache=64M",
             "--retry-wait=3",
             "--console-log-level=notice",
-            "--download-result=hide",
+            "--download-result=full",
             "--summary-interval=3",
             f"--dir={base_dir}",
             f"--input-file={input_path}",
@@ -185,6 +185,11 @@ def _main(args) -> None:
 
     if result.returncode != 0:
         print(f"\n[!] Download failed (aria2c exit {result.returncode}).")
+        sys.exit(1)
+
+    # Final verification: did we actually get any files?
+    if not any(base_dir.iterdir()):
+        print(f"\n[!] CRITICAL FAILURE: aria2c exited 0 but {base_dir} is empty.")
         sys.exit(1)
 
     print(f"\n[*] Download complete. Model cached at: {base_dir}")

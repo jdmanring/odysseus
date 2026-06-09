@@ -51,6 +51,7 @@ from routes.cookbook_helpers import (
     _diagnose_serve_output, run_ssh_command_async,
     ModelDownloadRequest, ServeRequest,
 )
+from tooling.hf_url_resolver import HfUrlResolver
 
 _HF_TOKEN_STATUS_SNIPPET = (
     'if [ -n "$HF_TOKEN" ]; then '
@@ -277,6 +278,23 @@ def setup_cookbook_routes() -> APIRouter:
         )
         pid_path.write_text(str(proc.pid), encoding="utf-8")
         return {"pid": proc.pid, "log_path": str(log_path)}
+
+    @router.get("/api/cookbook/resolve-gguf")
+    async def resolve_gguf(request: Request, model: str = None):
+        """Dynamically discover GGUF sources for a given model repo ID."""
+        require_admin(request)
+        if not model:
+            raise HTTPException(status_code=400, detail="Missing model parameter")
+        
+        token = _load_stored_hf_token()
+        resolver = HfUrlResolver(token=token)
+        
+        try:
+            sources = resolver.find_gguf_sources(model)
+            return {"gguf_sources": sources}
+        except Exception as e:
+            logger.exception("GGUF discovery failed for %s", model)
+            raise HTTPException(status_code=500, detail=str(e))
 
     @router.post("/api/model/download")
     async def model_download(request: Request, req: ModelDownloadRequest):
@@ -507,7 +525,7 @@ def setup_cookbook_routes() -> APIRouter:
             setup_cmd = (
                 f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner} "
                 f"{' && ssh ' + _spf + remote + ' \"mkdir -p ~/.cookbook\" && scp -r tooling ' + remote + ':~/.cookbook/' if req.use_aria2c else ''} && "
-                f"ssh {_spf}{remote} 'chmod +x {remote_runner} && tmux new-session -d -s {session_id} \"./{remote_runner}\"'"
+                f"ssh {_spf}{remote} 'chmod +x {remote_runner} && tmux new-session -x 220 -y 50 -d -s {session_id} \"./{remote_runner}\"'"
             )
         else:
             # Local: run hf download in the background (tmux on POSIX, a detached
@@ -532,7 +550,7 @@ def setup_cookbook_routes() -> APIRouter:
                 lines.append('exec "${SHELL:-/bin/bash}"')
                 wrapper_script.write_text("\n".join(lines) + "\n", encoding="utf-8")
                 wrapper_script.chmod(0o755)
-            setup_cmd = None if IS_WINDOWS else f"tmux new-session -d -s {session_id} {shlex.quote(str(wrapper_script))}"
+            setup_cmd = None if IS_WINDOWS else f"tmux new-session -x 220 -y 50 -d -s {session_id} {shlex.quote(str(wrapper_script))}"
 
         logger.info(f"Model download: {req.repo_id} (include={req.include}, session={session_id}, remote={remote})")
         logger.info(f"Download setup_cmd: {setup_cmd}")
