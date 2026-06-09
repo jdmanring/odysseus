@@ -40,6 +40,7 @@
     this._loading    = false;      // true during load / _loadOlder (defer Phase 2)
     this._prunePending = false;    // rAF guard for Phase 2 prune (collapses burst fires)
     this._bidiPending = false;     // rAF guard for scroll-based _loadNewer
+    this._gen        = 0;          // incremented on reset(); all rAF callbacks check this
     this._initMutObs();
     this._initScrollListener();
   }
@@ -64,10 +65,17 @@
     this._c.scrollTop = this._c.scrollHeight;
     this._attachSentinel();
     var self = this;
-    requestAnimationFrame(function () { self._loading = false; });
+    var _lgen = this._gen;
+    requestAnimationFrame(function () { if (self._gen === _lgen) self._loading = false; });
   };
 
   MessageWindow.prototype.reset = function () {
+    // Bump generation so all in-flight rAF callbacks from the previous session
+    // detect the stale gen and bail without modifying state or calling _loadNewer.
+    this._gen++;
+    this._loading    = false;
+    this._prunePending = false;
+    this._bidiPending  = false;
     this._detachSentinel();
     this._detachBottomSentinel();
     if (this._histSep && this._histSep.parentNode) this._histSep.remove();
@@ -188,7 +196,9 @@
       var container = self._c.getBoundingClientRect();
       if (rect.top <= container.bottom + BIDI_MARGIN) {
         self._bidiPending = true;
+        var _sgen = self._gen;
         requestAnimationFrame(function () {
+          if (self._gen !== _sgen) { self._bidiPending = false; return; }
           self._bidiPending = false;
           if (!self._loading && self._endIdx < self._all.length) {
             self._loadNewer();
@@ -228,6 +238,8 @@
 
     var frag = document.createDocumentFragment();
     for (var j = 0; j < nodes.length; j++) frag.appendChild(nodes[j]);
+    // insertRef: after the old sentinel (first real node), or _histSep as safe fallback
+    if (!insertRef && this._histSep && this._histSep.parentNode) insertRef = this._histSep;
     if (insertRef) {
       this._c.insertBefore(frag, insertRef);
     } else {
@@ -235,9 +247,10 @@
     }
 
     if (window.hljs) {
-      this._c.querySelectorAll('pre code:not(.hljs)').forEach(function (b) {
-        window.hljs.highlightElement(b);
-      });
+      for (var hi = 0; hi < nodes.length; hi++) {
+        var _bs = nodes[hi].querySelectorAll ? nodes[hi].querySelectorAll('pre code:not(.hljs)') : [];
+        for (var bi = 0; bi < _bs.length; bi++) window.hljs.highlightElement(_bs[bi]);
+      }
     }
 
     this._startIdx = from;
@@ -251,7 +264,8 @@
 
     this._attachSentinel();
     var self = this;
-    requestAnimationFrame(function () { self._loading = false; });
+    var _ogen = this._gen;
+    requestAnimationFrame(function () { if (self._gen === _ogen) self._loading = false; });
   };
 
   // ---------------------------------------------------------------------------
@@ -294,9 +308,10 @@
     }
 
     if (window.hljs) {
-      this._c.querySelectorAll('pre code:not(.hljs)').forEach(function (b) {
-        window.hljs.highlightElement(b);
-      });
+      for (var hi = 0; hi < nodes.length; hi++) {
+        var _bs = nodes[hi].querySelectorAll ? nodes[hi].querySelectorAll('pre code:not(.hljs)') : [];
+        for (var bi = 0; bi < _bs.length; bi++) window.hljs.highlightElement(_bs[bi]);
+      }
     }
 
     this._endIdx = upTo;
@@ -358,7 +373,9 @@
 
     this._attachBottomSentinel();
     var self = this;
+    var _ngen = this._gen;
     requestAnimationFrame(function () {
+      if (self._gen !== _ngen) return;
       self._loading = false;
       // Chain: if the user is still at the bottom after this batch (snap kept
       // them there), keep loading without waiting for another scroll event.
@@ -382,7 +399,9 @@
       // Collapse burst DOM mutations (streaming token appends) into one prune check
       // per animation frame instead of an O(n) DOM walk on every individual fire.
       self._prunePending = true;
+      var _mgen = self._gen;
       requestAnimationFrame(function () {
+        if (self._gen !== _mgen) { self._prunePending = false; return; }
         self._prunePending = false;
         if (!self._loading) self._maybePrune();
       });
@@ -547,6 +566,23 @@
     }
 
     if (removed > 0) {
+      // Partial-message cleanup: if the loop stopped mid-message (a single _all entry
+      // spans multiple DOM children), remove the remaining fragments at the boundary.
+      // Without this, _loadNewer renders the message again over the orphaned nodes,
+      // duplicating it in the DOM.
+      var check = this._histSep
+        ? this._histSep.previousElementSibling
+        : this._c.lastElementChild;
+      while (check && check !== this._sentinel && check !== this._bSentinel &&
+             !check.classList.contains('chat-history-spacer')) {
+        if (check.dataset && parseInt(check.dataset.chIdx, 10) === lowestIdx) {
+          var prevCheck = check.previousElementSibling;
+          check.remove();
+          check = prevCheck;
+        } else {
+          break;
+        }
+      }
       this._endIdx = lowestIdx;
       this._attachBottomSentinel();
     }
