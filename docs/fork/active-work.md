@@ -1,6 +1,6 @@
 # Active Work
 
-Current in-progress items as of 2026-06-08.
+Current in-progress items as of 2026-06-09.
 
 ---
 
@@ -18,6 +18,14 @@ Current in-progress items as of 2026-06-08.
 ---
 
 ## Recently Completed (on develop)
+
+| Issue | Branch | Notes |
+|-------|--------|-------|
+| [#26 Filesystem access broken](https://github.com/jdmanring/odysseus/issues/26) | `fix/filesystem-access-regression` | `tool_index.py` keyword hints for disk-file queries; `tool_execution.py` adds $HOME to path roots. Staged — ready to file upstream. |
+
+---
+
+## Previously Completed
 
 | Issue | Branch | Notes |
 |-------|--------|-------|
