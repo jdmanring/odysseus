@@ -60,10 +60,12 @@
     this._startIdx = Math.max(0, messages.length - WINDOW_SIZE);
     this._endIdx   = messages.length;
     this._renderTail();
-    // Scroll to bottom before attaching the sentinel so the sentinel (at the top)
-    // is out of view — prevents IntersectionObserver from firing immediately.
-    this._c.scrollTop = this._c.scrollHeight;
+    // Attach the sentinel first so the scroll accounts for its height.
+    // IO callbacks are asynchronous — they cannot fire until the current
+    // JS task returns, so the sentinel is guaranteed to be out of view
+    // by the time the observer first evaluates.
     this._attachSentinel();
+    this._c.scrollTop = this._c.scrollHeight;
     var self = this;
     var _lgen = this._gen;
     requestAnimationFrame(function () { if (self._gen === _lgen) self._loading = false; });
