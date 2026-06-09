@@ -20,8 +20,7 @@ explicit per-action authorization. Agents stage; James files.**
 | `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Refactor | Ready to file |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Bug | Needs verification — rebuilt 2026-06-08; fix was broken in prior cherry-pick |
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Needs squash (2 commits → 1); no screenshot needed — see pr-drafts/ |
-| `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) | Feature | Needs integration test run + screenshot |
-| `fix/aria2c-download-reliability` | [#23](https://github.com/jdmanring/odysseus/issues/23) | Bug | Ready to file after #12 merges — see pr-drafts/ |
+| `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Feature | Needs integration test run + screenshot |
 | `feat/gguf-discovery` | [#24](https://github.com/jdmanring/odysseus/issues/24) | Feature | Ready to file after #12 merges — see pr-drafts/ |
 | `feat/download-ui-overhaul` | [#16](https://github.com/jdmanring/odysseus/issues/16) | Feature | File after aria2c (#12) merges upstream |
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Ready to file — screenshot in docs/fork/screenshots/; see pr-drafts/ |
