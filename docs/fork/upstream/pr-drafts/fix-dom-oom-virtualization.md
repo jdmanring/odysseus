@@ -2,7 +2,7 @@
 
 **Branch:** `jdmanring/odysseus:fix/dom-oom-virtualization`
 **Issue:** [#2](https://github.com/jdmanring/odysseus/issues/2) (fork tracking)
-**Status:** Needs squash (3 commits → 1) before filing
+**Status:** Needs squash (4 commits → 1) before filing
 
 ---
 
@@ -90,6 +90,38 @@ reload. Fixed by mirroring the main handler's `_thinkOpen` state machine,
 stripping thinking blocks from intermediate `renderDelta` display, and closing
 any unclosed block before finalization.
 
+**Phase 2 live-node OOM gap:**  
+`_maybePrune` used `_histChildCount()` as the prune threshold, which counts
+only nodes before `_histSep`. Live nodes (appended after `_histSep` during the
+active session) were never counted, so a session with many live turns
+accumulated DOM nodes indefinitely. Fixed by using `_liveChildCount()` (total
+non-control nodes) for the threshold while still capping the prune itself at
+available historical nodes — live nodes have no `_all[]` entry and cannot be
+safely removed.
+
+**Phase 2 O(n) DOM walk on every streaming token:**  
+`_initMutObs` called `_maybePrune` directly on each MutationObserver fire.
+During active streaming (one fire per token append) this ran an O(n) DOM walk
+per frame. Fixed with a `_prunePending` rAF guard that collapses all mutations
+within one animation frame into a single prune check.
+
+**Compositor flicker on sidebar/dropdown hover:**  
+`.chat-container` carried `will-change: transform; transform: translateZ(0);`
+which promoted it to a GPU compositor layer. The sidebar and dropdown menus use
+`backdrop-filter: blur()` and sample their backdrop from whatever is behind
+them; when `chat-container` is its own GPU texture, Chrome flushes that texture
+on any hover/state change, producing a 1-2 frame black-screen flash on menu
+open/close and sidebar element hover. Fixed by removing the GPU promotion hints
+from `.chat-container` — the `margin-left/right` transition does not require
+them.
+
+**Chrome scroll-anchor double-compensation:**  
+`.chat-history` lacked `overflow-anchor: none`. Chrome's automatic scroll
+anchoring adjusted `scrollTop` when `_loadOlder` prepended historical batches,
+then the manual `scrollTop +=` compensation in `_loadOlder` also ran, causing
+the viewport to jump twice the intended distance. Fixed by setting
+`overflow-anchor: none` on the container so only the manual adjustment fires.
+
 ### Behavior
 
 To the user the experience is unchanged: the most recent messages are visible,
@@ -109,7 +141,7 @@ omitted content. No visual regression in normal-length sessions.
 
 ## Filing Notes (James)
 
-1. Squash the 3 commits on this branch to 1 before opening the PR.
+1. Squash the 4 commits on this branch to 1 before opening the PR.
 2. No screenshot required — the fix is behavioral (OOM prevention + crash
    recovery), not visual. If upstream asks for evidence, offer to reproduce the
    crash on an unpatched build or point to the memory growth mechanics in the
