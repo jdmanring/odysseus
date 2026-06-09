@@ -389,9 +389,12 @@
 
   MessageWindow.prototype._maybePrune = function () {
     if (!this._isAtBottom()) return;
-    var live = this._liveChildCount();
-    if (live <= PRUNE_AT) return;
-    this._pruneTop(live - PRUNE_AT + PRUNE_COUNT);
+    // Only historical nodes (before _histSep) are prunable — live messages after
+    // _histSep have no _all entry to reload from, so we must never touch them.
+    if (!this._histSep || !this._histSep.parentNode) return;
+    var hist = this._histChildCount();
+    if (hist <= PRUNE_AT) return;
+    this._pruneTop(hist - PRUNE_AT + PRUNE_COUNT);
   };
 
   // Count all non-control DOM children (excludes sentinels, spacer, sep).
@@ -432,19 +435,46 @@
   MessageWindow.prototype._pruneTop = function (count) {
     var before   = this._c.scrollHeight;
     var removed  = 0;
+    var highIdx  = -1;
     var children = Array.from(this._c.children);
     for (var i = 0; i < children.length && removed < count; i++) {
       var ch = children[i];
+      // Hard boundary: never cross into live messages after _histSep.
+      // A single addMessage() call can produce multiple top-level DOM children,
+      // so _startIdx must be derived from data-ch-idx, not the raw node count.
+      if (ch === this._histSep) break;
       if (ch === this._sentinel  ||
           ch === this._bSentinel ||
-          ch === this._histSep   ||
           ch.classList.contains('chat-history-spacer')) continue;
+      var cidx = (ch.dataset && ch.dataset.chIdx !== undefined)
+        ? parseInt(ch.dataset.chIdx, 10) : -1;
       ch.remove();
       removed++;
+      if (cidx > highIdx) highIdx = cidx;
     }
     if (removed === 0) return;
 
-    this._startIdx += removed;
+    // A single _all[i] entry may span multiple DOM children with the same chIdx.
+    // Remove any remaining siblings at the boundary that share highIdx so the
+    // first node left in DOM always begins a complete message.
+    if (highIdx >= 0) {
+      var peek = this._c.firstElementChild;
+      while (peek && peek !== this._histSep) {
+        var isPeekCtl = (peek === this._sentinel || peek === this._bSentinel ||
+                         peek.classList.contains('chat-history-spacer'));
+        if (isPeekCtl) { peek = peek.nextElementSibling; continue; }
+        if (peek.dataset && parseInt(peek.dataset.chIdx, 10) === highIdx) {
+          var peekNext = peek.nextElementSibling;
+          peek.remove();
+          removed++;
+          peek = peekNext;
+        } else {
+          break;
+        }
+      }
+      this._startIdx = highIdx + 1;
+    }
+
     var delta = before - this._c.scrollHeight;
     this._attachSentinel();
 
