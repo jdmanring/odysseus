@@ -25,6 +25,14 @@ This document tracks all modifications, fixes, and additions made specifically t
 - **Fixed Stop button invisible during "Initializing":** CSS previously only showed Stop for the `downloading` phase. Added rules for `initializing`, `starting`, `resolving` phases. JS `_updateDownloadCard` updated to match.
 - **Fixed log toggle Unicode:** The log toggle chevron was setting `firstChild.textContent = '▶ '` which destroyed the SVG element. Changed to rotate the SVG via `style.transform = 'rotate(90deg)'`.
 
+## [2026-06-09]
+### Cookbook / GGUF Resolution
+- **Subdirectory GGUF Detection:** Updated `HfUrlResolver` to match `include` patterns against both the full file path and the basename. This ensures `.gguf` files are detected regardless of directory depth (e.g., `gguf/model.gguf`).
+- **Unified Resolution Logic:** Refactored `aria2c_download.py` to remove its internal, rigid file-matching implementation. It now imports and utilizes `HfUrlResolver`, ensuring discovery and downloading use the same logic.
+- **Gated Model Support:** Modified `cookbook_routes.py` to inject the HuggingFace token into the discovery process, allowing detection of files in gated repositories.
+- **Console Noise Reduction:** Changed `aria2c` `--console-log-level` from `debug` to `notice` to remove low-level socket/cache spam from the streaming console.
+- **Connection Tuning:** Optimized `aria2c` download concurrency to 4 files with 3 threads per file (12 total connections) to prevent home router instability while maintaining high throughput.
+
 ## [2026-06-08]
 ### Performance & Rendering
 - **Linux Display Pipeline Optimization:** Implemented a high-performance OpenGL stack for `linux_wrapper.py`, including `--use-gl=desktop`, `--disable-gpu-compositing`, `--ignore-gpu-blocklist`, `--enable-gpu-rasterization`, and `--enable-zero-copy`.
