@@ -2,7 +2,7 @@
 
 **Branch:** `jdmanring/odysseus:fix/dom-oom-virtualization`
 **Issue:** [#2](https://github.com/jdmanring/odysseus/issues/2) (fork tracking)
-**Status:** Needs squash (4 commits → 1) before filing
+**Status:** Needs squash (5 commits → 1) before filing
 
 ---
 
@@ -115,6 +115,34 @@ open/close and sidebar element hover. Fixed by removing the GPU promotion hints
 from `.chat-container` — the `margin-left/right` transition does not require
 them.
 
+**Session-switching rAF race (generation counter):**  
+`_loadNewer` ends with a chaining rAF that sets `_loading = false` then calls
+`_loadNewer()` again if more content is available. If the user switches sessions
+while this rAF is in flight, it fires after `reset()` and `load()`, clears the
+new session's load lock, and can call `_loadNewer()` against the new session's
+content. Fixed with `_gen` — incremented on every `reset()`; every rAF captures
+the gen at schedule time and bails if it doesn't match the current gen.
+`reset()` also now explicitly clears `_loading`, `_prunePending`, and
+`_bidiPending` so stale flags from a closing session cannot block the next one.
+
+**`_pruneBottom` partial-message duplication:**  
+`_pruneBottom` stopped exactly at `count` removed even when that was mid-message
+(an agent message spans 5+ DOM children). The orphaned partial-message nodes
+remained in DOM; when `_loadNewer` later scrolled back to that message it
+rendered it again over the orphaned nodes, duplicating it. Fixed by adding the
+same partial-message boundary-cleanup loop that `_pruneTop` and the
+`_loadNewer` inline prune already had.
+
+**hljs scope in `_loadOlder`/`_loadNewer`:**  
+Both called `querySelectorAll('pre code:not(.hljs)')` on the entire container
+after each batch — O(total code blocks in session) per batch load. Changed to
+iterate only the newly added nodes array.
+
+**`insertRef` fallback in `_loadOlder`:**  
+When the sentinel's `nextSibling` is null (all history pruned, only sentinel
+and `_histSep` remain), `insertBefore(frag, null)` appended the new batch after
+live messages. Fixed by falling back to `_histSep` when `insertRef` is null.
+
 **Chrome scroll-anchor double-compensation:**  
 `.chat-history` lacked `overflow-anchor: none`. Chrome's automatic scroll
 anchoring adjusted `scrollTop` when `_loadOlder` prepended historical batches,
@@ -141,7 +169,7 @@ omitted content. No visual regression in normal-length sessions.
 
 ## Filing Notes (James)
 
-1. Squash the 4 commits on this branch to 1 before opening the PR.
+1. Squash the 6 commits on this branch to 1 before opening the PR.
 2. No screenshot required — the fix is behavioral (OOM prevention + crash
    recovery), not visual. If upstream asks for evidence, offer to reproduce the
    crash on an unpatched build or point to the memory growth mechanics in the
