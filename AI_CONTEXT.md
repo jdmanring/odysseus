@@ -106,7 +106,7 @@ Lets users download, serve, and manage local AI models.
 **Download pipeline:** `cookbookDownload.js` → `POST /api/cookbook/download/start` →
 `cookbook_routes.py` spawns `aria2c_download.py` as a subprocess →
 `cookbookRunning.js` polls `GET /api/cookbook/download/status/{session_id}` every 2s →
-parses aria2c stdout, updates progress cards in-place.
+parses aria2c stdout, updates progress cards in-place. Supports gated models (via token injection) and deep GGUF subdirectory resolution.
 
 **aria2c progress format** (non-obvious — will bite you):
 Lines look like `·[#a1b2c3 1GiB/5GiB(21%) CN:4 DL:50MiB ETA:1m20s]` followed by
