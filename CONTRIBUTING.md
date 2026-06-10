@@ -20,6 +20,17 @@ End-users cloning the repo will land on `dev` by default. To run the curated/sta
 - Avoid broad rewrites, formatting-only changes, or moving many files unless the issue is specifically about structure.
 - If you want to work on a large feature, open an issue first and describe the approach.
 
+## Cross-Platform Considerations
+
+Odysseus runs on Linux (primary), macOS, and Windows (via PowerShell). Docker is the only actively tested path. When making changes, consider:
+
+- **Filesystem paths:** use `pathlib.Path` and the constants in `src/constants.py`. Never hardcode `/app/...` or `C:\...`. The `DATA_DIR` and `ODYSSEUS_DATA_DIR` constants handle platform differences.
+- **Shell commands:** if your change touches shell/batch scripts, verify both `bash` (Linux/macOS) and `PowerShell` (Windows) paths. The `launch-windows.ps1` entry point exists for a reason.
+- **Docker:** if you change `Dockerfile`, `docker-compose.yml`, or `docker-compose.*.yml`, run `docker compose config` to validate.
+- **Native wrapper:** `linux_wrapper.py` and `qt-bridge.js` are Linux-only. Don't break them with macOS/Windows-specific assumptions.
+
+If you cannot test on a platform, say so in the PR description.
+
 ## Setup
 
 Docker is the recommended path for normal testing:
@@ -71,6 +82,7 @@ Good pull requests usually include:
 - Manual test steps or automated test results from running the actual app, not just the test suite.
 - Screenshots or short recordings for UI changes.
 - Links to related issues, for example `Fixes #123`.
+- **Documentation updates** if the change affects user-facing behavior, adds a new feature, or modifies the architecture. At minimum, update `docs/fork/changes-from-upstream.md` for fork-specific additions.
 
 Please keep PRs small. Large PRs that mix unrelated cleanup, formatting, refactors, and behavior changes are much harder to review.
 
