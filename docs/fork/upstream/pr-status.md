@@ -26,6 +26,7 @@ explicit per-action authorization. Agents stage; James files.**
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Ready to file — screenshot in docs/fork/screenshots/; see pr-drafts/ |
 | `fix/hf-token-persistence` | [#7](https://github.com/jdmanring/odysseus/issues/7) | Bug | WIP — proper fix not implemented yet |
 | `fix/filesystem-access-regression` | [#26](https://github.com/jdmanring/odysseus/issues/26) | Bug | Ready to file — see pr-drafts/ |
+| `fix/agent-tools-workspace-import` | [#28](https://github.com/jdmanring/odysseus/issues/28) | Bug | Ready to file — see pr-drafts/ |
 
 ## PR Drafts
 
