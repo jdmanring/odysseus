@@ -26,12 +26,15 @@ Move all media assets to a top-level `assets/` directory and update
 `README.md` and `.gitignore` accordingly.
 
 ```
-docs/odysseus.jpg  →  assets/odysseus.jpg
+docs/odysseus.jpg  →  assets/landingpage.jpg  (renamed to avoid confusion with icon)
 docs/odysseus.svg  →  assets/odysseus.svg
 docs/chat.gif      →  assets/chat.gif
 docs/bg.webm       →  assets/bg.webm
 ... (all demo media)
 ```
+
+The `odysseus.jpg` → `landingpage.jpg` rename prevents the file from being confused
+with the application icon (`odysseus.svg` / `odysseus.jpg` in the Qt taskbar).
 
 ### Files Changed
 
