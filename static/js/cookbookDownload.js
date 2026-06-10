@@ -599,7 +599,8 @@ async function _startManagedPolling(panel, sessionId, modelName, host) {
 
 export async function _runModelDownload(panel, model, backend, hostOverride) {
   let ggufSource = _ggufDownloadSource(model, backend);
-  
+
+
   if (backend === 'llamacpp' && !ggufSource) {
     const repoId = model?.repo_id || model?.name;
     if (repoId) {
@@ -610,12 +611,20 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
         if (res.ok) {
           const data = await res.json();
           if (data.gguf_sources && data.gguf_sources.length > 0) {
-            // API returns {repo, files, total_size, downloads} objects.
-            // Normalize to {repo, file} format expected downstream.
             model.gguf_sources = data.gguf_sources.map(function(s) {
-              return { repo: s.repo, file: null, files: s.files || [], preferred_file: s.preferred_file || null };
+              return { repo: s.repo, file: null, files: s.files || [], preferred_file: s.preferred_file || null, _sourceMeta: s };
             });
             ggufSource = _ggufDownloadSource(model, backend);
+            if (ggufSource && model.gguf_sources[0]._sourceMeta) {
+              const meta = model.gguf_sources[0]._sourceMeta;
+              const score = (meta.quality_score || 0).toFixed(1);
+              const dl = meta.downloads || 0;
+              const likes = meta.likes || 0;
+              const parts = [`auto-selected: ${ggufSource.repo}`, `score ${score}`, `${dl.toLocaleString()} downloads`, `${likes} likes`];
+              if (meta.has_evals) parts.push('benchmarked');
+              if (!meta.is_derived) parts.push('community source');
+              console.log('GGUF discovery: ' + parts.join(' | '));
+            }
           }
         }
       } catch (e) {
