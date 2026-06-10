@@ -29,7 +29,8 @@ export const THEMES = {
                             inputBg: '#2f2f2f' } },
   claude:     { bg:'#262624', fg:'#f5f4f0', panel:'#30302e', border:'#4a4a47', red:'#c6613f' },
   cute:       { bg:'#fff0f5', fg:'#d4608a', panel:'#fff8fa', border:'#f0c0d0', red:'#ff6b9d' },
-  catppuccin:  { bg:'#1e1e2e', fg:'#cdd6f4', panel:'#181825', border:'#5b6078', red:'#cba6f7' },
+  catppuccin:  { bg:'#1e1e2e', fg:'#cdd6f4', panel:'#181825', border:'#5b6078', red:'#8565d1',
+                advanced: { brandColor: '#c56682' } },
 };
 
 const DEFAULT_THEME = 'catppuccin';
