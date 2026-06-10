@@ -65,7 +65,8 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 | [#20](https://github.com/jdmanring/odysseus/issues/20) | BinManager test suite | upstream-candidate | `develop` (direct — goes upstream with #12) |
 | [#21](https://github.com/jdmanring/odysseus/issues/21) | AI_RULES.md — AI agent rules (upstream) | upstream-candidate | `feat/ai-documentation-system` |
 | [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_CONTEXT.md — architecture primer (upstream) | upstream-candidate | `feat/ai-documentation-system` |
-| [#29](https://github.com/jdmanring/odysseus/issues/29) | GGUF source resolution returns low-quality results | upstream-candidate | `fix/gguf-source-resolution` |
+| [#29](https://github.com/jdmanring/odysseus/issues/29) | GGUF source resolution returns low-quality results | upstream-candidate | `fix/gguf-quality-scored` |
+| [#30](https://github.com/jdmanring/odysseus/issues/30) | feat: add Catppuccin Mocha theme with Odysseus color palette | upstream-candidate | `feat/catppuccin-theme` |
 
 For upstream filing status (which are ready, which need screenshots, blockers):
 `docs/fork/upstream/pr-status.md`
