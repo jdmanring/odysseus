@@ -4,7 +4,7 @@ This is the master record of everything this fork has that upstream doesn't, and
 everything we've changed from the upstream source. Updated whenever new divergence
 is introduced.
 
-Last updated: 2026-06-08
+Last updated: 2026-06-10
 
 ---
 
@@ -80,6 +80,9 @@ Beyond being a new file, key additions over any upstream version:
 
 ### `docs/fork/build-linux-app.md` → `linux-build-and-install.md`
 Fork-specific build instructions for the Linux native app (no upstream equivalent).
+
+### `static/js/theme.js` — Catppuccin Mocha theme added
+Fork has 17 built-in themes vs upstream's 16. Added `catppuccin` using Catppuccin Mocha palette with a mauve accent (`#8565d1`). Default theme is `catppuccin` (fork preference); upstream default is `dark`. The upstream-candidate PR (`feat/catppuccin-theme`, issue #30) proposes adding catppuccin with default remaining `dark`.
 
 ---
 
