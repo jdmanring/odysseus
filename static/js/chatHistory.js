@@ -76,6 +76,37 @@
         if (self._gen !== _lgen) return;
         self._loading = false;
         self._c.scrollTop = self._c.scrollHeight;
+        // Lazy-loaded images inflate scrollHeight after the initial snap.
+        // overflow-anchor:none prevents automatic compensation, so attach one-shot
+        // load listeners and re-snap. No slack threshold: a fresh session load should
+        // always land at the bottom regardless of how much content loads.
+        var _imgs = self._c.querySelectorAll('img');
+        for (var _ii = 0; _ii < _imgs.length; _ii++) {
+          if (!_imgs[_ii].complete) {
+            (function (img) {
+              img.addEventListener('load', function () {
+                if (self._gen !== _lgen) return;
+                self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
+              }, { once: true });
+            })(_imgs[_ii]);
+          }
+        }
+        // Settling loop: re-snap each frame while scrollHeight is still growing
+        // (fonts, images, code blocks rendering). Runs up to 8 frames (~133ms).
+        // No slack threshold: session load always wants the true bottom.
+        var _slGen = self._gen;
+        (function _settle(remaining, prevH) {
+          requestAnimationFrame(function () {
+            if (self._gen !== _slGen) return;
+            var h = self._c.scrollHeight;
+            if (h !== prevH) {
+              self._c.scrollTop = h - self._c.clientHeight;
+            }
+            if (remaining > 0 && h !== prevH) {
+              _settle(remaining - 1, h);
+            }
+          });
+        })(8, self._c.scrollHeight);
       });
     });
   };
@@ -104,6 +135,7 @@
   MessageWindow.prototype.scrollToBottom = function () {
     this._draining = true;
     this._c.scrollTop = this._c.scrollHeight - this._c.clientHeight;
+    console.warn('[chatHistory.scrollToBottom] scrollTop=' + this._c.scrollTop + ' scrollHeight=' + this._c.scrollHeight + ' endIdx=' + this._endIdx + ' allLen=' + this._all.length + ' loading=' + this._loading);
     if (this._endIdx < this._all.length && !this._loading) {
       this._loadNewer();
     }
@@ -280,18 +312,30 @@
     }
 
     this._startIdx = from;
+    // Attach sentinel before computing the scroll compensation. Sentinel height
+    // changes (e.g. removing the sentinel when _startIdx reaches 0) happen above
+    // the viewport and must be included in the positional correction so the user
+    // does not see a visual jump when the oldest batch finishes loading.
+    this._attachSentinel();
     this._c.scrollTop += this._c.scrollHeight - before;
 
     // Phase 3: cap historical DOM size; pruned content reloads on scroll-down.
+    // Removed nodes are at the bottom of the historical section (below viewport)
+    // so no scroll compensation is needed here.
     var hist = this._histChildCount();
     if (hist > BIDI_CAP) {
       this._pruneBottom(hist - BIDI_CAP);
     }
-
-    this._attachSentinel();
     var self = this;
     var _ogen = this._gen;
-    requestAnimationFrame(function () { if (self._gen === _ogen) self._loading = false; });
+    requestAnimationFrame(function () {
+      if (self._gen !== _ogen) return;
+      self._loading = false;
+      // If scrollToBottom() was called while _loadOlder() was running, restart drain
+      if (self._draining && self._endIdx < self._all.length) {
+        self._loadNewer();
+      }
+    });
   };
 
   // ---------------------------------------------------------------------------
@@ -309,7 +353,12 @@
     // Captured before any DOM changes. When the user is at the very bottom
     // (button press or equivalent), top-prune should snap rather than shift,
     // keeping the user at the bottom so the rAF chain can continue.
-    var atBottom = this._isAtVeryBottom();
+    // _draining takes precedence: in QtWebEngine with Vulkan compositing the
+    // scrollTop DOM read-back after a same-frame assignment can return the
+    // stale pre-assignment value, causing _isAtVeryBottom() to return false
+    // even though we just snapped.  _draining is a JS-only flag that is not
+    // subject to compositor lag, so trust it unconditionally.
+    var atBottom = this._draining || this._isAtVeryBottom();
 
     var from = this._endIdx;
     var upTo = Math.min(this._all.length, from + BATCH_SIZE);
@@ -385,6 +434,10 @@
           }
         }
         this._startIdx = highIdx + 1;
+        // Attach sentinel before computing the scroll adjustment so that any
+        // sentinel height change (e.g. adding a new sentinel when _startIdx
+        // crosses 0) is included in the delta and the viewport does not jump.
+        this._attachSentinel();
         if (atBottom) {
           // User wants to be at the bottom (button press): snap to new bottom so
           // the rAF chain condition (_isAtBottom) stays true and continues loading.
@@ -394,7 +447,6 @@
           // above the viewport so their visual position does not jump.
           this._c.scrollTop -= (before - this._c.scrollHeight);
         }
-        this._attachSentinel();
       }
     }
 
@@ -415,6 +467,47 @@
         }
       } else {
         self._draining = false;
+        // Snap after the final batch — the pre-batch snap only fires when there
+        // are more batches to load, so the last batch would otherwise leave
+        // scrollTop short by its own rendered height.
+        self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
+        // Find last non-control node for diagnosis
+        var _lastN = null;
+        for (var _li = self._c.children.length - 1; _li >= 0; _li--) {
+          var _lch = self._c.children[_li];
+          if (_lch !== self._sentinel && _lch !== self._bSentinel && _lch !== self._histSep && !_lch.classList.contains('chat-history-spacer')) { _lastN = _lch; break; }
+        }
+        console.warn('[chatHistory._loadNewer] drain complete: clientH=' + self._c.clientHeight + ' scrollTop=' + self._c.scrollTop + ' scrollH=' + self._c.scrollHeight + ' slack=' + (self._c.scrollHeight - self._c.scrollTop - self._c.clientHeight) + ' lastMsgTop=' + (_lastN ? _lastN.offsetTop : '?') + ' lastMsgH=' + (_lastN ? _lastN.offsetHeight : '?'));
+        // Images in newly-loaded batches inflate scrollHeight after the snap.
+        // Drain was user-initiated (button press), so always re-snap on load.
+        var _rsGen = self._gen;
+        var _drainImgs = self._c.querySelectorAll('img');
+        for (var _di = 0; _di < _drainImgs.length; _di++) {
+          if (!_drainImgs[_di].complete) {
+            (function (img) {
+              img.addEventListener('load', function () {
+                if (self._gen !== _rsGen) return;
+                console.warn('[drain img.onload] scrollH=' + self._c.scrollHeight + ' snap=' + (self._c.scrollHeight - self._c.clientHeight));
+                self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
+              }, { once: true });
+            })(_drainImgs[_di]);
+          }
+        }
+        // Settling loop: re-snap each frame while scrollHeight grows (fonts, images).
+        // No threshold: drain was user-initiated, always reach the true bottom.
+        (function _settle(remaining, prevH) {
+          requestAnimationFrame(function () {
+            if (self._gen !== _rsGen) return;
+            var h = self._c.scrollHeight;
+            if (remaining === 8) console.warn('[drain settle] prevH=' + prevH + ' h=' + h + ' changed=' + (h !== prevH));
+            if (h !== prevH) {
+              self._c.scrollTop = h - self._c.clientHeight;
+            }
+            if (remaining > 0 && h !== prevH) {
+              _settle(remaining - 1, h);
+            }
+          });
+        })(8, self._c.scrollHeight);
       }
     });
   };
@@ -541,18 +634,20 @@
       this._startIdx = highIdx + 1;
     }
 
-    var delta = before - this._c.scrollHeight;
     this._attachSentinel();
 
     // Collapse any leftover spacers from previous prune events into one
     var existingSpacers = this._c.querySelectorAll('.chat-history-spacer');
-    var accHeight = 0;
     for (var ei = 0; ei < existingSpacers.length; ei++) {
-      accHeight += parseInt(existingSpacers[ei].style.height, 10) || 0;
       existingSpacers[ei].remove();
     }
 
-    var totalDelta = delta + accHeight;
+    // Compute needed spacer height AFTER all DOM changes (node removal, sentinel
+    // update, spacer removal). Computing it earlier misses the sentinel's height
+    // contribution when a new sentinel is added (e.g. _startIdx crossing 0→N),
+    // which causes the spacer to overshoot and leaves slack equal to sentinel height.
+    var totalDelta = before - this._c.scrollHeight;
+    console.warn('[chatHistory._pruneTop] before=' + before + ' afterAll=' + this._c.scrollHeight + ' totalDelta=' + totalDelta + ' savedScrollTop=' + savedScrollTop);
     if (totalDelta > 0) {
       var spacer = document.createElement('div');
       spacer.className  = 'chat-history-spacer';
