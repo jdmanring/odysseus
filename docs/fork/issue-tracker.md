@@ -53,7 +53,7 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 |---|-------|-------|--------|
 | [#3](https://github.com/jdmanring/odysseus/issues/3) | External links don't navigate in Qt wrapper | upstream-candidate | `feat/qt-native-linux-app` |
 | [#4](https://github.com/jdmanring/odysseus/issues/4) | Tool results misattributed as user messages | upstream-candidate | `fix/tool-result-role` |
-| [#5](https://github.com/jdmanring/odysseus/issues/5) | gh CLI unusable in Odysseus agent context | bug | no branch yet |
+| [#5](https://github.com/jdmanring/odysseus/issues/5) | gh CLI unusable in Odysseus agent context | upstream-candidate | `feat/github-integration` |
 | [#7](https://github.com/jdmanring/odysseus/issues/7) | HF token not saved outside Cookbook tab | upstream-candidate | `fix/hf-token-persistence` |
 | [#9](https://github.com/jdmanring/odysseus/issues/9) | realesrgan / basicsr broken on Python 3.14 | upstream-candidate | `fix/basicsr-python314-compat` |
 | [#12](https://github.com/jdmanring/odysseus/issues/12) | Replace hf_transfer with aria2c | upstream-candidate | `feat/aria2c-downloader` |
