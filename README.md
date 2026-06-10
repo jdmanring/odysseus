@@ -433,7 +433,7 @@ All user data lives in `data/` (gitignored): `app.db` (sessions, messages, docum
 </a>
 
 ## License
-AGPL-3.0-or-later -- see [LICENSE](LICENSE) and [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
+MIT -- see [LICENSE](LICENSE) and [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
 
 ```
                                   |
