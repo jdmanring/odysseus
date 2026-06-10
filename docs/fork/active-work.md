@@ -10,7 +10,7 @@ Current in-progress items as of 2026-06-09.
 |-------|--------|--------|
 | [#4 Tool results misattributed as user messages](https://github.com/jdmanring/odysseus/issues/4) | `fix/tool-result-role` | Fix rebuilt from current upstream-mirror (ccf5342). Both agent_loop.py + llm_core.py changes now correctly in develop. Needs end-to-end verification before closing. |
 | [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | WIP — workaround script only; backend endpoint + JS needed |
-| [#5 gh CLI unusable in Odysseus agent context](https://github.com/jdmanring/odysseus/issues/5) | none | Needs investigation — how should Odysseus handle non-interactive gh operations? |
+| [#5 gh CLI unusable in Odysseus agent context](https://github.com/jdmanring/odysseus/issues/5) | `feat/github-integration` | GitHub preset added to integrations framework. Agent uses api_call tool with token auth. Staged — ready to file upstream. |
 | [#3 External links don't navigate in Qt wrapper](https://github.com/jdmanring/odysseus/issues/3) | `feat/qt-native-linux-app` | Fix in develop. Reopened — upstream contribution not yet tracked (part of #14 Qt wrapper PR). |
 | [#18 AI-first documentation system](https://github.com/jdmanring/odysseus/issues/18) | `feat/ai-documentation-system` | Reopened — was incorrectly closed as fork-only. AI_RULES.md + AI_CONTEXT.md are upstream-candidate. See also #21, #22. |
 | [#20 BinManager test suite](https://github.com/jdmanring/odysseus/issues/20) | `develop` (direct) | Tests in develop. Reopened — was incorrectly labeled fork-only. Tests go upstream bundled with #12 (aria2c downloader). |
