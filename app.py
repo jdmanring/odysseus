@@ -69,22 +69,9 @@ from src.generated_images import GENERATED_IMAGE_HEADERS, resolve_generated_imag
 from starlette.responses import RedirectResponse
 
 # ========= LOGGING =========
-from src.constants import LOG_FILE, LOG_MAX_BYTES, LOG_BACKUP_COUNT
-
-_log_dir = os.path.dirname(LOG_FILE)
-os.makedirs(_log_dir, exist_ok=True)
-
-_file_handler = logging.handlers.RotatingFileHandler(
-    LOG_FILE, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT,
-)
-_file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-))
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[logging.StreamHandler(), _file_handler],
-)
-logger = logging.getLogger(__name__)
+from src.logging_config import setup_logging
+setup_logging()
+logger = logging.getLogger("odysseus")
 
 # ========= APP =========
 # Lifespan is defined below (after all helpers it references are in scope)
