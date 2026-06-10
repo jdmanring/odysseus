@@ -704,6 +704,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         health_paths = {
             "miniflux": "/v1/me",
             "gitea": "/api/v1/version",
+            "github": "/user",
             "linkding": "/api/tags/",
             "homeassistant": "/api/",
             "home assistant": "/api/",
@@ -711,6 +712,19 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         path = health_paths.get(preset, "/")
         result = await execute_api_call(integration_id, "GET", path)
         if result.get("exit_code", 1) == 0:
+            # For GitHub, extract the login name so the user knows which
+            # account they're authenticated as.
+            if preset == "github":
+                import json as _json
+                try:
+                    body = result.get("output", "")
+                    # output starts with "HTTP 200\n{json...}"
+                    json_str = body.split("\n", 1)[1] if "\n" in body else body
+                    user_data = _json.loads(json_str)
+                    login = user_data.get("login", "unknown")
+                    return {"ok": True, "message": f"Authenticated as GitHub user '{login}'"}
+                except Exception:
+                    pass
             return {"ok": True, "message": "Connection successful"}
         return {"ok": False, "message": (result.get("error") or "Connection failed")[:300]}
 
