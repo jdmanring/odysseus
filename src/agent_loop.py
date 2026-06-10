@@ -1998,8 +1998,14 @@ def _build_system_prompt(
     # Integration descriptions — user-editable fields, must not be in system role.
     if not suppress_local_context:
         try:
-            from src.integrations import get_integrations_prompt
+            from src.integrations import get_integrations_prompt, get_github_cli_prompt
             _integ_prompt = get_integrations_prompt()
+            # CLI detection: the block embeds the account name scraped from
+            # `auth status` output (externally-sourced), so it rides the same
+            # untrusted-context channel as the other integration descriptions.
+            _gh_prompt = get_github_cli_prompt()
+            if _gh_prompt:
+                _integ_prompt = (_gh_prompt + "\n\n" + _integ_prompt) if _integ_prompt else _gh_prompt
             if _integ_prompt:
                 _integ_message = untrusted_context_message("integrations", _integ_prompt)
         except Exception as _integ_err:

@@ -567,6 +567,71 @@ async def execute_api_call(
 # System prompt helper
 # ---------------------------------------------------------------------------
 
+_gh_cli_prompt_cache: str | None = None
+
+
+def get_github_cli_prompt() -> str:
+    """Return a system prompt block if gh CLI is installed and authenticated."""
+    global _gh_cli_prompt_cache
+    if _gh_cli_prompt_cache is not None:
+        return _gh_cli_prompt_cache
+
+    import os
+    import shutil
+    import subprocess
+    import re
+
+    if not shutil.which("gh"):
+        _gh_cli_prompt_cache = ""
+        return _gh_cli_prompt_cache
+    try:
+        r = subprocess.run(
+            ["gh", "auth", "status", "--hostname", "github.com"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode != 0:
+            _gh_cli_prompt_cache = ""
+            return _gh_cli_prompt_cache
+        m = re.search(r"account (\S+)", r.stdout + r.stderr)
+        username = m.group(1) if m else "you"
+    except Exception:
+        _gh_cli_prompt_cache = ""
+        return _gh_cli_prompt_cache
+
+    # gh may be authenticated via the system keyring, which is not accessible to
+    # subprocesses spawned without a D-Bus session (e.g. Odysseus's bash tool).
+    # Extract the token now (server process has keyring access) and set GH_TOKEN
+    # so that all child processes inherit it and gh works without keyring.
+    if not os.environ.get("GH_TOKEN"):
+        try:
+            tok = subprocess.run(
+                ["gh", "auth", "token", "--hostname", "github.com"],
+                capture_output=True, text=True, timeout=5,
+            )
+            token = tok.stdout.strip()
+            if token:
+                os.environ["GH_TOKEN"] = token
+        except Exception:
+            pass
+
+    _gh_cli_prompt_cache = (
+        "\n\n## GitHub CLI\n\n"
+        f"`gh` is installed and authenticated (as **{username}**). "
+        "Use the `bash` tool to run `gh` commands for GitHub — "
+        "this is faster and more reliable than the api_call integration:\n"
+        "- `gh repo list` — list repositories\n"
+        "- `gh pr list --repo owner/repo` — list pull requests\n"
+        "- `gh issue list --repo owner/repo` — list issues\n"
+        "- `gh issue create --repo owner/repo --title '...' --body '...'` — create issue\n"
+        "- `gh pr create --title '...' --body '...'` — create pull request\n"
+        "- `gh api /repos/owner/repo/contents/path` — read file content\n"
+        "- `gh release list --repo owner/repo` — list releases\n"
+        "- `gh workflow list` — list CI workflows\n"
+        "- `gh pr view NUMBER` — view a pull request\n"
+    )
+    return _gh_cli_prompt_cache
+
+
 def get_integrations_prompt() -> str:
     """Return a string describing all enabled integrations for system prompt injection.
 
