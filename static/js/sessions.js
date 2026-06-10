@@ -1697,6 +1697,7 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
     // compensation) disables Chrome's automatic adjustment for hljs height growth,
     // so a second snap is needed to land at the true bottom.
     uiModule.scrollHistoryInstant();
+    { const _c = document.getElementById('chat-history'); if (_c) console.warn('[sessions] post-hljs snap: scrollTop=' + _c.scrollTop + ' scrollHeight=' + _c.scrollHeight + ' slack=' + (_c.scrollHeight - _c.scrollTop - _c.clientHeight)); }
     // Hide research button on session switch — it's only for the session that started it
     var _rBtn = document.getElementById('research-toggle-btn');
     var _rChk = document.getElementById('research-toggle');

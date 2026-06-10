@@ -4284,7 +4284,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               _appendViewReportLink(_wrap, sessionId);
               _box.appendChild(_wrap);
               if (window.hljs) _wrap.querySelectorAll('pre code').forEach(function(b) { window.hljs.highlightElement(b); });
-              uiModule.scrollHistory();
+              // Research result is completed history, not active streaming — instant
+              // snap is correct. scrollHistory() aborts when diff > 300px, which a
+              // large research result easily exceeds, leaving the user above the bottom.
+              uiModule.scrollHistoryInstant();
             }
           }
         }
