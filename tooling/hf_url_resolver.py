@@ -1,14 +1,17 @@
-import os
+import fnmatch
 import logging
+import os
+import requests
 from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 from huggingface_hub import HfApi
 
 logger = logging.getLogger(__name__)
 
+
 class HfUrlResolver:
-    """
-    Resolves Hugging Face repository files to direct download URLs.
+    """Resolves Hugging Face repository files to direct download URLs
+    and discovers quality-scored GGUF quantizations for a given model.
     """
 
     def __init__(self, token: Optional[str] = None):
@@ -22,75 +25,83 @@ class HfUrlResolver:
         except Exception:
             return None
 
-    def resolve_snapshot_urls(self, repo_id: str, include: Optional[str] = None) -> Tuple[List[Tuple[str, str, int]], str]:
+    def resolve_snapshot_urls(
+        self, repo_id: str, include: Optional[str] = None
+    ) -> Tuple[List[Tuple[str, str, int]], str]:
+        """Return (url, relative_path, size_bytes) for all files in a repo snapshot.
+
+        URLs are pinned to the current HEAD commit hash for reproducibility.
+        size_bytes is 0 when the API cannot provide it.
+        Three fallbacks are tried in order: list_repo_tree (preferred — returns sizes),
+        list_repo_files (no sizes), then the raw HF API tree endpoint.
         """
-        Returns a list of (url, relative_path, size_bytes) for all files in a repo snapshot.
-        URLs are pinned to the current HEAD commit hash so they are reproducible.
-        size_bytes is 0 if the API could not provide it.
-        """
-        print(f"[*] Resolving files for {repo_id} (Token: {'Yes' if self.api.token else 'No'})")
+        logger.debug("Resolving files for %s (token: %s)", repo_id, bool(self.api.token))
         commit = self.get_commit_hash(repo_id) or "main"
 
-        # (path, size_bytes) pairs — size is 0 if unavailable
         file_entries: List[Tuple[str, int]] = []
+
+        # Primary: list_repo_tree returns sizes in a single call.
         try:
             items = list(self.api.list_repo_tree(repo_id, recursive=True))
             file_entries = [
                 (item.rfilename, item.size or 0)
                 for item in items
-                if getattr(item, 'size', None) is not None
+                if getattr(item, "size", None) is not None
             ]
-            print(f"[*] HfApi found {len(file_entries)} files.")
+            logger.debug("list_repo_tree: %d files", len(file_entries))
         except Exception as e:
-            print(f"[!] HfApi list_repo_tree failed: {e}. Trying fallback.")
+            logger.warning("list_repo_tree failed for %s: %s", repo_id, e)
 
-        # FALLBACK: list_repo_files (paths only, no sizes)
+        # Fallback 1: list_repo_files — paths only, no sizes.
         if not file_entries:
             try:
-                files = list(self.api.list_repo_files(repo_id))
-                file_entries = [(f, 0) for f in files]
-                print(f"[*] HfApi found {len(file_entries)} files (sizes unavailable).")
+                paths = list(self.api.list_repo_files(repo_id))
+                file_entries = [(p, 0) for p in paths]
+                logger.debug("list_repo_files fallback: %d files (sizes unavailable)", len(file_entries))
             except Exception as e:
-                print(f"[!] HfApi failed: {e}. Trying direct API fallback.")
+                logger.warning("list_repo_files failed for %s: %s", repo_id, e)
 
-        # FALLBACK: direct API tree (returns sizes in JSON)
+        # Fallback 2: raw HF API tree endpoint — returns sizes in JSON.
         if not file_entries:
             try:
-                import requests
                 headers = {}
                 if self.api.token:
                     headers["Authorization"] = f"Bearer {self.api.token}"
-                resp = requests.get(f"https://huggingface.co/api/models/{repo_id}/tree/main", headers=headers, timeout=10)
+                resp = requests.get(
+                    f"https://huggingface.co/api/models/{repo_id}/tree/main",
+                    headers=headers,
+                    timeout=10,
+                )
                 if resp.status_code == 200:
                     file_entries = [
                         (item["path"], item.get("size", 0))
                         for item in resp.json()
                         if item.get("type") == "file"
                     ]
-                    print(f"[*] API fallback found {len(file_entries)} files.")
+                    logger.debug("API tree fallback: %d files", len(file_entries))
                 else:
-                    print(f"[!] API fallback failed: status {resp.status_code}")
+                    logger.warning("API tree fallback returned %d for %s", resp.status_code, repo_id)
             except Exception as e:
-                print(f"[!] API fallback exception: {e}")
+                logger.warning("API tree fallback failed for %s: %s", repo_id, e)
 
         if include:
-            import fnmatch
-            import os
             filtered = [
                 (p, sz) for p, sz in file_entries
                 if fnmatch.fnmatch(p, include) or fnmatch.fnmatch(os.path.basename(p), include)
             ]
-            print(f"[*] Filtered {len(file_entries)} files down to {len(filtered)} matching '{include}'")
+            logger.debug("Filter '%s': %d → %d files", include, len(file_entries), len(filtered))
             file_entries = filtered
 
-        urls = []
-        seen_urls = set()
+        seen: set = set()
+        urls: List[Tuple[str, str, int]] = []
         for path, size in file_entries:
             url = f"https://huggingface.co/{repo_id}/resolve/{commit}/{path}"
-            if url not in seen_urls:
+            if url not in seen:
                 urls.append((url, path, size))
-                seen_urls.add(url)
+                seen.add(url)
         return urls, commit
+
+    # ── GGUF discovery ───────────────────────────────────────────────────────
 
     def _probe_gguf_repo(self, repo_id: str) -> Optional[dict]:
         """Check if a repo actually contains GGUF files via HF metadata.
@@ -131,14 +142,11 @@ class HfUrlResolver:
         eval_results = getattr(info, "eval_results", None) or []
         base_models = getattr(info, "base_models", None) or []
         last_modified = getattr(info, "last_modified", None)
-        author = getattr(info, "author", None)
 
-        # Derived signals
         likes_ratio = (likes / downloads) if downloads > 0 else 0.0
         has_evals = len(eval_results) > 0
         is_derived = len(base_models) > 0
 
-        # Recency: days since last commit (lower is better)
         recency_days = None
         if last_modified:
             if isinstance(last_modified, str):
@@ -149,7 +157,6 @@ class HfUrlResolver:
             if isinstance(last_modified, datetime):
                 recency_days = (datetime.now(timezone.utc) - last_modified).days
 
-        # Best eval score (normalized to 0..1 if possible)
         eval_score = None
         for ev in eval_results:
             val = getattr(ev, "value", None)
@@ -172,12 +179,10 @@ class HfUrlResolver:
             "eval_score": eval_score,
             "is_derived": is_derived,
             "recency_days": recency_days,
-            "author": author,
         }
 
-    # Preferred quant order for general use. When model.quant doesn't exist in
-    # a discovered repo (e.g. a Q4_K_M request hitting an imatrix-only repo),
-    # the first match in this list becomes the fallback include pattern.
+    # Preferred quant order for general use. When the exact requested quant
+    # isn't available, the first match in this list becomes the fallback.
     _QUANT_PRIORITY = [
         "IQ4_XS",   # imatrix Q4 — better perplexity than Q4_K_M at same or smaller size
         "IQ4_NL",   # imatrix Q4 variant
@@ -228,7 +233,7 @@ class HfUrlResolver:
 
     @classmethod
     def _detect_imatrix(cls, repo_id: str) -> bool:
-        """Detect if a repo uses imatrix calibration from its name."""
+        """Detect if a repo uses imatrix calibration from its name or author."""
         repo_lower = repo_id.lower()
         author = repo_id.split("/")[0] if "/" in repo_id else ""
         if author in cls._IMATRIX_AUTHORS:
@@ -250,20 +255,16 @@ class HfUrlResolver:
         """
         score = 0.0
 
-        # Downloads: log-scale so a repo with 10x downloads doesn't dominate
         dl = c.get("downloads") or 0
         if dl > 0:
             score += min(40.0, 8.0 * (1 + (dl / 1000) ** 0.5))
 
-        # Likes ratio: high ratio = strong community approval
         lr = c.get("likes_ratio") or 0.0
         score += min(10.0, lr * 20.0)
 
-        # Has benchmark scores = well-tested
         if c.get("has_evals"):
             score += 10.0
 
-        # Best eval score: normalize if it looks like a percentage (0-100)
         es = c.get("eval_score")
         if es is not None:
             if es > 1.0:
@@ -271,24 +272,18 @@ class HfUrlResolver:
             else:
                 score += min(10.0, es * 10.0)
 
-        # Trending: HF's internal trending score
         tr = c.get("trending")
         if tr is not None and tr > 0:
             score += min(5.0, tr / 10.0)
 
-        # Importance matrix calibration = measurably better quantization quality.
-        # This is the single strongest quality signal after downloads.
         repo_id = c.get("repo", "")
         if self._detect_imatrix(repo_id):
             score += 15.0
 
-        # Author reputation: known high-quality quantizers
         author = repo_id.split("/")[0] if "/" in repo_id else ""
         if author in self._REPUTED_AUTHORS:
             score += 10.0
 
-        # Recency: small bonus for recently updated, but old imatrix from a
-        # good author beats new basic quant from an unknown one.
         rd = c.get("recency_days")
         if rd is not None:
             if rd < 30:
@@ -303,11 +298,10 @@ class HfUrlResolver:
     def find_gguf_sources(self, base_repo_id: str) -> list:
         """Find GGUF quantizations of the given model.
 
-        Searches HuggingFace, then probes each candidate to verify it
-        actually contains GGUF files (via metadata — no download needed).
-        Scores candidates on downloads, likes ratio, benchmark scores,
-        trending, recency, and whether it's a direct source vs derived.
-        Returns structured objects sorted by score descending.
+        Searches HuggingFace, probes each candidate to verify it actually
+        contains GGUF files (via metadata — no download needed), scores on
+        downloads, likes ratio, benchmark scores, trending, imatrix use,
+        author reputation, and recency. Returns results sorted by score.
         """
         model_name = base_repo_id.split("/")[-1] if "/" in base_repo_id else base_repo_id
 
