@@ -181,39 +181,6 @@ def _resolve_tool_path(raw_path: str) -> str:
     )
 
 
-def _resolve_tool_path_in_workspace(workspace: str, raw_path: str) -> str:
-    """Confine a model-supplied path to the active workspace.
-
-    Layered on top of upstream's path policy: the workspace is the allowed
-    root (relative paths resolve under it; paths that escape it are rejected),
-    and the sensitive-file deny list (.ssh, .gnupg, id_rsa, …) still applies
-    inside it. When no workspace is set, callers use _resolve_tool_path (the
-    default data/tmp allowlist) instead.
-    """
-    if raw_path is None or not str(raw_path).strip():
-        raise ValueError("path is required")
-    base = os.path.realpath(workspace)
-    expanded = os.path.expanduser(str(raw_path).strip())
-    candidate = expanded if os.path.isabs(expanded) else os.path.join(base, expanded)
-    resolved = os.path.realpath(candidate)
-    if _is_sensitive_path(resolved):
-        raise ValueError(
-            f"path '{raw_path}' is inside a sensitive directory "
-            f"(e.g. .ssh, .gnupg) or matches a sensitive filename"
-        )
-    if resolved != base:
-        # normcase so containment holds on case-insensitive filesystems
-        # (Windows, default macOS): it lowercases on Windows and is a no-op on
-        # POSIX. commonpath raises ValueError across Windows drives (C: vs D:)
-        # or mixed abs/rel — both mean "outside", so the except rejects them.
-        nbase = os.path.normcase(base)
-        try:
-            if os.path.commonpath([os.path.normcase(resolved), nbase]) != nbase:
-                raise ValueError
-        except ValueError:
-            raise ValueError(f"path '{raw_path}' is outside the workspace ({workspace})")
-    return resolved
-
 
 
 def get_mcp_manager():
@@ -401,7 +368,6 @@ async def _direct_fallback(
     tool: str,
     content: str,
     progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
-    workspace: Optional[str] = None,
 ) -> Optional[Dict]:
     _subproc_env = {
         **os.environ,
@@ -414,7 +380,6 @@ async def _direct_fallback(
     try:
         ctx = {
             "progress_cb": progress_cb,
-            "workspace": workspace,
             "subproc_env": _subproc_env,
         }
 
@@ -438,7 +403,6 @@ async def execute_tool_block(
     disabled_tools: Optional[set] = None,
     owner: Optional[str] = None,
     progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
-    workspace: Optional[str] = None,
     tool_policy: Optional[Any] = None,
 ) -> Tuple[str, Dict]:
     """Execute a single tool block. Returns (description, result_dict).
@@ -749,7 +713,7 @@ async def execute_tool_block(
         desc = "edit_image"
         result = await do_edit_image(content, owner=owner)
     elif tool == "edit_file":
-        result = await _direct_fallback(tool, content, workspace=workspace) or {"error": "edit failed", "exit_code": 1}
+        result = await _direct_fallback(tool, content) or {"error": "edit failed", "exit_code": 1}
         desc = result.get("output") or result.get("error") or "edit_file"
     elif tool == "trigger_research":
         desc = "trigger_research"
