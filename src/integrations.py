@@ -541,26 +541,37 @@ async def execute_api_call(
 # System prompt helper
 # ---------------------------------------------------------------------------
 
+_gh_cli_prompt_cache: str | None = None
+
+
 def get_github_cli_prompt() -> str:
     """Return a system prompt block if gh CLI is installed and authenticated."""
+    global _gh_cli_prompt_cache
+    if _gh_cli_prompt_cache is not None:
+        return _gh_cli_prompt_cache
+
+
     import os
     import shutil
     import subprocess
     import re
 
     if not shutil.which("gh"):
-        return ""
+        _gh_cli_prompt_cache = ""
+        return _gh_cli_prompt_cache
     try:
         r = subprocess.run(
             ["gh", "auth", "status", "--hostname", "github.com"],
             capture_output=True, text=True, timeout=5,
         )
         if r.returncode != 0:
-            return ""
+            _gh_cli_prompt_cache = ""
+            return _gh_cli_prompt_cache
         m = re.search(r"account (\S+)", r.stdout + r.stderr)
         username = m.group(1) if m else "you"
     except Exception:
-        return ""
+        _gh_cli_prompt_cache = ""
+        return _gh_cli_prompt_cache
 
     # gh may be authenticated via the system keyring, which is not accessible to
     # subprocesses spawned without a D-Bus session (e.g. Odysseus's bash tool).
@@ -578,23 +589,22 @@ def get_github_cli_prompt() -> str:
         except Exception:
             pass
 
-    return (
+    _gh_cli_prompt_cache = (
         "\n\n## GitHub CLI\n\n"
-        f"`gh` is installed and authenticated as **{username}**. "
-        "For ALL GitHub tasks, use the `bash` tool and run `gh` commands directly. "
-        "Do NOT use api_call for GitHub — use bash.\n\n"
-        "Examples:\n"
-        "```bash\n"
-        "gh repo list\n"
-        f"gh repo list {username} --limit 30\n"
-        "gh issue list --repo owner/repo\n"
-        "gh issue create --repo owner/repo --title '...' --body '...'\n"
-        "gh pr list --repo owner/repo\n"
-        "gh pr view NUMBER --repo owner/repo\n"
-        "gh api /repos/owner/repo/contents/path\n"
-        "gh release list --repo owner/repo\n"
-        "```\n"
+        f"`gh` is installed and authenticated (as **{username}**). "
+        "Use the `bash` tool to run `gh` commands for GitHub — "
+        "this is faster and more reliable than the api_call integration:\n"
+        "- `gh repo list` — list repositories\n"
+        "- `gh pr list --repo owner/repo` — list pull requests\n"
+        "- `gh issue list --repo owner/repo` — list issues\n"
+        "- `gh issue create --repo owner/repo --title '...' --body '...'` — create issue\n"
+        "- `gh pr create --title '...' --body '...'` — create pull request\n"
+        "- `gh api /repos/owner/repo/contents/path` — read file content\n"
+        "- `gh release list --repo owner/repo` — list releases\n"
+        "- `gh workflow list` — list CI workflows\n"
+        "- `gh pr view NUMBER` — view a pull request\n"
     )
+    return _gh_cli_prompt_cache
 
 
 def get_integrations_prompt() -> str:
