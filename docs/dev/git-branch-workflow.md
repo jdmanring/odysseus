@@ -16,6 +16,7 @@ and the full issue-to-upstream-PR lifecycle. Read it completely before touching 
 | `feat/*` / `fix/*` | Feature and fix work branches | See origin rules below — origin depends on work type. |
 | `refactor/*` | Refactor branches | Same origin rules apply. |
 | `sync/staging-*` | Temporary pipeline staging branches | Created and deleted automatically by the pipeline. |
+| `fork/workbench` | Fork-only safety net | Branched from `develop`. Tracks `docs/fork/`, `tooling/sync-upstreams/`, `.github/workflows/sync-upstream.yml`, and other fork-only files. Merged back to `develop` after every sync cycle. If `develop` is ever reset or force-pushed, this branch preserves all fork workbench material. |
 
 **Upstream remote branches** (`upstream/dev`, `upstream/main`) are read-only fetch targets. Never push to them.
 

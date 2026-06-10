@@ -49,3 +49,4 @@ reviewers — it does not assume they have seen our fork's issue tracker.
 | Branch | Issue | Notes |
 |--------|-------|-------|
 | `feat/upstream-sync-pipeline` | [#15](https://github.com/jdmanring/odysseus/issues/15) | Manages fork/upstream relationship — not applicable upstream |
+| `fork/workbench` | — | Fork-only safety net — tracks `docs/fork/`, `tooling/sync-upstreams/`, `.github/workflows/sync-upstream.yml`. Merged to develop after every sync cycle to prevent loss on develop reset. |
