@@ -529,8 +529,11 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
         if (res.ok) {
           const data = await res.json();
           if (data.gguf_sources && data.gguf_sources.length > 0) {
-            // Inject discovered sources into the model object for this session
-            model.gguf_sources = data.gguf_sources;
+            // API returns {repo, files, total_size, downloads} objects.
+            // Normalize to {repo, file} format expected downstream.
+            model.gguf_sources = data.gguf_sources.map(function(s) {
+              return { repo: s.repo, file: (s.files && s.files[0]) || null };
+            });
             ggufSource = _ggufDownloadSource(model, backend);
           }
         }

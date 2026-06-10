@@ -71,57 +71,37 @@ class HfUrlResolver:
                 seen_urls.add(url)
         return unique_urls, commit
 
-    # Known quantization format patterns — presence in a repo name is a
-    # strong signal that the repo contains properly quantized GGUF files.
-    _QUANT_PATTERNS = [
-        "Q2_K", "Q3_K", "Q4_K", "Q5_K", "Q6_K", "Q8_0",
-        "Q4_0", "Q4_1", "Q5_0", "Q5_1",
-        "Q4_K_M", "Q4_K_S", "Q5_K_M", "Q5_K_S",
-        "Q6_K_M", "Q6_K_S", "Q8_0_M",
-        "IQ1", "IQ2", "IQ3", "IQ4",
-        "IQ1_S", "IQ1_M", "IQ2_S", "IQ2_M", "IQ2_XS",
-        "IQ3_S", "IQ3_M", "IQ3_XS", "IQ3_XXS",
-        "IQ4_NL", "IQ4_XS",
-        "F16", "BF16",
-    ]
+    def _probe_gguf_repo(self, repo_id: str) -> Optional[dict]:
+        """Check if a repo actually contains GGUF files via HF metadata."""
+        try:
+            info = self.api.model_info(repo_id)
+        except Exception:
+            return None
 
-    def _score_gguf_repo(self, repo_id: str, model_name: str) -> int:
-        """Score a candidate GGUF repo by quality signals.
+        gguf = getattr(info, "gguf", None)
+        if not gguf or not gguf.get("total"):
+            return None
 
-        Higher score = better candidate.  Signals:
-        - +100  repo name contains a recognized quantization format
-        - +50   repo name contains "GGUF" explicitly
-        - +25   repo name contains the exact model name
-        - +10   repo owner matches the base model's owner (official quant)
-        """
-        score = 0
-        repo_lower = repo_id.lower()
-        repo_owner = repo_id.split("/")[0] if "/" in repo_id else ""
-        base_owner = model_name.split("/")[0] if "/" in model_name else ""
+        siblings = getattr(info, "siblings", None) or []
+        quant_files = [
+            s.rfilename for s in siblings
+            if hasattr(s, "rfilename") and s.rfilename.lower().endswith(".gguf")
+        ]
+        if not quant_files:
+            return None
 
-        for pat in self._QUANT_PATTERNS:
-            if pat.lower() in repo_lower:
-                score += 100
-                break
+        return {
+            "total_size": gguf["total"],
+            "files": quant_files,
+            "downloads": getattr(info, "downloads", 0) or 0,
+        }
 
-        if "gguf" in repo_lower:
-            score += 50
+    def find_gguf_sources(self, base_repo_id: str) -> list:
+        """Find GGUF quantizations of the given model.
 
-        base_model = model_name.lower().split("/")[-1]
-        if base_model in repo_lower:
-            score += 25
-
-        if repo_owner and repo_owner == base_owner:
-            score += 10
-
-        return score
-
-    def find_gguf_sources(self, base_repo_id: str) -> List[str]:
-        """Search HuggingFace for GGUF quantizations of the given model.
-
-        Returns repos ranked by quality score (quantization format match,
-        explicit GGUF naming, model name match, same-owner bonus) and
-        then by downloads within each tier.
+        Searches HuggingFace, then probes each candidate to verify it
+        actually contains GGUF files (via metadata — no download needed).
+        Returns structured objects {repo, files, total_size, downloads}.
         """
         model_name = base_repo_id.split("/")[-1] if "/" in base_repo_id else base_repo_id
 
@@ -129,24 +109,23 @@ class HfUrlResolver:
             models = self.api.list_models(
                 search=f"{model_name} GGUF",
                 sort="downloads",
-                direction=-1,
-                limit=20,
+                limit=15,
             )
         except Exception as e:
             import logging
             logging.error("GGUF discovery search failed for %s: %s", base_repo_id, e)
             return []
 
-        scored = []
+        results = []
         for m in models:
             repo_id = m.modelId
             if repo_id == base_repo_id:
                 continue
-            s = self._score_gguf_repo(repo_id, model_name)
-            downloads = getattr(m, "downloads", None) or 0
-            scored.append((s, downloads, repo_id))
+            probed = self._probe_gguf_repo(repo_id)
+            if probed is None:
+                continue
+            probed["repo"] = repo_id
+            results.append(probed)
 
-        scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
-
-        min_score = 50
-        return [repo_id for score, _, repo_id in scored if score >= min_score]
+        results.sort(key=lambda r: r["downloads"], reverse=True)
+        return results
