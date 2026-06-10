@@ -6,7 +6,6 @@
 
 import uiModule from './ui.js';
 import { _diagnose, _showDiagnosis, _clearDiagnosis } from './cookbook-diagnosis.js';
-import { refreshCachedModelIds } from './cookbook-hwfit.js';
 
 // Shared state/functions injected by init()
 let _envState;
@@ -531,75 +530,8 @@ export async function _runPanelCmd(panel, cmd, opts = {}) {
 
 // ── Model download (dedicated endpoint, tmux-backed) ──
 
-async function _startManagedPolling(panel, sessionId, modelName, host) {
-  const wrap = panel.querySelector('.cookbook-output-wrap');
-  if (!wrap) return;
-
-  const ui = document.createElement('div');
-  ui.className = 'managed-download-ui';
-  ui.innerHTML = `
-    <div class="md-header">Downloading ${modelName} (aria2c)</div>
-    <div class="md-progress-bg">
-      <div class="md-progress-fill" style="width: 0%"></div>
-    </div>
-    <div class="md-footer">
-      <span class="md-stats">Initializing...</span>
-      <button class="md-cancel-btn">Cancel</button>
-    </div>
-  `;
-  wrap.prepend(ui);
-
-  const fill = ui.querySelector('.md-progress-fill');
-  const stats = ui.querySelector('.md-stats');
-  const cancelBtn = ui.querySelector('.md-cancel-btn');
-
-  const poll = async () => {
-    try {
-      const res = await fetch(`/api/cookbook/download/status/${sessionId}`);
-      if (!res.ok) throw new Error('Status request failed');
-      const data = await res.json();
-
-      if (data.error) {
-        stats.textContent = 'Error: ' + data.error;
-        return;
-      }
-
-      const pct = (data.progress * 100).toFixed(1);
-      fill.style.width = pct + '%';
-      stats.textContent = `${pct}% | ${data.speed} | ${data.remaining}`;
-
-      if (data.status === 'complete') {
-        stats.textContent = 'Download Complete!';
-        uiModule.showToast(`${modelName} downloaded successfully.`);
-        refreshCachedModelIds(host);
-        clearInterval(timer);
-        setTimeout(() => ui.remove(), 5000);
-      }
-    } catch (e) {
-      stats.textContent = 'Polling error: ' + e.message;
-    }
-  };
-
-  cancelBtn.onclick = async () => {
-    try {
-      const res = await fetch(`/api/cookbook/download/cancel/${sessionId}`, { method: 'POST' });
-      if (res.ok) {
-        uiModule.showToast('Download cancelled.');
-        clearInterval(timer);
-        ui.remove();
-      }
-    } catch (e) {
-      uiModule.showToast('Cancel failed: ' + e.message);
-    }
-  };
-
-  const timer = setInterval(poll, 2000);
-  poll();
-}
-
 export async function _runModelDownload(panel, model, backend, hostOverride) {
   let ggufSource = _ggufDownloadSource(model, backend);
-
 
   if (backend === 'llamacpp' && !ggufSource) {
     const repoId = model?.repo_id || model?.name;
@@ -674,10 +606,11 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
   const platform = host ? (srv.platform || '') : (_envState.platform || '');
   const isWin = host ? (platform === 'windows') : _isWindows();
 
-  const payload = { repo_id: repo, backend, use_aria2c: true };
+  const payload = { repo_id: repo, backend };
   if (include) payload.include = include;
-  // aria2c handles large files with 16 parallel connections and resume support.
-  // disable_hf_transfer is kept true so hf_transfer doesn't race with aria2c.
+  // Large downloads are where hf_transfer most often dies near the end. Use the
+  // plain HuggingFace downloader up front for big model files; it is slower, but
+  // resumes cached partials more reliably.
   if ((model.required_gb || 0) >= 10 || backend === 'llamacpp') payload.disable_hf_transfer = true;
   if (_envState.hfToken) payload.hf_token = _envState.hfToken;
   if (host) { payload.remote_host = host; const _sp = _getPort(host); if (_sp) payload.ssh_port = _sp; }
@@ -784,9 +717,6 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
     }
     _addTask(data.session_id, shortName, 'download', payload);
     uiModule.showToast(`Downloading ${shortName}...`);
-    if (data.managed) {
-      _startManagedPolling(panel, data.session_id, shortName, host);
-    }
   } catch (e) {
     uiModule.showToast('Download failed: ' + e.message, 9000);
   }
