@@ -79,9 +79,90 @@ function _ggufDownloadSource(model, backend) {
   return null;
 }
 
+// Flat quality ranking, best (index 0) to worst (last index).
+// Within each bit-depth tier, imatrix variants lead (better perplexity at
+// same or smaller size), then standard K-quants, then legacy Q*_0/Q*_1.
+// Used to find the closest available quant to a user's preference when an
+// exact match isn't in the discovered repo.
+const _QUANT_QUALITY = [
+  'Q8_0',
+  'Q6_K',
+  'Q5_K_M', 'Q5_K_S', 'Q5_1', 'Q5_0',
+  'IQ4_XS', 'IQ4_NL', 'Q4_K_M', 'Q4_K_S', 'Q4_1', 'Q4_0',
+  'IQ3_M', 'Q3_K_L', 'Q3_K_M', 'Q3_K_S', 'IQ3_S', 'IQ3_XXS',
+  'IQ2_M', 'Q2_K', 'IQ2_S', 'IQ2_XS', 'IQ2_XXS',
+];
+
+function _quantQualityIndex(quant) {
+  const q = (quant || '').toUpperCase();
+  const idx = _QUANT_QUALITY.findIndex(k => q.includes(k));
+  return idx === -1 ? null : idx;
+}
+
+// Tier rank for each contiguous block in _QUANT_QUALITY: [startIdx, endIdx, tierRank].
+// All quants in the same block are the same bit-depth family (tier 4 = all Q4*/IQ4*).
+const _QUANT_TIER_RANGES = [
+  [0,  0,  0],  // tier 8: Q8_0
+  [1,  1,  1],  // tier 6: Q6_K
+  [2,  5,  2],  // tier 5: Q5_K_M..Q5_0
+  [6,  11, 3],  // tier 4: IQ4_XS..Q4_0
+  [12, 17, 4],  // tier 3: IQ3_M..IQ3_XXS
+  [18, 22, 5],  // tier 2: IQ2_M..IQ2_XXS
+];
+
+function _quantTierRank(qualIdx) {
+  for (const [start, end, rank] of _QUANT_TIER_RANGES) {
+    if (qualIdx >= start && qualIdx <= end) return rank;
+  }
+  return null;
+}
+
+function _closestQuantFile(files, wantedQuant) {
+  const wantedIdx = _quantQualityIndex(wantedQuant);
+  if (wantedIdx === null) return null;
+  const wantedTierRank = _quantTierRank(wantedIdx);
+
+  let best = null, bestTierDist = Infinity, bestQIdx = null;
+  for (const f of files) {
+    const bn = f.split('/').pop().toUpperCase();
+    const idx = _QUANT_QUALITY.findIndex(k => bn.includes(k));
+    if (idx === -1) continue;
+    const tierRank = _quantTierRank(idx);
+    const tierDist = (wantedTierRank !== null && tierRank !== null)
+      ? Math.abs(tierRank - wantedTierRank)
+      : Math.abs(idx - wantedIdx);
+
+    // Same tier: prefer best quality in that tier (lowest quality index). IQ4_XS
+    // beats Q4_K_S when Q4_K_M was requested — imatrix is the proper upgrade.
+    // Cross-tier equidistant: prefer smaller file (higher quality index) to avoid
+    // overshooting the user's intended file size.
+    const better =
+      tierDist < bestTierDist ||
+      (tierDist === bestTierDist && tierDist === 0 && idx < bestQIdx) ||
+      (tierDist === bestTierDist && tierDist > 0  && idx > bestQIdx);
+
+    if (better) { bestTierDist = tierDist; bestQIdx = idx; best = f; }
+  }
+  return best;
+}
+
 function _ggufIncludePattern(model, source) {
+  if (model?.quant) {
+    const files = source?.files || source?._sourceMeta?.files || [];
+    const q = model.quant.toLowerCase();
+    if (!files.length || files.some(f => f.toLowerCase().includes(q))) {
+      return `*${model.quant}*`;
+    }
+    // model.quant not in this repo — find the closest quality tier available
+    // so a Q6_K request against an imatrix repo gets Q5_K_M, not IQ4_XS
+    if (files.length) {
+      const closest = _closestQuantFile(files, model.quant);
+      if (closest) return closest;
+    }
+  }
+  const preferred = source?.preferred_file || source?._sourceMeta?.preferred_file;
+  if (preferred) return preferred;
   if (source?.file) return source.file;
-  if (model?.quant) return `*${model.quant}*`;
   return '*.gguf';
 }
 
@@ -466,7 +547,40 @@ export async function _runPanelCmd(panel, cmd, opts = {}) {
 // ── Model download (dedicated endpoint, tmux-backed) ──
 
 export async function _runModelDownload(panel, model, backend, hostOverride) {
-  const ggufSource = _ggufDownloadSource(model, backend);
+  let ggufSource = _ggufDownloadSource(model, backend);
+
+  if (backend === 'llamacpp' && !ggufSource) {
+    const repoId = model?.repo_id || model?.name;
+    if (repoId) {
+      try {
+        const res = await fetch(`/api/cookbook/resolve-gguf?model=${encodeURIComponent(repoId)}`, {
+          credentials: 'same-origin',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.gguf_sources && data.gguf_sources.length > 0) {
+            model.gguf_sources = data.gguf_sources.map(function(s) {
+              return { repo: s.repo, file: null, files: s.files || [], preferred_file: s.preferred_file || null, _sourceMeta: s };
+            });
+            ggufSource = _ggufDownloadSource(model, backend);
+            if (ggufSource && model.gguf_sources[0]._sourceMeta) {
+              const meta = model.gguf_sources[0]._sourceMeta;
+              const score = (meta.quality_score || 0).toFixed(1);
+              const dl = meta.downloads || 0;
+              const likes = meta.likes || 0;
+              const parts = [`auto-selected: ${ggufSource.repo}`, `score ${score}`, `${dl.toLocaleString()} downloads`, `${likes} likes`];
+              if (meta.has_evals) parts.push('benchmarked');
+              if (!meta.is_derived) parts.push('community source');
+              console.log('GGUF discovery: ' + parts.join(' | '));
+            }
+          }
+        }
+      } catch (e) {
+        console.error('GGUF discovery failed:', e);
+      }
+    }
+  }
+
   if (backend === 'llamacpp' && !ggufSource) {
     uiModule.showToast(_missingGgufMessage(model));
     return;
