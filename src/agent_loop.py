@@ -1456,7 +1456,10 @@ def _build_base_prompt(
 
     # Inject integration descriptions
     if not suppress_local_context:
-        from src.integrations import get_integrations_prompt
+        from src.integrations import get_integrations_prompt, get_github_cli_prompt
+        gh_prompt = get_github_cli_prompt()
+        if gh_prompt:
+            agent_prompt += gh_prompt
         integ_prompt = get_integrations_prompt()
         if integ_prompt:
             agent_prompt += "\n\n" + integ_prompt
