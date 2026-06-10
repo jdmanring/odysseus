@@ -331,7 +331,9 @@ class TestAppendToolResultsNativeContent:
         assert messages[0]["content"] == "Let me check that page."
 
     def test_non_native_path_unaffected(self):
-        # The text-block fallback path still wraps results in a user message.
+        # The text-block fallback path wraps results in a system message
+        # (role changed user→system in ccf5342 so tool results don't surface
+        # as user turns in the UI or retrieval queries).
         messages = []
         _append_tool_results(
             messages, "thinking...", [], ["tool output"], [],
@@ -339,7 +341,7 @@ class TestAppendToolResultsNativeContent:
         )
         assert messages[0]["role"] == "assistant"
         assert messages[0]["content"] == "thinking..."
-        assert messages[1]["role"] == "user"
+        assert messages[1]["role"] == "system"
         assert "tool output" in messages[1]["content"]
 
 
