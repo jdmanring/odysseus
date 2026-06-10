@@ -530,6 +530,43 @@ async def execute_api_call(
 # System prompt helper
 # ---------------------------------------------------------------------------
 
+def get_github_cli_prompt() -> str:
+    """Return a system prompt block if gh CLI is installed and authenticated."""
+    import shutil
+    import subprocess
+    import re
+
+    if not shutil.which("gh"):
+        return ""
+    try:
+        r = subprocess.run(
+            ["gh", "auth", "status", "--hostname", "github.com"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode != 0:
+            return ""
+        m = re.search(r"account (\S+)", r.stdout + r.stderr)
+        username = m.group(1) if m else "you"
+    except Exception:
+        return ""
+
+    return (
+        "\n\n## GitHub CLI\n\n"
+        f"`gh` is installed and authenticated (as **{username}**). "
+        "Use the `bash` tool to run `gh` commands for GitHub — "
+        "this is faster and more reliable than the api_call integration:\n"
+        "- `gh repo list` — list repositories\n"
+        "- `gh pr list --repo owner/repo` — list pull requests\n"
+        "- `gh issue list --repo owner/repo` — list issues\n"
+        "- `gh issue create --repo owner/repo --title '...' --body '...'` — create issue\n"
+        "- `gh pr create --title '...' --body '...'` — create pull request\n"
+        "- `gh api /repos/owner/repo/contents/path` — read file content\n"
+        "- `gh release list --repo owner/repo` — list releases\n"
+        "- `gh workflow list` — list CI workflows\n"
+        "- `gh pr view NUMBER` — view a pull request\n"
+    )
+
+
 def get_integrations_prompt() -> str:
     """Return a string describing all enabled integrations for system prompt injection.
 
