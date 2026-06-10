@@ -85,8 +85,14 @@ is the SPA shell. `init.js` boots the UI.
 | Conversations, sessions, messages | SQLite `data/app.db` via SQLAlchemy |
 | Memory / RAG embeddings | ChromaDB `data/chroma/` |
 | User preferences | `data/settings.json` |
+| User profile data (theme, etc.) | `data/user_prefs.json` — per-user keyed by email |
+| Custom themes | `data/user_prefs.json` → `custom-themes` per-user, also in browser localStorage synced via `/api/prefs/custom-themes` |
+| Current theme (active) | `data/user_prefs.json` → `theme.name` per-user |
+| Current theme colors | `data/user_prefs.json` → `theme.colors` per-user (includes `advanced` overrides) |
 | Uploaded files | `uploads/` |
 | HuggingFace model cache | `~/.cache/huggingface/hub/` (standard HF layout) |
+
+**Critical: `data/user_prefs.json` is the source of truth for the active theme.** When asked to update a theme or find current colors, read this file first. Do not guess colors — look them up from the user's actual profile data.
 
 ---
 
@@ -208,3 +214,12 @@ git log --oneline upstream-mirror..fix/branch-name      # staging branch commit 
 | Git workflow and branches? | `docs/dev/git-branch-workflow.md` |
 | Running locally? | `docs/dev/local-setup-and-running.md` |
 | **Fork pipeline procedures (exact commands)** | **`AI_RULES.md` — Fork Operations section** |
+| **Where user theme/profile data lives** | **`data/user_prefs.json`** (see Data Storage above) |
+
+## Lessons Learned (things that bit us — read before repeating)
+
+**Never edit `develop` directly for upstream-candidate work.** Always work on the proper branch (from `upstream-mirror`), commit there, then cherry-pick to `develop`. Editing develop directly creates untracked work that has no branch, no issue, and no PR staging. If you find yourself editing develop, stop — you're on the wrong branch.
+
+**Always look up user data from `data/user_prefs.json` before guessing.** Theme colors, user preferences, and profile data are stored there. Do not invent colors or use colors from a different theme. Read the file, extract the exact values the user is actually using, then apply them.
+
+**The running app's user profile is the source of truth.** If a user says "I'm using theme X", the exact colors are in `data/user_prefs.json` under their email → `theme.colors`. For custom themes, also check `custom-themes` under their email.
