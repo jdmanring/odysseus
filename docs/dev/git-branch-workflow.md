@@ -262,3 +262,46 @@ All upstream PRs target `upstream:dev`, never `upstream:main`.
 | Filing upstream PR from an agent | Upstream CONTRIBUTING.md prohibits it; James must file | Stage the branch; update pr-status.md; wait for James |
 | Closing an issue before verifying the fix works | Disrupts workflow tracking | Verify first, close after |
 | Creating a branch without an issue | Untraceable work | Create issue first, always |
+| Editing `develop` directly for upstream-candidate work | Creates untracked work with no branch/issue/PR | Branch from upstream-mirror, commit there, cherry-pick to develop |
+| Forgetting to update docs | Future agents and contributors lack context | Update `changes-from-upstream.md` for new/modified files |
+
+---
+
+## Rebasing a Staging Branch
+
+When `upstream-mirror` advances (after an upstream sync), staging branches need rebasing so they apply cleanly on top of current upstream code.
+
+```bash
+git log --oneline fix/branch-name..upstream-mirror | wc -l   # if > 0, rebase needed
+git checkout fix/branch-name
+git rebase upstream-mirror
+```
+
+**Conflict resolution:** Read both sides. Keep your fix AND incorporate upstream's changes. Remove all conflict markers. `git add <file> && git rebase --continue`.
+
+**If stuck:** `git rebase --abort` to return to pre-rebase state. Ask James before retrying.
+
+**After rebase:** Develop's cherry-picks may be stale. Verify with `git diff upstream-mirror develop -- <files>`. If develop shows regressions, re-cherry-pick the rebased commit.
+
+## Cherry-Picking to Develop
+
+```bash
+git checkout develop
+git cherry-pick <commit-hash>
+```
+
+**Conflict resolution:** `git checkout --theirs <file>` takes the cherry-picked version (usually what you want). Then `git add <file> && git cherry-pick --continue`.
+
+**Verifying the cherry-pick landed:** `git diff origin/develop -- <file>` should show your expected changes. If the file looks wrong, `git checkout origin/develop -- <file>` to reset, then re-cherry-pick.
+
+## Pre-Flight Checklist (before marking "Ready to File")
+
+- [ ] Branch starts from `upstream-mirror` (not `develop`)
+- [ ] Single clean commit (or tightly related commits)
+- [ ] Diff contains only intended files — no fork-specific content
+- [ ] No hardcoded paths, usernames, or tokens
+- [ ] Commit message is clear and written for upstream reviewers
+- [ ] `python -m py_compile` passes on changed Python files
+- [ ] `node --check` passes on changed JS files
+- [ ] Cross-platform considered: no Linux-only assumptions in shared code
+- [ ] Documentation updated: `changes-from-upstream.md` for new/modified files
