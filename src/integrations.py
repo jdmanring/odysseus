@@ -61,30 +61,6 @@ INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
             "  GET /api/v1/repos/{owner}/{repo}/contents/{filepath} — get file content"
         ),
     },
-    "github": {
-        "name": "GitHub",
-        "auth_type": "header",
-        "auth_header": "Authorization",
-        "description": (
-            "GitHub REST API (v3). Auth header value format: 'token YOUR_TOKEN'. "
-            "Create a token at https://github.com/settings/tokens (classic) with 'repo' scope.\n"
-            "Key endpoints:\n"
-            "  GET /user — verify token / get authenticated user\n"
-            "  GET /user/repos — list your repositories\n"
-            "  GET /repos/{owner}/{repo} — get repo details\n"
-            "  GET /repos/{owner}/{repo}/issues — list issues (state=open|closed|all)\n"
-            "  POST /repos/{owner}/{repo}/issues — create issue {\"title\": \"...\", \"body\": \"...\"}\n"
-            "  GET /repos/{owner}/{repo}/pulls — list pull requests\n"
-            "  GET /repos/{owner}/{repo}/pulls/{number} — get a pull request\n"
-            "  POST /repos/{owner}/{repo}/pulls — create pull request {\"title\": \"...\", \"head\": \"...\", \"base\": \"...\"}\n"
-            "  GET /repos/{owner}/{repo}/commits — list commits\n"
-            "  GET /repos/{owner}/{repo}/contents/{filepath} — get file content\n"
-            "  GET /search/repositories — search repositories (q=...)\n"
-            "  GET /search/issues — search issues (q=...)\n"
-            "  GET /orgs/{org}/repos — list org repositories\n"
-            "  GET /user/orgs — list your organizations"
-        ),
-    },
     "linkding": {
         "name": "Linkding",
         "auth_type": "header",
@@ -576,7 +552,6 @@ def get_github_cli_prompt() -> str:
     global _gh_cli_prompt_cache
     if _gh_cli_prompt_cache is not None:
         return _gh_cli_prompt_cache
-
 
     import os
     import shutil
