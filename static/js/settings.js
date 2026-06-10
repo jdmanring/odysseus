@@ -3520,6 +3520,7 @@ async function initUnifiedIntegrations() {
     const API_PRESET_LOGO = {
       miniflux:        _apiLetter('M', '#214c87'),
       gitea:           _apiLetter('G', '#609926'),
+      github:          _apiLetter('G', '#24292e'),
       linkding:        _apiLetter('L', '#1f2937'),
       home_assistant:  _apiLetter('H', '#41bdf5'),
       ntfy:            _apiLetter('n', '#317f43'),
