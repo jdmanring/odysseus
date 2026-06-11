@@ -235,14 +235,16 @@ def setup_cookbook_routes() -> APIRouter:
         return state
 
     def _load_stored_hf_token() -> str:
-        if not _cookbook_state_path.exists():
-            return ""
-        try:
-            state = json.loads(_cookbook_state_path.read_text(encoding="utf-8"))
-            env = state.get("env") if isinstance(state, dict) else {}
-            return _decrypt_secret(env.get("hfToken") if isinstance(env, dict) else "")
-        except Exception:
-            return ""
+        if _cookbook_state_path.exists():
+            try:
+                state = json.loads(_cookbook_state_path.read_text(encoding="utf-8"))
+                env = state.get("env") if isinstance(state, dict) else {}
+                stored = _decrypt_secret(env.get("hfToken") if isinstance(env, dict) else "")
+                if stored:
+                    return stored
+            except Exception:
+                pass
+        return os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or ""
 
     def _cookbook_ssh_dir() -> Path:
         # The Docker image keeps cookbook keys under /app/.ssh; that path only
