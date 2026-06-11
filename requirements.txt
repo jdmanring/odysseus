@@ -43,4 +43,4 @@ qrcode[pil]
 croniter
 pytest
 pytest-asyncio
-pytest-timeout
+structlog

@@ -38,6 +38,8 @@ load_dotenv(encoding="utf-8-sig")
 import asyncio
 import logging
 import secrets
+import time
+import uuid
 from datetime import datetime
 from typing import Dict
 
@@ -71,7 +73,8 @@ from starlette.responses import RedirectResponse
 # ========= LOGGING =========
 from src.logging_config import setup_logging
 setup_logging()
-logger = logging.getLogger("odysseus")
+import structlog
+logger = structlog.get_logger("odysseus")
 
 # ========= APP =========
 # Lifespan is defined below (after all helpers it references are in scope)
@@ -115,6 +118,62 @@ app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
 # ========= SECURITY HEADERS MIDDLEWARE =========
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+# ========= ACCESS LOGGING MIDDLEWARE =========
+# Logs every HTTP request with method, path, status, duration, and
+# request_id correlation. Must be outside AuthMiddleware so it captures
+# auth failures (401/403) too. Generates a per-request UUID that is
+# also returned in the X-Request-ID response header.
+_ACCESS_LOG_SKIP = {"/api/health", "/api/version", "/static"}
+
+
+class AccessLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path or ""
+        if any(path.startswith(p) for p in _ACCESS_LOG_SKIP):
+            return await call_next(request)
+
+        from src.log_context import bind_request_context, clear_request_context
+        req_id = bind_request_context()
+        start = time.monotonic()
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration_ms = (time.monotonic() - start) * 1000
+            logger.error(
+                "http_request",
+                method=request.method,
+                path=path,
+                status=500,
+                duration_ms=round(duration_ms, 1),
+                error="unhandled_exception",
+            )
+            raise
+        finally:
+            clear_request_context()
+
+        duration_ms = (time.monotonic() - start) * 1000
+        status = response.status_code
+        if status >= 500:
+            log = logger.error
+        elif status >= 400:
+            log = logger.warning
+        else:
+            log = logger.info
+        log(
+            "http_request",
+            method=request.method,
+            path=path,
+            status=status,
+            duration_ms=round(duration_ms, 1),
+        )
+        response.headers["X-Request-ID"] = req_id
+        return response
+
+
+app.add_middleware(AccessLoggingMiddleware)
 
 
 # ========= REQUEST TIMEOUT (FALLBACK FOR HUNG HANDLERS) =========
