@@ -91,3 +91,6 @@ _scratch/
 
 .qwen/
 gha-creds-*.json
+
+# Fork‑only scripts
+/scripts/fork/
