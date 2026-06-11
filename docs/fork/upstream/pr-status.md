@@ -31,7 +31,6 @@ explicit per-action authorization. Agents stage; James files.**
 | `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Feature | Ready to file — see pr-drafts/feat-gguf-discovery.md |
 | `feat/logging-core` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Feature | Ready to file — see pr-drafts/feat-logging-core.md |
 | `feat/logging-timing` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Feature | Ready to file after core — see pr-drafts/feat-logging-timing.md |
-| `feat/logging-audit` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Feature | Ready to file after core — see pr-drafts/feat-logging-audit.md |
 
 ## PR Drafts
 

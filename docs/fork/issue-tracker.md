@@ -67,7 +67,7 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 | [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_CONTEXT.md — architecture primer (upstream) | upstream-candidate | `feat/ai-documentation-system` |
 | [#29](https://github.com/jdmanring/odysseus/issues/29) | GGUF source resolution returns low-quality results | upstream-candidate | `fix/gguf-quality-scored` |
 | [#30](https://github.com/jdmanring/odysseus/issues/30) | feat: add Catppuccin Mocha theme with Odysseus color palette | upstream-candidate | `feat/catppuccin-theme` |
-| [#31](https://github.com/jdmanring/odysseus/issues/31) | World-class structured logging system | upstream-candidate | 3 PRs: `feat/logging-core`, `feat/logging-timing`, `feat/logging-audit` |
+| [#31](https://github.com/jdmanring/odysseus/issues/31) | World-class structured logging system | upstream-candidate | 2 PRs: `feat/logging-core`, `feat/logging-timing` |
 
 For upstream filing status (which are ready, which need screenshots, blockers):
 `docs/fork/upstream/pr-status.md`
