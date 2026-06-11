@@ -59,7 +59,7 @@ FASTEMBED_CACHE_DIR = os.getenv("FASTEMBED_CACHE_PATH", os.path.join(DATA_DIR, "
 
 # Logging
 LOG_DIR = os.path.join(DATA_DIR, "logs")
-DEFAULT_LOG_FILE = os.path.join(LOG_DIR, "odysseous.log")
+DEFAULT_LOG_FILE = os.path.join(LOG_DIR, "odysseus.log")
 LOG_FILE = os.getenv("ODYSSEUS_LOG_FILE", DEFAULT_LOG_FILE)
 LOG_MAX_BYTES = 10 * 1024 * 1024   # 10 MB
 LOG_BACKUP_COUNT = 5
