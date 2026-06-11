@@ -1,6 +1,6 @@
 # Active Work
 
-Current in-progress items as of 2026-06-09.
+Current in-progress items as of 2026-06-11.
 
 ---
 
@@ -21,8 +21,8 @@ Current in-progress items as of 2026-06-09.
 
 | Issue | Branch | Notes |
 |-------|--------|-------|
-| [#26 Filesystem access broken](https://github.com/jdmanring/odysseus/issues/26) | `fix/filesystem-access-regression` | `tool_index.py` keyword hints for disk-file queries; `tool_execution.py` adds $HOME to path roots. Staged — ready to file upstream. |
-| [#28 Filesystem tools crash — dead workspace import](https://github.com/jdmanring/odysseus/issues/28) | `fix/agent-tools-workspace-import` | `filesystem_tools.py` + `tool_execution.py` — remove `_resolve_tool_path_in_workspace` deleted by `0aba00f` but re-imported by `c1674fc`. Staged — ready to file upstream. |
+| [#26 Filesystem access broken](https://github.com/jdmanring/odysseus/issues/26) | ~~`fix/filesystem-access-regression`~~ | Retired — superseded by upstream #3665 (workspace confinement). Use `/workspace` to grant file access. Issue closed. |
+| [#28 Filesystem tools crash — dead workspace import](https://github.com/jdmanring/odysseus/issues/28) | ~~`fix/agent-tools-workspace-import`~~ | Retired — upstream #3665 properly defines `_resolve_tool_path_in_workspace`. Branch emptied; issue closed. |
 
 ---
 
