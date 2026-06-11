@@ -1,6 +1,6 @@
 # Active Work
 
-Current in-progress items as of 2026-06-11.
+Current in-progress items as of 2026-06-11. (GPU flicker fix added 2026-06-11)
 
 ---
 
@@ -36,7 +36,7 @@ Current in-progress items as of 2026-06-11.
 | [#12 aria2c downloader](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | `feat/aria2c-downloader` | Multi-connection HF downloads + BinManager + reliability fixes (folded from #23: tmux width, totalFiles fallback, conn_per_file 3, tab indent, HfUrlResolver fallback). Needs integration test run + screenshot. |
 | [#24 Dynamic GGUF source discovery](https://github.com/jdmanring/odysseus/issues/24) | `feat/gguf-discovery` | find_gguf_sources(), /api/cookbook/resolve-gguf, cookbookDownload.js auto-discovery. Upstream draft staged — file after #12. |
 | [#13 Color picker eyedropper broken in Qt](https://github.com/jdmanring/odysseus/issues/13) | `feat/qt-native-linux-app` | `qtBridge.openColorDialog()` replaces Web EyeDropper. Merged into #14. |
-| [#14 Native Linux desktop app](https://github.com/jdmanring/odysseus/issues/14) | `feat/qt-native-linux-app` | `linux_wrapper.py`, crash recovery, lifecycle. Upstream draft staged — needs screenshots + constants audit. |
+| [#14 Native Linux desktop app](https://github.com/jdmanring/odysseus/issues/14) + [#32](https://github.com/jdmanring/odysseus/issues/32) | `feat/qt-native-linux-app` + `fix/gpu-compositor-flicker` | `linux_wrapper.py` GPU flag fix committed to staging branch. CSS backdrop-filter fix on separate branch. Both in develop. Needs verification — restart app and test sidebar hover, dropdowns, Settings/Providers. Upstream draft needs update before filing. |
 | [#16 Download UI overhaul](https://github.com/jdmanring/odysseus/issues/16) | `feat/download-ui-overhaul` | Per-file progress rows, accurate overall progress, `_dlFileTracker` |
 | [#17 QWebEngineView localStorage wipes on exit](https://github.com/jdmanring/odysseus/issues/17) | `feat/qt-native-linux-app` | Persistent profile path set. Merged into #14. |
 
