@@ -48,9 +48,19 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   `runJavaScript` for diagnostics.
 - **Qt bridge:** `QWebChannel` exposes `window.qtBridge` to the page for
   features that require a native dialog.
-- **GPU flags:** sets `QTWEBENGINE_CHROMIUM_FLAGS` before importing Qt to
-  enable GPU rasterization, Vulkan/ANGLE, WebGPU, and zero-copy transfer on
-  NVIDIA/Wayland setups.
+- **GPU flags:** sets `QTWEBENGINE_CHROMIUM_FLAGS` and
+  `QTWEBENGINE_FORCE_USE_GBM` before importing Qt. Flags enabled:
+  `--enable-gpu-rasterization` (GPU tile rasterisation — safe on NVIDIA Linux),
+  `WebGPU`, `SharedArrayBuffer`, `--enable-logging=stderr`,
+  `--remote-debugging-port=9222` (Chrome DevTools at `http://localhost:9222`
+  for GPU compositor layer inspection). Flags explicitly absent: `DefaultANGLEVulkan`
+  (forces ANGLE to Vulkan — documented to cause blank/invisible windows on
+  ozone/Wayland, Chromium bug 334275637) and `--enable-zero-copy` (requires
+  GBM buffer allocation, which NVIDIA proprietary drivers don't support — Qt
+  WebEngine 6.6 release notes; was a no-op and a source of texture-sharing
+  failures). `QTWEBENGINE_FORCE_USE_GBM=0` guards against a Qt 6.9+ regression
+  (qutebrowser #8535) where Qt incorrectly forces GBM on drivers that don't
+  support it; `setdefault` preserves any user override.
 - **Logging:** `os.dup2` redirects Chromium renderer fd 1/2 into
   `logs/wrapper_system.log` before Qt is imported so all renderer subprocess
   output is captured.
@@ -133,11 +143,12 @@ optional and the server is unchanged.
 Qt is the standard native application toolkit on Linux distributions that use
 KDE, and is a first-class citizen on GNOME via GTK interop. PyQt6 is available
 from the package manager on Arch, Debian, Ubuntu, and Fedora. The GPU
-acceleration flags set in `linux_wrapper.py` (`--enable-gpu-rasterization`,
-`--enable-zero-copy`, `--use-vulkan`) are standard Chromium flags that take
-effect on NVIDIA/Wayland setups without any platform-specific code. None of
-this is novel: PyQt6-WebEngine wrappers are a well-understood pattern for
-Python web apps that need a desktop presence on Linux.
+acceleration flags in `linux_wrapper.py` are chosen specifically for
+NVIDIA/Wayland compatibility: `--enable-gpu-rasterization` is safe and
+effective; the Vulkan/GBM flags that are problematic on NVIDIA proprietary
+drivers are explicitly absent. None of this is novel: PyQt6-WebEngine wrappers
+are a well-understood pattern for Python web apps that need a desktop presence
+on Linux.
 
 This PR does not attempt to cover Windows or macOS. Issue #3528 addresses a
 Windows desktop mode separately. Cross-platform coverage via Electron or Tauri
@@ -158,7 +169,7 @@ for server installs or Docker).
 
 ### Testing
 
-- Arch Linux, Wayland, NVIDIA GPU.
+- Arch Linux, Wayland, NVIDIA GPU (proprietary drivers).
 - Session persistence verified: login state, theme, and session history survive
   app restart.
 - External links (URLs in AI responses, markdown links) open in the system
@@ -166,6 +177,13 @@ for server installs or Docker).
 - Renderer crash recovery: page reloads once on OOM without a reload loop.
 - Color picker: native Qt dialog opens, returns hex, closes; eyedropper button
   hidden if `qtBridge` is unavailable.
+- GPU rendering: no black-screen flicker on sidebar hover, dropdown open,
+  Settings/Providers open, or Cookbook open. Verified after removing
+  `DefaultANGLEVulkan` and `--enable-zero-copy` flags. Chrome DevTools
+  accessible at `http://localhost:9222` for compositor layer inspection.
+- General use: chat, session management, model switching, Cookbook, Downloads,
+  Settings all function correctly through normal use.
+- Not yet tested: touchscreen/tablet input, Windows, macOS.
 
 ---
 
