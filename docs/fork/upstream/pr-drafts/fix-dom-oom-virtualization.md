@@ -2,7 +2,7 @@
 
 **Branch:** `jdmanring/odysseus:fix/dom-oom-virtualization`
 **Issue:** [#2](https://github.com/jdmanring/odysseus/issues/2) (fork tracking)
-**Status:** Needs squash (5 commits → 1) before filing. File upstream issue first.
+**Status:** Staging branch is a single clean commit (8db240a). File upstream issue first, then open PR.
 
 ---
 
@@ -197,8 +197,11 @@ before updating `_startIdx` or `_endIdx`.
 
 ### Testing
 
-Verified manually on Linux (Arch, Wayland, NVIDIA, Chrome 126). All scenarios
-below were exercised directly.
+Verified manually on Linux (Arch, Wayland, NVIDIA) running in the native Qt desktop
+wrapper (PyQt6 / QWebEngineView, Chromium-based). QtWebEngine has tighter compositor
+timing than standalone Chrome, which made scroll-position races more visible and drove
+several of the correctness fixes (the `_draining` flag, the double-rAF snap, the
+settling loop). All scenarios below were exercised directly.
 
 **Load-time windowing (Phase 1)**
 - Session with 0 messages → welcome screen; no sentinel, no spacer
@@ -250,63 +253,53 @@ below were exercised directly.
 - Sessions with 5, 15, 30 messages → all messages visible, no pagination UI,
   no spacer; behavior identical to pre-patch
 
-**No automated tests were added.**  
-The DOM virtualization module is not unit-testable without a browser environment
-(it depends on IntersectionObserver, MutationObserver, `scrollHeight`,
-`scrollTop`, and `getBoundingClientRect()`). The existing pytest suite covers
-backend endpoints and is not affected by this change.
+**Automated tests.**  
+`tests/test_chat_history_js.py` covers the virtualization state machine logic
+(window sizing, sentinel management, index tracking, generation counter) using
+a lightweight DOM stub — no browser required. `tests/test_chat_history_playwright.py`
+covers the scroll behaviour end-to-end using Playwright. The existing pytest suite
+covering backend endpoints is not affected by this change.
 
 ---
 
 ## Filing notes (James only — do not paste upstream)
 
-1. **Squash the 5 commits on the staging branch to 1 before opening the PR.**
-   Suggested squash message:
-   ```
-   fix(dom): virtual message window to prevent renderer OOM on long sessions
-   
-   Introduces chatHistory.js — a DOM virtualization module that keeps the live
-   node count bounded through three phases: load-time windowing (IntersectionObserver
-   batch loads), live pruning (MutationObserver caps DOM at PRUNE_AT=80), and
-   bidirectional pruning (scroll-back capped at BIDI_CAP=120 with restore-on-scroll).
-   
-   Integrates with sessions.js via window.chatHistory.reset() / .load(). The
-   addMessage() API is unchanged; the MutationObserver picks up live appends
-   automatically.
-   
-   Also fixes a thinking-token leak in chat.js resumeStream (raw reasoning text
-   rendered as plain text on crash-recovery reload) and removes a CSS compositor
-   hint (will-change:transform on .chat-container) that caused black-screen flicker
-   on sidebar/dropdown hover.
-   
-   Fixes: <upstream issue number>
-   ```
+1. **File an upstream issue first.** Suggested title:
+   > "Renderer OOM / freeze on long sessions — chat history DOM grows without bound"
 
-2. **File an upstream issue first.** Title: "Renderer OOM crash on long sessions /
-   agent runs — chat history has no DOM node limit". Body: describe the two failure
-   modes (load crash / accumulation crash), mention agent sessions producing 5–7
-   nodes per message, reference the V8 Oilpan OOM error in the browser console.
-   Add the upstream issue number to the PR description before filing.
+   Body: describe the two failure modes (load crash on open; accumulation crash
+   during a long agentic run), mention agent sessions producing 5–7 nodes per
+   message, reference the V8 Oilpan OOM error visible in the browser console.
 
-3. **No screenshot needed** — the fix is behavioral (OOM prevention) not visual.
+   **Related upstream reports to reference in the issue body:**
+   - **#2869 "Chat Freeze"** — user reports freeze after 20 messages in agent chat
+     (same root cause: unbounded DOM growth). Labelled "needs more info" and stale;
+     don't ask to close it — let maintainers decide.
+   - **#3746 "Website crashing"** — crash after deep research + continued chatting;
+     consistent with DOM OOM accumulation. Same treatment.
+
+   Add the new upstream issue number to the `Fixes:` line in the PR description
+   before filing the PR.
+
+2. **No screenshot needed** — the fix is behavioral (OOM prevention) not visual.
    If reviewers ask for evidence, describe repro steps: load a 600-message session
-   from the DB, observe renderer crash on Chrome 126 before patch; observe clean
-   load after.
+   from the DB and open it; the renderer crashes before this patch and loads cleanly
+   after.
 
-4. **Reviewer question to anticipate:** "Why not React virtualization libraries like
+3. **Reviewer question to anticipate:** "Why not React virtualization libraries like
    react-window or @tanstack/virtual?" Answer: Odysseus uses a plain HTML/JS
-   frontend, not React. A dependency on a React virtualization library is not
-   appropriate. The implementation follows the same pattern as the rest of the
-   codebase: vanilla JS with direct DOM manipulation.
+   frontend with no bundler or framework. A dependency on a React virtualization
+   library is not appropriate. The implementation follows the same pattern as the
+   rest of the codebase: vanilla JS with direct DOM manipulation.
 
-5. **Reviewer question to anticipate:** "Why include the chat.js resumeStream fix
+4. **Reviewer question to anticipate:** "Why include the chat.js resumeStream fix
    here?" Answer: It was discovered while testing the crash-recovery path. The
    thinking-token bug only manifests when `resumeStream` replays a buffer — which
    only happens after a crash, which is what this PR makes survivable. Separating
    it into its own PR would mean filing a new upstream issue for a 3-line fix in a
-   subsystem that reviewers can verify in seconds alongside this one.
+   subsystem reviewers can verify in seconds alongside this one.
 
-6. **Watch upstream architecture discussion #605** (Vite + React migration). If a
-   React migration PR lands before this one is reviewed, this module may need to
-   be adapted to work as a React hook/component. The virtualization logic itself is
-   framework-agnostic; porting it would be straightforward.
+5. **Watch upstream discussion #929** ("Implement a frontend framework for easier
+   maintenance as the project scales"). If a framework migration PR lands before
+   this one is reviewed, this module may need to be adapted. The virtualization
+   logic is framework-agnostic; porting it would be straightforward.
