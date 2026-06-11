@@ -29,6 +29,7 @@ explicit per-action authorization. Agents stage; James files.**
 | `fix/agent-tools-workspace-import` | [#28](https://github.com/jdmanring/odysseus/issues/28) | Bug | Ready to file — see pr-drafts/ |
 | `feat/github-integration` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Feature | Ready to file — see pr-drafts/ |
 | `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Feature | Ready to file — see pr-drafts/feat-gguf-discovery.md |
+| `feat/persistent-logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Feature | Ready to file — see pr-drafts/feat-structured-logging.md |
 
 ## PR Drafts
 
