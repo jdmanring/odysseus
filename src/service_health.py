@@ -38,14 +38,14 @@ network.
 
 import asyncio
 import concurrent.futures
-import logging
+import structlog
 import socket
 import ssl
 import time
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Status ordering for rolling up an overall verdict. "disabled" is excluded —
 # a turned-off feature must never drag the overall status down.
@@ -454,14 +454,23 @@ async def _run_subsystem(name: str, fn: Callable, *args: Any) -> Dict[str, Any]:
     A subsystem that overruns `_SUBSYSTEM_DEADLINE` (or raises) becomes a
     controlled `down`/`timeout` entry instead of hanging or leaking the error.
     """
+    _t0 = time.monotonic()
     try:
-        return await asyncio.wait_for(asyncio.to_thread(fn, *args),
-                                      timeout=_SUBSYSTEM_DEADLINE)
+        result = await asyncio.wait_for(asyncio.to_thread(fn, *args),
+                                        timeout=_SUBSYSTEM_DEADLINE)
+        _elapsed_ms = (time.monotonic() - _t0) * 1000
+        if isinstance(result, dict):
+            result["elapsed_ms"] = round(_elapsed_ms, 1)
+        return result
     except asyncio.TimeoutError:
-        return _svc(name, DOWN, _detail_for("timeout"), error="timeout")
+        _elapsed_ms = (time.monotonic() - _t0) * 1000
+        return _svc(name, DOWN, _detail_for("timeout"), error="timeout",
+                   elapsed_ms=round(_elapsed_ms, 1))
     except Exception as e:
+        _elapsed_ms = (time.monotonic() - _t0) * 1000
         category = _classify_error(e)
-        return _svc(name, DOWN, _detail_for(category), error=category)
+        return _svc(name, DOWN, _detail_for(category), error=category,
+                   elapsed_ms=round(_elapsed_ms, 1))
 
 
 async def collect_service_health(rag_manager: Any = None,

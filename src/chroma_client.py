@@ -7,9 +7,10 @@ Connects to a ChromaDB instance running as a standalone service.
 
 import os
 import socket
-import logging
+import structlog
+import time
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _client = None
 
@@ -19,13 +20,14 @@ _client = None
 _CONNECT_TIMEOUT = float(os.getenv("CHROMADB_CONNECT_TIMEOUT", "2.0"))
 
 
-def _port_open(host: str, port: int, timeout: float = None) -> bool:
-    """Return True if a TCP connection to host:port succeeds within timeout."""
+def _port_open(host: str, port: int, timeout: float = None) -> tuple[bool, float]:
+    """Return (is_open, elapsed_ms) for a TCP connection to host:port."""
+    _t0 = time.monotonic()
     try:
         with socket.create_connection((host, port), timeout=timeout or _CONNECT_TIMEOUT):
-            return True
+            return True, (time.monotonic() - _t0) * 1000
     except OSError:
-        return False
+        return False, (time.monotonic() - _t0) * 1000
 
 
 def get_chroma_client():
@@ -49,9 +51,11 @@ def get_chroma_client():
     host = os.getenv("CHROMADB_HOST", "localhost")
     port = int(os.getenv("CHROMADB_PORT", "8100"))
 
-    if not _port_open(host, port):
+    is_open, tcp_ms = _port_open(host, port)
+    if not is_open:
         raise RuntimeError(
-            f"ChromaDB is not reachable at {host}:{port}. Start the ChromaDB "
+            f"ChromaDB is not reachable at {host}:{port} "
+            f"(tcp_probe_ms={tcp_ms:.0f}). Start the ChromaDB "
             f"service (e.g. `docker compose up chromadb`) or set CHROMADB_HOST / "
             f"CHROMADB_PORT to point at a running instance."
         )
@@ -61,9 +65,12 @@ def get_chroma_client():
     # Health check before caching — if the port is open but the service isn't
     # healthy yet (e.g. still starting), don't poison the singleton with a dead
     # client; leave _client unset so the next call retries.
+    _hb_start = time.monotonic()
     client.heartbeat()
+    _hb_ms = (time.monotonic() - _hb_start) * 1000
     _client = client
-    logger.info(f"ChromaDB connected: {host}:{port}")
+    logger.info("chroma_connected", host=host, port=port,
+                tcp_ms=round(tcp_ms, 1), heartbeat_ms=round(_hb_ms, 1))
     return _client
 
 
