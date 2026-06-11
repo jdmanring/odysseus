@@ -399,7 +399,6 @@ body.bg-pattern-sparkles {
       backdrop-filter: blur(10px);
       border: 1px solid color-mix(in srgb, var(--fg) 11%, transparent);
       position: relative;
-      contain: content;
     }
     .sidebar-resize-handle {
       position: absolute;
@@ -1775,8 +1774,7 @@ body.bg-pattern-sparkles {
     }
     input[type="text"] { height:32px; width:100%; }
     textarea { width:100%; min-height:32px; height:auto; max-height:30lh; overflow-y:auto; resize:none; }
-    button { height:32px; padding:0 10px; touch-action: manipulation; }
-    button, a, [role="button"], .list-item, .dropdown-item { touch-action: manipulation; }
+    button { height:32px; padding:0 10px; }
     #chat-form button[type="submit"] { height:38px; }
     select {
       height:32px;
@@ -1795,8 +1793,6 @@ body.bg-pattern-sparkles {
     }
     :root.light select { color-scheme: light; }
     .chat-container {
-      will-change: transform;
-      transform: translateZ(0);
       flex:1;
       display:flex;
       flex-direction:column;
@@ -1819,7 +1815,6 @@ body.bg-pattern-sparkles {
       margin-bottom:8px;
       white-space:normal;
       min-height:0;
-      contain: content;
       --chat-max: 800px;
       padding-left: max(0px, calc((100% - var(--chat-max)) / 2));
       padding-right: max(12px, calc((100% - var(--chat-max)) / 2 + 12px));
@@ -2249,8 +2244,6 @@ body.bg-pattern-sparkles {
 
     /* Unified chat input bar */
     .chat-input-bar {
-      will-change: transform;
-      transform: translateZ(0);
       background: var(--input-bg, var(--panel));
       border: 1px solid var(--input-border, var(--border));
       border-radius: 16px;
@@ -2274,6 +2267,7 @@ body.bg-pattern-sparkles {
       z-index: 250;
       transform-origin: top right;
       transition: opacity 0.22s ease, transform 0.22s ease;
+      will-change: opacity, transform;
     }
     .chat-input-top > .model-picker-wrap.model-picker-autohide {
       opacity: 0;
@@ -2300,8 +2294,6 @@ body.bg-pattern-sparkles {
       color: color-mix(in srgb, var(--fg) 30%, transparent);
     }
     .chat-input-bar textarea#message {
-      will-change: transform;
-      transform: translateZ(0);
       width: 100%;
       background: transparent;
       border: none;
@@ -2330,9 +2322,7 @@ body.bg-pattern-sparkles {
        then the model picker — textarea + send button always stay. Container
        queries so it responds to *bar width*, not viewport width (the bar
        can be in a split pane). */
-    .chat-input-bar {
-      will-change: transform;
-      transform: translateZ(0); container-type: inline-size; container-name: chatbar; }
+    .chat-input-bar { container-type: inline-size; container-name: chatbar; }
     @container chatbar (max-width: 340px) {
       .chat-input-right .mode-toggle { display: none !important; }
     }
@@ -4101,11 +4091,7 @@ body.bg-pattern-sparkles {
     }
     @media (max-width:768px){
       .box { max-height:none; }
-      .chat-container {
-        will-change: transform;
-        transform: translateZ(0);
-        padding:10px; flex:1; margin-top:0; padding-top:42px; min-height:0;
-      }
+      .chat-container { padding:10px; flex:1; margin-top:0; padding-top:42px; min-height:0; }
       .scroll-nav-btn { width:44px; height:44px; font-size:14px; margin-bottom:0; }
       .send-btn { width:48px; height:48px !important; border-radius:12px; }
       .send-btn svg { width:22px; height:22px; }
@@ -4396,8 +4382,6 @@ body.bg-pattern-sparkles {
       }
       /* Safe area padding for notched devices */
       .chat-input-bar {
-        will-change: transform;
-        transform: translateZ(0);
         padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
       }
       /* Mode toggle — larger touch targets */
@@ -5044,7 +5028,6 @@ body.bg-pattern-sparkles {
       box-shadow:0 8px 32px rgba(0,0,0,0.45);
       pointer-events:auto;
       animation: modal-enter 0.25s ease-out both;
-      contain: layout style;
     }
     .memory-modal-content,
     .tasks-modal-content,
@@ -5285,10 +5268,7 @@ body.bg-pattern-sparkles {
     .confirm-btn-secondary { background:var(--bg); color:var(--fg); }
     .confirm-btn-secondary:hover { background:var(--border); }
     .confirm-btn-primary { background:var(--accent-primary, var(--red, #4a9eff)); color:#fff; border-color:transparent; }
-    @media (hover: hover) and (pointer: fine) {
-      .confirm-btn-primary:hover { filter:brightness(1.15); }
-    }
-    .confirm-btn-primary:active { opacity: 0.85; }
+    .confirm-btn-primary:hover { filter:brightness(1.15); }
     .confirm-btn-danger { background:var(--color-danger); color:#fff; border-color:transparent; }
     .confirm-btn-danger:hover { background:var(--color-error); }
     /* Styled prompt — text-input dialog (used in place of window.prompt) */
@@ -6872,13 +6852,11 @@ pre { background: var(--code-bg, var(--hl-bg, #282c34)) !important; }
     }
     /* Override global button:hover (which switches bg to var(--panel) =
        very dark) — keep the bright primary look and just brighten slightly. */
-    @media (hover: hover) and (pointer: fine) {
-      .cmp-btn-primary:hover:not(:disabled) {
-        background: var(--fg); color: var(--bg);
-        filter: brightness(1.1);
-      }
+    .cmp-btn-primary:hover:not(:disabled) {
+      background: var(--fg); color: var(--bg);
+      filter: brightness(1.1);
     }
-    .cmp-btn-primary:active:not(:disabled) { opacity: 0.88; }
+    .cmp-btn-primary:active:not(:disabled) { filter: brightness(0.95); }
     .cmp-btn-secondary:hover:not(:disabled) {
       background: color-mix(in srgb, var(--fg) 8%, transparent);
       border-color: var(--fg); color: var(--fg);
@@ -8325,13 +8303,11 @@ button.hamburger {
   z-index: 3;
   transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
 }
-@media (hover: hover) and (pointer: fine) {
-  .thumb.thumb-image button:hover {
-    transform: scale(1.12);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-  }
+.thumb.thumb-image button:hover {
+  transform: scale(1.12);
+  filter: brightness(1.12);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
-.thumb.thumb-image button:active { opacity: 0.88; }
 .thumb.thumb-image button:active {
   transform: scale(0.96);
 }
@@ -10809,10 +10785,9 @@ textarea.memory-add-input {
   position: relative;
   top: 0;
 }
-@media (hover: hover) and (pointer: fine) {
-  .task-status-badge:hover { opacity: 0.88; }
+.task-status-badge:hover {
+  filter: brightness(1.08) saturate(1.15);
 }
-.task-status-badge:active { opacity: 0.85; }
 .task-paused-badge:hover {
   background: color-mix(in srgb, var(--orange, #ffb86c) 30%, transparent);
   border-color: color-mix(in srgb, var(--orange, #ffb86c) 55%, transparent);
@@ -12744,6 +12719,7 @@ textarea.memory-add-input {
 }
 .doc-line-number-content {
   display: block;
+  will-change: transform;
 }
 .doc-line-number-row {
   position: relative;
@@ -13343,10 +13319,9 @@ mark.doc-find-mark.current {
   background: var(--accent, var(--red));
   color: #fff;
 }
-@media (hover: hover) and (pointer: fine) {
-  .doc-suggestion-accept:hover { filter: brightness(1.15); }
+.doc-suggestion-accept:hover {
+  filter: brightness(1.15);
 }
-.doc-suggestion-accept:active { opacity: 0.85; }
 .doc-suggestion-dismiss {
   background: transparent;
   border: 1px solid var(--border);
@@ -15166,6 +15141,7 @@ span[id$="-logo"] svg:not([width]) {
       box-shadow 240ms ease,
       transform 140ms ease,
       background 140ms ease;
+    will-change: padding, transform;
   }
   #email-lib-modal .email-lib-fab svg { flex: 0 0 auto; display: block; }
   #email-lib-modal .email-lib-fab .email-lib-fab-label {
@@ -15211,7 +15187,7 @@ span[id$="-logo"] svg:not([width]) {
   }
   #email-lib-modal .email-lib-fab:active {
     transform: scale(0.93);
-    opacity: 0.85;
+    filter: brightness(0.92);
     box-shadow: 0 3px 10px rgba(0,0,0,.4);
   }
 }
@@ -19606,10 +19582,7 @@ body.gallery-selecting .gallery-dl-btn,
   opacity: 0.85;
   border-left: 1px solid color-mix(in srgb, var(--green, #50fa7b) 35%, transparent);
 }
-@media (hover: hover) and (pointer: fine) {
-  .cookbook-dep-installed-btn:hover { opacity: 0.88; }
-}
-.cookbook-dep-installed-btn:active { opacity: 0.85; }
+.cookbook-dep-installed-btn:hover { filter: brightness(1.15); }
 .hwfit-serve-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -28094,10 +28067,9 @@ button .spinner-whirlpool {
   opacity: 0.4;
   cursor: not-allowed;
 }
-@media (hover: hover) and (pointer: fine) {
-  #group-model-picker .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+#group-model-picker .btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
 }
-#group-model-picker .btn-primary:active:not(:disabled) { opacity: 0.85; }
 
 /* ── Email document type ── */
 .doc-email-header {
@@ -30122,10 +30094,7 @@ body.doc-find-active mark.doc-find-mark.current {
   letter-spacing: 0.02em;
   cursor: pointer;
 }
-@media (hover: hover) and (pointer: fine) {
-  .email-lib-unread-badge:hover { opacity: 0.88; }
-}
-.email-lib-unread-badge:active { opacity: 0.85; }
+.email-lib-unread-badge:hover { filter: brightness(1.08); }
 #email-lib-modal.email-lib-unread-active .doclib-modal-content {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--accent, var(--red)) 22%, transparent),
@@ -35242,13 +35211,10 @@ button.cal-view-btn {
   overflow: hidden;
   z-index: 2;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--fg) 8%, transparent);
-  transition: transform 0.12s, opacity 0.12s;
+  transition: filter 0.12s, transform 0.12s;
   box-sizing: border-box;
 }
-@media (hover: hover) and (pointer: fine) {
-  .cal-wk-block:hover { transform: translateY(-0.5px); }
-}
-.cal-wk-block:active { opacity: 0.9; }
+.cal-wk-block:hover { filter: brightness(1.05); transform: translateY(-0.5px); }
 .cal-wk-block-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
 .cal-wk-block-time { font-size: 10px; opacity: 0.75; font-variant-numeric: tabular-nums; margin-top: 1px; }
 @media (max-width: 768px) {
@@ -37708,11 +37674,9 @@ body.theme-frosted .modal {
   color: var(--fg, #9cdef2);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+/* DOM virtualization sentinels — prevent Chrome scroll-anchor from double-compensating programmatic scrollTop */
+.chat-history-sentinel,
+.chat-history-bottom-sentinel,
+.chat-history-spacer {
+  overflow-anchor: none;
 }
