@@ -25,7 +25,7 @@ explicit per-action authorization. Agents stage; James files.**
 | `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Docs | Ready to file — see pr-drafts/ |
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | GPU flag fix added (commit a582ac7). Needs verification + pr-draft update before filing. |
 | `fix/gpu-compositor-flicker` | [#32](https://github.com/jdmanring/odysseus/issues/32) | Bug | Needs verification. PR draft not yet written. |
-| `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Perf | Committed + pushed. PR draft not yet written. |
+| `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Perf | Ready to file — see pr-drafts/fix-css-render-perf.md |
 | `fix/hf-token-persistence` | [#7](https://github.com/jdmanring/odysseus/issues/7) | Bug | WIP — proper fix not implemented yet |
 | `feat/github-integration` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Feature | Ready to file — see pr-drafts/ |
 | `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Feature | Ready to file — see pr-drafts/feat-gguf-discovery.md |
