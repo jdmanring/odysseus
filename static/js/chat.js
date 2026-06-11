@@ -587,6 +587,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     currentHolder = null;
     let streamingTTS = false; // hoisted from try block — must be accessible in catch
 
+
     try {
       // Re-enable auto-scroll when user sends a message
       uiModule.setAutoScroll(true);
