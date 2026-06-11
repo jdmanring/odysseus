@@ -463,7 +463,6 @@ body.bg-pattern-sparkles {
       margin: 0;
       padding: 0;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(10px);
       border: 1px solid color-mix(in srgb, var(--fg) 11%, transparent);
       position: relative;
     }
@@ -4450,7 +4449,6 @@ body.bg-pattern-sparkles {
                   transform .45s cubic-bezier(0.22, 1, 0.36, 1);
       z-index: 9999; pointer-events: none;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      backdrop-filter: blur(12px);
       max-width: min(360px, calc(100vw - 32px));
       min-width: min(220px, calc(100vw - 32px));
       min-height: 34px;
@@ -5852,7 +5850,6 @@ body.bg-pattern-sparkles {
     /* Styled confirm dialog — keeps backdrop */
     #styled-confirm-overlay {
       background:rgba(0,0,0,0.5);
-      backdrop-filter:blur(4px);
       pointer-events:auto !important;
       z-index: 99999 !important;
       position: fixed !important;
@@ -6000,7 +5997,6 @@ body.bg-pattern-sparkles {
     /* Styled prompt — text-input dialog (used in place of window.prompt) */
     #styled-prompt-overlay {
       background:rgba(0,0,0,0.5);
-      backdrop-filter:blur(4px);
       pointer-events:auto !important;
       z-index: 99999 !important;
       position: fixed !important;
@@ -6660,7 +6656,6 @@ body.bg-pattern-sparkles {
       display: none;
       min-width: 220px;
       padding: 6px;
-      backdrop-filter: blur(12px);
     }
 
     .dropdown.show {
@@ -6856,7 +6851,6 @@ body.bg-pattern-sparkles {
       left: 0;
       right: 0;
       background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 12px;
@@ -6946,7 +6940,6 @@ pre { background: var(--code-bg, var(--hl-bg, #282c34)) !important; }
       justify-content: center;
       padding-top: 15vh;
       z-index: 300;
-      backdrop-filter: blur(6px);
     }
     .search-overlay.hidden { display: none; }
     .search-popup {
@@ -9240,7 +9233,6 @@ button.hamburger {
   left: 0;
   right: 0;
   background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
@@ -13554,7 +13546,6 @@ textarea.memory-add-input {
   min-width: 0;
   width: max-content;
   box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  backdrop-filter: blur(12px);
 }
 .md-toolbar-overflow-menu.open {
   display: flex;
@@ -13996,7 +13987,6 @@ mark.doc-find-mark.current {
   font-size: 12px;
   color: var(--fg);
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  backdrop-filter: blur(12px);
   animation: modal-enter 0.15s ease-out;
 }
 .import-prompt-banner span { flex: 1; }
@@ -23975,17 +23965,14 @@ body:not(.welcome-ready) #welcome-screen {
   0% {
     opacity: 0;
     transform: translateY(12px) scale(0.94);
-    filter: saturate(0.85);
   }
   65% {
     opacity: 1;
     transform: translateY(-2px) scale(1.012);
-    filter: saturate(1.05);
   }
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
-    filter: none;
   }
 }
 #cookbook-modal .modal-content.cookbook-modal-entering {
