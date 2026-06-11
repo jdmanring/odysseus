@@ -25,8 +25,6 @@ explicit per-action authorization. Agents stage; James files.**
 | `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Docs | Ready to file — see pr-drafts/ |
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Ready to file — screenshot in docs/fork/screenshots/; see pr-drafts/ |
 | `fix/hf-token-persistence` | [#7](https://github.com/jdmanring/odysseus/issues/7) | Bug | WIP — proper fix not implemented yet |
-| `fix/filesystem-access-regression` | [#26](https://github.com/jdmanring/odysseus/issues/26) | Bug | Ready to file — see pr-drafts/ |
-| `fix/agent-tools-workspace-import` | [#28](https://github.com/jdmanring/odysseus/issues/28) | Bug | Ready to file — see pr-drafts/ |
 | `feat/github-integration` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Feature | Ready to file — see pr-drafts/ |
 | `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Feature | Ready to file — see pr-drafts/feat-gguf-discovery.md |
 | `feat/logging-core` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Feature | Ready to file — see pr-drafts/feat-logging-core.md |
