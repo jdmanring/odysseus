@@ -10,8 +10,8 @@ Extracted from agent_tools.py.
 import asyncio
 import collections
 import json
-import logging
 import os
+import structlog
 import pathlib
 import re
 import sys
@@ -202,7 +202,7 @@ def _resolve_search_root(raw_path: str) -> str:
         return roots[0] if roots else os.path.realpath(".")
     return _resolve_tool_path(raw)
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 _ADMIN_TOOLS = {
@@ -431,6 +431,7 @@ async def execute_tool_block(
 
     tool = block.tool_type
     content = block.content
+    _tool_start = time.monotonic()
 
     # Misformatted tool call detection: model put JSON inside ```python``` (or
     # similar) without naming the tool. Common with MiniMax-style outputs.
@@ -753,7 +754,11 @@ async def execute_tool_block(
         desc = f"unknown: {tool}"
         result = {"error": f"Unknown tool type: {tool}", "exit_code": 1}
 
-    logger.info(f"Tool executed: {desc} -> exit_code={result.get('exit_code', 'n/a')}")
+    duration_ms = (time.monotonic() - _tool_start) * 1000
+    log = logger.warning if result.get("exit_code") not in (0, None) else logger.info
+    log("tool_executed", tool=tool, desc=desc,
+        exit_code=result.get("exit_code", "n/a"),
+        duration_ms=round(duration_ms, 1))
     return desc, result
 
 
