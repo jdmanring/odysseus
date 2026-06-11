@@ -1629,6 +1629,7 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
       chatHistory.style.opacity = '0';
       await new Promise(r => setTimeout(r, 120));
       if (navToken !== _sessionNavToken || currentSessionId !== id) return;
+      if (window.chatHistory) window.chatHistory.reset();
       chatHistory.innerHTML = '';
     }
 
@@ -1643,35 +1644,44 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
          <p>Messages will be routed through your OpenClaw agent. The agent has access to tools, memory, and skills configured in your OpenClaw workspace.</p>`,
         'OpenClaw');
     } else if (msgHistory.length) {
+      const _preparedMsgs = [];
       for (const msg of msgHistory) {
         const meta = msg.metadata ? { ...msg.metadata, _fromHistory: true } : null;
         let displayContent;
         if (typeof msg.content === 'string') {
           displayContent = msg.content;
         } else if (Array.isArray(msg.content)) {
-          // Multimodal (image/audio attachments): extract text parts, skip binary
           displayContent = msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n').trim();
         } else {
           displayContent = '';
         }
-        // Clean up doc selection context for display
         if (msg.role === 'user') {
-          // Hide "Continue where you left off" bubbles
           if (displayContent.trim() === 'Continue where you left off' || displayContent.trim().startsWith('Your message was cut off.') || displayContent.trim().startsWith('Your previous response was interrupted.') || displayContent.includes('[Instruction: Rewrite') || displayContent.includes('[Instruction: Explain')) continue;
           const docEditMatch = displayContent.match(/^In the document, edit this specific text \((lines? [\d-]+)\):\n```\n([\s\S]*?)\n```\n\nInstruction: ([\s\S]*)$/);
           if (docEditMatch) {
             displayContent = `[Doc edit: ${docEditMatch[1]}] ${docEditMatch[3]}`;
           }
         }
-        window.chatModule.addMessage(msg.role, markdownModule.renderContent(displayContent), modelName, meta);
+        _preparedMsgs.push({ role: msg.role, content: markdownModule.renderContent(displayContent), modelName, meta });
+      }
+      if (window.chatHistory) {
+        window.chatHistory.load(_preparedMsgs);
+      } else {
+        for (const m of _preparedMsgs) {
+          window.chatModule.addMessage(m.role, m.content, m.modelName, m.meta);
+        }
       }
     } else {
       if (window.chatModule && window.chatModule.showWelcomeScreen) window.chatModule.showWelcomeScreen();
       // Don't highlight empty sessions — feels like nothing is selected
       document.querySelectorAll('.list-item.active-session').forEach(el => el.classList.remove('active-session'));
     }
+    // Snap to bottom while the container is still invisible. This mirrors upstream's
+    // original order and ensures the compositor layer is initialised with the correct
+    // scrollTop when the opacity fade-in transition begins. Setting scrollTop AFTER
+    // opacity='1' (our previous order) let Chrome initialise the compositor with
+    // scrollTop=0 (left by innerHTML='') and defer the correction.
     uiModule.scrollHistoryInstant();
-
     // Fade in and re-enable message animations
     if (chatHistory) {
       chatHistory.style.transition = 'opacity 0.15s ease-in';
@@ -1683,6 +1693,10 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
         window.hljs.highlightElement(block);
       });
     }
+    // Re-anchor after hljs: overflow-anchor:none (required for _loadOlder scroll
+    // compensation) disables Chrome's automatic adjustment for hljs height growth,
+    // so a second snap is needed to land at the true bottom.
+    uiModule.scrollHistoryInstant();
     // Hide research button on session switch — it's only for the session that started it
     var _rBtn = document.getElementById('research-toggle-btn');
     var _rChk = document.getElementById('research-toggle');

@@ -1266,17 +1266,11 @@
 
     bottomBtn.addEventListener('click', () => {
       cancelAutoScroll();
-      const target = container.scrollHeight - container.clientHeight;
-      _scrollingToBottom = true;
-      function step() {
-        if (!_scrollingToBottom) return;
-        const diff = target - container.scrollTop;
-        if (diff <= 8) { container.scrollTop = target; _scrollingToBottom = false; return; }
-        container.scrollTop += diff * 0.2;
-        _scrollRaf = requestAnimationFrame(step);
+      if (window.chatHistory) {
+        window.chatHistory.scrollToBottom();
+      } else {
+        container.scrollTop = container.scrollHeight - container.clientHeight;
       }
-      step();
-      _scrollTimeout = setTimeout(() => { if (_scrollingToBottom) { container.scrollTop = target; _scrollingToBottom = false; } }, 1500);
     });
     new ResizeObserver(reposition).observe(chatBar);
     new MutationObserver(update).observe(container, {childList:true, subtree:true});
@@ -2420,6 +2414,9 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 
+
+<!-- DOM virtualization — must load before modules; sets window.chatHistory -->
+<script src="/static/js/chatHistory.js"></script>
 
 <!-- Load modules in this order -->
 <script type="module" src="/static/js/storage.js"></script>

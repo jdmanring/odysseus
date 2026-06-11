@@ -585,7 +585,6 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     // Reset tracking variables at start
     currentAccumulated = '';
     currentHolder = null;
-    
     try {
       // Re-enable auto-scroll when user sends a message
       uiModule.setAutoScroll(true);
@@ -3389,6 +3388,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     // full canonical render, which is rebuilt from the saved DB record on reload.
     // Plain text replies can be finalized in place without a reload.
     let rich = false;
+    // Mirror the main handler's _thinkOpen state: the server sends thinking tokens
+    // as {delta, thinking:true}. Without wrapping them in <think>…</think>,
+    // thinking content renders raw as visible text in the resume bubble.
+    let _resumeThinkOpen = false;
 
     const cleanup = () => {
       try { spinner.destroy(); } catch (_) {}
@@ -3396,7 +3399,11 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     };
 
     const renderDelta = () => {
-      const dt = stripToolBlocks(roundText);
+      let dt = stripToolBlocks(roundText);
+      // The resume bubble has no dedicated thinking UI — strip thinking sections
+      // from the intermediate display so they don't leak as visible plain text.
+      dt = dt.replace(/<think(?:\s[^>]*)?>[\s\S]*?<\/think>/gi, '');
+      dt = dt.replace(/<think(?:\s[^>]*)?>[\s\S]*/i, '').trim();
       contentDiv.innerHTML = markdownModule.mdToHtml(markdownModule.squashOutsideCode(dt));
       uiModule.scrollHistory();
     };
@@ -3427,7 +3434,15 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
           let json;
           try { json = JSON.parse(payload); } catch (_) { continue; }
           if (json.delta) {
-            roundText += json.delta;
+            // Wrap thinking tokens in <think>…</think> so addMessage renders them
+            // as collapsible sections instead of raw text. Mirrors main handler.
+            let _rdelta = json.delta;
+            if (json.thinking) {
+              if (!_resumeThinkOpen) { _rdelta = '<think>' + _rdelta; _resumeThinkOpen = true; }
+            } else if (_resumeThinkOpen) {
+              _rdelta = '</think>' + _rdelta; _resumeThinkOpen = false;
+            }
+            roundText += _rdelta;
             if (!gotDelta) { gotDelta = true; try { spinner.destroy(); } catch (_) {} }
             renderDelta();
           } else if (json.type === 'doc_stream_open') {
@@ -3450,6 +3465,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } catch (e) {
       // Network drop or parse failure: fall through to the reload below.
     }
+
+    // Close any unclosed thinking block before finalization so addMessage
+    // gets well-formed <think>…</think> tags.
+    if (_resumeThinkOpen) { roundText += '</think>'; _resumeThinkOpen = false; }
 
     cleanup();
     if (leftSession) { if (holder.parentNode) holder.remove(); return true; }
@@ -4309,7 +4328,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               _appendViewReportLink(_wrap, sessionId);
               _box.appendChild(_wrap);
               if (window.hljs) _wrap.querySelectorAll('pre code').forEach(function(b) { window.hljs.highlightElement(b); });
-              uiModule.scrollHistory();
+              // Research result is completed history, not active streaming — instant
+              // snap is correct. scrollHistory() aborts when diff > 300px, which a
+              // large research result easily exceeds, leaving the user above the bottom.
+              uiModule.scrollHistoryInstant();
             }
           }
         }

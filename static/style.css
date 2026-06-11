@@ -37673,3 +37673,10 @@ body.theme-frosted .modal {
 .log-line-default {
   color: var(--fg, #9cdef2);
 }
+
+/* DOM virtualization sentinels — prevent Chrome scroll-anchor from double-compensating programmatic scrollTop */
+.chat-history-sentinel,
+.chat-history-bottom-sentinel,
+.chat-history-spacer {
+  overflow-anchor: none;
+}
