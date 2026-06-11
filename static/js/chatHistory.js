@@ -135,7 +135,6 @@
   MessageWindow.prototype.scrollToBottom = function () {
     this._draining = true;
     this._c.scrollTop = this._c.scrollHeight - this._c.clientHeight;
-    console.warn('[chatHistory.scrollToBottom] scrollTop=' + this._c.scrollTop + ' scrollHeight=' + this._c.scrollHeight + ' endIdx=' + this._endIdx + ' allLen=' + this._all.length + ' loading=' + this._loading);
     if (this._endIdx < this._all.length && !this._loading) {
       this._loadNewer();
     }
@@ -471,13 +470,6 @@
         // are more batches to load, so the last batch would otherwise leave
         // scrollTop short by its own rendered height.
         self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
-        // Find last non-control node for diagnosis
-        var _lastN = null;
-        for (var _li = self._c.children.length - 1; _li >= 0; _li--) {
-          var _lch = self._c.children[_li];
-          if (_lch !== self._sentinel && _lch !== self._bSentinel && _lch !== self._histSep && !_lch.classList.contains('chat-history-spacer')) { _lastN = _lch; break; }
-        }
-        console.warn('[chatHistory._loadNewer] drain complete: clientH=' + self._c.clientHeight + ' scrollTop=' + self._c.scrollTop + ' scrollH=' + self._c.scrollHeight + ' slack=' + (self._c.scrollHeight - self._c.scrollTop - self._c.clientHeight) + ' lastMsgTop=' + (_lastN ? _lastN.offsetTop : '?') + ' lastMsgH=' + (_lastN ? _lastN.offsetHeight : '?'));
         // Images in newly-loaded batches inflate scrollHeight after the snap.
         // Drain was user-initiated (button press), so always re-snap on load.
         var _rsGen = self._gen;
@@ -487,7 +479,6 @@
             (function (img) {
               img.addEventListener('load', function () {
                 if (self._gen !== _rsGen) return;
-                console.warn('[drain img.onload] scrollH=' + self._c.scrollHeight + ' snap=' + (self._c.scrollHeight - self._c.clientHeight));
                 self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
               }, { once: true });
             })(_drainImgs[_di]);
@@ -499,7 +490,6 @@
           requestAnimationFrame(function () {
             if (self._gen !== _rsGen) return;
             var h = self._c.scrollHeight;
-            if (remaining === 8) console.warn('[drain settle] prevH=' + prevH + ' h=' + h + ' changed=' + (h !== prevH));
             if (h !== prevH) {
               self._c.scrollTop = h - self._c.clientHeight;
             }
@@ -647,7 +637,6 @@
     // contribution when a new sentinel is added (e.g. _startIdx crossing 0→N),
     // which causes the spacer to overshoot and leaves slack equal to sentinel height.
     var totalDelta = before - this._c.scrollHeight;
-    console.warn('[chatHistory._pruneTop] before=' + before + ' afterAll=' + this._c.scrollHeight + ' totalDelta=' + totalDelta + ' savedScrollTop=' + savedScrollTop);
     if (totalDelta > 0) {
       var spacer = document.createElement('div');
       spacer.className  = 'chat-history-spacer';
