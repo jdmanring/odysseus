@@ -30,7 +30,7 @@ Current in-progress items as of 2026-06-11.
 
 | Issue | Branch | Notes |
 |-------|--------|-------|
-| [#2 Renderer OOM — DOM virtualization](https://github.com/jdmanring/odysseus/issues/2) | `fix/dom-oom-virtualization` | `chatHistory.js` — three-phase DOM virtualization + 4 rounds of hardening. CSS compositor flicker: will-change removed from chat-container, chat-input-bar (3×), textarea#message. `sessions.js` scrollHistoryInstant() moved after hljs for correct initial scroll (overflow-anchor:none disables auto-compensation). 5 commits on staging branch, needs squash → 1 before filing. File upstream issue first. PR draft complete. |
+| [#2 Renderer OOM — DOM virtualization](https://github.com/jdmanring/odysseus/issues/2) | `fix/dom-oom-virtualization` | Staging branch rebuilt as single clean commit (8db240a). Drain and session-load scroll verified working. Ready to file — create upstream issue, then open PR from staging branch. |
 | [#9 realesrgan / basicsr broken on Python 3.14](https://github.com/jdmanring/odysseus/issues/9) | `fix/basicsr-python314-compat` | `install-basicsr.sh` patches incompatible C extension. In develop. Upstream draft staged — ready to file. |
 | [#11 streamingTTS ReferenceError in catch block](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | `let` hoisted out of try block. Upstream draft staged — ready to file. |
 | [#12 aria2c downloader](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | `feat/aria2c-downloader` | Multi-connection HF downloads + BinManager + reliability fixes (folded from #23: tmux width, totalFiles fallback, conn_per_file 3, tab indent, HfUrlResolver fallback). Needs integration test run + screenshot. |
