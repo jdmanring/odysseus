@@ -80,18 +80,58 @@ function _ggufDownloadSource(model, backend) {
   return null;
 }
 
+const _QUANT_TIER = {
+  'IQ2_XXS': 2, 'IQ2_XS': 2, 'IQ2_S': 2, 'IQ2_M': 2, 'Q2_K': 2,
+  'IQ3_XXS': 3, 'IQ3_S': 3, 'IQ3_M': 3, 'Q3_K_S': 3, 'Q3_K_M': 3, 'Q3_K_L': 3,
+  'Q4_0': 4, 'Q4_1': 4, 'Q4_K_S': 4, 'Q4_K_M': 4, 'IQ4_NL': 4, 'IQ4_XS': 4,
+  'Q5_0': 5, 'Q5_1': 5, 'Q5_K_S': 5, 'Q5_K_M': 5,
+  'Q6_K': 6,
+  'Q8_0': 8,
+};
+
+function _quantTierOf(quant) {
+  const q = (quant || '').toUpperCase();
+  for (const [k, v] of Object.entries(_QUANT_TIER)) {
+    if (q.includes(k)) return v;
+  }
+  return null;
+}
+
+function _closestQuantFile(files, wantedQuant) {
+  const wantedTier = _quantTierOf(wantedQuant);
+  if (wantedTier === null) return null;
+  let best = null, bestDist = Infinity, bestTier = null;
+  for (const f of files) {
+    const bn = f.split('/').pop().toUpperCase();
+    for (const [quant, tier] of Object.entries(_QUANT_TIER)) {
+      if (bn.includes(quant)) {
+        const dist = Math.abs(tier - wantedTier);
+        if (dist < bestDist || (dist === bestDist && tier < bestTier)) {
+          bestDist = dist; bestTier = tier; best = f;
+        }
+        break;
+      }
+    }
+  }
+  return best;
+}
+
 function _ggufIncludePattern(model, source) {
   if (model?.quant) {
-    const files = source?.files || [];
+    const files = source?.files || source?._sourceMeta?.files || [];
     const q = model.quant.toLowerCase();
-    // Only use model.quant if the discovered repo actually has a matching file.
-    // If not (e.g. Q4_K_M requested but repo only has IQ4_XS), fall through to
-    // the server's preferred_file so the download isn't silently empty.
     if (!files.length || files.some(f => f.toLowerCase().includes(q))) {
       return `*${model.quant}*`;
     }
+    // model.quant not in this repo — find the closest quality tier available
+    // so a Q6_K request against an imatrix repo gets Q5_K_M, not IQ4_XS
+    if (files.length) {
+      const closest = _closestQuantFile(files, model.quant);
+      if (closest) return closest;
+    }
   }
-  if (source?.preferred_file) return source.preferred_file;
+  const preferred = source?.preferred_file || source?._sourceMeta?.preferred_file;
+  if (preferred) return preferred;
   if (source?.file) return source.file;
   return '*.gguf';
 }
