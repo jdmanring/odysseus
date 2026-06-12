@@ -100,20 +100,49 @@ function _quantQualityIndex(quant) {
   return idx === -1 ? null : idx;
 }
 
+// Tier rank for each contiguous block in _QUANT_QUALITY: [startIdx, endIdx, tierRank].
+// All quants in the same block are the same bit-depth family (tier 4 = all Q4*/IQ4*).
+const _QUANT_TIER_RANGES = [
+  [0,  0,  0],  // tier 8: Q8_0
+  [1,  1,  1],  // tier 6: Q6_K
+  [2,  5,  2],  // tier 5: Q5_K_M..Q5_0
+  [6,  11, 3],  // tier 4: IQ4_XS..Q4_0
+  [12, 17, 4],  // tier 3: IQ3_M..IQ3_XXS
+  [18, 22, 5],  // tier 2: IQ2_M..IQ2_XXS
+];
+
+function _quantTierRank(qualIdx) {
+  for (const [start, end, rank] of _QUANT_TIER_RANGES) {
+    if (qualIdx >= start && qualIdx <= end) return rank;
+  }
+  return null;
+}
+
 function _closestQuantFile(files, wantedQuant) {
   const wantedIdx = _quantQualityIndex(wantedQuant);
   if (wantedIdx === null) return null;
-  let best = null, bestDist = Infinity, bestIdx = null;
+  const wantedTierRank = _quantTierRank(wantedIdx);
+
+  let best = null, bestTierDist = Infinity, bestQIdx = null;
   for (const f of files) {
     const bn = f.split('/').pop().toUpperCase();
     const idx = _QUANT_QUALITY.findIndex(k => bn.includes(k));
     if (idx === -1) continue;
-    const dist = Math.abs(idx - wantedIdx);
-    // Ties: prefer higher index (smaller/lower quality) to avoid overshooting
-    // the user's intended file size.
-    if (dist < bestDist || (dist === bestDist && idx > bestIdx)) {
-      bestDist = dist; bestIdx = idx; best = f;
-    }
+    const tierRank = _quantTierRank(idx);
+    const tierDist = (wantedTierRank !== null && tierRank !== null)
+      ? Math.abs(tierRank - wantedTierRank)
+      : Math.abs(idx - wantedIdx);
+
+    // Same tier: prefer best quality in that tier (lowest quality index). IQ4_XS
+    // beats Q4_K_S when Q4_K_M was requested — imatrix is the proper upgrade.
+    // Cross-tier equidistant: prefer smaller file (higher quality index) to avoid
+    // overshooting the user's intended file size.
+    const better =
+      tierDist < bestTierDist ||
+      (tierDist === bestTierDist && tierDist === 0 && idx < bestQIdx) ||
+      (tierDist === bestTierDist && tierDist > 0  && idx > bestQIdx);
+
+    if (better) { bestTierDist = tierDist; bestQIdx = idx; best = f; }
   }
   return best;
 }
