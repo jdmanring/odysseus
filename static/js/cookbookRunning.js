@@ -628,9 +628,14 @@ function _parseDownloadState(text, sessionId) {
     }
   }
 
-  // Parallel mode: "[*] N file(s) (M in parallel)" line
+  // Parallel mode: "[*] N file(s) (M in parallel)" line.
+  // This banner only appears once at the start and scrolls out of the 500-line capture
+  // window after ~60s. Persist the flag in the tracker so per-file rows keep updating
+  // after the banner scrolls away.
   const parallelMatch = out.match(/\[\*\] Downloading \d+ file\(s\) \((\d+) in parallel\)/);
-  const isParallel = !!parallelMatch;
+  const _trForParallel = sessionId ? _dlFileTracker.get(sessionId) : null;
+  if (parallelMatch && _trForParallel) _trForParallel.wasParallel = true;
+  const isParallel = !!parallelMatch || !!_trForParallel?.wasParallel;
 
   // Detect single-file-split: aria2c --split=N downloads one file in N pieces,
   // each piece gets its own gid and reports totalBytes = (file_size / N).
@@ -891,7 +896,10 @@ function _updateDownloadCard(el, task, snapshot) {
     const restartBtn = card.querySelector('.dl-action-restart');
     const activePhases   = ['initializing','starting','resolving','downloading'];
     const terminalPhases = ['done','error'];
-    if (pauseBtn)   pauseBtn.style.display   = activePhases.includes(st.phase) ? 'inline-flex' : 'none';
+    if (pauseBtn) {
+      pauseBtn.style.display = activePhases.includes(st.phase) ? 'inline-flex' : 'none';
+      if (activePhases.includes(st.phase)) pauseBtn.disabled = false;
+    }
     if (stopBtn)    stopBtn.style.display    = activePhases.includes(st.phase) ? 'inline-flex' : 'none';
     if (resumeBtn)  resumeBtn.style.display  = (st.phase === 'paused') ? 'inline-flex' : 'none';
     if (restartBtn) restartBtn.style.display = terminalPhases.includes(st.phase) ? 'inline-flex' : 'none';
@@ -2921,7 +2929,10 @@ export function _renderRunningTab() {
       _reconnectTask(el, task);
     });
 
-    // Wire stop
+    // Wire stop — bound once; reads current session from DOM at click time so Resume
+    // (which updates el.dataset.taskId) doesn't leave a stale kill target.
+    if (!el._stopBound) {
+      el._stopBound = true;
     el.querySelector('.cookbook-task-action-stop').addEventListener('click', async () => {
       // Abort the reconnect loop before sending kill so that a DOWNLOAD_FAILED
       // marker written by the shell wrapper (on SIGINT/non-zero exit) cannot
@@ -2930,7 +2941,9 @@ export function _renderRunningTab() {
       const badge = el.querySelector('.cookbook-task-status');
       if (badge) { badge.textContent = 'stopping...'; badge.className = 'cookbook-task-status cookbook-task-stopping'; }
       el.dataset.status = 'stopped';
-      _updateTask(task.sessionId, { _userStopped: true });
+      // Read current session ID from DOM — may differ from task.sessionId if Resume ran
+      const _curStopSid = el.dataset.taskId;
+      _updateTask(_curStopSid, { _userStopped: true });
       const outputText = el.querySelector('.cookbook-output-pre')?.textContent || task.output || '';
       // Drop the model endpoint so the picker stops listing it.
       if (task.type === 'serve' && task.payload) {
@@ -2947,17 +2960,19 @@ export function _renderRunningTab() {
         } catch {}
       }
       // Gracefully stop (C-c, then kill the session) so it's fully down...
+      const _liveStopTask = { ...task, sessionId: _curStopSid };
       try {
         await fetch('/api/shell/exec', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: _tmuxGracefulKill(task) }),
+          body: JSON.stringify({ command: _tmuxGracefulKill(_liveStopTask) }),
         });
       } catch {}
       // ...then smoothly fade/slide the card out and auto-remove it — no manual
       // ⋮ → Remove needed.
-      _animateOutThenRemove(el, task.sessionId);
+      _animateOutThenRemove(el, _curStopSid);
     });
+    } // end el._stopBound guard
 
     // Wire kill — awaits the SSH/tmux kill and verifies the session is
     // actually gone before removing the row. Previously fire-and-forget,
@@ -3053,7 +3068,8 @@ export function _renderRunningTab() {
         // Pause: send C-c to aria2c in the tmux pane — it exits gracefully and writes
         // .aria2 sidecar files so the next download resumes from where it left off.
         const _dlPauseBtn = _dlCard.querySelector('.dl-action-pause');
-        if (_dlPauseBtn) {
+        if (_dlPauseBtn && !_dlPauseBtn._bound) {
+          _dlPauseBtn._bound = true;
           _dlPauseBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             // Read sessionId from the DOM at click time — it may have changed since
@@ -3082,7 +3098,8 @@ export function _renderRunningTab() {
         }
 
         const _dlStopBtn = _dlCard.querySelector('.dl-action-stop');
-        if (_dlStopBtn) {
+        if (_dlStopBtn && !_dlStopBtn._bound) {
+          _dlStopBtn._bound = true;
           _dlStopBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             el.querySelector('.cookbook-task-action-stop')?.click();
@@ -3092,7 +3109,8 @@ export function _renderRunningTab() {
         // Resume: same as retry — re-runs aria2c with --continue=true, picking up
         // from the .aria2 sidecar files written when the download was paused.
         const _dlResumeBtn = _dlCard.querySelector('.dl-action-resume');
-        if (_dlResumeBtn) {
+        if (_dlResumeBtn && !_dlResumeBtn._bound) {
+          _dlResumeBtn._bound = true;
           _dlResumeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             _retryTask(el, task);
