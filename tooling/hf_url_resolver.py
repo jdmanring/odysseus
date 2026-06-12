@@ -162,16 +162,16 @@ class HfUrlResolver:
     # a discovered repo (e.g. a Q4_K_M request hitting an imatrix-only repo),
     # the first match in this list becomes the fallback include pattern.
     _QUANT_PRIORITY = [
-        "Q4_K_M",   # community standard recommendation
-        "IQ4_XS",   # imatrix equivalent to Q4_K_M
+        "IQ4_XS",   # imatrix Q4 — better perplexity than Q4_K_M at same or smaller size
         "IQ4_NL",   # imatrix Q4 variant
-        "Q5_K_M",   # higher quality
+        "Q4_K_M",   # community standard; best pick when imatrix not available
+        "Q5_K_M",   # higher quality, larger file
         "Q5_K_S",
         "Q4_K_S",
         "Q4_0",
+        "IQ3_M",
         "Q3_K_L",
         "Q3_K_M",
-        "IQ3_M",
         "IQ3_S",
         "Q6_K",
         "Q8_0",
