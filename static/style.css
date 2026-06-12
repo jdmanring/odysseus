@@ -18428,17 +18428,15 @@ body.gallery-selecting .gallery-dl-btn,
   vertical-align: middle;
 }
 
-/* HF auth status pill */
-.dl-auth-row { margin-top: 3px; }
-.dl-auth-pill {
+/* HF auth badge — lives in the task header row next to the status badge */
+.cookbook-task-auth-badge {
   display: inline-flex; align-items: center; gap: 3px;
-  font-size: 10px; padding: 1px 5px; border-radius: 3px;
-  border: 1px solid currentColor; opacity: 0.8;
-  line-height: 1.4;
+  font-size: 9px; padding: 1px 6px; border-radius: 3px;
+  font-weight: 600; line-height: 16px; flex-shrink: 0;
 }
-.dl-auth-ok   { color: var(--color-green, #50fa7b); }
-.dl-auth-wait { color: var(--color-muted, color-mix(in srgb, var(--fg) 50%, transparent)); }
-.dl-auth-none { color: var(--color-muted, color-mix(in srgb, var(--fg) 50%, transparent)); }
+.dl-auth-ok      { background: color-mix(in srgb, var(--green, #50fa7b) 20%, transparent); color: var(--green, #50fa7b); }
+.dl-auth-pending { background: color-mix(in srgb, var(--orange, #ffb86c) 22%, transparent); color: var(--orange, #ffb86c); }
+.dl-auth-none    { background: color-mix(in srgb, var(--red, #ff5555) 20%, transparent); color: var(--red, #ff5555); }
 
 /* Per-file progress rows (parallel downloads) */
 .dl-files-list {
