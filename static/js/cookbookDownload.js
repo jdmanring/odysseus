@@ -81,8 +81,8 @@ function _ggufDownloadSource(model, backend) {
 }
 
 function _ggufIncludePattern(model, source) {
-  if (source?.file) return source.file;
   if (model?.quant) return `*${model.quant}*`;
+  if (source?.file) return source.file;
   return '*.gguf';
 }
 
@@ -532,7 +532,7 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
             // API returns {repo, files, total_size, downloads} objects.
             // Normalize to {repo, file} format expected downstream.
             model.gguf_sources = data.gguf_sources.map(function(s) {
-              return { repo: s.repo, file: (s.files && s.files[0]) || null };
+              return { repo: s.repo, file: null };
             });
             ggufSource = _ggufDownloadSource(model, backend);
           }
