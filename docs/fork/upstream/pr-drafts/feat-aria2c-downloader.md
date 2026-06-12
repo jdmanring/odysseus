@@ -16,15 +16,33 @@
 
 ### Problem
 
-The existing `hf download` CLI downloader is single-threaded and provides no
-real-time progress feedback in the UI — users see a spinner until the download
-completes or fails. Large models (7B+) can take many minutes with no indication
-of speed, ETA, or per-file status.
+Three open upstream issues point to the same underlying gap in the Cookbook
+download stack:
+
+- **Issue #359** — *"Show Download Percentage During Cookbook Downloads"*:
+  users see a spinner until the download completes or fails. No speed, ETA, or
+  per-file progress is visible. For large models this is a black box for ten or
+  more minutes.
+
+- **Issue #2722** — *"Cookbook large HF model downloads crash/restart due to
+  SSL ReadError"*: HuggingFace CDN connections drop on large files. The current
+  `hf download` CLI has no retry logic — a single SSL error aborts the entire
+  download and the user must start over from zero.
+
+- **Issue #787** — *"Add pause and resume functionality for model downloads"*:
+  no way to interrupt a download and continue later, which is a hardship for
+  users on slow or metered connections.
+
+All three share a root cause: the existing `hf download` CLI is single-threaded,
+has no built-in retry, exposes no structured progress output, and leaves no
+partial files that could be resumed. Fixing any one of them correctly requires
+replacing the downloader itself.
 
 ### Solution
 
 A tmux-backed aria2c download pipeline with a real-time per-file progress
-card in the Cookbook UI.
+card in the Cookbook UI. This closes #359, substantially mitigates #2722, and
+lays the groundwork for full pause/resume (#787 — see notes).
 
 ### Backend
 
@@ -96,6 +114,40 @@ URL construction, cache path logic, download verification.
 - `static/js/cookbook-hwfit.js`
 - `static/style.css`
 
+### Relation to ROADMAP
+
+This directly addresses two ROADMAP items:
+
+> *Cookbook reliability on other computers. This is probably the area most
+> likely to need work across different machines, GPUs, drivers, shells, and
+> Python environments.*
+
+aria2c is self-installed per-platform (linux/mac/windows × x86/arm) by
+`BinManager` — no system package manager, no `apt`, no `brew`. The binary is
+cached in `~/.odysseus/bin` and reused across downloads. `--continue=true`
+means a crashed or aborted download picks up where it left off on restart.
+Both directly improve cross-machine reliability.
+
+> *Cookbook error feedback and logging. Failed downloads, dependency installs,
+> preflights, and serve jobs should show the actual command/output/error in the
+> UI, with copyable logs and clear next steps instead of just "crashed".*
+
+The aria2c progress card in `cookbookRunning.js` surfaces the actual
+per-file download state (filename, bytes transferred, percentage, current
+speed) live in the UI — not after-the-fact from a log file. `_parseDownloadState`
+captures aria2c's structured stdout, so if a file fails the failure is
+visible in the card, not buried in a tmux session.
+
+### Note on issue #787 (pause/resume)
+
+Full in-session pause via a UI button is not implemented. What this PR does
+add is **resume-on-restart**: aria2c's `--continue=true` flag, combined with
+`--auto-file-renaming=false`, means that if the user cancels a download (or
+the server crashes, or the connection drops), restarting the same download
+picks up from the last completed byte for each file. This covers the core use
+case in #787 — a user on a slow connection can stop and continue without
+losing progress. A UI pause button remains future work.
+
 ### Testing
 
 - [ ] Download a single-file model — verify progress card appears, completes,
@@ -116,6 +168,16 @@ URL construction, cache path logic, download verification.
 
 ## Filing Notes
 
-This PR can be filed independently. `feat/gguf-discovery` (#24) is a follow-up
-that adds auto-discovery of GGUF sources for llamacpp models — file after this
-one merges.
+- **Closes upstream #359** — "Show Download Percentage During Cookbook Downloads"
+- **Substantially mitigates upstream #2722** — "Cookbook large HF model downloads
+  crash/restart due to SSL ReadError": aria2c has built-in retry (`--retry-wait=3`)
+  and resumes partial files (`--continue=true`), so SSL drops no longer abort
+  the download from scratch. The reported cache/local-dir confusion is a separate
+  concern and not addressed here.
+- **Partially addresses upstream #787** — "Add pause and resume functionality":
+  resume-on-restart works; in-session pause button is not implemented. The
+  description above has full detail.
+
+This PR can be filed independently. `fix/gguf-quality-scored` (#24) is a
+companion that adds auto-discovery of GGUF sources for llamacpp models — either
+order is fine; they don't depend on each other.

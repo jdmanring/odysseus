@@ -14,6 +14,8 @@
 
 ## PR description (for upstream reviewers)
 
+*Closes #2342.*
+
 ### Problem
 
 When downloading a llamacpp model that has no static `ggufSource` configured,
@@ -177,10 +179,13 @@ the cookbook routes, coverage for this path would be a good addition.
 
 ## Filing notes
 
-1. No upstream issue needed first — open the PR directly. Reference issues
-   #24 and #29 in the fork tracker as context.
+1. **Closes upstream #2342** — "Auto-discovered models without `gguf_sources`
+   appear as llama.cpp-ready but fail to download with no clear guidance."
+   Reference this in the PR body. The bug reporter is on Windows 11 with an
+   RTX 4080 Super — this fix is not platform-specific.
 2. Target branch: `dev` (not `main`).
 3. This PR can be filed independently of `feat/aria2c-downloader` — the
    auto-discovery path works with the standard `hf download` fallback too.
 4. The `_REPUTED_AUTHORS` list is a starting point; upstream maintainers may
    want to add or remove names based on their own assessment.
+5. Fork tracker context: issues #24 and #29 on `jdmanring/odysseus`.
