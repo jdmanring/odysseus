@@ -73,6 +73,29 @@ model has a quant configured (e.g. `Q4_K_M`), that drives the include pattern
 used as a fallback for cases where the resolver has a specific file hint and
 the model has no quant set; `*.gguf` is the final fallback.
 
+**Tier-aware closest-quant fallback**
+
+When `model.quant` is set but the discovered repo doesn't have that exact
+variant (e.g. a Q4_K_M request against an imatrix-only repo like
+`legraphista/DeepSeek-V2-Lite-Chat-IMat-GGUF`), `_closestQuantFile` finds the
+best available alternative. The algorithm uses a flat quality ranking
+(`_QUANT_QUALITY`, best to worst) and a tier-range table (`_QUANT_TIER_RANGES`)
+that groups quants by bit-depth family (all Q4*/IQ4* quants are tier 4, etc.).
+
+Selection priority:
+1. **Same-tier best**: if the repo has any quant in the same bit-depth tier as
+   the requested quant, the best one in that tier wins (lowest quality index).
+   This means IQ4_XS wins over Q4_K_S when Q4_K_M was requested — imatrix
+   calibration is an objective upgrade within the same tier.
+2. **Cross-tier nearest**: if nothing is in the same tier, pick the quant in
+   the closest adjacent tier. For equidistant tiers (one above, one below),
+   prefer the smaller file (go down a tier) to avoid overshooting the user's
+   intended file size.
+
+Within each tier, imatrix variants lead the ranking (IQ4_XS → IQ4_NL → Q4_K_M
+→ Q4_K_S → Q4_1 → Q4_0) so the same-tier rule automatically selects the best
+available quantization method, not just the closest name.
+
 ### Reputed author list
 
 The `_REPUTED_AUTHORS` set contains quantizers with a demonstrated track
@@ -92,7 +115,7 @@ non-imatrix repos.
 |------|--------|
 | `tooling/hf_url_resolver.py` | Complete rewrite of `_probe_gguf_repo` with expand= quality signals; new `_score_candidate`, `_REPUTED_AUTHORS`, `_IMATRIX_AUTHORS`, `_detect_imatrix`; updated `find_gguf_sources` to sort by quality score; mmproj filter |
 | `routes/cookbook_routes.py` | `GET /api/cookbook/resolve-gguf` endpoint (unchanged from prior simple version) |
-| `static/js/cookbookDownload.js` | Auto-discovery call in `_runModelDownload`; `_ggufIncludePattern` reordered to check `model.quant` first; resolver source mapped with `file: null` so model.quant drives selection |
+| `static/js/cookbookDownload.js` | Auto-discovery call in `_runModelDownload`; `_ggufIncludePattern` reordered to check `model.quant` first; resolver source mapped with `file: null` so model.quant drives selection; `_QUANT_QUALITY` flat ranking list; `_QUANT_TIER_RANGES` + `_quantTierRank`; tier-aware `_closestQuantFile` |
 
 ### Relation to ROADMAP
 
@@ -138,8 +161,9 @@ the cookbook routes, coverage for this path would be a good addition.
 - Llama-3.2-11B-Vision-Instruct (llamacpp, no static ggufSource): resolver
   finds the correct repo; download uses `*Q4_K_M*` include pattern, not the
   mmproj file.
-- DeepSeek-V2-Lite-Chat (llamacpp, no static ggufSource): resolver selects a
-  reputed quantizer; Q4_K_M variant downloaded, not Q2_K.
+- DeepSeek-V2-Lite-Chat via `legraphista/DeepSeek-V2-Lite-Chat-IMat-GGUF`
+  (imatrix-only repo, no Q4_K_M file): closest-quant fallback selects IQ4_XS
+  (best in tier 4), not Q2_K or the first alphabetical file.
 - Model with `quant: "Q5_K_M"` configured: `*Q5_K_M*` include pattern used
   regardless of what the resolver returned.
 - `GET /api/cookbook/resolve-gguf?model=meta-llama/Llama-3.1-8B`: returns
