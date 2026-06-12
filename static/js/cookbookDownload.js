@@ -80,37 +80,39 @@ function _ggufDownloadSource(model, backend) {
   return null;
 }
 
-const _QUANT_TIER = {
-  'IQ2_XXS': 2, 'IQ2_XS': 2, 'IQ2_S': 2, 'IQ2_M': 2, 'Q2_K': 2,
-  'IQ3_XXS': 3, 'IQ3_S': 3, 'IQ3_M': 3, 'Q3_K_S': 3, 'Q3_K_M': 3, 'Q3_K_L': 3,
-  'Q4_0': 4, 'Q4_1': 4, 'Q4_K_S': 4, 'Q4_K_M': 4, 'IQ4_NL': 4, 'IQ4_XS': 4,
-  'Q5_0': 5, 'Q5_1': 5, 'Q5_K_S': 5, 'Q5_K_M': 5,
-  'Q6_K': 6,
-  'Q8_0': 8,
-};
+// Flat quality ranking, best (index 0) to worst (last index).
+// Within each bit-depth tier, imatrix variants lead (better perplexity at
+// same or smaller size), then standard K-quants, then legacy Q*_0/Q*_1.
+// Used to find the closest available quant to a user's preference when an
+// exact match isn't in the discovered repo.
+const _QUANT_QUALITY = [
+  'Q8_0',
+  'Q6_K',
+  'Q5_K_M', 'Q5_K_S', 'Q5_1', 'Q5_0',
+  'IQ4_XS', 'IQ4_NL', 'Q4_K_M', 'Q4_K_S', 'Q4_1', 'Q4_0',
+  'IQ3_M', 'Q3_K_L', 'Q3_K_M', 'Q3_K_S', 'IQ3_S', 'IQ3_XXS',
+  'IQ2_M', 'Q2_K', 'IQ2_S', 'IQ2_XS', 'IQ2_XXS',
+];
 
-function _quantTierOf(quant) {
+function _quantQualityIndex(quant) {
   const q = (quant || '').toUpperCase();
-  for (const [k, v] of Object.entries(_QUANT_TIER)) {
-    if (q.includes(k)) return v;
-  }
-  return null;
+  const idx = _QUANT_QUALITY.findIndex(k => q.includes(k));
+  return idx === -1 ? null : idx;
 }
 
 function _closestQuantFile(files, wantedQuant) {
-  const wantedTier = _quantTierOf(wantedQuant);
-  if (wantedTier === null) return null;
-  let best = null, bestDist = Infinity, bestTier = null;
+  const wantedIdx = _quantQualityIndex(wantedQuant);
+  if (wantedIdx === null) return null;
+  let best = null, bestDist = Infinity, bestIdx = null;
   for (const f of files) {
     const bn = f.split('/').pop().toUpperCase();
-    for (const [quant, tier] of Object.entries(_QUANT_TIER)) {
-      if (bn.includes(quant)) {
-        const dist = Math.abs(tier - wantedTier);
-        if (dist < bestDist || (dist === bestDist && tier < bestTier)) {
-          bestDist = dist; bestTier = tier; best = f;
-        }
-        break;
-      }
+    const idx = _QUANT_QUALITY.findIndex(k => bn.includes(k));
+    if (idx === -1) continue;
+    const dist = Math.abs(idx - wantedIdx);
+    // Ties: prefer higher index (smaller/lower quality) to avoid overshooting
+    // the user's intended file size.
+    if (dist < bestDist || (dist === bestDist && idx > bestIdx)) {
+      bestDist = dist; bestIdx = idx; best = f;
     }
   }
   return best;
