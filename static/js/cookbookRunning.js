@@ -956,7 +956,10 @@ function _updateDownloadCard(el, task, snapshot) {
           const pctEl2 = row.querySelector('.dl-file-row-pct');
           if (pctEl2) pctEl2.textContent = f.pct + '%';
           const nameEl2 = row.querySelector('.dl-file-row-name');
-          if (nameEl2 && f.fileName) { nameEl2.title = f.fileName; nameEl2.textContent = _midTrunc(f.fileName, 38); }
+          if (nameEl2 && !f._syntheticGid && f.fileName && f.fileName !== nameEl2.textContent) {
+            nameEl2.title = f.fileName;
+            nameEl2.textContent = _midTrunc(f.fileName, 38);
+          }
           const statsEl = row.querySelector('.dl-file-row-stats');
           if (statsEl) {
             const sizeStr = f.totalBytes > 0
@@ -966,12 +969,6 @@ function _updateDownloadCard(el, task, snapshot) {
             const speedStr = f.speed ? `${esc(f.speed)}${connBadge2}` : '';
             const sep2 = (sizeStr && speedStr) ? `<span class="dl-stat-sep">\xb7</span>` : '';
             statsEl.innerHTML = `${sizeStr}${sep2}${speedStr}`;
-          }
-          // Update file row name if it was synthetic (gid placeholder) and now has a real name
-          const nameEl2 = row.querySelector('.dl-file-row-name');
-          if (nameEl2 && !f._syntheticGid && f.fileName && f.fileName !== nameEl2.textContent) {
-            nameEl2.textContent = _midTrunc(f.fileName, 38);
-            nameEl2.title = f.fileName;
           }
         }
       }
