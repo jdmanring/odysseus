@@ -110,6 +110,9 @@ def _main(args) -> None:
         print("[!] No files matched — nothing to download.")
         sys.exit(0)
     print(f"[*] {len(urls)} file(s) to download.")
+    total_bytes = sum(size for _, _, size in urls)
+    if total_bytes > 0:
+        print(f"[*] Total size: {total_bytes} bytes")
     if commit and commit != "main":
         print(f"[*] Commit: {commit[:12]}")
 
@@ -142,7 +145,7 @@ def _main(args) -> None:
     conn_per_file  = 3    # connections per file — 4×3 = 12 total
 
     # Create any subdirectories that appear in relative paths
-    for _, rel_path in urls:
+    for _, rel_path, _ in urls:
         (base_dir / rel_path).parent.mkdir(parents=True, exist_ok=True)
 
     parallel_count = min(max_concurrent, len(urls))
@@ -153,7 +156,7 @@ def _main(args) -> None:
         with tempfile.NamedTemporaryFile(
             mode='w', suffix='.txt', prefix='aria2c_input_', delete=False
         ) as f:
-            for url, rel_path in urls:
+            for url, rel_path, _ in urls:
                 f.write(f"{url}\n")
                 f.write(f"\tout={rel_path}\n")
                 if args.token:

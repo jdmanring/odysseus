@@ -516,6 +516,8 @@ function _parseDownloadState(text, sessionId) {
 
   const filesMatch = out.match(/\[\*\] (\d+) file\(s\) to download/);
   let totalFiles = filesMatch ? parseInt(filesMatch[1], 10) : 0;
+  const totalSizeMatch = out.match(/\[\*\] Total size: (\d+) bytes/);
+  const reportedTotalBytes = totalSizeMatch ? parseInt(totalSizeMatch[1], 10) : 0;
 
   // Sequential mode: "[*] [X/Y] rel_path" lines — last occurrence is current file
   const fileMatches = [...out.matchAll(/\[\*\] \[(\d+)\/(\d+)\] (.+)/g)];
@@ -599,6 +601,7 @@ function _parseDownloadState(text, sessionId) {
     if (!_dlFileTracker.has(sessionId)) {
       _dlFileTracker.set(sessionId, {
         totalFileCount: 0,
+        reportedTotal: 0,
         knownFiles: new Map(),
         activeNames: new Set(),
         completedBytes: 0,
@@ -612,6 +615,8 @@ function _parseDownloadState(text, sessionId) {
     if (countMatch) tr.totalFileCount = parseInt(countMatch[1], 10);
     // Banner scrolls out of capture window for long downloads — use cached value
     if (!totalFiles && tr.totalFileCount) totalFiles = tr.totalFileCount;
+    // Capture exact total size from resolver (more accurate than averaging file sizes)
+    if (reportedTotalBytes && !tr.reportedTotal) tr.reportedTotal = reportedTotalBytes;
 
     // Record sizes of files we see for the first time
     for (const f of perFileData) {
@@ -631,13 +636,21 @@ function _parseDownloadState(text, sessionId) {
     tr.activeNames = curNames;
     completedCount = tr.completedCount;
 
-    // Recompute pct / dlSize / totalSize using overall model progress
-    if (tr.totalFileCount > 0 && tr.knownFiles.size > 0) {
-      const activeDl    = perFileData.reduce((s, f) => s + f.dlBytes,    0);
-      const overallDl   = tr.completedBytes + activeDl;
-      const knownSizes  = [...tr.knownFiles.values()];
-      const avgFileSize = knownSizes.reduce((s, v) => s + v, 0) / knownSizes.length;
-      const estTotal    = Math.round(avgFileSize * tr.totalFileCount);
+    // Recompute pct / dlSize / totalSize / eta using overall model progress
+    {
+      const activeDl  = perFileData.reduce((s, f) => s + f.dlBytes, 0);
+      const overallDl = tr.completedBytes + activeDl;
+      // Prefer the exact total printed by the Python script; fall back to
+      // averaging known file sizes × total file count (less accurate for
+      // models with mixed file sizes, e.g. large shards + tiny config files).
+      let estTotal = 0;
+      if (tr.reportedTotal > 0) {
+        estTotal = tr.reportedTotal;
+      } else if (tr.totalFileCount > 0 && tr.knownFiles.size > 0) {
+        const knownSizes  = [...tr.knownFiles.values()];
+        const avgFileSize = knownSizes.reduce((s, v) => s + v, 0) / knownSizes.length;
+        estTotal = Math.round(avgFileSize * tr.totalFileCount);
+      }
       if (estTotal > 0) {
         pct       = Math.min(99, Math.round(overallDl / estTotal * 100));
         dlSize    = _fmtIecBytes(overallDl);

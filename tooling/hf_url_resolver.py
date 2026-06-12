@@ -22,33 +22,52 @@ class HfUrlResolver:
         except Exception:
             return None
 
-    def resolve_snapshot_urls(self, repo_id: str, include: Optional[str] = None) -> Tuple[List[Tuple[str, str]], str]:
+    def resolve_snapshot_urls(self, repo_id: str, include: Optional[str] = None) -> Tuple[List[Tuple[str, str, int]], str]:
         """
-        Returns a list of (url, relative_path) for all files in a repo snapshot.
+        Returns a list of (url, relative_path, size_bytes) for all files in a repo snapshot.
         URLs are pinned to the current HEAD commit hash so they are reproducible.
+        size_bytes is 0 if the API could not provide it.
         """
         print(f"[*] Resolving files for {repo_id} (Token: {'Yes' if self.api.token else 'No'})")
         commit = self.get_commit_hash(repo_id) or "main"
 
-        files = []
+        # (path, size_bytes) pairs — size is 0 if unavailable
+        file_entries: List[Tuple[str, int]] = []
         try:
-            files = list(self.api.list_repo_files(repo_id))
-            print(f"[*] HfApi found {len(files)} files.")
+            items = list(self.api.list_repo_tree(repo_id, recursive=True))
+            file_entries = [
+                (item.rfilename, item.size or 0)
+                for item in items
+                if getattr(item, 'size', None) is not None
+            ]
+            print(f"[*] HfApi found {len(file_entries)} files.")
         except Exception as e:
-            print(f"[!] HfApi failed: {e}. Trying fallback.")
+            print(f"[!] HfApi list_repo_tree failed: {e}. Trying fallback.")
 
-        # FALLBACK: If hub library returned nothing, try the direct API tree
-        if not files:
+        # FALLBACK: list_repo_files (paths only, no sizes)
+        if not file_entries:
+            try:
+                files = list(self.api.list_repo_files(repo_id))
+                file_entries = [(f, 0) for f in files]
+                print(f"[*] HfApi found {len(file_entries)} files (sizes unavailable).")
+            except Exception as e:
+                print(f"[!] HfApi failed: {e}. Trying direct API fallback.")
+
+        # FALLBACK: direct API tree (returns sizes in JSON)
+        if not file_entries:
             try:
                 import requests
                 headers = {}
                 if self.api.token:
                     headers["Authorization"] = f"Bearer {self.api.token}"
-
                 resp = requests.get(f"https://huggingface.co/api/models/{repo_id}/tree/main", headers=headers, timeout=10)
                 if resp.status_code == 200:
-                    files = [item["path"] for item in resp.json()]
-                    print(f"[*] API fallback found {len(files)} files.")
+                    file_entries = [
+                        (item["path"], item.get("size", 0))
+                        for item in resp.json()
+                        if item.get("type") == "file"
+                    ]
+                    print(f"[*] API fallback found {len(file_entries)} files.")
                 else:
                     print(f"[!] API fallback failed: status {resp.status_code}")
             except Exception as e:
@@ -57,23 +76,21 @@ class HfUrlResolver:
         if include:
             import fnmatch
             import os
-            filtered_files = [f for f in files if fnmatch.fnmatch(f, include) or fnmatch.fnmatch(os.path.basename(f), include)]
-            print(f"[*] Filtered {len(files)} files down to {len(filtered_files)} matching '{include}'")
-            files = filtered_files
+            filtered = [
+                (p, sz) for p, sz in file_entries
+                if fnmatch.fnmatch(p, include) or fnmatch.fnmatch(os.path.basename(p), include)
+            ]
+            print(f"[*] Filtered {len(file_entries)} files down to {len(filtered)} matching '{include}'")
+            file_entries = filtered
 
         urls = []
-        for file_path in files:
-            url = f"https://huggingface.co/{repo_id}/resolve/{commit}/{file_path}"
-            urls.append((url, file_path))
-
-        # Ensure URLs are unique
-        unique_urls = []
         seen_urls = set()
-        for url, path in urls:
+        for path, size in file_entries:
+            url = f"https://huggingface.co/{repo_id}/resolve/{commit}/{path}"
             if url not in seen_urls:
-                unique_urls.append((url, path))
+                urls.append((url, path, size))
                 seen_urls.add(url)
-        return unique_urls, commit
+        return urls, commit
 
     def _probe_gguf_repo(self, repo_id: str) -> Optional[dict]:
         """Check if a repo actually contains GGUF files via HF metadata.
