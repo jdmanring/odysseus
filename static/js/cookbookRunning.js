@@ -582,11 +582,20 @@ function _parseDownloadState(text, sessionId) {
   const parallelMatch = out.match(/\[\*\] Downloading \d+ file\(s\) \((\d+) in parallel\)/);
   const isParallel = !!parallelMatch;
 
+  // Detect single-file-split: aria2c --split=N downloads one file in N pieces,
+  // each piece gets its own gid and reports totalBytes = (file_size / N).
+  // When all perFileData entries share the same fileName, we are in this mode.
+  // The raw progMatches pct is already correct (sum of pieces = full file);
+  // the multi-batch tracker would inflate it N× by comparing piece-bytes
+  // against piece-size rather than full-file-size.
+  const _pfNames = new Set(perFileData.filter(f => f.fileName).map(f => f.fileName));
+  const isSingleFileSplit = perFileData.length > 1 && _pfNames.size <= 1;
+
   // ── Persistent multi-batch tracker ──
   // Accumulates completed-file bytes across poll ticks so overall progress
   // reflects the full model, not just the currently active 4 files.
   let completedCount = 0;
-  if (sessionId && !done && !failed && perFileData.length > 0) {
+  if (sessionId && !done && !failed && perFileData.length > 0 && !isSingleFileSplit) {
     if (!_dlFileTracker.has(sessionId)) {
       _dlFileTracker.set(sessionId, {
         totalFileCount: 0,
@@ -661,7 +670,7 @@ function _parseDownloadState(text, sessionId) {
   }
 
   return { phase, totalFiles, currentFile, pct, dlSize, totalSize, speed, eta,
-           connections, activeDownloads, isParallel, done, failed, errorMsg, perFileData, completedCount };
+           connections, activeDownloads, isParallel, isSingleFileSplit, done, failed, errorMsg, perFileData, completedCount };
 }
 
 // ── Download progress card ──
@@ -697,7 +706,7 @@ function _buildSingleFileRow(f) {
 function _buildDownloadCardHtml(task, state) {
   const st = state || _parseDownloadState(task.output || '', task.sessionId);
   const { pct, dlSize, totalSize, speed, eta, connections, activeDownloads,
-          isParallel, currentFile, totalFiles, errorMsg, perFileData, completedCount } = st;
+          isParallel, isSingleFileSplit, currentFile, totalFiles, errorMsg, perFileData, completedCount } = st;
   // Allow task.status to override the phase — e.g. 'paused' is set by the Pause
   // button and is not derivable from the tmux output alone.
   const phase = task.status === 'paused' ? 'paused' : st.phase;
@@ -712,7 +721,7 @@ function _buildDownloadCardHtml(task, state) {
   const fileCtx = totalFiles > 0
     ? `${completedCount} of ${totalFiles} files`
     : '';
-  const fileRows = perFileData && perFileData.length > 1
+  const fileRows = perFileData && perFileData.length > 1 && !isSingleFileSplit
     ? perFileData.map(_buildSingleFileRow).join('')
     : '';
 
@@ -843,8 +852,9 @@ function _updateDownloadCard(el, task, snapshot) {
       if (fileCtxSep) fileCtxSep.textContent = fileCtx ? '\xb7' : '';
     }
 
-    // Per-file rows: update in-place by GID; add new rows, remove completed ones
-    if (st.perFileData && st.perFileData.length > 1) {
+    // Per-file rows: update in-place by GID; add new rows, remove completed ones.
+    // isSingleFileSplit rows are suppressed — they're just N pieces of one file.
+    if (st.perFileData && st.perFileData.length > 1 && !st.isSingleFileSplit) {
       const filesList = card.querySelector('[data-dl-files]');
       if (filesList) {
         const gidSet = new Set(st.perFileData.map(f => f.gid));
@@ -3268,9 +3278,9 @@ async function _reconnectTask(el, task) {
               const _sb = el.querySelector('.cookbook-task-serve-btn'); if (_sb) _sb.style.display = '';
               _showCookbookNotif();
               _refreshDepsAfterInstall(task);
-              // Refresh the model list so the downloaded model appears in Serve immediately.
               if (task.type === 'download') {
                 try { await window.modelsModule?.refreshModels?.(true); } catch {}
+                try { const hwfit = await import('./cookbook-hwfit.js'); await hwfit.refreshCachedModelIds(task.remoteHost || ''); } catch {}
               }
               _renderRunningTab();
               _processQueue();
@@ -3328,6 +3338,7 @@ async function _reconnectTask(el, task) {
                   _refreshDepsAfterInstall(task);
                   if (task.type === 'download') {
                     try { await window.modelsModule?.refreshModels?.(true); } catch {}
+                    try { const hwfit = await import('./cookbook-hwfit.js'); await hwfit.refreshCachedModelIds(task.remoteHost || ''); } catch {}
                   }
                   _renderRunningTab();
                   _processQueue();

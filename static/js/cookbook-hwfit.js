@@ -39,15 +39,17 @@ export let _hwfitDebounce = null;
 export let _cachedModelIds = null; // repo IDs already downloaded
 
 export async function refreshCachedModelIds(remoteHost) {
-  if (!remoteHost) return;
   try {
-    const _cacheSrv = _envState.servers.find(s => s.host === remoteHost);
-    const _cachePort = _cacheSrv?.port || '';
-    const _cacheParams = new URLSearchParams({ host: remoteHost });
-    if (_cachePort) _cacheParams.set('ssh_port', _cachePort);
-    if (_cacheSrv?.platform) _cacheParams.set('platform', _cacheSrv.platform);
-
-    const res = await fetch(`/api/model/cached?${_cacheParams}`, { credentials: 'same-origin' });
+    const _cacheParams = new URLSearchParams();
+    if (remoteHost) {
+      const _cacheSrv = _envState.servers.find(s => s.host === remoteHost);
+      const _cachePort = _cacheSrv?.port || '';
+      _cacheParams.set('host', remoteHost);
+      if (_cachePort) _cacheParams.set('ssh_port', _cachePort);
+      if (_cacheSrv?.platform) _cacheParams.set('platform', _cacheSrv.platform);
+    }
+    const _qs = _cacheParams.toString();
+    const res = await fetch(`/api/model/cached${_qs ? '?' + _qs : ''}`, { credentials: 'same-origin' });
     if (!res.ok) return;
     const d = await res.json();
     _cachedModelIds = new Set((d.models || []).filter(m => m.status !== 'stalled').map(m => m.repo_id));
