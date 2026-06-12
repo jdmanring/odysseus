@@ -716,8 +716,8 @@ function _parseDownloadState(text, sessionId) {
     _dlFileTracker.delete(sessionId);
   }
 
-  const authMatch = out.match(/\[\*\] HF auth: (.+)/);
-  const authStatus = authMatch ? authMatch[1].trim() : '';
+  const _authAll = [...out.matchAll(/\[\*\] HF auth: (.+)/g)];
+  const authStatus = _authAll.length ? _authAll[_authAll.length - 1][1].trim() : '';
 
   let phase = 'initializing';
   if (done)                                                                 phase = 'done';
@@ -775,12 +775,12 @@ function _buildSingleFileRow(f) {
 
 function _buildAuthPillHtml(authStatus) {
   if (!authStatus) return '';
-  const _lock = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
-  const _unlock = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a3 3 0 0 1 6 0"/></svg>';
-  if (authStatus.includes('authenticated'))  return `<span class="dl-auth-pill dl-auth-ok">${_lock} authenticated</span>`;
-  if (authStatus.includes('token provided')) return `<span class="dl-auth-pill dl-auth-wait">${_lock} token…</span>`;
-  if (authStatus.includes('no token'))       return `<span class="dl-auth-pill dl-auth-none">${_unlock} no token</span>`;
-  return `<span class="dl-auth-pill dl-auth-none">${esc(authStatus)}</span>`;
+  const _lock   = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+  const _unlock = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a3 3 0 0 1 6 0"/></svg>';
+  if (authStatus.includes('authenticated'))  return `<span class="cookbook-task-auth-badge dl-auth-ok">${_lock} authed</span>`;
+  if (authStatus.includes('token provided')) return `<span class="cookbook-task-auth-badge dl-auth-pending">${_lock} token…</span>`;
+  if (authStatus.includes('no token'))       return `<span class="cookbook-task-auth-badge dl-auth-none">${_unlock} no auth</span>`;
+  return `<span class="cookbook-task-auth-badge dl-auth-none">${esc(authStatus)}</span>`;
 }
 
 function _buildDownloadCardHtml(task, state) {
@@ -801,10 +801,9 @@ function _buildDownloadCardHtml(task, state) {
   const fileCtx = totalFiles > 0
     ? `${completedCount} of ${totalFiles} files`
     : '';
-  const fileRows = perFileData && perFileData.length > 1 && !isSingleFileSplit
+  const fileRows = perFileData && perFileData.length > 0 && (isParallel || perFileData.length > 1) && !isSingleFileSplit
     ? perFileData.map(_buildSingleFileRow).join('')
     : '';
-  const authPillHtml = _buildAuthPillHtml(authStatus);
 
   return `<div class="dl-card" data-dl-card data-dl-phase="${esc(phase)}">
     <div class="dl-phase-init">
@@ -830,7 +829,6 @@ function _buildDownloadCardHtml(task, state) {
         <span class="dl-stat dl-file-ctx" data-dl-file-ctx>${esc(fileCtx)}</span>
       </div>
       <div class="dl-files-list" data-dl-files>${fileRows}</div>
-      ${authPillHtml ? `<div class="dl-auth-row" data-dl-auth data-dl-auth-status="${esc(authStatus)}">${authPillHtml}</div>` : `<div class="dl-auth-row" data-dl-auth></div>`}
     </div>
     <div class="dl-done-banner">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -936,7 +934,7 @@ function _updateDownloadCard(el, task, snapshot) {
 
     // Per-file rows: update in-place by GID; add new rows, remove completed ones.
     // isSingleFileSplit rows are suppressed — they're just N pieces of one file.
-    if (st.perFileData && st.perFileData.length > 1 && !st.isSingleFileSplit) {
+    if (st.perFileData && st.perFileData.length > 0 && (st.isParallel || st.perFileData.length > 1) && !st.isSingleFileSplit) {
       const filesList = card.querySelector('[data-dl-files]');
       if (filesList) {
         const gidSet = new Set(st.perFileData.map(f => f.gid));
@@ -975,9 +973,9 @@ function _updateDownloadCard(el, task, snapshot) {
     }
   }
 
-  // Update HF auth pill whenever authStatus changes
+  // Update HF auth badge in the task header (el, not card)
   if (st.authStatus) {
-    const authEl = card.querySelector('[data-dl-auth]');
+    const authEl = el.querySelector('[data-dl-auth]');
     if (authEl) {
       const prev = authEl.dataset.dlAuthStatus || '';
       if (st.authStatus !== prev) {
@@ -2459,6 +2457,7 @@ export function _renderRunningTab() {
         <span class="cookbook-task-indicator"><span class="cookbook-task-wave" style="display:${task.status === 'running' ? '' : 'none'}"></span><span class="cookbook-task-check" title="Clear" style="display:${_canClearTask(task) ? '' : 'none'}"><svg class="cookbook-task-check-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#50fa7b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><svg class="cookbook-task-clear-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span class="cookbook-task-done-label">${esc(_clearPillLabel(task))}</span><span class="cookbook-task-clear-label">clear</span></span></span>
         <button type="button" class="cookbook-task-start-now" title="Start this queued download now" style="display:${(_isDl && task.status === 'queued') ? '' : 'none'}"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="8 5 19 12 8 19 8 5"/></svg><span>start now</span></button>
         <span class="cookbook-task-status ${_bdg.cls}"${_bdgTitle}>${esc(_bdg.text)}</span>
+        ${_isDl ? `<span data-dl-auth>${_dlState?.authStatus ? _buildAuthPillHtml(_dlState.authStatus) : ''}</span>` : ''}
         <button class="cookbook-task-menu-btn" title="Actions">&#8942;</button>
       </div>
       <div class="cookbook-task-sub">
