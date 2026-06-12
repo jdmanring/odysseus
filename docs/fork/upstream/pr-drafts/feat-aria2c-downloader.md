@@ -138,6 +138,19 @@ speed) live in the UI — not after-the-fact from a log file. `_parseDownloadSta
 captures aria2c's structured stdout, so if a file fails the failure is
 visible in the card, not buried in a tmux session.
 
+### Known limitation: Windows progress display
+
+The aria2c progress card reads live output via `tmux capture-pane`. On Linux
+and macOS this works as expected. On **local Windows**, Odysseus has no tmux —
+it uses a detached-process path that writes to a log file instead. Downloads
+still complete correctly, but the UI shows a spinner rather than the live card.
+Windows remote (SSH into a Windows machine) has the same limitation.
+
+A proper fix would hook the aria2c output into the Windows log-file polling
+path rather than capture-pane. That work is deferred; it requires a Windows
+test environment to validate. The lock-file `/tmp` hardcode is fixed in this
+PR (`tempfile.gettempdir()` on all platforms).
+
 ### Note on issue #787 (pause/resume)
 
 Full in-session pause via a UI button is not implemented. What this PR does
