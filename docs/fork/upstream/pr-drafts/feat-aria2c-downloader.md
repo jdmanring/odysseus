@@ -2,7 +2,7 @@
 
 **Branch:** `jdmanring/odysseus:feat/aria2c-downloader`
 **Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) (fork tracking)
-**Status:** Needs integration test run + screenshot before filing
+**Status:** Bugs found in integration testing — fixed 2026-06-12, re-verify before filing
 
 ---
 
@@ -65,7 +65,16 @@ is set.
 stdout (parallel progress lines, `FILE:` path, `[*] N files` banner).
 `_dlFileTracker` accumulates per-file byte counts across poll ticks.
 `totalFiles` falls back to `_dlFileTracker.totalFileCount` when the startup
-banner scrolls out of the 200-line `capture-pane` window.
+banner scrolls out of the 200-line `capture-pane` window. `isSingleFileSplit`
+detects when all `perFileData` entries share a filename (one file downloaded as
+N pieces with `--split=N`) and skips the multi-batch tracker for that case —
+the raw aria2c `pct` already sums pieces correctly.
+
+**`static/js/cookbook-hwfit.js`** — `refreshCachedModelIds()` now handles local
+downloads (no `remoteHost`). Previously returned early for empty host, making
+the downloaded-dot re-mark a no-op for local installs. Both Running tab
+done-transition paths now call `refreshCachedModelIds` so the catalog dot
+appears immediately without a page reload.
 
 **`static/style.css`** — download card, per-file progress rows, cancel button.
 
@@ -84,6 +93,7 @@ URL construction, cache path logic, download verification.
 - `routes/cookbook_helpers.py`
 - `static/js/cookbookDownload.js`
 - `static/js/cookbookRunning.js`
+- `static/js/cookbook-hwfit.js`
 - `static/style.css`
 
 ### Testing
