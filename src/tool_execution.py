@@ -145,6 +145,38 @@ def _tool_path_roots() -> list[str]:
     return out
 
 
+def _resolve_tool_path_in_workspace(ws: str, raw_path: str) -> str:
+    """Resolve and confine a path to a specific workspace directory.
+
+    Returns the realpath on success. Raises ValueError on rejection.
+    """
+    if raw_path is None or not str(raw_path).strip():
+        raise ValueError("path is required")
+
+    # Resolve relative to ws, then get realpath to collapse '..' and symlinks.
+    # os.path.join(ws, raw_path) handles absolute raw_path by ignoring ws.
+    resolved = os.path.realpath(os.path.join(ws, str(raw_path).strip()))
+    ws_real = os.path.realpath(ws)
+
+    # Containment check: must be the workspace itself or a descendant.
+    try:
+        common = os.path.commonpath([resolved, ws_real])
+    except ValueError:
+        raise ValueError(f"path '{raw_path}' is outside the workspace")
+
+    if common != ws_real:
+        raise ValueError(f"path '{raw_path}' is outside the workspace")
+
+    # Sensitive check (e.g. .ssh inside the workspace).
+    if _is_sensitive_path(resolved):
+        raise ValueError(
+            f"path '{raw_path}' is inside a sensitive directory "
+            f"(e.g. .ssh, .gnupg) or matches a sensitive filename"
+        )
+
+    return resolved
+
+
 def _resolve_tool_path(raw_path: str) -> str:
     """Resolve and confine a model-supplied path.
 
