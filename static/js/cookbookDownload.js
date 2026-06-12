@@ -81,7 +81,17 @@ function _ggufDownloadSource(model, backend) {
 }
 
 function _ggufIncludePattern(model, source) {
-  if (model?.quant) return `*${model.quant}*`;
+  if (model?.quant) {
+    const files = source?.files || [];
+    const q = model.quant.toLowerCase();
+    // Only use model.quant if the discovered repo actually has a matching file.
+    // If not (e.g. Q4_K_M requested but repo only has IQ4_XS), fall through to
+    // the server's preferred_file so the download isn't silently empty.
+    if (!files.length || files.some(f => f.toLowerCase().includes(q))) {
+      return `*${model.quant}*`;
+    }
+  }
+  if (source?.preferred_file) return source.preferred_file;
   if (source?.file) return source.file;
   return '*.gguf';
 }
@@ -532,7 +542,7 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
             // API returns {repo, files, total_size, downloads} objects.
             // Normalize to {repo, file} format expected downstream.
             model.gguf_sources = data.gguf_sources.map(function(s) {
-              return { repo: s.repo, file: null };
+              return { repo: s.repo, file: null, files: s.files || [], preferred_file: s.preferred_file || null };
             });
             ggufSource = _ggufDownloadSource(model, backend);
           }
