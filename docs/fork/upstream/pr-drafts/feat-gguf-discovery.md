@@ -94,6 +94,20 @@ non-imatrix repos.
 | `routes/cookbook_routes.py` | `GET /api/cookbook/resolve-gguf` endpoint (unchanged from prior simple version) |
 | `static/js/cookbookDownload.js` | Auto-discovery call in `_runModelDownload`; `_ggufIncludePattern` reordered to check `model.quant` first; resolver source mapped with `file: null` so model.quant drives selection |
 
+### Relation to ROADMAP
+
+This directly addresses the ROADMAP item:
+
+> *Cookbook model scan/download ranking. Prioritize newer architectures and
+> better hardware-fit models instead of scoring everything almost the same.
+> Ranking should account for architecture age, quant format, VRAM/RAM fit,
+> backend support, **vision/mmproj requirements**, and likely serve reliability.*
+
+The 8-signal scorer differentiates repos where the old sort-by-downloads approach
+scored them nearly the same. The mmproj filter and `model.quant` precedence fix
+the vision/mmproj case the ROADMAP calls out explicitly. Architecture age,
+VRAM/RAM fit, and backend support remain future work.
+
 ### Backward compatibility
 
 - Models with a static `ggufSource` configured are unaffected — discovery
@@ -102,6 +116,22 @@ non-imatrix repos.
 - `_ggufIncludePattern` fallback chain (`model.quant` → `source.file` →
   `*.gguf`) preserves all previous behavior for models that don't use
   auto-discovery.
+
+### Checks run
+
+```bash
+# Syntax check — all modified Python files
+python -m py_compile tooling/hf_url_resolver.py routes/cookbook_routes.py
+# JS check
+node --check static/js/cookbookDownload.js
+# Existing test suite (no new tests cover this code path — see note below)
+python -m pytest
+```
+
+The `_probe_gguf_repo`, `_score_candidate`, and `_ggufIncludePattern` code paths
+are not covered by existing automated tests. Manual in-app testing was the primary
+verification method (see Testing below). If upstream adds test infrastructure for
+the cookbook routes, coverage for this path would be a good addition.
 
 ### Testing
 
