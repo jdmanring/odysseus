@@ -2,14 +2,12 @@
 
 > **The Map.** This document provides the mental model and codebase map for the Odysseus project.
 
-This fork is a contribution workbench. Every fix, feature, and document defaults to upstream-candidate unless it specifically manages the fork/upstream relationship (e.g., sync pipeline, fork CI).
-
 ---
 
 ## What It Is
 
 Self-hosted AI workspace. FastAPI backend + browser UI, running locally at
-`127.0.0.1:8000`. Supports chat (Ollama/OpenAI/Anthropic), Agent mode (tool use),
+`127.0.0.1:7000`. Supports chat (Ollama/OpenAI/Anthropic), Agent mode (tool use),
 Plan mode, memory (RAG via ChromaDB), model downloads, TTS/STT, MCP servers,
 calendar, email, notes, documents, gallery. Single-user.
 
@@ -71,7 +69,7 @@ is the SPA shell. `init.js` boots the UI.
 |------|-----------|------|
 | API Keys / Secrets | `.env` | Base environment variables (see `.env.example`) |
 | App Settings | `data/settings.json` | Persistent user-configurable settings |
-| Port Config | `app.py` / `.env` | Default is `8000` |
+| Port Config | `app.py` / `.env` | Default is `7000` |
 
 ## Data Storage
 
@@ -116,23 +114,6 @@ Lines look like `·[#a1b2c3 1GiB/5GiB(21%) CN:4 DL:50MiB ETA:1m20s]` followed by
 
 ---
 
-## Fork Additions (James's code, not in upstream)
-
-**Entirely new files:**
-- `qt_wrapper.py` — the entire Qt native app
-- `static/js/qt-bridge.js` — QWebChannel setup
-- `tooling/aria2c_download.py` — HF download via aria2c
-- `tooling/bin_manager.py` — auto-install external binaries
-- `tooling/hf_url_resolver.py` — resolve HuggingFace signed URLs
-
-**Heavily modified from upstream:**
-- `static/js/cookbookRunning.js` — download card UI, per-file rows, `_dlFileTracker`
-- `static/js/colorPicker.js` — eyedropper uses Qt native dialog via `qtBridge`
-
-Full divergence record: `docs/fork/changes-from-upstream.md`
-
----
-
 ## Things That Will Bite You
 
 - **No bundler.** A new JS file needs a `<script>` tag in `index.html`. ES imports
@@ -159,37 +140,3 @@ The `tooling/` directory contains critical utilities. Check here before writing 
 - `bin_manager.py`: Handles external binary installation/verification.
 - `hf_url_resolver.py`: Resolves signed HF URLs.
 
-## Fork Pipeline — Mental Model
-
-The fork has three main operations. All three are covered with exact commands in
-`docs/ai/RULES.md` under "Fork Operations — Step-by-Step Procedures".
-
-**Ingest upstream changes:**
-```
-upstream/dev → upstream-mirror → sync/staging-* → (3 gates) → integration → develop
-```
-Run: `git checkout integration && python3 tooling/sync-upstreams/upstream_ingest_pipeline.py --skip-tests`
-Then: `git checkout develop && git merge integration`
-
-**Rebase a staging branch** (when upstream-mirror has advanced since the branch was created):
-```bash
-git checkout fix/branch-name
-git rebase upstream-mirror
-# Resolve conflicts: keep our fix + keep upstream's other changes (not just one or the other)
-# Then verify: git diff upstream-mirror fix/branch-name
-```
-
-**Create new upstream-candidate work** (branch from upstream-mirror, NEVER from develop):
-```bash
-git checkout -b fix/new-thing upstream-mirror
-# ... do work, commit ...
-git checkout develop && git cherry-pick <hash>   # put it in develop too
-```
-
-**Branch health check** — run this before any pipeline operation:
-```bash
-git fetch upstream
-git log --oneline upstream/dev ^upstream-mirror        # new upstream commits to ingest?
-git log --oneline integration ^develop                  # integration ahead of develop?
-git log --oneline upstream-mirror..fix/branch-name      # staging branch commit count?
-```

@@ -26,11 +26,11 @@ misread (upstream issue #142).
 
 **Web app only:**
 ```bash
-venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000
+venv/bin/uvicorn app:app --host 127.0.0.1 --port 7000
 ```
-Open `http://127.0.0.1:8000` in a browser.
+Open `http://127.0.0.1:7000` in a browser.
 
-**Linux native wrapper** (requires PyQt6 — see `docs/fork/linux-build-and-install.md`):
+**Linux native wrapper** (requires PyQt6 and PyQt6-WebEngine — install via your distro package manager or `pip install PyQt6 PyQt6-WebEngine`):
 ```bash
 python3 qt_wrapper.py
 ```
