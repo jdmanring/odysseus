@@ -565,7 +565,7 @@ function _parseDownloadState(text, sessionId) {
       const bm = pLines[_i].match(pBlockRe);
       if (!bm) continue;
       let fileName = '';
-      for (let _j = _i + 1; _j < Math.min(_i + 4, pLines.length); _j++) {
+      for (let _j = _i + 1; _j < Math.min(_i + 8, pLines.length); _j++) {
         const fm = pLines[_j].match(/^\s*FILE:\s*(\S+)/);
         if (fm) { fileName = fm[1].split('/').pop(); break; }
       }
@@ -667,15 +667,18 @@ function _parseDownloadState(text, sessionId) {
     // Capture exact total size from resolver (more accurate than averaging file sizes)
     if (reportedTotalBytes && !tr.reportedTotal) tr.reportedTotal = reportedTotalBytes;
 
-    // Record sizes of files we see for the first time
+    // Record sizes of files we see for the first time.
+    // Use fileName when available; fall back to gid so empty-fileName verbose
+    // entries (FILE: line outside lookahead) still get their sizes tracked.
     for (const f of perFileData) {
-      if (f.fileName && f.totalBytes > 0 && !tr.knownFiles.has(f.fileName)) {
-        tr.knownFiles.set(f.fileName, f.totalBytes);
+      const _fkey = f.fileName || f.gid;
+      if (_fkey && f.totalBytes > 0 && !tr.knownFiles.has(_fkey)) {
+        tr.knownFiles.set(_fkey, f.totalBytes);
       }
     }
 
     // Files that were active last tick but aren't now have completed
-    const curNames = new Set(perFileData.filter(f => f.fileName).map(f => f.fileName));
+    const curNames = new Set(perFileData.map(f => f.fileName || f.gid).filter(Boolean));
     for (const name of tr.activeNames) {
       if (!curNames.has(name) && tr.knownFiles.has(name)) {
         tr.completedBytes += tr.knownFiles.get(name);
@@ -752,14 +755,14 @@ function _midTrunc(s, max = 42) {
 }
 
 // Build the HTML for a single per-file progress row (parallel downloads).
-function _buildSingleFileRow(f) {
-  const sizeStr = f.totalBytes > 0
+function _buildSingleFileRow(f, hideStats = false) {
+  const sizeStr = !hideStats && f.totalBytes > 0
     ? `${esc(_fmtIecBytes(f.dlBytes))} / ${esc(_fmtIecBytes(f.totalBytes))}`
     : '';
-  const connBadge = f.connections > 1
+  const connBadge = !hideStats && f.connections > 1
     ? `<span class="dl-conn-badge">${f.connections}\xd7</span>`
     : '';
-  const speedStr = f.speed ? `${esc(f.speed)}${connBadge}` : '';
+  const speedStr = !hideStats && f.speed ? `${esc(f.speed)}${connBadge}` : '';
   const sep = (sizeStr && speedStr) ? `<span class="dl-stat-sep">\xb7</span>` : '';
   const nameDisplay = f._syntheticGid ? 'downloading…' : _midTrunc(f.fileName, 38);
   const nameTitle   = f._syntheticGid ? '' : esc(f.fileName);
@@ -801,8 +804,9 @@ function _buildDownloadCardHtml(task, state) {
   const fileCtx = totalFiles > 0
     ? `${completedCount} of ${totalFiles} files`
     : '';
+  const _hideFileStats = perFileData && perFileData.length === 1;
   const fileRows = perFileData && perFileData.length > 0 && (isParallel || perFileData.length > 1) && !isSingleFileSplit
-    ? perFileData.map(_buildSingleFileRow).join('')
+    ? perFileData.map(f => _buildSingleFileRow(f, _hideFileStats)).join('')
     : '';
 
   return `<div class="dl-card" data-dl-card data-dl-phase="${esc(phase)}">
@@ -936,6 +940,7 @@ function _updateDownloadCard(el, task, snapshot) {
     // isSingleFileSplit rows are suppressed — they're just N pieces of one file.
     if (st.perFileData && st.perFileData.length > 0 && (st.isParallel || st.perFileData.length > 1) && !st.isSingleFileSplit) {
       const filesList = card.querySelector('[data-dl-files]');
+      const _hideStats = st.perFileData.length === 1;
       if (filesList) {
         const gidSet = new Set(st.perFileData.map(f => f.gid));
         filesList.querySelectorAll('[data-dl-gid]').forEach(r => {
@@ -945,7 +950,7 @@ function _updateDownloadCard(el, task, snapshot) {
           let row = filesList.querySelector(`[data-dl-gid="${CSS.escape(f.gid)}"]`);
           if (!row) {
             const tmp = document.createElement('div');
-            tmp.innerHTML = _buildSingleFileRow(f);
+            tmp.innerHTML = _buildSingleFileRow(f, _hideStats);
             row = tmp.firstElementChild;
             filesList.appendChild(row);
           }
@@ -960,13 +965,17 @@ function _updateDownloadCard(el, task, snapshot) {
           }
           const statsEl = row.querySelector('.dl-file-row-stats');
           if (statsEl) {
-            const sizeStr = f.totalBytes > 0
-              ? `${esc(_fmtIecBytes(f.dlBytes))} / ${esc(_fmtIecBytes(f.totalBytes))}`
-              : '';
-            const connBadge2 = f.connections > 1 ? `<span class="dl-conn-badge">${f.connections}\xd7</span>` : '';
-            const speedStr = f.speed ? `${esc(f.speed)}${connBadge2}` : '';
-            const sep2 = (sizeStr && speedStr) ? `<span class="dl-stat-sep">\xb7</span>` : '';
-            statsEl.innerHTML = `${sizeStr}${sep2}${speedStr}`;
+            if (_hideStats) {
+              statsEl.innerHTML = '';
+            } else {
+              const sizeStr = f.totalBytes > 0
+                ? `${esc(_fmtIecBytes(f.dlBytes))} / ${esc(_fmtIecBytes(f.totalBytes))}`
+                : '';
+              const connBadge2 = f.connections > 1 ? `<span class="dl-conn-badge">${f.connections}\xd7</span>` : '';
+              const speedStr = f.speed ? `${esc(f.speed)}${connBadge2}` : '';
+              const sep2 = (sizeStr && speedStr) ? `<span class="dl-stat-sep">\xb7</span>` : '';
+              statsEl.innerHTML = `${sizeStr}${sep2}${speedStr}`;
+            }
           }
         }
       }
@@ -3047,16 +3056,19 @@ export function _renderRunningTab() {
         if (_dlPauseBtn) {
           _dlPauseBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
+            // Read sessionId from the DOM at click time — it may have changed since
+            // this handler was bound if the user paused, then resumed (new session).
+            const _curSid = el.dataset.taskId;
             if (el._abort) el._abort.abort();
             _dlPauseBtn.disabled = true;
             try {
               await fetch('/api/shell/exec', {
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: _tmuxCmd(task, `send-keys -t ${task.sessionId} C-c`) }),
+                body: JSON.stringify({ command: _tmuxCmd(task, `send-keys -t ${_curSid} C-c`) }),
               });
             } catch {}
-            _updateTask(task.sessionId, { status: 'paused', _userStopped: false });
+            _updateTask(_curSid, { status: 'paused', _userStopped: false });
             el.dataset.status = 'paused';
             _dlCard.dataset.dlPhase = 'paused';
             const badge = el.querySelector('.cookbook-task-status');
@@ -3589,7 +3601,19 @@ async function _reconnectTask(el, task) {
             // so on a resumed download it reflects the true overall progress,
             // whereas completed/totalFiles only see this session's files (→ 0%).
             // Take the higher of the two so resume doesn't read as 0%.
-            if (_useShardAgg) {
+            if (task.payload?.use_aria2c) {
+              // aria2c downloads: the dl-card already shows detailed byte progress.
+              // Show phase words only in the header badge — never percentages,
+              // since the HF-specific patterns don't exist in aria2c output and
+              // would produce garbage (e.g. "finishing" when completed > 0 because
+              // aria2c prints "Download complete" for each finished file).
+              const _aria2cPhase = _parseDownloadState(snapshot, task.sessionId).phase;
+              const _aria2cLabels = { initializing: 'initializing', starting: 'starting', resolving: 'resolving', downloading: 'downloading' };
+              if (!badge._retryBound) {
+                badge.textContent = _aria2cLabels[_aria2cPhase] || 'downloading';
+                badge.className = 'cookbook-task-status cookbook-task-running';
+              }
+            } else if (_useShardAgg) {
               // Multi-shard download: compute TRUE overall as completed shards
               // plus the current shard's fraction. _dlAgg / lastPct represent
               // *this shard's* progress, not the whole download.
