@@ -99,12 +99,18 @@ def _main(args) -> None:
 
     # 2. Resolve HuggingFace file URLs + commit hash
     print(f"[*] Resolving file list for {args.repo}...")
+    if args.token:
+        print("[*] HF auth: token provided")
+    else:
+        print("[*] HF auth: no token — public models only")
     resolver = HfUrlResolver(token=args.token)
     try:
         urls, commit = resolver.resolve_snapshot_urls(args.repo, include=args.include)
     except Exception as e:
         print(f"[!] Failed to list files: {e}")
         sys.exit(1)
+    if args.token:
+        print("[*] HF auth: authenticated")
 
     if not urls:
         print("[!] No files matched — nothing to download.")
