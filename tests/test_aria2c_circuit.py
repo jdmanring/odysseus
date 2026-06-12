@@ -66,9 +66,10 @@ class TestHfUrlResolver(unittest.TestCase):
         # Filter to tokenizer files only — small and public
         urls, commit = resolver.resolve_snapshot_urls("gpt2", include="*.json")
         self.assertGreater(len(urls), 0, "No .json files returned for gpt2")
-        for url, rel_path in urls:
+        for url, rel_path, size in urls:
             self.assertTrue(url.startswith("https://huggingface.co/"), f"Unexpected URL: {url}")
             self.assertFalse(rel_path.startswith("/"), f"rel_path should be relative: {rel_path}")
+            self.assertIsInstance(size, int, f"size should be int: {size!r}")
 
     def test_commit_hash_returned(self):
         resolver = HfUrlResolver(token=None)
@@ -79,7 +80,7 @@ class TestHfUrlResolver(unittest.TestCase):
         is_fallback = commit == "main"
         self.assertTrue(is_sha or is_fallback, f"Unexpected commit value: {commit!r}")
         # URLs should contain the commit in their path
-        for url, _ in urls:
+        for url, _, _size in urls:
             self.assertIn(commit, url, f"URL not pinned to commit {commit!r}: {url}")
 
 
@@ -93,7 +94,7 @@ class TestDownloadFile(unittest.TestCase):
         resolver = HfUrlResolver(token=None)
         urls, commit = resolver.resolve_snapshot_urls("gpt2", include="tokenizer.json")
         self.assertTrue(urls, "Resolver returned no URLs for gpt2/tokenizer.json")
-        url, rel_path = urls[0]
+        url, rel_path, _size = urls[0]
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
@@ -111,7 +112,7 @@ class TestDownloadFile(unittest.TestCase):
         resolver = HfUrlResolver(token=None)
         urls, _ = resolver.resolve_snapshot_urls("gpt2", include="tokenizer.json")
         self.assertTrue(urls)
-        url, rel_path = urls[0]
+        url, rel_path, _size = urls[0]
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
