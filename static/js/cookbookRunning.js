@@ -642,6 +642,9 @@ function _parseDownloadState(text, sessionId) {
         pct       = Math.min(99, Math.round(overallDl / estTotal * 100));
         dlSize    = _fmtIecBytes(overallDl);
         totalSize = _fmtIecBytes(estTotal);
+        if (totalSpeedBytes > 0 && overallDl < estTotal) {
+          eta = _fmtEtaSecs(Math.round((estTotal - overallDl) / totalSpeedBytes));
+        }
       }
     }
   } else if (done && sessionId) {
