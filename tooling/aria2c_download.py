@@ -70,7 +70,7 @@ def main() -> None:
 
     # Guard: refuse to start if another download for the same repo is already
     # running. Checks by PID so stale lock files from crashed runs are ignored.
-    lock_path = Path(f"/tmp/aria2c_dl_{args.repo.replace('/', '_')}.pid")
+    lock_path = Path(tempfile.gettempdir()) / f"aria2c_dl_{args.repo.replace('/', '_')}.pid"
     if lock_path.exists():
         try:
             pid = int(lock_path.read_text().strip())
