@@ -158,6 +158,36 @@ class HfUrlResolver:
             "author": author,
         }
 
+    # Preferred quant order for general use. When model.quant doesn't exist in
+    # a discovered repo (e.g. a Q4_K_M request hitting an imatrix-only repo),
+    # the first match in this list becomes the fallback include pattern.
+    _QUANT_PRIORITY = [
+        "Q4_K_M",   # community standard recommendation
+        "IQ4_XS",   # imatrix equivalent to Q4_K_M
+        "IQ4_NL",   # imatrix Q4 variant
+        "Q5_K_M",   # higher quality
+        "Q5_K_S",
+        "Q4_K_S",
+        "Q4_0",
+        "Q3_K_L",
+        "Q3_K_M",
+        "IQ3_M",
+        "IQ3_S",
+        "Q6_K",
+        "Q8_0",
+        "IQ2_M",
+        "Q2_K",
+    ]
+
+    @classmethod
+    def _preferred_quant_file(cls, files: list) -> Optional[str]:
+        """Pick the best file from a list by quant preference order."""
+        for quant in cls._QUANT_PRIORITY:
+            for f in files:
+                if quant.lower() in os.path.basename(f).lower():
+                    return f
+        return files[0] if files else None
+
     _REPUTED_AUTHORS = {
         # S-tier: uses imatrix calibration, maintains recommended collections,
         # writes technical comparisons. Top choice.
@@ -284,6 +314,7 @@ class HfUrlResolver:
                 continue
             probed["repo"] = repo_id
             probed["quality_score"] = self._score_candidate(probed)
+            probed["preferred_file"] = self._preferred_quant_file(probed["files"])
             results.append(probed)
 
         results.sort(key=lambda r: r["quality_score"], reverse=True)
