@@ -531,9 +531,10 @@ function _parseDownloadState(text, sessionId) {
   const progressRe = /\[#[0-9a-f]+ ([^\s/]+)\/([^(]+)\((\d+)%\)\s+CN:(\d+)\s+DL:([^\s]+)\s+ETA:([^\]]+)\]/g;
   const progMatches = [...progressWindow.matchAll(progressRe)];
 
-  let pct = 0, dlSize = '', totalSize = '', speed = '', eta = '', connections = 0, activeDownloads = 0;
+  let pct = 0, dlSize = '', totalSize = '', speed = '', eta = '', connections = 0, activeDownloads = 0, totalSpeedBytes = 0;
   if (progMatches.length > 0) {
-    let totalDlBytes = 0, totalTotalBytes = 0, totalSpeedBytes = 0;
+    let totalDlBytes = 0, totalTotalBytes = 0;
+    totalSpeedBytes = 0;
     for (const m of progMatches) {
       totalDlBytes    += _parseIecBytes(m[1]);
       totalTotalBytes += _parseIecBytes(m[2].trim());
@@ -580,6 +581,53 @@ function _parseDownloadState(text, sessionId) {
     }
   }
 
+  // Cache gid→filename from verbose format so compact-mode can display real names.
+  // Tracker may not exist yet on first tick; create a stub so gidNames survives.
+  if (progMatches.length > 0 && sessionId && !done && !failed) {
+    if (!_dlFileTracker.has(sessionId) && perFileData.length > 0) {
+      _dlFileTracker.set(sessionId, {
+        totalFileCount: 0, reportedTotal: 0, knownFiles: new Map(),
+        gidNames: new Map(), activeNames: new Set(), completedBytes: 0, completedCount: 0,
+      });
+    }
+    const _tr = _dlFileTracker.get(sessionId);
+    if (_tr) {
+      for (const _f of perFileData) {
+        if (_f.gid && _f.fileName && !_tr.gidNames.has(_f.gid)) {
+          _tr.gidNames.set(_f.gid, _f.fileName);
+        }
+      }
+    }
+  }
+
+  // Compact one-liner fallback: [DL:speed][#gid dl/total(pct%)]...
+  // The verbose Download Progress Summary scrolls out of the capture window after
+  // ~46s of active download; the compact line is always the most recent state.
+  if (progMatches.length === 0 && !done && !failed) {
+    const _compactLineRe = /^\[DL:[^\]]+\](?:\[#[0-9a-f]+\s[^\]]+\])+/;
+    const _lastCompact = out.split('\n').reverse().find(l => _compactLineRe.test(l.trim()));
+    if (_lastCompact) {
+      const _sm = _lastCompact.match(/^\[DL:([^\]]+)\]/);
+      if (_sm) { totalSpeedBytes = _parseIecBytes(_sm[1]); speed = _fmtSpeed(totalSpeedBytes); }
+      const _ctr = sessionId ? _dlFileTracker.get(sessionId) : null;
+      const _cgRe = /\[#([0-9a-f]+) ([^\s/\]]+)\/([^(\]]+)\((\d+)%\)\]/g;
+      let _cgm;
+      while ((_cgm = _cgRe.exec(_lastCompact)) !== null) {
+        const _gid = _cgm[1];
+        const _cachedName = _ctr?.gidNames?.get(_gid) || '';
+        perFileData.push({
+          gid: _gid,
+          fileName: _cachedName || _gid,  // real name from cache; gid as fallback tracker key
+          dlBytes: _parseIecBytes(_cgm[2]),
+          totalBytes: _parseIecBytes(_cgm[3].trim()),
+          pct: parseInt(_cgm[4], 10),
+          connections: 0, speed: '',
+          _syntheticGid: !_cachedName,   // true → show "downloading…" in per-file rows
+        });
+      }
+    }
+  }
+
   // Parallel mode: "[*] N file(s) (M in parallel)" line
   const parallelMatch = out.match(/\[\*\] Downloading \d+ file\(s\) \((\d+) in parallel\)/);
   const isParallel = !!parallelMatch;
@@ -603,6 +651,7 @@ function _parseDownloadState(text, sessionId) {
         totalFileCount: 0,
         reportedTotal: 0,
         knownFiles: new Map(),
+        gidNames: new Map(),
         activeNames: new Set(),
         completedBytes: 0,
         completedCount: 0,
@@ -667,12 +716,15 @@ function _parseDownloadState(text, sessionId) {
     _dlFileTracker.delete(sessionId);
   }
 
+  const authMatch = out.match(/\[\*\] HF auth: (.+)/);
+  const authStatus = authMatch ? authMatch[1].trim() : '';
+
   let phase = 'initializing';
-  if (done)                                             phase = 'done';
-  else if (failed || noBinary || noFiles || resolveErr) phase = 'error';
-  else if (totalFiles > 0 || progMatches.length > 0)   phase = 'downloading';
-  else if (out.includes('[*] Resolving file list'))     phase = 'resolving';
-  else if (out.includes('[*] Using aria2c:'))           phase = 'starting';
+  if (done)                                                                 phase = 'done';
+  else if (failed || noBinary || noFiles || resolveErr)                     phase = 'error';
+  else if (totalFiles > 0 || progMatches.length > 0 || perFileData.length > 0) phase = 'downloading';
+  else if (out.includes('[*] Resolving file list'))                         phase = 'resolving';
+  else if (out.includes('[*] Using aria2c:'))                               phase = 'starting';
 
   const failedCount = (out.match(/\[!\] Failed: /g) || []).length;
   let errorMsg = '';
@@ -686,7 +738,7 @@ function _parseDownloadState(text, sessionId) {
   }
 
   return { phase, totalFiles, currentFile, pct, dlSize, totalSize, speed, eta,
-           connections, activeDownloads, isParallel, isSingleFileSplit, done, failed, errorMsg, perFileData, completedCount };
+           connections, activeDownloads, isParallel, isSingleFileSplit, done, failed, errorMsg, perFileData, completedCount, authStatus };
 }
 
 // ── Download progress card ──
@@ -709,9 +761,11 @@ function _buildSingleFileRow(f) {
     : '';
   const speedStr = f.speed ? `${esc(f.speed)}${connBadge}` : '';
   const sep = (sizeStr && speedStr) ? `<span class="dl-stat-sep">\xb7</span>` : '';
+  const nameDisplay = f._syntheticGid ? 'downloading…' : _midTrunc(f.fileName, 38);
+  const nameTitle   = f._syntheticGid ? '' : esc(f.fileName);
   return `<div class="dl-file-row" data-dl-gid="${esc(f.gid)}">
       <div class="dl-file-row-top">
-        <span class="dl-file-row-name" title="${esc(f.fileName)}">${esc(_midTrunc(f.fileName, 38))}</span>
+        <span class="dl-file-row-name"${nameTitle ? ` title="${nameTitle}"` : ''}>${esc(nameDisplay)}</span>
         <span class="dl-file-row-pct">${f.pct}%</span>
       </div>
       <div class="dl-file-row-bar"><div class="dl-file-row-fill" style="width:${f.pct}%"></div></div>
@@ -719,10 +773,20 @@ function _buildSingleFileRow(f) {
     </div>`;
 }
 
+function _buildAuthPillHtml(authStatus) {
+  if (!authStatus) return '';
+  const _lock = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+  const _unlock = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a3 3 0 0 1 6 0"/></svg>';
+  if (authStatus.includes('authenticated'))  return `<span class="dl-auth-pill dl-auth-ok">${_lock} authenticated</span>`;
+  if (authStatus.includes('token provided')) return `<span class="dl-auth-pill dl-auth-wait">${_lock} token…</span>`;
+  if (authStatus.includes('no token'))       return `<span class="dl-auth-pill dl-auth-none">${_unlock} no token</span>`;
+  return `<span class="dl-auth-pill dl-auth-none">${esc(authStatus)}</span>`;
+}
+
 function _buildDownloadCardHtml(task, state) {
   const st = state || _parseDownloadState(task.output || '', task.sessionId);
   const { pct, dlSize, totalSize, speed, eta, connections, activeDownloads,
-          isParallel, isSingleFileSplit, currentFile, totalFiles, errorMsg, perFileData, completedCount } = st;
+          isParallel, isSingleFileSplit, currentFile, totalFiles, errorMsg, perFileData, completedCount, authStatus } = st;
   // Allow task.status to override the phase — e.g. 'paused' is set by the Pause
   // button and is not derivable from the tmux output alone.
   const phase = task.status === 'paused' ? 'paused' : st.phase;
@@ -740,6 +804,7 @@ function _buildDownloadCardHtml(task, state) {
   const fileRows = perFileData && perFileData.length > 1 && !isSingleFileSplit
     ? perFileData.map(_buildSingleFileRow).join('')
     : '';
+  const authPillHtml = _buildAuthPillHtml(authStatus);
 
   return `<div class="dl-card" data-dl-card data-dl-phase="${esc(phase)}">
     <div class="dl-phase-init">
@@ -765,6 +830,7 @@ function _buildDownloadCardHtml(task, state) {
         <span class="dl-stat dl-file-ctx" data-dl-file-ctx>${esc(fileCtx)}</span>
       </div>
       <div class="dl-files-list" data-dl-files>${fileRows}</div>
+      ${authPillHtml ? `<div class="dl-auth-row" data-dl-auth data-dl-auth-status="${esc(authStatus)}">${authPillHtml}</div>` : `<div class="dl-auth-row" data-dl-auth></div>`}
     </div>
     <div class="dl-done-banner">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -901,7 +967,25 @@ function _updateDownloadCard(el, task, snapshot) {
             const sep2 = (sizeStr && speedStr) ? `<span class="dl-stat-sep">\xb7</span>` : '';
             statsEl.innerHTML = `${sizeStr}${sep2}${speedStr}`;
           }
+          // Update file row name if it was synthetic (gid placeholder) and now has a real name
+          const nameEl2 = row.querySelector('.dl-file-row-name');
+          if (nameEl2 && !f._syntheticGid && f.fileName && f.fileName !== nameEl2.textContent) {
+            nameEl2.textContent = _midTrunc(f.fileName, 38);
+            nameEl2.title = f.fileName;
+          }
         }
+      }
+    }
+  }
+
+  // Update HF auth pill whenever authStatus changes
+  if (st.authStatus) {
+    const authEl = card.querySelector('[data-dl-auth]');
+    if (authEl) {
+      const prev = authEl.dataset.dlAuthStatus || '';
+      if (st.authStatus !== prev) {
+        authEl.dataset.dlAuthStatus = st.authStatus;
+        authEl.innerHTML = _buildAuthPillHtml(st.authStatus);
       }
     }
   }
@@ -1629,9 +1713,22 @@ async function _retryDownload(name, payload, replaceSessionId = '') {
         task.payload = _payload;
         task._retrying = false;
         _saveTasks(tasks);
-        _soloExpandTaskId = data.session_id;
-        _renderRunningTab();
-        _startBackgroundMonitor();
+        // Update existing DOM card in-place so the user sees the same card continue
+        // rather than a "new window" appearing. _renderRunningTab would rebuild the
+        // card from scratch (resetting phase to "Initializing…" and losing position).
+        const existingEl = document.querySelector(`.cookbook-task[data-task-id="${CSS.escape(replaceSessionId)}"]`);
+        if (existingEl) {
+          existingEl.dataset.taskId = data.session_id;
+          existingEl.dataset.status = 'running';
+          const _badge = existingEl.querySelector('.cookbook-task-status');
+          if (_badge) { _badge.textContent = 'downloading'; _badge.className = 'cookbook-task-status cookbook-task-running'; }
+          const _dlCard = existingEl.querySelector('[data-dl-card]');
+          if (_dlCard) { _dlCard.dataset.dlPhase = 'initializing'; }
+          if (existingEl._abort) existingEl._abort.abort();
+          _reconnectTask(existingEl, task);
+        } else {
+          _addTask(data.session_id, name, 'download', _payload);
+        }
       } else {
         _addTask(data.session_id, name, 'download', _payload);
       }
@@ -3105,7 +3202,7 @@ async function _reconnectTask(el, task) {
       const res = await fetch('/api/shell/exec', {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: _tmuxCmd(task, `capture-pane -t ${task.sessionId} -p -S -200`), timeout: 15 }),
+        body: JSON.stringify({ command: _tmuxCmd(task, `capture-pane -t ${task.sessionId} -p -S -500`), timeout: 15 }),
       });
       const data = await res.json();
 
@@ -3384,6 +3481,10 @@ async function _reconnectTask(el, task) {
 
         // Live status parsing for download tasks
         if (task.type === 'download') {
+          // Don't overwrite the badge for paused downloads. DOWNLOAD_OK appearing in cached
+          // output (from the pre-fix retry loop completing) must not flip the badge to "finished".
+          if (task.status === 'paused') { /* badge already set correctly by Pause handler */ }
+          else {
           const badge = el.querySelector('.cookbook-task-status');
           if (badge) {
             const completed = (snapshot.match(/Download complete/g) || []).length;
@@ -3596,6 +3697,7 @@ async function _reconnectTask(el, task) {
               break;
             }
           }
+          } // end else (not paused)
         }
 
         // Live status parsing for serve tasks — uses shared _parseServePhase

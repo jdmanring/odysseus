@@ -657,39 +657,47 @@ def setup_cookbook_routes() -> APIRouter:
                 # download's "not authorized" failure can be told apart from a missing
                 # token (the token is masked — we only print applied / not-set).
                 runner_lines.append(_HF_TOKEN_STATUS_SNIPPET)
-            # Wrap the download in a retry loop. Large HF/Ollama transfers can
-            # hit transient network failures; both backends resume cached partials.
-            mw = 4 if req.disable_hf_transfer else 8
-            runner_lines.append('_max_retries=10; _attempt=0; _ec=0')
-            runner_lines.append('while [ $_attempt -lt $_max_retries ]; do')
-            runner_lines.append('  _attempt=$((_attempt+1))')
-            if is_ollama_download:
-                runner_lines.append('  eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null')
+            if req.use_aria2c:
+                # aria2c handles resume via .aria2 sidecar files — no outer retry loop needed.
+                # The retry loop is harmful: C-c (Pause) exits aria2c non-zero and the loop
+                # would restart the download 30s later instead of staying paused.
+                runner_lines.append(f'{hf_cmd}')
+                runner_lines.append('_ec=$?')
+                runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec)"; fi')
             else:
-                runner_lines.append('  if command -v hf &>/dev/null; then')
-                runner_lines.append(f'    {hf_cmd} < /dev/null')
-                runner_lines.append('  elif python3 -c "import huggingface_hub" 2>/dev/null; then')
-                runner_lines.append('    [ $_attempt -eq 1 ] && echo "hf CLI not found, using Python huggingface_hub..."')
-                runner_lines.append(f'    python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(\'{req.repo_id}\'{_dl_pyarg}, max_workers={mw})"')
-                runner_lines.append('  else')
-                runner_lines.append('    echo "Installing huggingface-hub and dependencies..."')
-                runner_lines.append('    pip install --no-deps -q huggingface-hub 2>/dev/null')
-                if req.disable_hf_transfer:
-                    runner_lines.append('    pip install -q filelock fsspec packaging pyyaml tqdm typer httpx requests 2>/dev/null')
-                    runner_lines.append('    export HF_HUB_ENABLE_HF_TRANSFER=0')
+                # Retry loop for standard HF/Ollama downloads. Large transfers can hit
+                # transient network failures; both backends resume cached partials.
+                mw = 4 if req.disable_hf_transfer else 8
+                runner_lines.append('_max_retries=10; _attempt=0; _ec=0')
+                runner_lines.append('while [ $_attempt -lt $_max_retries ]; do')
+                runner_lines.append('  _attempt=$((_attempt+1))')
+                if is_ollama_download:
+                    runner_lines.append('  eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null')
                 else:
-                    runner_lines.append('    pip install -q filelock fsspec packaging pyyaml tqdm typer httpx requests hf_transfer 2>/dev/null')
-                    runner_lines.append("    python3 -c 'import hf_transfer' 2>/dev/null && export HF_HUB_ENABLE_HF_TRANSFER=1")
-                runner_lines.append(f'    python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(\'{req.repo_id}\'{_dl_pyarg}, max_workers={mw})"')
+                    runner_lines.append('  if command -v hf &>/dev/null; then')
+                    runner_lines.append(f'    {hf_cmd} < /dev/null')
+                    runner_lines.append('  elif python3 -c "import huggingface_hub" 2>/dev/null; then')
+                    runner_lines.append('    [ $_attempt -eq 1 ] && echo "hf CLI not found, using Python huggingface_hub..."')
+                    runner_lines.append(f'    python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(\'{req.repo_id}\'{_dl_pyarg}, max_workers={mw})"')
+                    runner_lines.append('  else')
+                    runner_lines.append('    echo "Installing huggingface-hub and dependencies..."')
+                    runner_lines.append('    pip install --no-deps -q huggingface-hub 2>/dev/null')
+                    if req.disable_hf_transfer:
+                        runner_lines.append('    pip install -q filelock fsspec packaging pyyaml tqdm typer httpx requests 2>/dev/null')
+                        runner_lines.append('    export HF_HUB_ENABLE_HF_TRANSFER=0')
+                    else:
+                        runner_lines.append('    pip install -q filelock fsspec packaging pyyaml tqdm typer httpx requests hf_transfer 2>/dev/null')
+                        runner_lines.append("    python3 -c 'import hf_transfer' 2>/dev/null && export HF_HUB_ENABLE_HF_TRANSFER=1")
+                    runner_lines.append(f'    python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(\'{req.repo_id}\'{_dl_pyarg}, max_workers={mw})"')
+                    runner_lines.append('  fi')
+                runner_lines.append('  _ec=$?')
+                runner_lines.append('  if [ $_ec -eq 0 ]; then break; fi')
+                runner_lines.append('  if [ $_attempt -lt $_max_retries ]; then')
+                runner_lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
+                runner_lines.append('    sleep 30')
                 runner_lines.append('  fi')
-            runner_lines.append('  _ec=$?')
-            runner_lines.append('  if [ $_ec -eq 0 ]; then break; fi')
-            runner_lines.append('  if [ $_attempt -lt $_max_retries ]; then')
-            runner_lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
-            runner_lines.append('    sleep 30')
-            runner_lines.append('  fi')
-            runner_lines.append('done')
-            runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
+                runner_lines.append('done')
+                runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
             runner_lines.append(f"rm -f {remote_runner}")
             runner_lines.append('exec "${SHELL:-/bin/bash}"')
             runner_path = TMUX_LOG_DIR / f"{session_id}_run.sh"
@@ -718,20 +726,28 @@ def setup_cookbook_routes() -> APIRouter:
             # "not authorized" failure apart from a missing token.
             if not is_ollama_download:
                 lines.append(_HF_TOKEN_STATUS_SNIPPET)
-            # Retry loop — same rationale as the remote-bash path. Issue #2722.
             _hf_invoke = 'eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null' if is_ollama_download else (hf_cmd if IS_WINDOWS else f"{hf_cmd} < /dev/null")
-            lines.append('_max_retries=10; _attempt=0; _ec=0')
-            lines.append('while [ $_attempt -lt $_max_retries ]; do')
-            lines.append('  _attempt=$((_attempt+1))')
-            lines.append(f'  {_hf_invoke}')
-            lines.append('  _ec=$?')
-            lines.append('  if [ $_ec -eq 0 ]; then break; fi')
-            lines.append('  if [ $_attempt -lt $_max_retries ]; then')
-            lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
-            lines.append('    sleep 30')
-            lines.append('  fi')
-            lines.append('done')
-            lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
+            if req.use_aria2c:
+                # aria2c handles resume via .aria2 sidecar files — no outer retry loop needed.
+                # The retry loop is harmful: C-c (Pause) exits aria2c non-zero and the loop
+                # would restart the download 30s later instead of staying paused.
+                lines.append(f'{_hf_invoke}')
+                lines.append('_ec=$?')
+                lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec)"; fi')
+            else:
+                # Retry loop for standard HF/Ollama downloads. Issue #2722.
+                lines.append('_max_retries=10; _attempt=0; _ec=0')
+                lines.append('while [ $_attempt -lt $_max_retries ]; do')
+                lines.append('  _attempt=$((_attempt+1))')
+                lines.append(f'  {_hf_invoke}')
+                lines.append('  _ec=$?')
+                lines.append('  if [ $_ec -eq 0 ]; then break; fi')
+                lines.append('  if [ $_attempt -lt $_max_retries ]; then')
+                lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
+                lines.append('    sleep 30')
+                lines.append('  fi')
+                lines.append('done')
+                lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
             if not IS_WINDOWS:
                 lines.append(f"rm -f '{wrapper_script}'")
                 lines.append('exec "${SHELL:-/bin/bash}"')
