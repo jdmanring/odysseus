@@ -1628,6 +1628,21 @@ def setup_cookbook_routes() -> APIRouter:
                 runner_lines.append('  while true; do sleep 3600; done')
                 runner_lines.append('fi')
                 runner_lines.append('exec bash -i')
+                if local_windows:
+                    # Detached background process — no interactive shell to keep open.
+                    # Print the exit marker the status poller looks for, then stop.
+                    _append_serve_exit_code_lines(
+                        runner_lines,
+                        keep_shell_open=False,
+                        is_pip_install=is_pip_install,
+                    )
+                else:
+                    # Keep shell open after exit so user can see errors
+                    _append_serve_exit_code_lines(
+                        runner_lines,
+                        keep_shell_open=True,
+                        is_pip_install=is_pip_install,
+                    )
 
             if not handled_ollama_serve and not handled_ollama_sidecar_probe:
                 _append_serve_preflight_exit_lines(
