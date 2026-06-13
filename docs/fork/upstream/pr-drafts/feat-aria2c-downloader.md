@@ -106,9 +106,19 @@ there is only one logical file to track.
 
 The task actions menu (`⋮`) now toggles — a second click closes the dropdown
 instead of dismissing and immediately recreating it. Completed download cards
-show a green check that clears the card on click; the `_canClearTask` path
-correctly uses `done` status as the source of truth rather than output-buffer
-content, which would retain historical progress lines after completion.
+show a green check that clears the card on click.
+
+Zombie detection uses a heartbeat timestamp on `_dlFileTracker` rather than
+output-buffer content. `_dlFileTracker` is stamped (`lastActiveAt = Date.now()`)
+on every poll tick that sees live aria2c progress, and deleted when `DOWNLOAD_OK`
+is found. `_downloadOutputLooksActive` checks tracker recency (< 20 s) for
+aria2c tasks instead of regex-matching the tmux capture-pane buffer, which
+retains historical progress lines after completion and would permanently block
+the clear pill. The `DOWNLOAD_OK` sentinel overrides the tracker so the clear
+pill appears immediately on completion regardless of when the tracker was last
+stamped. The in-place DOM resume path explicitly shows the wave spinner so
+multi-file downloads display activity immediately on resume without waiting for
+the next `_renderRunningTab` cycle.
 
 **`static/js/cookbook-hwfit.js`** — `refreshCachedModelIds()` now handles local
 downloads (no `remoteHost`). Previously returned early for empty host, making
@@ -218,25 +228,30 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
 - [x] Download a single-file GGUF model — progress card shows correct total
   size throughout (not doubled); connection count shows split count, not 2×;
-  downloaded-dot (●) appears on catalog row immediately without page reload
-- [x] Download a multi-shard model (25 files, 115 GiB) — per-file rows show
+  downloaded-dot (●) appears on catalog row immediately on completion
+- [x] Download a multi-shard model (25 files, 44.97 GiB) — per-file rows show
   correct filenames; overall percentage, total size, and ETA all reflect the
   full model size (not just the 4 currently active files)
 - [x] Pause single-file download — card shows `paused` badge and type chip;
   does not flip to `finished` after the background reconciliation loop fires
 - [x] Pause multi-file download — same; clicking the task header to
   collapse/expand does not cause a spurious `finished` transition
-- [x] Resume paused download — resumes from last completed byte; aria2c
-  `--continue=true` confirmed working
+- [x] Resume paused single-file download — wave spinner reappears immediately;
+  resumes from last completed byte; aria2c `--continue=true` confirmed working
+- [x] Resume paused multi-file download — wave spinner reappears immediately
+  on resume (in-place DOM update shows wave without waiting for re-render cycle)
 - [x] Resume behavior on restart — restarting a download after interruption
   resumes from last completed byte; verified via `test_resume_is_idempotent`
-- [x] GGUF auto-discovered repo — downloaded-dot appears for both in-session
-  completion and after page reload
+- [x] Clear Finished — works immediately after download completes; no delay
+  waiting for zombie-detection timeout; `DOWNLOAD_OK` sentinel overrides tracker
+- [x] Spinner stays visible throughout active download — clear button does not
+  appear mid-download (tracker-timestamp zombie detection verified)
+- [x] GGUF auto-discovered repo — downloaded-dot appears on completion
+- [x] HF token auth — `authed` badge visible in screenshot; token found and
+  applied to aria2c Bearer header for a 44.97 GiB 25-file download
 
 **Still needs manual verification before filing:**
 
-- [x] HF token auth — `authed` badge visible in screenshot; token found and
-  applied to aria2c Bearer header for a 44.97 GiB 25-file download
 - [ ] Cancel mid-download — tmux session teardown and partial-file cleanup
 - [ ] Windows local install — progress card not expected (known limitation),
   but download completion should still work via the log-file path
