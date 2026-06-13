@@ -1,6 +1,6 @@
 # Active Work
 
-Current in-progress items as of 2026-06-11. (GPU flicker fix added 2026-06-11)
+Last updated: 2026-06-13. Fork is at milestone `v1.0.0-fork.1` — all CI passing on main.
 
 ---
 
@@ -8,40 +8,63 @@ Current in-progress items as of 2026-06-11. (GPU flicker fix added 2026-06-11)
 
 | Issue | Branch | Status |
 |-------|--------|--------|
-| [#4 Tool results misattributed as user messages](https://github.com/jdmanring/odysseus/issues/4) | `fix/tool-result-role` | Fix rebuilt from current upstream-mirror (ccf5342). Both agent_loop.py + llm_core.py changes now correctly in develop. Needs end-to-end verification before closing. |
-| [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | WIP — workaround script only; backend endpoint + JS needed |
-| [#5 gh CLI unusable in Odysseus agent context](https://github.com/jdmanring/odysseus/issues/5) | `feat/github-integration` | GitHub preset added to integrations framework. Agent uses api_call tool with token auth. Staged — ready to file upstream. |
-| [#3 External links don't navigate in Qt wrapper](https://github.com/jdmanring/odysseus/issues/3) | `feat/qt-native-linux-app` | Fix in develop. Reopened — upstream contribution not yet tracked (part of #14 Qt wrapper PR). |
-| [#18 AI-first documentation system](https://github.com/jdmanring/odysseus/issues/18) | `feat/ai-documentation-system` | Reopened — was incorrectly closed as fork-only. AI_RULES.md + AI_CONTEXT.md are upstream-candidate. See also #21, #22. |
-| [#20 BinManager test suite](https://github.com/jdmanring/odysseus/issues/20) | `develop` (direct) | Tests in develop. Reopened — was incorrectly labeled fork-only. Tests go upstream bundled with #12 (aria2c downloader). |
+| [#35 hf_transfer removal](https://github.com/jdmanring/odysseus/issues/35) | not started | Strip all hf_transfer install/enable code from cookbook_routes.py. Needs issue + branch. |
 
 ---
 
-## Recently Completed (on develop)
+## Needs Squash Before Filing Upstream
+
+These staging branches picked up fix commits during CI debugging and now have 2 commits.
+Squash to a single clean commit before filing the upstream PR.
+
+| Branch | Extra commit reason |
+|--------|-------------------|
+| `feat/aria2c-downloader` | f-string Python 3.11 compat fix (two occurrences of backslash-in-f-string-expression) |
+| `feat/logging-core` | gitleaks:allow on test fixture |
+| `feat/logging-timing` | missing `import time as _time` in `_imap_connect`; chroma `_port_open` tuple test fix |
+
+---
+
+## Staged for Upstream — Ready to File
+
+All branches are built from `upstream-mirror`, contain only their specific changes, and are
+pushed to `origin`. James files the upstream PRs. See `docs/fork/upstream/pr-status.md` for
+full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
+
+| Branch | Issue(s) | Notes |
+|--------|----------|-------|
+| `fix/agent-tool-budget` | [#10](https://github.com/jdmanring/odysseus/issues/10) | Single commit, ready |
+| `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Single commit, ready |
+| `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Single commit, ready |
+| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready |
+| `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Single commit, ready |
+| `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Single commit, ready |
+| `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Single commit, ready |
+| `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Single commit, ready. File upstream issue first. |
+| `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | **Squash needed** (2 commits). Verified 2026-06-12: pause/resume, split-file, zombie detection, clear-finished, resume spinner, cancel. Windows buffering fix in — untested. |
+| `feat/catppuccin-theme` | [#30](https://github.com/jdmanring/odysseus/issues/30) | Single commit, ready |
+| `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Single commit, ready |
+| `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Single commit, ready |
+| `fix/gpu-compositor-flicker` | [#32](https://github.com/jdmanring/odysseus/issues/32) | Single commit, ready |
+| `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Single commit, ready |
+| `feat/github-integration` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Single commit, ready |
+| `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Single commit, ready |
+| `feat/logging-core` | [#31](https://github.com/jdmanring/odysseus/issues/31) | **Squash needed** (2 commits). File before logging-timing. |
+| `feat/logging-timing` | [#31](https://github.com/jdmanring/odysseus/issues/31) | **Squash needed** (2 commits). File after logging-core. |
+
+---
+
+## Superseded / Closed
 
 | Issue | Branch | Notes |
 |-------|--------|-------|
-| [#26 Filesystem access broken](https://github.com/jdmanring/odysseus/issues/26) | ~~`fix/filesystem-access-regression`~~ | Retired — superseded by upstream #3665 (workspace confinement). Use `/workspace` to grant file access. Issue closed. |
-| [#28 Filesystem tools crash — dead workspace import](https://github.com/jdmanring/odysseus/issues/28) | ~~`fix/agent-tools-workspace-import`~~ | Retired — upstream #3665 properly defines `_resolve_tool_path_in_workspace`. Branch emptied; issue closed. |
+| [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | Closed 2026-06-12 — superseded by upstream #3459 (`load_stored_hf_token()` in cookbook_helpers.py) |
+| [#34 HF token env fallback](https://github.com/jdmanring/odysseus/issues/34) | `fix/hf-token-env-fallback` | Closed 2026-06-12 — same upstream fix covers this |
 
 ---
 
-## Previously Completed
+## Fork-Only Work
 
 | Issue | Branch | Notes |
 |-------|--------|-------|
-| [#2 Renderer OOM — DOM virtualization](https://github.com/jdmanring/odysseus/issues/2) | `fix/dom-oom-virtualization` | Staging branch rebuilt as single clean commit (8db240a). Drain and session-load scroll verified working. Ready to file — create upstream issue, then open PR from staging branch. |
-| [#9 realesrgan / basicsr broken on Python 3.14](https://github.com/jdmanring/odysseus/issues/9) | `fix/basicsr-python314-compat` | `install-basicsr.sh` patches incompatible C extension. In develop. Upstream draft staged — ready to file. |
-| [#11 streamingTTS ReferenceError in catch block](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | `let` hoisted out of try block. Upstream draft staged — ready to file. |
-| [#12 aria2c downloader](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | `feat/aria2c-downloader` | Multi-connection HF downloads + BinManager + reliability fixes (folded from #23: tmux width, totalFiles fallback, conn_per_file 3, tab indent, HfUrlResolver fallback). Needs integration test run + screenshot. |
-| [#24 Dynamic GGUF source discovery](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | `fix/gguf-quality-scored` | Quality-scored discovery, mmproj filter, model.quant precedence, tier-aware closest-quant fallback. **Verified 2026-06-11**: Llama-3.2-11B-Vision-Instruct downloaded Q4_K_M (not mmproj); DeepSeek-V2-Lite-Chat downloaded IQ4_XS (best in tier 4 from imatrix-only repo). Ready to file — see pr-drafts/feat-gguf-discovery.md. |
-| [#13 Color picker eyedropper broken in Qt](https://github.com/jdmanring/odysseus/issues/13) | `feat/qt-native-linux-app` | `qtBridge.openColorDialog()` replaces Web EyeDropper. Merged into #14. |
-| [#14 Native Linux desktop app](https://github.com/jdmanring/odysseus/issues/14) + [#32](https://github.com/jdmanring/odysseus/issues/32) | `feat/qt-native-linux-app` + `fix/gpu-compositor-flicker` | `linux_wrapper.py` GPU flag fix committed to staging branch. CSS backdrop-filter fix on separate branch. Both in develop. Needs verification — restart app and test sidebar hover, dropdowns, Settings/Providers. Upstream draft needs update before filing. |
-| [#16 Download UI overhaul](https://github.com/jdmanring/odysseus/issues/16) | `feat/download-ui-overhaul` | Per-file progress rows, accurate overall progress, `_dlFileTracker` |
-| [#17 QWebEngineView localStorage wipes on exit](https://github.com/jdmanring/odysseus/issues/17) | `feat/qt-native-linux-app` | Persistent profile path set. Merged into #14. |
-
----
-
-## Staged for Upstream (awaiting James to file)
-
-See `docs/fork/upstream/pr-status.md` for full readiness status of all upstream contributions.
+| [#15 Upstream sync pipeline](https://github.com/jdmanring/odysseus/issues/15) | `feat/upstream-sync-pipeline` | Manages fork/upstream relationship — not applicable upstream |
