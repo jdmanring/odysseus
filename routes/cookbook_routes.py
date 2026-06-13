@@ -40,6 +40,10 @@ from routes.cookbook_helpers import (
     _ps_squote, _bash_squote, _validate_serve_cmd, _parse_serve_phase,
     _safe_env_prefix, _local_tooling_path_export, _append_serve_preflight_exit_lines,
     _append_serve_exit_code_lines, _append_llama_cpp_linux_accel_build_lines, _cached_model_scan_script,
+    load_stored_hf_token,
+    _append_vllm_linux_preflight_lines, _ollama_bind_from_cmd, _pip_install_fallback_chain,
+    _pip_install_no_cache, _user_shell_path_bootstrap, _venv_safe_local_pip_install_cmd,
+    _diagnose_serve_output, run_ssh_command_async,
     _ollama_bind_from_cmd, _pip_install_fallback_chain, _pip_install_no_cache,
     _user_shell_path_bootstrap, _venv_safe_local_pip_install_cmd,
     ModelDownloadRequest, ServeRequest,
@@ -235,16 +239,7 @@ def setup_cookbook_routes() -> APIRouter:
         return state
 
     def _load_stored_hf_token() -> str:
-        if _cookbook_state_path.exists():
-            try:
-                state = json.loads(_cookbook_state_path.read_text(encoding="utf-8"))
-                env = state.get("env") if isinstance(state, dict) else {}
-                stored = _decrypt_secret(env.get("hfToken") if isinstance(env, dict) else "")
-                if stored:
-                    return stored
-            except Exception:
-                pass
-        return os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or ""
+        return load_stored_hf_token(state_path=_cookbook_state_path)
 
     def _cookbook_ssh_dir() -> Path:
         # The Docker image keeps cookbook keys under /app/.ssh; that path only
