@@ -597,6 +597,7 @@ function _parseDownloadState(text, sessionId) {
           _tr.gidNames.set(_f.gid, _f.fileName);
         }
       }
+      if (reportedTotalBytes && !_tr.reportedTotal) _tr.reportedTotal = reportedTotalBytes;
     }
   }
 
@@ -615,14 +616,17 @@ function _parseDownloadState(text, sessionId) {
       while ((_cgm = _cgRe.exec(_lastCompact)) !== null) {
         const _gid = _cgm[1];
         const _cachedName = _ctr?.gidNames?.get(_gid) || '';
+        const _gidVals  = _ctr?.gidNames ? new Set(_ctr.gidNames.values()) : new Set();
+        const _fallback = (!_cachedName && _gidVals.size === 1) ? [..._gidVals][0] : '';
+        const _dispName = _cachedName || _fallback;
         perFileData.push({
           gid: _gid,
-          fileName: _cachedName || _gid,  // real name from cache; gid as fallback tracker key
+          fileName: _dispName || _gid,   // real name from cache; gid as fallback tracker key
           dlBytes: _parseIecBytes(_cgm[2]),
           totalBytes: _parseIecBytes(_cgm[3].trim()),
           pct: parseInt(_cgm[4], 10),
           connections: 0, speed: '',
-          _syntheticGid: !_cachedName,   // true → show "downloading…" in per-file rows
+          _syntheticGid: !_dispName,     // true → show "downloading…" in per-file rows
         });
       }
     }
@@ -630,12 +634,22 @@ function _parseDownloadState(text, sessionId) {
 
   // Parallel mode: "[*] N file(s) (M in parallel)" line.
   // This banner only appears once at the start and scrolls out of the 500-line capture
-  // window after ~60s. Persist the flag in the tracker so per-file rows keep updating
-  // after the banner scrolls away.
+  // window after ~60s. We must persist wasParallel immediately when the banner is seen —
+  // the tracker doesn't exist yet at that point (perFileData is still empty), so we
+  // initialize a stub here rather than waiting for the lazy-init block below.
   const parallelMatch = out.match(/\[\*\] Downloading \d+ file\(s\) \((\d+) in parallel\)/);
-  const _trForParallel = sessionId ? _dlFileTracker.get(sessionId) : null;
-  if (parallelMatch && _trForParallel) _trForParallel.wasParallel = true;
-  const isParallel = !!parallelMatch || !!_trForParallel?.wasParallel;
+  if (parallelMatch && sessionId && !done && !failed) {
+    if (!_dlFileTracker.has(sessionId)) {
+      _dlFileTracker.set(sessionId, {
+        totalFileCount: 0, reportedTotal: 0, knownFiles: new Map(),
+        gidNames: new Map(), activeNames: new Set(), completedBytes: 0, completedCount: 0,
+        wasParallel: true,
+      });
+    } else {
+      _dlFileTracker.get(sessionId).wasParallel = true;
+    }
+  }
+  const isParallel = !!parallelMatch || !!(sessionId && _dlFileTracker.get(sessionId)?.wasParallel);
 
   // Detect single-file-split: aria2c --split=N downloads one file in N pieces,
   // each piece gets its own gid and reports totalBytes = (file_size / N).
@@ -645,6 +659,29 @@ function _parseDownloadState(text, sessionId) {
   // against piece-size rather than full-file-size.
   const _pfNames = new Set(perFileData.filter(f => f.fileName).map(f => f.fileName));
   const isSingleFileSplit = perFileData.length > 1 && _pfNames.size <= 1;
+
+  // For split downloads, aria2c emits both a parent GID (full file size, CN:N) and N piece
+  // GIDs (each 1/N size, CN:1). Summing all entries doubles totalTotalBytes and inflates
+  // connections. Correct by using parent-entry values (max) when a parent is present, or
+  // summing piece values when only pieces are shown.
+  if (isSingleFileSplit && perFileData.length > 0) {
+    const hasSplitParent = Math.max(...perFileData.map(f => f.connections)) > 1;
+    const trueTotal = (_dlFileTracker.get(sessionId)?.reportedTotal)
+      || (hasSplitParent
+        ? Math.max(...perFileData.map(f => f.totalBytes))
+        : perFileData.reduce((s, f) => s + f.totalBytes, 0));
+    const trueDl    = hasSplitParent
+      ? Math.max(...perFileData.map(f => f.dlBytes))
+      : perFileData.reduce((s, f) => s + f.dlBytes, 0);
+    connections     = hasSplitParent
+      ? Math.max(...perFileData.map(f => f.connections))
+      : perFileData.reduce((s, f) => s + f.connections, 0);
+    if (trueTotal > 0) {
+      pct       = Math.min(100, Math.round(trueDl / trueTotal * 100));
+      dlSize    = _fmtIecBytes(trueDl);
+      totalSize = _fmtIecBytes(trueTotal);
+    }
+  }
 
   // ── Persistent multi-batch tracker ──
   // Accumulates completed-file bytes across poll ticks so overall progress
@@ -673,24 +710,32 @@ function _parseDownloadState(text, sessionId) {
     if (reportedTotalBytes && !tr.reportedTotal) tr.reportedTotal = reportedTotalBytes;
 
     // Record sizes of files we see for the first time.
-    // Use fileName when available; fall back to gid so empty-fileName verbose
-    // entries (FILE: line outside lookahead) still get their sizes tracked.
+    // Skip _syntheticGid entries: compact-format ticks use gid as the key, but verbose
+    // ticks use the real filename. If we stored gid here, the first verbose tick would
+    // see all gid keys in activeNames but real names in curNames → false completions →
+    // completedBytes jumps to ~100% of model size immediately.
     for (const f of perFileData) {
-      const _fkey = f.fileName || f.gid;
-      if (_fkey && f.totalBytes > 0 && !tr.knownFiles.has(_fkey)) {
-        tr.knownFiles.set(_fkey, f.totalBytes);
+      if (f._syntheticGid) continue;
+      if (f.fileName && f.totalBytes > 0 && !tr.knownFiles.has(f.fileName)) {
+        tr.knownFiles.set(f.fileName, f.totalBytes);
       }
     }
 
-    // Files that were active last tick but aren't now have completed
-    const curNames = new Set(perFileData.map(f => f.fileName || f.gid).filter(Boolean));
-    for (const name of tr.activeNames) {
-      if (!curNames.has(name) && tr.knownFiles.has(name)) {
-        tr.completedBytes += tr.knownFiles.get(name);
-        tr.completedCount++;
+    // Files that were active last tick but aren't now have completed.
+    // Only compare real filenames (not synthetic gid placeholders).
+    const curNames = new Set(perFileData.filter(f => !f._syntheticGid && f.fileName).map(f => f.fileName));
+    if (curNames.size > 0) {
+      for (const name of tr.activeNames) {
+        if (!curNames.has(name) && tr.knownFiles.has(name)) {
+          tr.completedBytes += tr.knownFiles.get(name);
+          tr.completedCount++;
+        }
       }
+      tr.activeNames = curNames;
     }
-    tr.activeNames = curNames;
+    // When curNames is empty (all-synthetic compact tick), preserve tr.activeNames.
+    // Treating an empty set as "all completed" causes completedBytes to jump to the
+    // full model size on every compact-only tick where verbose GIDs aren't present.
     completedCount = tr.completedCount;
 
     // Recompute pct / dlSize / totalSize / eta using overall model progress
@@ -703,10 +748,13 @@ function _parseDownloadState(text, sessionId) {
       let estTotal = 0;
       if (tr.reportedTotal > 0) {
         estTotal = tr.reportedTotal;
-      } else if (tr.totalFileCount > 0 && tr.knownFiles.size > 0) {
-        const knownSizes  = [...tr.knownFiles.values()];
-        const avgFileSize = knownSizes.reduce((s, v) => s + v, 0) / knownSizes.length;
-        estTotal = Math.round(avgFileSize * tr.totalFileCount);
+      } else if (tr.knownFiles.size > 0) {
+        const knownSizes     = [...tr.knownFiles.values()];
+        const knownSum       = knownSizes.reduce((s, v) => s + v, 0);
+        const avgFileSize    = knownSum / knownSizes.length;
+        const canExtrapolate = tr.knownFiles.size > 1 && tr.totalFileCount > tr.knownFiles.size;
+        const totalCount     = canExtrapolate ? tr.totalFileCount : tr.knownFiles.size;
+        estTotal = Math.round(avgFileSize * totalCount);
       }
       if (estTotal > 0) {
         pct       = Math.min(99, Math.round(overallDl / estTotal * 100));
@@ -945,7 +993,36 @@ function _updateDownloadCard(el, task, snapshot) {
     }
 
     // Per-file rows: update in-place by GID; add new rows, remove completed ones.
-    // isSingleFileSplit rows are suppressed — they're just N pieces of one file.
+    // For isSingleFileSplit (--split=N segments), show one merged row with the real filename.
+    if (st.isSingleFileSplit) {
+      const filesList = card.querySelector('[data-dl-files]');
+      if (filesList) {
+        filesList.querySelectorAll('[data-dl-gid]:not([data-dl-gid="split-merged"])').forEach(r => r.remove());
+        const realEntry = st.perFileData.find(f => !f._syntheticGid && f.fileName);
+        if (realEntry) {
+          let row = filesList.querySelector('[data-dl-gid="split-merged"]');
+          if (!row) {
+            row = document.createElement('div');
+            row.className = 'dl-file-row';
+            row.dataset.dlGid = 'split-merged';
+            row.innerHTML = `<div class="dl-file-row-top">
+              <span class="dl-file-row-name">${esc(_midTrunc(realEntry.fileName, 38))}</span>
+              <span class="dl-file-row-pct">${st.pct}%</span>
+            </div>
+            <div class="dl-file-row-bar"><div class="dl-file-row-fill" style="width:${st.pct}%"></div></div>`;
+            filesList.appendChild(row);
+          } else {
+            const fillEl = row.querySelector('.dl-file-row-fill');
+            if (fillEl) fillEl.style.width = st.pct + '%';
+            const pctEl = row.querySelector('.dl-file-row-pct');
+            if (pctEl) pctEl.textContent = st.pct + '%';
+          }
+        } else {
+          filesList.innerHTML = '';
+        }
+      }
+    }
+
     if (st.perFileData && st.perFileData.length > 0 && (st.isParallel || st.perFileData.length > 1) && !st.isSingleFileSplit) {
       const filesList = card.querySelector('[data-dl-files]');
       const _hideStats = st.perFileData.length === 1;
@@ -957,6 +1034,7 @@ function _updateDownloadCard(el, task, snapshot) {
         for (const f of st.perFileData) {
           let row = filesList.querySelector(`[data-dl-gid="${CSS.escape(f.gid)}"]`);
           if (!row) {
+            if (f.pct >= 100) continue; // pre-completed on resume — don't flash a full bar
             const tmp = document.createElement('div');
             tmp.innerHTML = _buildSingleFileRow(f, _hideStats);
             row = tmp.firstElementChild;
@@ -1724,6 +1802,7 @@ async function _retryDownload(name, payload, replaceSessionId = '') {
         task.ts = Date.now();
         task.payload = _payload;
         task._retrying = false;
+        _tombstoneTask(replaceSessionId);
         _saveTasks(tasks);
         // Update existing DOM card in-place so the user sees the same card continue
         // rather than a "new window" appearing. _renderRunningTab would rebuild the
@@ -2405,7 +2484,7 @@ export function _renderRunningTab() {
       // Type chip doubles as the "finished" badge once a task completes — both
       // download and serve show the same green FINISHED chip.
       const typeChip = el.querySelector('.cookbook-task-type');
-      if (typeChip) {
+      if (typeChip && task.status !== 'paused') {
         // Only DOWNLOAD tasks flip to "finished" when done — serve tasks keep
         // saying "serve" because the model is still running on that port.
         const isDoneDl = isDone && task.type === 'download';
@@ -2413,7 +2492,7 @@ export function _renderRunningTab() {
         typeChip.classList.toggle('cookbook-task-type-done', isDoneDl);
       }
       const badge = el.querySelector('.cookbook-task-status');
-      if (badge) {
+      if (badge && task.status !== 'paused') {
         const _bdg = _taskBadge(task);
         badge.textContent = _bdg.text;
         badge.className = 'cookbook-task-status' + (_bdg.cls ? ' ' + _bdg.cls : '');
@@ -3113,7 +3192,11 @@ export function _renderRunningTab() {
           _dlResumeBtn._bound = true;
           _dlResumeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            _retryTask(el, task);
+            // Read current session ID at click time — el.dataset.taskId is updated in-place
+            // by _retryDownload after each resume, so the closure-captured `task` is stale.
+            const _curSid = el.dataset.taskId;
+            const _liveTask = (_loadTasks().find(t => t.sessionId === _curSid)) || { ...task, sessionId: _curSid };
+            _retryTask(el, _liveTask);
           });
         }
 
@@ -3509,7 +3592,7 @@ async function _reconnectTask(el, task) {
         if (task.type === 'download') {
           // Don't overwrite the badge for paused downloads. DOWNLOAD_OK appearing in cached
           // output (from the pre-fix retry loop completing) must not flip the badge to "finished".
-          if (task.status === 'paused') { /* badge already set correctly by Pause handler */ }
+          if (task.status === 'paused' || el.dataset.status === 'paused') { /* paused — skip badge update */ }
           else {
           const badge = el.querySelector('.cookbook-task-status');
           if (badge) {
@@ -4249,11 +4332,12 @@ async function _pollBackgroundStatus() {
             : (live.status === 'stopped'
                 ? (depDone ? 'done' : (task.type === 'download' ? 'crashed' : 'stopped'))
                 : null));
-        if (nextStatus && task.status !== nextStatus) {
+        if (nextStatus && task.status !== nextStatus && task.status !== 'paused') {
           updates.status = nextStatus;
           if (nextStatus === 'done' && task.payload?._dep) completedDeps.push(task);
         }
-        if ((live.status === 'running' || live.status === 'ready') && task.status !== live.status) {
+        if ((live.status === 'running' || live.status === 'ready') && task.status !== live.status &&
+            task.status !== 'paused') {
           updates.status = live.status === 'ready' ? 'ready' : 'running';
         }
         if (live.progress && live.progress !== task.progress) updates.progress = live.progress;
