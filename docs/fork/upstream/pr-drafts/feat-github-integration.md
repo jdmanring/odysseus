@@ -32,9 +32,9 @@ The agent had no way to interact with GitHub. The `gh` CLI requires interactive 
 
 ## Solution
 
-A new `"github"` preset in `INTEGRATION_PRESETS` (`src/integrations.py`), following the same pattern as the existing Gitea preset:
+A new `"github"` preset in `INTEGRATION_PRESETS` (`src/integrations.py`), following the same pattern as the existing Home Assistant preset:
 
-- **Auth:** `header` with `Authorization: token YOUR_TOKEN`
+- **Auth:** `bearer` — sends `Authorization: Bearer YOUR_TOKEN` (GitHub REST API accepts Bearer tokens)
 - **Base URL:** `https://api.github.com`
 - **Token:** GitHub Personal Access Token (classic) with `repo` scope — created at `https://github.com/settings/tokens`
 
@@ -42,9 +42,9 @@ A new `"github"` preset in `INTEGRATION_PRESETS` (`src/integrations.py`), follow
 
 | File | Change |
 |------|--------|
-| `src/integrations.py` | Added `github` preset with `base_url`, auth config, and endpoint documentation |
+| `src/integrations.py` | Added `github` preset with `base_url`, `bearer` auth type, and endpoint documentation |
 | `routes/auth_routes.py` | Added `/user` health-check path; test returns authenticated user's login name |
-| `static/js/settings.js` | Added GitHub icon to preset logo map; `_applyPreset` now populates Base URL when the preset defines one |
+| `static/js/settings.js` | Added GitHub icon to preset logo map; `_applyPreset` now populates Base URL and sets preset on edit reopen |
 
 ### User flow
 
