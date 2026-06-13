@@ -83,4 +83,6 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+`static/js/chat.js` is a DOM-writing module, but this specific change is
+limited to variable scoping (`const` → `let` hoist). No DOM writes, class
+modifications, style changes, or visible behavior changed. No screenshot needed.

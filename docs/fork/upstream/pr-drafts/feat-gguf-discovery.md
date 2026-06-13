@@ -211,4 +211,7 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/feat-gguf-discovery
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+`static/js/cookbookDownload.js` is a DOM-writing module, but the additions in
+this PR are pure data structures and resolver logic (quant quality ranking
+table, tier range map, closest-match functions). No DOM writes, class
+modifications, or UI behavior changed. No screenshot needed.
