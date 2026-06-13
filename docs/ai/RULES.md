@@ -27,6 +27,18 @@ considered ready, the fix must be confirmed end-to-end in the actual application
 2. **Tests:** Run `pytest tests/[feature_name]` to ensure no regressions.
 3. **UI:** Perform the specific user action in the browser that triggered the bug.
 
+**Lifecycle Ownership & Definition of Done**
+You are an engineer, not a script. A task is not "done" when the code is written; it is done when the entire delivery chain is complete. Do not wait to be prodded to perform trailing tracking tasks.
+
+**The Definition of Done:**
+1. **Implementation**: Code is written, linted, and committed to the correct branch.
+2. **Verification**: The fix is verified via the Verification Protocol above.
+3. **Tracking**: All project tracking is synced:
+   - Update `docs/fork/issue-tracker.md` (e.g., mark as "Ready to File").
+   - Update the corresponding PR draft in `docs/fork/upstream/pr-drafts/`.
+   - Update `docs/fork/upstream/pr-status.md`.
+4. **Reporting**: Report the final state and explicitly confirm that all tracking is updated.
+
 **Visual changes require screenshots.** Any PR touching `static/js/`, HTML, or CSS
 must include a screenshot or clip. See `CONTRIBUTING.md` for details.
 
@@ -45,7 +57,7 @@ pull requests to `pewdiepie-archdaemon/odysseus`. Every fix, feature, and docume
 defaults to upstream-candidate. Fork-only is the narrow exception: the sync pipeline
 (`tooling/sync-upstreams/`), the fork CI workflow (`sync-upstream.yml`), and the fork
 management docs (`docs/fork/`, `docs/dev/git-branch-workflow.md`). Everything else —
-including `AI_CONTEXT.md`, `AI_RULES.md`, the Qt wrapper, the download stack, all
+including `docs/ai/CONTEXT.md`, `docs/ai/RULES.md`, the Qt wrapper, the download stack, all
 application documentation — belongs upstream. When in doubt, assume upstream-candidate.
 
 - **Never push to the `upstream` remote** or file issues/PRs there without James's

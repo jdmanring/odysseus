@@ -1,7 +1,7 @@
 # Odysseus Fork — Claude Code Instructions
 
-Read `AI_CONTEXT.md` for the code mental model and fork context.
-Full hard rules: `AI_RULES.md`. Active work: `docs/fork/active-work.md`.
+Read `docs/ai/CONTEXT.md` for the code mental model and fork context.
+Full hard rules: `docs/ai/RULES.md`. Active work: `docs/fork/active-work.md`.
 Branch and pipeline rules: `docs/dev/git-branch-workflow.md` — read before touching any branch.
 
 ---
@@ -21,7 +21,7 @@ Fork-only is the narrow exception, reserved for the workshop tooling itself:
 - `tooling/sync-upstreams/` — the sync pipeline
 - `.github/workflows/sync-upstream.yml` — CI for the sync
 
-Everything else defaults to upstream-candidate: bug fixes, features, `linux_wrapper.py`, the download stack, UI work, `AI_CONTEXT.md`, `AI_RULES.md`, architecture docs, user docs. If it makes Odysseus better, it belongs upstream.
+Everything else defaults to upstream-candidate: bug fixes, features, `linux_wrapper.py`, the download stack, UI work, `docs/ai/CONTEXT.md`, `docs/ai/RULES.md`, architecture docs, user docs. If it makes Odysseus better, it belongs upstream.
 
 **Never classify something as fork-only without a specific reason it cannot go upstream.** "It touches fork-specific code" is not a reason — that code is usually itself upstream-candidate. When in doubt, assume upstream-candidate.
 

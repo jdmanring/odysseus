@@ -162,7 +162,7 @@ The `tooling/` directory contains critical utilities. Check here before writing 
 ## Fork Pipeline — Mental Model
 
 The fork has three main operations. All three are covered with exact commands in
-`AI_RULES.md` under "Fork Operations — Step-by-Step Procedures".
+`docs/ai/RULES.md` under "Fork Operations — Step-by-Step Procedures".
 
 **Ingest upstream changes:**
 ```
