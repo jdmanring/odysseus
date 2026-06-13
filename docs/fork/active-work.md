@@ -12,19 +12,6 @@ Last updated: 2026-06-13. Fork is at milestone `v1.0.0-fork.1` — all CI passin
 
 ---
 
-## Needs Squash Before Filing Upstream
-
-These staging branches picked up fix commits during CI debugging and now have 2 commits.
-Squash to a single clean commit before filing the upstream PR.
-
-| Branch | Extra commit reason |
-|--------|-------------------|
-| `feat/aria2c-downloader` | f-string Python 3.11 compat fix (two occurrences of backslash-in-f-string-expression) |
-| `feat/logging-core` | gitleaks:allow on test fixture |
-| `feat/logging-timing` | missing `import time as _time` in `_imap_connect`; chroma `_port_open` tuple test fix |
-
----
-
 ## Staged for Upstream — Ready to File
 
 All branches are built from `upstream-mirror`, contain only their specific changes, and are
@@ -41,7 +28,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Single commit, ready |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Single commit, ready |
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Single commit, ready. File upstream issue first. |
-| `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | **Squash needed** (2 commits). Verified 2026-06-12: pause/resume, split-file, zombie detection, clear-finished, resume spinner, cancel. Windows buffering fix in — untested. |
+| `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Single commit, ready. Verified 2026-06-12: pause/resume, split-file, zombie detection, clear-finished, resume spinner, cancel. Windows buffering fix in — untested. |
 | `feat/catppuccin-theme` | [#30](https://github.com/jdmanring/odysseus/issues/30) | Single commit, ready |
 | `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Single commit, ready |
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Single commit, ready |
@@ -49,8 +36,8 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Single commit, ready |
 | `feat/github-integration` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Single commit, ready |
 | `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Single commit, ready |
-| `feat/logging-core` | [#31](https://github.com/jdmanring/odysseus/issues/31) | **Squash needed** (2 commits). File before logging-timing. |
-| `feat/logging-timing` | [#31](https://github.com/jdmanring/odysseus/issues/31) | **Squash needed** (2 commits). File after logging-core. |
+| `feat/logging-core` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. File before logging-timing. |
+| `feat/logging-timing` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. File after logging-core. |
 
 ---
 
