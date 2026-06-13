@@ -6,7 +6,7 @@
 ───────────────────────────────────────────────
 ```
 
-![Odysseus](docs/odysseus.jpg)
+![Odysseus](assets/landingpage.jpg)
 
 A self-hosted AI workspace -- meant to be the self-hosted version of the UI experience you get from ChatGPT and Claude. But with more jank and fun. Running on your own hardware, with your own data -- local-first, privacy-first, and no trojan.
 
@@ -31,15 +31,15 @@ A full, hover-to-play tour lives on the landing page (`docs/index.html`).
 <summary>Screenshots / clips</summary>
 
 ### Chat & Agents
-![Chat & Agents](docs/chat.gif)
+![Chat & Agents](assets/chat.gif)
 ### Deep Research
-![Deep Research](docs/research.gif)
+![Deep Research](assets/research.gif)
 ### Compare
-![Compare](docs/compare.gif)
+![Compare](assets/compare.gif)
 ### Documents
-![Documents](docs/document.gif)
+![Documents](assets/document.gif)
 ### Notes & Tasks
-![Notes & Tasks](docs/notes.gif)
+![Notes & Tasks](assets/notes.gif)
 
 </details>
 

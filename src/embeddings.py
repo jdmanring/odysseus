@@ -13,6 +13,9 @@ Set EMBEDDING_URL in .env, e.g.:
 """
 
 import os
+import time
+
+from src.constants import FASTEMBED_CACHE_DIR, EMBEDDING_ENDPOINT_FILE
 
 # Windows: force HuggingFace/fastembed to COPY model files rather than symlink
 # them. On a network-share/UNC cache dir Windows can't follow HF's symlinks
@@ -24,12 +27,12 @@ if os.name == "nt":
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
-import logging
+import structlog
 import numpy as np
 import httpx
 from typing import List, Optional
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _DEFAULT_MODEL = "all-minilm:l6-v2"
 _DEFAULT_FASTEMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -69,8 +72,10 @@ class EmbeddingClient:
         if not texts:
             return np.array([], dtype="float32")
 
+        _enc_start = time.monotonic()
         # Batch in chunks of 64 to avoid oversized requests
         all_vecs = []
+        n_batches = 0
         for i in range(0, len(texts), 64):
             batch = texts[i : i + 64]
             resp = self._client.post(
@@ -86,6 +91,7 @@ class EmbeddingClient:
             embeddings.sort(key=lambda e: e.get("index", 0))
             for emb in embeddings:
                 all_vecs.append(emb["embedding"])
+            n_batches += 1
 
         vecs = np.array(all_vecs, dtype="float32")
 
@@ -96,6 +102,11 @@ class EmbeddingClient:
 
         if self._dim is None and vecs.size > 0:
             self._dim = vecs.shape[1]
+
+        _enc_ms = (time.monotonic() - _enc_start) * 1000
+        if _enc_ms > 500 or len(texts) > 128:
+            logger.info("embedding_encode", texts=len(texts), batches=n_batches,
+                        duration_ms=round(_enc_ms, 1), model=self.model)
 
         return vecs
 
@@ -117,10 +128,7 @@ class FastEmbedClient:
         # Persistent cache under data/ so the model survives reboots and so
         # the download lands exactly where the admin panel's _is_downloaded()
         # check looks (both default to this same path).
-        cache_dir = os.getenv("FASTEMBED_CACHE_PATH") or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "data", "fastembed_cache",
-        )
+        cache_dir = FASTEMBED_CACHE_DIR
         os.makedirs(cache_dir, exist_ok=True)
         # Windows self-heal: the HuggingFace-hub cache stores model files as
         # symlinks (snapshots/<rev>/model.onnx -> ../../blobs/<hash>). On a
@@ -152,10 +160,12 @@ class FastEmbedClient:
             except Exception as _e:
                 logger.debug("embedding cache symlink-heal skipped: %s", _e)
         kwargs = {"model_name": self.model, "cache_dir": cache_dir}
+        _load_start = time.monotonic()
         self._embedding = TextEmbedding(**kwargs)
+        _load_ms = (time.monotonic() - _load_start) * 1000
         self._dim: Optional[int] = None
         self.url = "local://fastembed"
-        logger.info(f"FastEmbed loaded model={self.model}")
+        logger.info("fastembed_loaded", model=self.model, load_ms=round(_load_ms, 1))
 
     def get_sentence_embedding_dimension(self) -> int:
         if self._dim is not None:
@@ -188,10 +198,7 @@ class FastEmbedClient:
 def _load_persisted_endpoint() -> dict:
     """Load the custom embedding endpoint saved from the admin panel."""
     try:
-        endpoint_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "data", "embedding_endpoint.json",
-        )
+        endpoint_file = EMBEDDING_ENDPOINT_FILE
         if os.path.exists(endpoint_file):
             import json
             data = json.loads(open(endpoint_file, encoding="utf-8").read())
@@ -219,6 +226,8 @@ def get_embedding_client():
     """Factory: try HTTP API first, fall back to local fastembed."""
     global _http_embed_down
 
+    _factory_start = time.monotonic()
+
     # Check for a persisted custom endpoint (saved from admin panel)
     persisted = _load_persisted_endpoint()
     if persisted.get("url"):
@@ -238,7 +247,9 @@ def get_embedding_client():
         try:
             client = EmbeddingClient()
             client.get_sentence_embedding_dimension()  # health check
-            logger.info(f"Using HTTP embedding API: {client.url} model={client.model}")
+            logger.info("embedding_client_selected", backend="http",
+                        url=client.url, model=client.model,
+                        factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
             return client
         except Exception as e:
             _http_embed_down = True
@@ -248,7 +259,9 @@ def get_embedding_client():
     try:
         client = FastEmbedClient()
         client.get_sentence_embedding_dimension()
-        logger.info(f"Using local FastEmbed: model={client.model}")
+        logger.info("embedding_client_selected", backend="fastembed",
+                    model=client.model,
+                    factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
         return client
     except ImportError:
         logger.error("fastembed not installed — run: pip install fastembed")

@@ -6,12 +6,14 @@
 
 import uiModule from './ui.js';
 import { _diagnose, _showDiagnosis, _clearDiagnosis } from './cookbook-diagnosis.js';
+import { refreshCachedModelIds } from './cookbook-hwfit.js';
 
 // Shared state/functions injected by init()
 let _envState;
 let _sshCmd;
 let _getPort;
 let _getPlatform;
+let _serverByVal;
 let _isWindows;
 let _buildEnvPrefix;
 let _buildServeCmd;
@@ -78,9 +80,90 @@ function _ggufDownloadSource(model, backend) {
   return null;
 }
 
+// Flat quality ranking, best (index 0) to worst (last index).
+// Within each bit-depth tier, imatrix variants lead (better perplexity at
+// same or smaller size), then standard K-quants, then legacy Q*_0/Q*_1.
+// Used to find the closest available quant to a user's preference when an
+// exact match isn't in the discovered repo.
+const _QUANT_QUALITY = [
+  'Q8_0',
+  'Q6_K',
+  'Q5_K_M', 'Q5_K_S', 'Q5_1', 'Q5_0',
+  'IQ4_XS', 'IQ4_NL', 'Q4_K_M', 'Q4_K_S', 'Q4_1', 'Q4_0',
+  'IQ3_M', 'Q3_K_L', 'Q3_K_M', 'Q3_K_S', 'IQ3_S', 'IQ3_XXS',
+  'IQ2_M', 'Q2_K', 'IQ2_S', 'IQ2_XS', 'IQ2_XXS',
+];
+
+function _quantQualityIndex(quant) {
+  const q = (quant || '').toUpperCase();
+  const idx = _QUANT_QUALITY.findIndex(k => q.includes(k));
+  return idx === -1 ? null : idx;
+}
+
+// Tier rank for each contiguous block in _QUANT_QUALITY: [startIdx, endIdx, tierRank].
+// All quants in the same block are the same bit-depth family (tier 4 = all Q4*/IQ4*).
+const _QUANT_TIER_RANGES = [
+  [0,  0,  0],  // tier 8: Q8_0
+  [1,  1,  1],  // tier 6: Q6_K
+  [2,  5,  2],  // tier 5: Q5_K_M..Q5_0
+  [6,  11, 3],  // tier 4: IQ4_XS..Q4_0
+  [12, 17, 4],  // tier 3: IQ3_M..IQ3_XXS
+  [18, 22, 5],  // tier 2: IQ2_M..IQ2_XXS
+];
+
+function _quantTierRank(qualIdx) {
+  for (const [start, end, rank] of _QUANT_TIER_RANGES) {
+    if (qualIdx >= start && qualIdx <= end) return rank;
+  }
+  return null;
+}
+
+function _closestQuantFile(files, wantedQuant) {
+  const wantedIdx = _quantQualityIndex(wantedQuant);
+  if (wantedIdx === null) return null;
+  const wantedTierRank = _quantTierRank(wantedIdx);
+
+  let best = null, bestTierDist = Infinity, bestQIdx = null;
+  for (const f of files) {
+    const bn = f.split('/').pop().toUpperCase();
+    const idx = _QUANT_QUALITY.findIndex(k => bn.includes(k));
+    if (idx === -1) continue;
+    const tierRank = _quantTierRank(idx);
+    const tierDist = (wantedTierRank !== null && tierRank !== null)
+      ? Math.abs(tierRank - wantedTierRank)
+      : Math.abs(idx - wantedIdx);
+
+    // Same tier: prefer best quality in that tier (lowest quality index). IQ4_XS
+    // beats Q4_K_S when Q4_K_M was requested — imatrix is the proper upgrade.
+    // Cross-tier equidistant: prefer smaller file (higher quality index) to avoid
+    // overshooting the user's intended file size.
+    const better =
+      tierDist < bestTierDist ||
+      (tierDist === bestTierDist && tierDist === 0 && idx < bestQIdx) ||
+      (tierDist === bestTierDist && tierDist > 0  && idx > bestQIdx);
+
+    if (better) { bestTierDist = tierDist; bestQIdx = idx; best = f; }
+  }
+  return best;
+}
+
 function _ggufIncludePattern(model, source) {
+  if (model?.quant) {
+    const files = source?.files || source?._sourceMeta?.files || [];
+    const q = model.quant.toLowerCase();
+    if (!files.length || files.some(f => f.toLowerCase().includes(q))) {
+      return `*${model.quant}*`;
+    }
+    // model.quant not in this repo — find the closest quality tier available
+    // so a Q6_K request against an imatrix repo gets Q5_K_M, not IQ4_XS
+    if (files.length) {
+      const closest = _closestQuantFile(files, model.quant);
+      if (closest) return closest;
+    }
+  }
+  const preferred = source?.preferred_file || source?._sourceMeta?.preferred_file;
+  if (preferred) return preferred;
   if (source?.file) return source.file;
-  if (model?.quant) return `*${model.quant}*`;
   return '*.gguf';
 }
 
@@ -118,7 +201,7 @@ export function _buildDownloadCmd(model, backend) {
       const includeArg = includePattern ? `, allow_patterns=["${includePattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]` : '';
       // Reflect the server's download target in the preview (matches the real
       // download path built server-side). '' = default HF cache.
-      const _dlDir = (_envState.servers.find(s => s.host === (_envState.remoteHost || '')) || {}).downloadDir || '';
+      const _dlDir = (_serverByVal?.(_envState.remoteServerKey || _envState.remoteHost || '') || {}).downloadDir || '';
       const _localDirArg = _dlDir ? `, local_dir=os.path.expanduser('${_dlDir.replace(/\/$/, '')}/${repo.split('/').pop()}')` : '';
       const _py = _isWindows() ? 'python' : 'python3';
       cmd = `${_py} -u -c "
@@ -241,11 +324,7 @@ export function _wirePanelEvents(panel, model, backend) {
   const dlBtn = panel.querySelector('.hwfit-dl-btn');
   if (dlBtn) {
     dlBtn.addEventListener('click', () => {
-      if (backend === 'ollama') {
-        _runPanelCmd(panel, _buildDownloadCmd(model, backend), { timeout: 0 });
-      } else {
-        _runModelDownload(panel, model, backend);
-      }
+      _runModelDownload(panel, model, backend)
     });
   }
 
@@ -452,13 +531,106 @@ export async function _runPanelCmd(panel, cmd, opts = {}) {
 
 // ── Model download (dedicated endpoint, tmux-backed) ──
 
+async function _startManagedPolling(panel, sessionId, modelName, host) {
+  const wrap = panel.querySelector('.cookbook-output-wrap');
+  if (!wrap) return;
+
+  const ui = document.createElement('div');
+  ui.className = 'managed-download-ui';
+  ui.innerHTML = `
+    <div class="md-header">Downloading ${modelName} (aria2c)</div>
+    <div class="md-progress-bg">
+      <div class="md-progress-fill" style="width: 0%"></div>
+    </div>
+    <div class="md-footer">
+      <span class="md-stats">Initializing...</span>
+      <button class="md-cancel-btn">Cancel</button>
+    </div>
+  `;
+  wrap.prepend(ui);
+
+  const fill = ui.querySelector('.md-progress-fill');
+  const stats = ui.querySelector('.md-stats');
+  const cancelBtn = ui.querySelector('.md-cancel-btn');
+
+  const poll = async () => {
+    try {
+      const res = await fetch(`/api/cookbook/download/status/${sessionId}`);
+      if (!res.ok) throw new Error('Status request failed');
+      const data = await res.json();
+
+      if (data.error) {
+        stats.textContent = 'Error: ' + data.error;
+        return;
+      }
+
+      const pct = (data.progress * 100).toFixed(1);
+      fill.style.width = pct + '%';
+      stats.textContent = `${pct}% | ${data.speed} | ${data.remaining}`;
+
+      if (data.status === 'complete') {
+        stats.textContent = 'Download Complete!';
+        uiModule.showToast(`${modelName} downloaded successfully.`);
+        refreshCachedModelIds(host);
+        clearInterval(timer);
+        setTimeout(() => ui.remove(), 5000);
+      }
+    } catch (e) {
+      stats.textContent = 'Polling error: ' + e.message;
+    }
+  };
+
+  cancelBtn.onclick = async () => {
+    try {
+      const res = await fetch(`/api/cookbook/download/cancel/${sessionId}`, { method: 'POST' });
+      if (res.ok) {
+        uiModule.showToast('Download cancelled.');
+        clearInterval(timer);
+        ui.remove();
+      }
+    } catch (e) {
+      uiModule.showToast('Cancel failed: ' + e.message);
+    }
+  };
+
+  const timer = setInterval(poll, 2000);
+  poll();
+}
+
 export async function _runModelDownload(panel, model, backend, hostOverride) {
-  const ggufSource = _ggufDownloadSource(model, backend);
+  let ggufSource = _ggufDownloadSource(model, backend);
+  
+  if (backend === 'llamacpp' && !ggufSource) {
+    const repoId = model?.repo_id || model?.name;
+    if (repoId) {
+      try {
+        const res = await fetch(`/api/cookbook/resolve-gguf?model=${encodeURIComponent(repoId)}`, {
+          credentials: 'same-origin',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.gguf_sources && data.gguf_sources.length > 0) {
+            // API returns {repo, files, total_size, downloads} objects.
+            // Normalize to {repo, file} format expected downstream.
+            model.gguf_sources = data.gguf_sources.map(function(s) {
+              return { repo: s.repo, file: null, files: s.files || [], preferred_file: s.preferred_file || null };
+            });
+            ggufSource = _ggufDownloadSource(model, backend);
+          }
+        }
+      } catch (e) {
+        console.error('GGUF discovery failed:', e);
+      }
+    }
+  }
+
   if (backend === 'llamacpp' && !ggufSource) {
     uiModule.showToast(_missingGgufMessage(model));
     return;
   }
-  const repo = ggufSource?.repo || model.quant_repo || model.name;
+  const repo = backend === 'ollama'
+    ? (model.ollama || model.ollama_name || model.name)
+    : (ggufSource?.repo || model.quant_repo || model.name);
   const include = backend === 'llamacpp' ? _ggufIncludePattern(model, ggufSource) : null;
 
   _syncEnvFromPanel(panel);
@@ -475,10 +647,10 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
     // No explicit host passed: resolve from the visible server dropdown rather
     // than _envState.remoteHost (unreliable — multiple state copies disagree).
     const ssEl = document.getElementById('hwfit-server-select') || document.getElementById('hwfit-dl-server');
-    // Dropdown values are host strings now ('local' for local); resolve by host
-    // (numeric fallback for any stale value).
+    // Dropdown values are profile keys now ('local' for local); stale host
+    // strings and numeric indices still resolve for backwards compatibility.
     const _ssv = ssEl ? ssEl.value : null;
-    const _dsrv = (_ssv && _ssv !== 'local') ? (_envState.servers.find(s => s.host === _ssv) || _envState.servers[parseInt(_ssv)]) : null;
+    const _dsrv = (_ssv && _ssv !== 'local') ? (_serverByVal?.(_ssv) || _envState.servers[parseInt(_ssv)]) : null;
     if (_dsrv) {
       host = _dsrv.host;
     } else if (ssEl && ssEl.value === 'local') {
@@ -487,17 +659,16 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
       host = _envState.remoteHost || '';
     }
   }
-  const srv = _envState.servers.find(s => s.host === host) || {};
+  const srv = _serverByVal?.(_envState.remoteServerKey || host) || {};
   const env = host ? (srv.env || 'none') : (_envState.env || 'none');
   const envPath = host ? (srv.envPath || '') : (_envState.envPath || '');
   const platform = host ? (srv.platform || '') : (_envState.platform || '');
   const isWin = host ? (platform === 'windows') : _isWindows();
 
-  const payload = { repo_id: repo };
+  const payload = { repo_id: repo, backend, use_aria2c: true };
   if (include) payload.include = include;
-  // Large downloads are where hf_transfer most often dies near the end. Use the
-  // plain HuggingFace downloader up front for big model files; it is slower, but
-  // resumes cached partials more reliably.
+  // aria2c handles large files with 16 parallel connections and resume support.
+  // disable_hf_transfer is kept true so hf_transfer doesn't race with aria2c.
   if ((model.required_gb || 0) >= 10 || backend === 'llamacpp') payload.disable_hf_transfer = true;
   if (_envState.hfToken) payload.hf_token = _envState.hfToken;
   if (host) { payload.remote_host = host; const _sp = _getPort(host); if (_sp) payload.ssh_port = _sp; }
@@ -546,7 +717,8 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
   if (zombieCandidate) {
     try {
       const _zh = zombieCandidate.remoteHost || '';
-      const _zPort = (_envState.servers || []).find(s => s.host === _zh)?.port;
+      const _zPort = (_serverByVal?.(_envState.remoteServerKey || _zh)
+        || (_envState.servers || []).find(s => s.host === _zh) || {}).port;
       const _sshPf = _zh ? `ssh ${_zPort && _zPort !== '22' ? `-p ${_zPort} ` : ''}${_zh} '` : '';
       const _sshSf = _zh ? `'` : '';
       const _probeCmd = `${_sshPf}tmux has-session -t ${zombieCandidate.sessionId} 2>/dev/null${_sshSf}`;
@@ -603,6 +775,9 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
     }
     _addTask(data.session_id, shortName, 'download', payload);
     uiModule.showToast(`Downloading ${shortName}...`);
+    if (data.managed) {
+      _startManagedPolling(panel, data.session_id, shortName, host);
+    }
   } catch (e) {
     uiModule.showToast('Download failed: ' + e.message, 9000);
   }
@@ -615,6 +790,7 @@ export function initDownload(shared) {
   _sshCmd = shared._sshCmd;
   _getPort = shared._getPort;
   _getPlatform = shared._getPlatform;
+  _serverByVal = shared._serverByVal;
   _isWindows = shared._isWindows;
   _buildEnvPrefix = shared._buildEnvPrefix;
   _buildServeCmd = shared._buildServeCmd;

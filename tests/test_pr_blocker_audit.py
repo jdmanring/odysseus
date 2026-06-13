@@ -234,12 +234,15 @@ def test_invalid_limit_exits_cleanly(capsys):
 
 
 def test_help_includes_limit():
+    import re
     audit = load_module()
 
     help_text = audit.build_parser().format_help()
+    # Strip ANSI escape codes so the assertion works regardless of terminal color support
+    plain = re.sub(r'\x1b\[[0-9;]*m', '', help_text)
 
-    assert "--limit LIMIT" in help_text
-    assert "Live mode: max open PRs to fetch/analyze" in help_text
+    assert "--limit LIMIT" in plain
+    assert "Live mode: max open PRs to fetch/analyze" in plain
 
 
 def test_progress_goes_to_stderr_not_stdout(monkeypatch, capsys):

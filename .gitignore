@@ -1,3 +1,5 @@
+HANDOFF.md
+
 # Python
 __pycache__/
 *.pyc
@@ -61,12 +63,8 @@ output.txt.txt
 *.tiff
 *.pdf
 
-# …except shipped demo assets in docs/ that the README links to.
-!docs/*.jpg
-!docs/*.jpeg
-!docs/*.png
-!docs/*.gif
-!docs/*.webp
+# …except shipped demo assets and icons.
+!assets/*
 # …and curated docs/ subfolder assets (e.g. accessibility before/after shots).
 !docs/**/*.png
 !docs/**/*.jpg
@@ -89,3 +87,10 @@ docs/windows-port/
 compound.config.json
 *.error.log
 _scratch/
+/odysseus/
+
+.qwen/
+gha-creds-*.json
+
+# Fork‑only scripts
+/scripts/fork/

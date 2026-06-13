@@ -1,0 +1,48 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 3am UTC daily
+  workflow_dispatch:        # manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: integration
+          fetch-depth: 0        # full history needed for merge and rev-list
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/pewdiepie-archdaemon/odysseus.git
+          git fetch upstream dev
+
+      - name: Ensure upstream-mirror branch exists locally
+        run: |
+          git fetch origin upstream-mirror:upstream-mirror || \
+          git checkout -b upstream-mirror upstream/dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pipeline dependencies only
+        run: pip install ruff
+
+      - name: Run ingest pipeline (CI mode — syntax + lint, no pytest)
+        run: |
+          python tooling/sync-upstreams/upstream_ingest_pipeline.py --skip-tests --push

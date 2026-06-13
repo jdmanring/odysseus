@@ -20,6 +20,17 @@ End-users cloning the repo will land on `dev` by default. To run the curated/sta
 - Avoid broad rewrites, formatting-only changes, or moving many files unless the issue is specifically about structure.
 - If you want to work on a large feature, open an issue first and describe the approach.
 
+## Cross-Platform Considerations
+
+Odysseus runs on Linux (primary), macOS, and Windows (via PowerShell). Docker is the only actively tested path. When making changes, consider:
+
+- **Filesystem paths:** use `pathlib.Path` and the constants in `src/constants.py`. Never hardcode `/app/...` or `C:\...`. The `DATA_DIR` and `ODYSSEUS_DATA_DIR` constants handle platform differences.
+- **Shell commands:** if your change touches shell/batch scripts, verify both `bash` (Linux/macOS) and `PowerShell` (Windows) paths. The `launch-windows.ps1` entry point exists for a reason.
+- **Docker:** if you change `Dockerfile`, `docker-compose.yml`, or `docker-compose.*.yml`, run `docker compose config` to validate.
+- **Native wrapper:** `linux_wrapper.py` and `qt-bridge.js` are Linux-only. Don't break them with macOS/Windows-specific assumptions.
+
+If you cannot test on a platform, say so in the PR description.
+
 ## Setup
 
 Docker is the recommended path for normal testing:
@@ -71,6 +82,7 @@ Good pull requests usually include:
 - Manual test steps or automated test results from running the actual app, not just the test suite.
 - Screenshots or short recordings for UI changes.
 - Links to related issues, for example `Fixes #123`.
+- **Documentation updates** if the change affects user-facing behavior, adds a new feature, or modifies the architecture. At minimum, update `docs/fork/changes-from-upstream.md` for fork-specific additions.
 
 Please keep PRs small. Large PRs that mix unrelated cleanup, formatting, refactors, and behavior changes are much harder to review.
 
@@ -93,6 +105,18 @@ Before submitting any change that affects what the app looks like — buttons, i
 4. **Don't add parallel components.** If a similar widget already exists in the app, extend it instead of writing a new one.
 
 If you are unsure whether a change is "visual," it is. Default to attaching a screenshot.
+
+## Code conventions
+
+Don't hardcode values that the project already exposes through a constant or a helper. Hardcoded literals drift out of sync, break on non-default deployments, and reintroduce bugs we've already fixed.
+
+- **Filesystem paths:** never build writable paths from `Path(__file__)...` into the source tree, hardcode `/app/...`, or use a relative `"data/..."` string. Every persisted file and directory has a named constant in `src/constants.py` (for example `AUTH_FILE`, `USER_PREFS_FILE`, `SETTINGS_FILE`, `TTS_CACHE_DIR`, `CHROMA_DIR`). Import and use that named constant; do not re-derive the path locally with `os.path.join(DATA_DIR, "x.json")` or `DATA_DIR / "x.json"`. `DATA_DIR` is the single place that reads `ODYSSEUS_DATA_DIR`, so use it directly only for dynamic paths that have no fixed name (for example per-owner files). If a data file or directory has no constant yet, add one to `src/constants.py`. The source tree is read-only in Docker and `/app/...` does not exist on native runs; guard directory creation so an unwritable path degrades gracefully instead of crashing at import.
+- **Internal API / loopback URLs:** don't hardcode `http://localhost:7000`. Use `internal_api_base()` from `src.constants` (it honors `ODYSSEUS_INTERNAL_BASE` / `APP_PORT`).
+- **Ports, limits, model lists, and similar:** reuse the existing constant if one exists; if it doesn't and the value is used in more than one place, add a constant rather than copying the literal.
+
+If you need a value that has no constant or helper yet, add it to `src/constants.py` (the single source of truth for paths and config; `core/constants.py` only re-exports it for backward compatibility) and import it, rather than repeating a literal across files.
+
+**Commits:** use [Conventional Commits](https://www.conventionalcommits.org), `type(scope): summary` (e.g. `fix(search): ...`, `feat(notes): ...`, `docs(contributing): ...`). Common types: `fix`, `feat`, `refactor`, `docs`, `test`, `chore`, `ci`. Keep the subject short and imperative; put the "why" in the body when it isn't obvious.
 
 ## Issue Reports
 
