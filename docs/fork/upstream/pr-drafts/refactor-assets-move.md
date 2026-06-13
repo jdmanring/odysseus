@@ -46,6 +46,14 @@ with the application icon (`odysseus.svg` / `odysseus.jpg` in the Qt taskbar).
 
 No functional changes. Pure file reorganization.
 
+### How to Test
+
+1. After merging, open `README.md` — verify all images render correctly (no broken image placeholders).
+2. Verify the `assets/` directory exists at repo root and contains the moved media files.
+3. Verify `docs/` no longer contains the media files (`odysseus.jpg`, `chat.gif`, `bg.webm`, etc.).
+4. Run `grep -r "docs/odysseus\|docs/chat\|docs/bg" README.md` — should return nothing (all references updated).
+5. No screenshots required — no visual change.
+
 ---
 
 ## Filing Notes

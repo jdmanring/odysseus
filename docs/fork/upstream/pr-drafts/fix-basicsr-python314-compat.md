@@ -61,10 +61,15 @@ This is a stop-gap until basicsr releases a Python 3.13/3.14-compatible
 version. Once they do, the script can be replaced with a plain
 `pip install basicsr realesrgan`.
 
-### Testing
+### How to Test
 
-Verified on Python 3.14 — `basicsr` and `realesrgan` install cleanly and
-ESRGAN upscaling functions correctly after running `install-basicsr.sh`.
+1. On a Python 3.13 or 3.14 environment, attempt the standard install: `pip install basicsr realesrgan` — this should fail with a `KeyError: '__version__'` to confirm the original problem.
+2. Run the script: `bash install-basicsr.sh`
+3. Confirm `basicsr` is now importable: `python3 -c "import basicsr; print('ok')"`
+4. Confirm `realesrgan` is importable: `python3 -c "import realesrgan; print('ok')"`
+5. Run an ESRGAN upscale through the Odysseus UI or CLI to confirm the patched package functions correctly end-to-end.
+
+Tested on: Python 3.14. Not required on Python 3.11/3.12 (the standard `pip install` works there — the script is only for 3.13+).
 
 ---
 

@@ -63,11 +63,21 @@ All timing uses structured keys (`duration_ms`, `elapsed_ms`) so results are fil
 - `src/mcp_manager.py` — MCP call success/failure with duration
 - `src/tool_execution.py` — tool execution timing
 
-### Testing
+### How to Test
 
-- [x] All existing tests pass (64 tests on base branch)
-- [ ] Verify timing logs appear in live server output under load
-- [ ] Verify health probe `elapsed_ms` appears in `/api/health` response
+**Automated (passing):**
+- [x] All 64 tests from `feat/logging-core` pass on this branch (timing changes don't break existing tests)
+
+**Manual verification:**
+
+1. Start the server: `uvicorn app:app --host 0.0.0.0 --port 7000`
+2. Hit the health endpoint: `curl http://localhost:7000/api/health | python3 -m json.tool`
+3. Confirm the JSON response includes `elapsed_ms` fields in the subsystem probe results (ChromaDB, embeddings, SearXNG).
+4. If SearXNG is configured and takes > 500ms to respond, confirm a `search.timing` log entry appears in `data/logs/odysseus.log`.
+5. Open the Cookbook tab and start a model download — confirm timing entries appear in the log for the IMAP/SMTP paths if email is configured.
+6. Run the agent with a multi-step task — confirm `agent.timing` entries appear in the log on completion with `duration_ms` populated.
+7. Start the server with `ODYSSEUS_DEBUG=1` — confirm timing is logged even for fast operations (below the thresholds).
+8. Confirm no new test failures: `pytest` should pass all 64+ tests.
 
 ---
 
