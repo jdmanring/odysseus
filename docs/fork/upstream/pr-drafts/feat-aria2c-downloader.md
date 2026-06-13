@@ -252,7 +252,9 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
 **Still needs manual verification before filing:**
 
-- [ ] Cancel mid-download — tmux session teardown and partial-file cleanup
+- [x] Cancel mid-download — Stop removes card, tmux session torn down cleanly,
+  partial `.aria2` sidecar files retained; subsequent download of same model
+  resumes from last completed byte via `--continue=true`
 - [ ] Windows local install — progress card not expected (known limitation),
   but download completion should still work via the log-file path
 
