@@ -9,6 +9,7 @@ Last updated: 2026-06-13. Fork is at milestone `v1.0.0-fork.1` — all CI passin
 | Issue | Branch | Status |
 |-------|--------|--------|
 | [#36 hf_transfer removal](https://github.com/jdmanring/odysseus/issues/36) | not started | Strip all hf_transfer install/enable code. Blocked pending upstream acceptance of feat/aria2c-downloader. |
+| [#37 LongCat tool_call parsing](https://github.com/jdmanring/odysseus/issues/37) | not started | `<longcat_tool_call>` format not parsed or stripped. Needs full format capture before implementing. |
 
 ---
 
