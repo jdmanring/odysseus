@@ -10,8 +10,8 @@ import asyncio
 import collections
 import json
 import re
+import structlog
 import time
-import logging
 from typing import AsyncGenerator, List, Dict, Optional, Set
 from urllib.parse import urlparse
 
@@ -36,7 +36,7 @@ from src.agent_tools import (
     MAX_AGENT_ROUNDS,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _load_mcp_disabled_map() -> Dict[str, set]:
@@ -814,7 +814,7 @@ def _classify_agent_request(messages: List[Dict], last_user: str) -> Dict[str, o
         domains.add("ui")
     if has(r"\b(session|chat history|rename chat|delete chat|archive chat|fork chat|list chats)\b"):
         domains.add("sessions")
-    if has(r"\b(file|folder|directory|repo|git|grep|find in files|read file|edit file|shell|terminal|bash|python)\b"):
+    if has(r"\b(files?|folders?|director(?:y|ies)|repo(?:s|sitory|sitories)?|git|grep|find in files|read file|edit file|shell|terminal|bash|python|filesystem|codebase|source code|browse)\b|/home/|/usr/|/etc/|~/|\.(py|js|ts|json|yaml|yml|toml|sh|cfg|ini|md|txt)\b"):
         domains.add("files")
     # Managing detached bash jobs: "kill the background job", "stop the job",
     # "kill that job", "check the job output", "is the bg job done".
@@ -2295,6 +2295,7 @@ async def stream_agent_loop(
     _exhausted_rounds = False
 
     for round_num in range(1, max_rounds + 1):
+        _round_start = time.monotonic()
         round_response = ""
         round_reasoning = ""  # reasoning_content deltas (DeepSeek-thinking, vLLM --reasoning-parser)
         native_tool_calls = []  # populated if model uses function calling
@@ -3148,6 +3149,13 @@ async def stream_agent_loop(
         # paths, including a verifier `continue` on the final round (the old
         # bottom-of-loop flag missed those).
         _exhausted_rounds = True
+
+    total_elapsed = time.time() - total_start
+    logger.info("agent_loop_complete",
+                rounds=round_num,
+                messages=len(messages),
+                tool_events=len(tool_events),
+                total_duration_ms=round(total_elapsed * 1000, 1))
 
     # If the loop hit the round cap while still working, tell the client so it
     # can show a "Continue" affordance instead of the turn just stopping.
