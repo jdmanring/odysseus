@@ -60,11 +60,11 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 | [#14](https://github.com/jdmanring/odysseus/issues/14) | Native Linux desktop app (Qt wrapper) | upstream-candidate | `feat/qt-native-linux-app` |
 | [#15](https://github.com/jdmanring/odysseus/issues/15) | Upstream sync pipeline | fork-only | `feat/upstream-sync-pipeline` |
 | [#16](https://github.com/jdmanring/odysseus/issues/16) | Download UI overhaul (depends on #12) | upstream-candidate | `feat/download-ui-overhaul` |
-| [#18](https://github.com/jdmanring/odysseus/issues/18) | AI-first documentation system | upstream-candidate | `feat/ai-documentation-system` |
+| [#18](https://github.com/jdmanring/odysseus/issues/18) | AI-first documentation system | upstream-candidate | `feat/ai-documentation-system` (Ready to File) |
 | [#19](https://github.com/jdmanring/odysseus/issues/19) | Move media assets from docs/ to assets/ | upstream-candidate | `refactor/assets-move` |
 | [#20](https://github.com/jdmanring/odysseus/issues/20) | BinManager test suite | upstream-candidate | `develop` (direct — goes upstream with #12) |
-| [#21](https://github.com/jdmanring/odysseus/issues/21) | AI_RULES.md — AI agent rules (upstream) | upstream-candidate | `feat/ai-documentation-system` |
-| [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_CONTEXT.md — architecture primer (upstream) | upstream-candidate | `feat/ai-documentation-system` |
+| [#21](https://github.com/jdmanring/odysseus/issues/21) | AI_RULES.md — AI agent rules (upstream) | upstream-candidate | `feat/ai-documentation-system` (Ready to File) |
+| [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_CONTEXT.md — architecture primer (upstream) | upstream-candidate | `feat/ai-documentation-system` (Ready to File) |
 | [#29](https://github.com/jdmanring/odysseus/issues/29) | GGUF source resolution returns low-quality results | upstream-candidate | `fix/gguf-quality-scored` |
 | [#30](https://github.com/jdmanring/odysseus/issues/30) | feat: add Catppuccin Mocha theme with Odysseus color palette | upstream-candidate | `feat/catppuccin-theme` |
 | [#31](https://github.com/jdmanring/odysseus/issues/31) | World-class structured logging system | upstream-candidate | 2 PRs: `feat/logging-core`, `feat/logging-timing` |

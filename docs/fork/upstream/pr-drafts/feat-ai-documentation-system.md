@@ -8,7 +8,7 @@
 
 ## Title
 
-`docs: AI-first documentation system — context files, architecture guides, and feature references`
+`docs: AI-first documentation system — universal hub-and-spoke onboarding and reference guides`
 
 ---
 
@@ -24,27 +24,29 @@ standard way for AI coding assistants to orient themselves to the project.
 ### Solution
 
 A complete documentation layer covering AI agent context, system architecture,
-per-feature technical references, and contributor guides.
+per-feature technical references, and contributor guides, utilizing a universal
+hub-and-spoke model for maximum agent precision.
 
 ### Root level
 
-**`AI_CONTEXT.md`** — mental model of the codebase for AI agents. Covers the
-architecture, subsystem map, key files, and common task patterns. Any AI
-assistant reading this file can navigate the project without needing to explore
-the entire codebase first.
-
-**`AI_RULES.md`** — behavioral rules for AI agents contributing to the project.
-Platform-agnostic (not Claude-specific). Covers hard rules around destructive
-operations, upstream contribution policy, and issue tracking.
+**`AI.md`** — The universal entry point for AI agents. A root-level index that
+directs agents to the authoritative laws and maps of the project.
 
 ### `docs/ai/` — AI reference documentation
 
-- `arch/AI_ARCH_CORE_FLOW.md`: core request/response flow
-- `features/` (20 files): per-feature technical reference covering Cookbook,
+**`RULES.md`** — Behavioral rules for AI agents contributing to the project.
+Platform-agnostic. Covers hard rules around destructive operations, upstream
+contribution policy, and issue tracking.
+
+**`CONTEXT.md`** — Mental model of the codebase for AI agents. Covers the
+architecture, subsystem map, key files, and common task patterns.
+
+**`arch/AI_ARCH_CORE_FLOW.md`**: core request/response flow
+**`features/`** (20 files): per-feature technical reference covering Cookbook,
   Brain/orchestration, Calendar, Codex, Compare, Contacts, Deep Research,
   Email, Gallery, Notes, Skills/MCP, STT/TTS, Tasks, Theme, Tools, Vault,
   and YouTube
-- `system/`: secrets storage patterns and the settings key map
+**`system/`**: secrets storage patterns and the settings key map
 
 ### `docs/project/` — technical tribal knowledge
 
@@ -67,7 +69,7 @@ and more.
 
 ### Files Added
 
-35 new files. No existing files modified.
+36 new files. No existing files modified.
 
 ### Testing
 
