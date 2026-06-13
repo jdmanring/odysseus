@@ -3,6 +3,7 @@
 **Branch:** `jdmanring/odysseus:feat/aria2c-downloader`
 **Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) (fork tracking)
 **Status:** Integration tests passing as of 2026-06-12 — ready to file
+**Screenshot:** `docs/fork/screenshots/aria2c.png`
 
 ---
 
@@ -191,6 +192,13 @@ guarded so that a paused task's status is never overwritten by a stale
 server-side `done` or `running` signal — the card stays `paused` until the
 user explicitly resumes or stops.
 
+### Screenshot
+
+Qwen3-Coder-Next-AWQ-4bit (44.97 GiB, 25 files) mid-download — 4 files active
+in parallel, 3 connections each, HF token authenticated (`authed` badge):
+
+![aria2c download card](../screenshots/aria2c.png)
+
 ### Testing
 
 **Automated (passing):**
@@ -221,7 +229,8 @@ user explicitly resumes or stops.
 
 **Still needs manual verification before filing:**
 
-- [ ] Gated model with HF token — auth path not yet tested end-to-end
+- [x] HF token auth — `authed` badge visible in screenshot; token found and
+  applied to aria2c Bearer header for a 44.97 GiB 25-file download
 - [ ] Cancel mid-download — tmux session teardown and partial-file cleanup
 - [ ] Windows local install — progress card not expected (known limitation),
   but download completion should still work via the log-file path
