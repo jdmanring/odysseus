@@ -47,11 +47,9 @@ from routes.cookbook_helpers import (
     _append_vllm_linux_preflight_lines, _ollama_bind_from_cmd, _pip_install_fallback_chain,
     _pip_install_no_cache, _user_shell_path_bootstrap, _venv_safe_local_pip_install_cmd,
     _diagnose_serve_output, run_ssh_command_async,
-    _append_realesrgan_basicsr_preflight,
     _normalize_llama_cpp_python_cache_types,
     ModelDownloadRequest, ServeRequest,
 )
-from tooling.hf_url_resolver import HfUrlResolver
 
 _HF_TOKEN_STATUS_SNIPPET = (
     'if [ -n "$HF_TOKEN" ]; then '
@@ -406,30 +404,6 @@ def setup_cookbook_routes() -> APIRouter:
         pid_path.write_text(str(proc.pid), encoding="utf-8")
         return {"pid": proc.pid, "log_path": str(log_path)}
 
-    @router.get("/api/cookbook/resolve-gguf")
-    async def resolve_gguf(request: Request, model: str = None):
-        """Dynamically discover GGUF sources for a given model repo ID.
-
-        Searches HuggingFace for community GGUF quantizations, verifies each
-        candidate contains actual GGUF files via metadata, and scores them on
-        downloads, likes ratio, imatrix calibration, author reputation,
-        benchmark scores, trending, and recency.
-        """
-        require_admin(request)
-        if not model:
-            raise HTTPException(status_code=400, detail="Missing model parameter")
-
-        token = _load_stored_hf_token()
-        resolver = HfUrlResolver(token=token)
-
-
-        try:
-            sources = resolver.find_gguf_sources(model)
-            return {"gguf_sources": sources}
-        except Exception as e:
-            logger.exception("GGUF discovery failed for %s", model)
-            raise HTTPException(status_code=500, detail=str(e))
-
     @router.post("/api/model/download")
     async def model_download(request: Request, req: ModelDownloadRequest):
         """Download a HuggingFace model in a tmux session.
@@ -465,9 +439,6 @@ def setup_cookbook_routes() -> APIRouter:
         # local_dir does not. See issue #2722.
         _dl_hf_home_shell = _shell_path(req.local_dir.rstrip("/")) if req.local_dir else None
         _dl_pyarg = ""  # snapshot_download honors the env vars too — no kwarg needed
-
-        _dl_short = req.repo_id.split("/")[-1] if "/" in req.repo_id else req.repo_id
-        _dl_base = (req.local_dir.rstrip("/") + "/" + _dl_short) if req.local_dir else None
 
         # Pre-flight: verify aria2c is available before committing to that path.
         # Fallback to hf download only here — not mid-stream — because the two paths
@@ -1429,8 +1400,6 @@ def setup_cookbook_routes() -> APIRouter:
             elif "vllm" in req.cmd:
                 ps_lines.append('Write-Host "ERROR: vLLM is not supported on Windows. Use Ollama or llama.cpp instead."')
                 ps_lines.append('exit 1')
-            if is_pip_install:
-                _append_realesrgan_basicsr_preflight(ps_lines, req.cmd, powershell=True)
             ps_lines.append(req.cmd)
             if is_pip_install:
                 ps_lines.append('if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" }')
@@ -1649,8 +1618,6 @@ def setup_cookbook_routes() -> APIRouter:
                     runner_lines,
                     keep_shell_open=not local_windows,
                 )
-                if is_pip_install:
-                    _append_realesrgan_basicsr_preflight(runner_lines, req.cmd)
                 runner_lines.append(req.cmd)
                 if local_windows:
                     # Detached background process — no interactive shell to keep open.
