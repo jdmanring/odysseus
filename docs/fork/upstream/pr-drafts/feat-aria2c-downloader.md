@@ -95,8 +95,13 @@ values; an averaging fallback covers the case where sizes were unavailable.
 `totalFiles` falls back to `_dlFileTracker.totalFileCount` when the startup
 banner scrolls out of the 200-line `capture-pane` window. `isSingleFileSplit`
 detects when all `perFileData` entries share a filename (one file downloaded as
-N pieces with `--split=N`) and skips the multi-batch tracker for that case —
-the raw aria2c `pct` already sums pieces correctly.
+N pieces with `--split=N`). For that case, aria2c emits both a parent GID
+(full file size, `CN:N`) and N piece GIDs (each `1/N` file size, `CN:1`);
+naively summing all entries would double `totalBytes` and report `2N`
+connections. The parser detects the parent GID (`connections > 1`) and uses
+its values directly, falling back to the resolver-banner total as the
+authoritative size. The multi-batch tracker is skipped for this case since
+there is only one logical file to track.
 
 **`static/js/cookbook-hwfit.js`** — `refreshCachedModelIds()` now handles local
 downloads (no `remoteHost`). Previously returned early for empty host, making
@@ -177,13 +182,14 @@ PR (`tempfile.gettempdir()` on all platforms).
 
 ### Note on issue #787 (pause/resume)
 
-Full in-session pause via a UI button is not implemented. What this PR does
-add is **resume-on-restart**: aria2c's `--continue=true` flag, combined with
-`--auto-file-renaming=false`, means that if the user cancels a download (or
-the server crashes, or the connection drops), restarting the same download
-picks up from the last completed byte for each file. This covers the core use
-case in #787 — a user on a slow connection can stop and continue without
-losing progress. A UI pause button remains future work.
+This PR implements in-session pause and resume. The Pause button sends SIGINT
+to the aria2c process via `tmux send-keys C-c`; the download card immediately
+shows a `paused` badge. Resume starts a new aria2c session against the same
+output directory; aria2c's `--continue=true` flag picks up from the last
+completed byte for each file. The background status-reconciliation loop is
+guarded so that a paused task's status is never overwritten by a stale
+server-side `done` or `running` signal — the card stays `paused` until the
+user explicitly resumes or stops.
 
 ### Testing
 
@@ -196,13 +202,20 @@ losing progress. A UI pause button remains future work.
 
 **Manual (verified during development):**
 
-- [x] Download a single-file GGUF model — progress card appears, completes,
-  downloaded-dot (●) appears on the catalog row immediately without page reload
+- [x] Download a single-file GGUF model — progress card shows correct total
+  size throughout (not doubled); connection count shows split count, not 2×;
+  downloaded-dot (●) appears on catalog row immediately without page reload
 - [x] Download a multi-shard model (25 files, 115 GiB) — per-file rows show
   correct filenames; overall percentage, total size, and ETA all reflect the
   full model size (not just the 4 currently active files)
-- [x] Resume behavior — restarting a download after interruption resumes from
-  the last completed byte; verified via `test_resume_is_idempotent`
+- [x] Pause single-file download — card shows `paused` badge and type chip;
+  does not flip to `finished` after the background reconciliation loop fires
+- [x] Pause multi-file download — same; clicking the task header to
+  collapse/expand does not cause a spurious `finished` transition
+- [x] Resume paused download — resumes from last completed byte; aria2c
+  `--continue=true` confirmed working
+- [x] Resume behavior on restart — restarting a download after interruption
+  resumes from last completed byte; verified via `test_resume_is_idempotent`
 - [x] GGUF auto-discovered repo — downloaded-dot appears for both in-session
   completion and after page reload
 
