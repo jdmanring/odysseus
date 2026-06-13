@@ -594,9 +594,13 @@ def setup_cookbook_routes() -> APIRouter:
                 f"-RedirectStandardError \\\"$sd\\{session_id}.err.log\\\" "
                 f"-NoNewWindow -PassThru | ForEach-Object {{ $_.Id | Out-File \\\"$sd\\{session_id}.pid\\\" }}"
             )
+            _aria2c_scp = (
+                f' && ssh {_Pf}{remote} "mkdir -p ~/.cookbook"'
+                f' && scp -O -r tooling {remote}:~/.cookbook/'
+            ) if req.use_aria2c else ''
             setup_cmd = (
-                f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner} "
-                f"{' && ssh ' + _Pf + remote + ' \"mkdir -p ~/.cookbook\" && scp -O -r tooling ' + remote + ':~/.cookbook/' if req.use_aria2c else ''} && "
+                f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner}"
+                f"{_aria2c_scp} && "
                 f'ssh {_pf}{remote} "powershell -Command \\"{launch_ps}\\""'
             )
 
