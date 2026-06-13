@@ -76,6 +76,7 @@ _LONGCAT_TOOL_CALL_RE = re.compile(
 )
 
 
+
 # Pattern 5: DeepSeek DSML markup leaking into content. When deepseek
 # models can't emit structured tool_calls (e.g. we sent no tool schemas
 # that round, or the API didn't parse them), they fall back to raw
@@ -148,6 +149,7 @@ _TOOL_NAME_MAP = {
     "list_sessions": "list_sessions",
     "send_to_session": "send_to_session",
     "message_session": "send_to_session",
+    "get_workspace": "get_workspace",
     "pipeline": "pipeline",
     "chain": "pipeline",
     "manage_session": "manage_session",
@@ -598,6 +600,7 @@ def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
     except (json.JSONDecodeError, Exception):
         pass
     return None
+
 
 
 def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
