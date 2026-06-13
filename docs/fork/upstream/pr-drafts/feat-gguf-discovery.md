@@ -190,7 +190,7 @@ the cookbook routes, coverage for this path would be a good addition.
 
 ## Linked Issue
 
-Fixes #2342
+Fixes # <!-- [file upstream issue first — see issue-drafts/feat-gguf-discovery.md] -->
 
 ## Type of Change
 
@@ -201,18 +201,13 @@ Fixes #2342
 - [ ] Documentation only
 - [ ] CI / tooling / configuration
 
-## Filing notes
+## Filing Notes
 
-1. **Closes upstream #2342** — "Auto-discovered models without `gguf_sources`
-   appear as llama.cpp-ready but fail to download with no clear guidance."
-   Reference this in the PR body. The bug reporter is on Windows 11 with an
-   RTX 4080 Super — this fix is not platform-specific.
-2. Target branch: `dev` (not `main`).
-3. This PR can be filed independently of `feat/aria2c-downloader` — the
-   auto-discovery path works with the standard `hf download` fallback too.
-4. The `_REPUTED_AUTHORS` list is a starting point; upstream maintainers may
-   want to add or remove names based on their own assessment.
-5. Fork tracker context: issues #24 and #29 on the fork's issue tracker.
+1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-gguf-discovery.md`. Add the issue number to `Fixes #` above before opening the PR.
+2. In the PR Summary body, reference #2342 as the original symptom report this addresses.
+3. Target branch: `dev` (not `main`).
+4. Can be filed independently of `feat/aria2c-downloader` — auto-discovery works with the standard `hf download` fallback too.
+5. The `_REPUTED_AUTHORS` list is a starting point; upstream maintainers may want to add or remove names.
 
 ## Visual / UI changes
 

@@ -106,8 +106,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Filing Notes
 
-This PR has no dependencies and can be filed in any order. It adds only new
-files and does not modify any existing code or documentation.
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-ai-documentation-system.md`. Add the issue number to `Fixes #` above before opening the PR.
+- No dependencies. Can be filed in any order. Adds only new files — no existing code or documentation modified.
 
 ## Visual / UI changes
 

@@ -10,7 +10,7 @@ from the upstream project, and for tracking our work as contributors.
 **Upstream:** `github.com/pewdiepie-archdaemon/odysseus` (remote: `upstream`)
 **This fork:** `github.com/jdmanring/odysseus` (remote: `origin`)
 
-Odysseus is a self-hosted AI workspace. James uses this fork as his personal AI stack
+Odysseus is a self-hosted AI workspace. This fork is a personal AI stack
 on KDE/Artix Linux. The goals are:
 
 1. Run a full-featured local AI workspace on Linux with native desktop integration
@@ -41,7 +41,7 @@ upstream. It also tracks upstream bugs and prepares PRs for upstreaming fixes.
 
 ## Two Remotes, One Rule
 
-- `origin` — James's fork. Normal dev target. Push freely.
+- `origin` — This fork. Normal dev target. Push freely.
 - `upstream` — The source project. **Never push, file issues, or open PRs here
-  without James's explicit per-action authorization.** Stage work in `upstream/drafts/`
-  and let James file it.
+  without explicit per-action authorization.** Stage work in `upstream/drafts/`
+  and file them yourself.

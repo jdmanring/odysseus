@@ -94,6 +94,11 @@ Once configured, the integration's endpoints are injected into the agent's syste
 - Token stored encrypted at rest via Fernet (same as all other integrations)
 - Follows the exact same pattern as the existing `gitea` preset
 
+## Filing Notes
+
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-github-integration.md`. Add the issue number to `Fixes #` above before opening the PR.
+- Screenshots required — capture before filing (see How to Test above).
+
 ## Visual / UI changes — REQUIRED if you touched anything that renders
 
 - [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.

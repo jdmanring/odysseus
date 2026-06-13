@@ -286,47 +286,17 @@ Fixes # <!-- [file upstream issue first] -->
 - [ ] Documentation only
 - [ ] CI / tooling / configuration
 
-## Filing notes (internal — do not paste upstream)
+## Filing Notes
 
-1. **File an upstream issue first.** Suggested title:
-   > "Renderer OOM / freeze on long sessions — chat history DOM grows without bound"
+1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-dom-oom-virtualization.md`. Reference upstream reports #2869 and #3746 in the issue body (same root cause). Add the new issue number to `Fixes #` above before opening the PR. Do not ask to close #2869 or #3746 — let maintainers decide.
 
-   Body: describe the two failure modes (load crash on open; accumulation crash
-   during a long agentic run), mention agent sessions producing 5–7 nodes per
-   message, reference the V8 Oilpan OOM error visible in the browser console.
+2. No screenshot needed — fix is behavioral (OOM prevention), not visual. If reviewers ask: load a 600-message session from the DB; renderer crashes before this patch, loads cleanly after.
 
-   **Related upstream reports to reference in the issue body:**
-   - **#2869 "Chat Freeze"** — user reports freeze after 20 messages in agent chat
-     (same root cause: unbounded DOM growth). Labelled "needs more info" and stale;
-     don't ask to close it — let maintainers decide.
-   - **#3746 "Website crashing"** — crash after deep research + continued chatting;
-     consistent with DOM OOM accumulation. Same treatment.
+3. **Reviewer question to anticipate:** "Why not React virtualization libraries?" Answer: Odysseus uses plain HTML/JS with no bundler or framework. Vanilla JS with direct DOM manipulation, consistent with the rest of the codebase.
 
-   Add the new upstream issue number to the `Fixes:` line in the PR description
-   before filing the PR.
+4. **Reviewer question to anticipate:** "Why include the chat.js resumeStream fix here?" Answer: The thinking-token bug only manifests when `resumeStream` replays a buffer after a crash — inseparable in practice from the crash-recovery path this PR introduces.
 
-2. **No screenshot needed** — the fix is behavioral (OOM prevention) not visual.
-   If reviewers ask for evidence, describe repro steps: load a 600-message session
-   from the DB and open it; the renderer crashes before this patch and loads cleanly
-   after.
-
-3. **Reviewer question to anticipate:** "Why not React virtualization libraries like
-   react-window or @tanstack/virtual?" Answer: Odysseus uses a plain HTML/JS
-   frontend with no bundler or framework. A dependency on a React virtualization
-   library is not appropriate. The implementation follows the same pattern as the
-   rest of the codebase: vanilla JS with direct DOM manipulation.
-
-4. **Reviewer question to anticipate:** "Why include the chat.js resumeStream fix
-   here?" Answer: It was discovered while testing the crash-recovery path. The
-   thinking-token bug only manifests when `resumeStream` replays a buffer — which
-   only happens after a crash, which is what this PR makes survivable. Separating
-   it into its own PR would mean filing a new upstream issue for a 3-line fix in a
-   subsystem reviewers can verify in seconds alongside this one.
-
-5. **Watch upstream discussion #929** ("Implement a frontend framework for easier
-   maintenance as the project scales"). If a framework migration PR lands before
-   this one is reviewed, this module may need to be adapted. The virtualization
-   logic is framework-agnostic; porting it would be straightforward.
+5. **Watch upstream discussion #929** (frontend framework migration). Virtualization logic is framework-agnostic; porting would be straightforward if needed.
 
 ## Visual / UI changes
 

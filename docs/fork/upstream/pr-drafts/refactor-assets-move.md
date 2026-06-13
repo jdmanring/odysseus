@@ -81,7 +81,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Filing Notes
 
-This is a standalone refactor with no dependencies. Can be filed in any order.
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/refactor-assets-move.md`. Add the issue number to `Fixes #` above before opening the PR.
+- No dependencies. Can be filed in any order.
 
 ## Visual / UI changes
 

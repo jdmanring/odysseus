@@ -106,7 +106,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Filing Notes
 
-This PR depends on `feat/logging-core` and should be filed after it merges. It targets `dev`.
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-logging-timing.md`. Add the issue number to `Fixes #` above before opening the PR.
+- Depends on `feat/logging-core` merging upstream first. File the issue now; file the PR after core merges.
 
 ## Visual / UI changes
 

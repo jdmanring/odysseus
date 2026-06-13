@@ -17,8 +17,12 @@ what its status is, and what branch carries the fix.
    - upstream-candidate → branch from upstream-mirror
    - fork-only          → branch from develop
 3. Do the work on that branch (upstream-candidate: one clean commit, fork files only)
-4. Merge/cherry-pick to develop; close the issue when fix is verified
-5. If upstream-candidate: update docs/fork/upstream/pr-status.md — branch IS the staging
+4. Merge/cherry-pick to develop; close the fork issue when fix is verified
+5. If upstream-candidate:
+   - Write PR draft in docs/fork/upstream/pr-drafts/<name>.md
+   - Write issue draft in docs/fork/upstream/issue-drafts/<name>.md
+   - Update docs/fork/upstream/pr-status.md with status
+   - File: issue first (from issue-drafts/), then PR (from pr-drafts/)
 ```
 
 Full branch procedure is in `docs/dev/git-branch-workflow.md`.

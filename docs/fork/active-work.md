@@ -28,7 +28,7 @@ Squash to a single clean commit before filing the upstream PR.
 ## Staged for Upstream — Ready to File
 
 All branches are built from `upstream-mirror`, contain only their specific changes, and are
-pushed to `origin`. James files the upstream PRs. See `docs/fork/upstream/pr-status.md` for
+pushed to `origin`. See `docs/fork/upstream/pr-status.md` for
 full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 
 | Branch | Issue(s) | Notes |

@@ -300,7 +300,7 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
 ## Linked Issue
 
-Fixes #359
+Fixes # <!-- [file upstream issue first — see issue-drafts/feat-aria2c-downloader.md] -->
 
 ## Type of Change
 
@@ -313,19 +313,9 @@ Fixes #359
 
 ## Filing Notes
 
-- **Closes upstream #359** — "Show Download Percentage During Cookbook Downloads"
-- **Substantially mitigates upstream #2722** — "Cookbook large HF model downloads
-  crash/restart due to SSL ReadError": aria2c has built-in retry (`--retry-wait=3`)
-  and resumes partial files (`--continue=true`), so SSL drops no longer abort
-  the download from scratch. The reported cache/local-dir confusion is a separate
-  concern and not addressed here.
-- **Addresses upstream #787** — "Add pause and resume functionality":
-  in-session pause via the Pause button is implemented; resume continues from
-  the last completed byte. See the pause/resume section above for full detail.
-
-This PR can be filed independently. `fix/gguf-quality-scored` (#24) is a
-companion that adds auto-discovery of GGUF sources for llamacpp models — either
-order is fine; they don't depend on each other.
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-aria2c-downloader.md`. Add the issue number to `Fixes #` above before opening the PR.
+- In the PR Summary body, reference related upstream issues as context: #359 (download percentage request this addresses), #2722 (SSL download crashes — aria2c's retry and resume substantially mitigates this), #787 (pause/resume request — implemented here).
+- This PR can be filed independently of `fix/gguf-quality-scored` — either order is fine.
 
 ## Visual / UI changes — REQUIRED if you touched anything that renders
 
