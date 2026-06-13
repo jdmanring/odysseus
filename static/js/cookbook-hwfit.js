@@ -75,6 +75,53 @@ async function _ensureBackendInstalled(runBackend, host, port, envPath, modelNam
 export let _hwfitCache = null;
 export let _hwfitDebounce = null;
 export let _cachedModelIds = null; // repo IDs already downloaded
+
+export async function refreshCachedModelIds(remoteHost) {
+  try {
+    const _cacheParams = new URLSearchParams();
+    if (remoteHost) {
+      const _cacheSrv = _envState.servers.find(s => s.host === remoteHost);
+      const _cachePort = _cacheSrv?.port || '';
+      _cacheParams.set('host', remoteHost);
+      if (_cachePort) _cacheParams.set('ssh_port', _cachePort);
+      if (_cacheSrv?.platform) _cacheParams.set('platform', _cacheSrv.platform);
+    }
+    const _qs = _cacheParams.toString();
+    const res = await fetch(`/api/model/cached${_qs ? '?' + _qs : ''}`, { credentials: 'same-origin' });
+    if (!res.ok) return;
+    const d = await res.json();
+    _cachedModelIds = new Set((d.models || []).filter(m => m.status !== 'stalled').map(m => m.repo_id));
+
+    // Re-mark rows if already rendered
+    const list = document.getElementById('hwfit-list');
+    if (list) {
+      list.querySelectorAll('.hwfit-row[data-model]').forEach(row => {
+        const name = row.dataset.model; // This is m.name
+        const nameShort = name?.split('/').pop();
+        
+        let isCached = false;
+        if (_cachedModelIds) {
+          if (_cachedModelIds.has(name) || _cachedModelIds.has(nameShort)) {
+            isCached = true;
+          } else {
+            if ([..._cachedModelIds].some(id => id.endsWith('/' + nameShort) || id === nameShort)) {
+               isCached = true;
+            }
+          }
+        }
+
+        if (isCached) {
+          const nameEl = row.querySelector('.hwfit-name');
+          if (nameEl && !nameEl.querySelector('.hwfit-dl-dot')) {
+            nameEl.insertAdjacentHTML('beforeend', '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>');
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Failed to refresh cached model IDs:', e);
+  }
+}
 // Bumped on every _hwfitFetch; a slow scan (remote SSH probe can take ~10s)
 // checks this before rendering so a stale response can't clobber a newer one
 // after the user has switched servers.
@@ -1189,7 +1236,28 @@ export function _hwfitRenderList(el, models) {
     const vramLabel = m.required_gb ? m.required_gb.toFixed(1) + 'G' : '?';
     const moeBadge = m.is_moe ? '<span class="hwfit-badge hwfit-moe">MoE</span>' : '';
     const imgBadge = m.is_image_gen ? '<span class="hwfit-badge" style="background:color-mix(in srgb, var(--red) 20%, transparent);color:var(--red);font-size:8px;padding:1px 4px;border-radius:3px;margin-left:4px;">IMG</span>' : '';
-    const dlDot = (_cachedModelIds && (_cachedModelIds.has(m.name) || [..._cachedModelIds].some(id => id === m.name?.split('/').pop()))) ? '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>' : '';
+    const dlDot = (() => {
+    if (!_cachedModelIds) return '';
+    const name = m.name;
+    const nameShort = name?.split('/').pop();
+    
+    // 1. Check primary name (full or short)
+    if (_cachedModelIds.has(name) || _cachedModelIds.has(nameShort)) return '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>';
+    
+    // 2. Check GGUF sources (full or short)
+    if (m.gguf_sources) {
+      for (const src of m.gguf_sources) {
+        const repo = src.repo;
+        const repoShort = repo?.split('/').pop();
+        if (_cachedModelIds.has(repo) || _cachedModelIds.has(repoShort)) return '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>';
+      }
+    }
+    
+    // 3. Fallback to the "some" check for partial matches (legacy/edge cases)
+    if ([..._cachedModelIds].some(id => id === nameShort)) return '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>';
+    
+    return '';
+  })();
     html += `<div class="hwfit-row" data-model="${esc(m.name)}">`;
     html += `<span class="hwfit-col hwfit-fit" style="color:${fitColor}">${esc(fitLabel)}</span>`;
     // Append quant to the title when it's not already in the repo name. The
