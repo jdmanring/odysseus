@@ -532,6 +532,7 @@ async def execute_api_call(
 
 def get_github_cli_prompt() -> str:
     """Return a system prompt block if gh CLI is installed and authenticated."""
+    import os
     import shutil
     import subprocess
     import re
@@ -549,6 +550,22 @@ def get_github_cli_prompt() -> str:
         username = m.group(1) if m else "you"
     except Exception:
         return ""
+
+    # gh may be authenticated via the system keyring, which is not accessible to
+    # subprocesses spawned without a D-Bus session (e.g. Odysseus's bash tool).
+    # Extract the token now (server process has keyring access) and set GH_TOKEN
+    # so that all child processes inherit it and gh works without keyring.
+    if not os.environ.get("GH_TOKEN"):
+        try:
+            tok = subprocess.run(
+                ["gh", "auth", "token", "--hostname", "github.com"],
+                capture_output=True, text=True, timeout=5,
+            )
+            token = tok.stdout.strip()
+            if token:
+                os.environ["GH_TOKEN"] = token
+        except Exception:
+            pass
 
     return (
         "\n\n## GitHub CLI\n\n"
