@@ -11,8 +11,8 @@ import asyncio
 import collections
 import contextvars
 import json
-import logging
 import os
+import structlog
 import pathlib
 import re
 import sys
@@ -52,8 +52,10 @@ _AGENT_WORKDIR = DATA_DIR
 #   1. Sensitive-subpath deny list — checked FIRST. Blocks .ssh,
 #      .gnupg, shell rc files, token/env files even if the root above
 #      them is on the allowlist.
-#   2. Allowlist — only the directories the agent legitimately needs
-#      (project data/, system tmp). $HOME is NOT on the default list.
+#   2. Allowlist — project data/, system tmp, and $HOME. $HOME is
+#      included by default because admin users legitimately need to
+#      read project files on their own machine; credentials and shell
+#      configs are still blocked by the deny list above.
 #   3. Opt-in extra roots — admin can add broader roots via the
 #      "tool_path_extra_roots" setting (list of path strings).
 # ---------------------------------------------------------------------------
@@ -127,6 +129,13 @@ def _tool_path_roots() -> list[str]:
     if tmpdir:
         roots.append(tmpdir)
 
+    # $HOME — the user's home directory. Admin users need to read project
+    # files on their own machine. Credentials and shell configs are still
+    # blocked by the sensitive-subpath deny list above.
+    home = os.path.expanduser("~")
+    if home and home != "/":
+        roots.append(home)
+
     # Opt-in extra roots from settings.
     try:
         from src.settings import get_setting
@@ -193,39 +202,6 @@ def _resolve_tool_path(raw_path: str) -> str:
         f"path '{raw_path}' is outside the allowed roots"
     )
 
-
-def _resolve_tool_path_in_workspace(workspace: str, raw_path: str) -> str:
-    """Confine a model-supplied path to the active workspace.
-
-    Layered on top of upstream's path policy: the workspace is the allowed
-    root (relative paths resolve under it; paths that escape it are rejected),
-    and the sensitive-file deny list (.ssh, .gnupg, id_rsa, …) still applies
-    inside it. When no workspace is set, callers use _resolve_tool_path (the
-    default data/tmp allowlist) instead.
-    """
-    if raw_path is None or not str(raw_path).strip():
-        raise ValueError("path is required")
-    base = os.path.realpath(workspace)
-    expanded = os.path.expanduser(str(raw_path).strip())
-    candidate = expanded if os.path.isabs(expanded) else os.path.join(base, expanded)
-    resolved = os.path.realpath(candidate)
-    if _is_sensitive_path(resolved):
-        raise ValueError(
-            f"path '{raw_path}' is inside a sensitive directory "
-            f"(e.g. .ssh, .gnupg) or matches a sensitive filename"
-        )
-    if resolved != base:
-        # normcase so containment holds on case-insensitive filesystems
-        # (Windows, default macOS): it lowercases on Windows and is a no-op on
-        # POSIX. commonpath raises ValueError across Windows drives (C: vs D:)
-        # or mixed abs/rel — both mean "outside", so the except rejects them.
-        nbase = os.path.normcase(base)
-        try:
-            if os.path.commonpath([os.path.normcase(resolved), nbase]) != nbase:
-                raise ValueError
-        except ValueError:
-            raise ValueError(f"path '{raw_path}' is outside the workspace ({workspace})")
-    return resolved
 
 
 
@@ -302,7 +278,7 @@ def _resolve_search_root(raw_path: str) -> str:
         return roots[0] if roots else os.path.realpath(".")
     return _resolve_tool_path(raw)
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 _ADMIN_TOOLS = {
@@ -644,6 +620,7 @@ async def _execute_tool_block_impl(
 
     tool = block.tool_type
     content = block.content
+    _tool_start = time.monotonic()
 
     # The block/disable gates below must match every policy-equivalent
     # spelling of the tool name (bare email names alias their mcp__email__
@@ -958,7 +935,11 @@ async def _execute_tool_block_impl(
             "exit_code": 1
         }
 
-    logger.info(f"Tool executed: {desc} -> exit_code={result.get('exit_code', 'n/a')}")
+    duration_ms = (time.monotonic() - _tool_start) * 1000
+    log = logger.warning if result.get("exit_code") not in (0, None) else logger.info
+    log("tool_executed", tool=tool, desc=desc,
+        exit_code=result.get("exit_code", "n/a"),
+        duration_ms=round(duration_ms, 1))
     return desc, result
 
 

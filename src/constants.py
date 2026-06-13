@@ -64,6 +64,13 @@ MAIL_ATTACHMENTS_DIR = os.getenv("ODYSSEUS_MAIL_ATTACHMENTS_DIR", os.path.join(D
 # init and all vector features (RAG, semantic memory, tool index) silently degrade.
 FASTEMBED_CACHE_DIR = os.getenv("FASTEMBED_CACHE_PATH") or os.path.join(DATA_DIR, "fastembed_cache")
 
+# Logging
+LOG_DIR = os.path.join(DATA_DIR, "logs")
+DEFAULT_LOG_FILE = os.path.join(LOG_DIR, "odysseus.log")
+LOG_FILE = os.getenv("ODYSSEUS_LOG_FILE", DEFAULT_LOG_FILE)
+LOG_MAX_BYTES = 10 * 1024 * 1024   # 10 MB
+LOG_BACKUP_COUNT = 5
+
 # Agent tool output limits (single source of truth — imported by tool_execution.py,
 # tool_implementations.py, agent_tools.py, and any other module that needs them)
 MAX_OUTPUT_CHARS = 10_000       # cap for bash/python/web_search/web_fetch output

@@ -13,6 +13,7 @@ Set EMBEDDING_URL in .env, e.g.:
 """
 
 import os
+import time
 
 from src.constants import FASTEMBED_CACHE_DIR, EMBEDDING_ENDPOINT_FILE
 
@@ -26,14 +27,14 @@ if os.name == "nt":
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
-import logging
+import structlog
 import numpy as np
 import httpx
 from typing import List, Optional
 
 from src.runtime_paths import get_app_root
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _DEFAULT_MODEL = "all-minilm:l6-v2"
 _DEFAULT_FASTEMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -75,10 +76,12 @@ class EmbeddingClient:
         if not texts:
             return np.array([], dtype="float32")
 
+        _enc_start = time.monotonic()
         all_vecs = []
         for i in range(0, len(texts), self._batch_size):
             batch = texts[i : i + self._batch_size]
             all_vecs.extend(self._embed_batch(batch))
+        n_batches = (len(texts) + self._batch_size - 1) // self._batch_size
 
         vecs = np.array(all_vecs, dtype="float32")
 
@@ -89,6 +92,11 @@ class EmbeddingClient:
 
         if self._dim is None and vecs.size > 0:
             self._dim = vecs.shape[1]
+
+        _enc_ms = (time.monotonic() - _enc_start) * 1000
+        if _enc_ms > 500 or len(texts) > 128:
+            logger.info("embedding_encode", texts=len(texts), batches=n_batches,
+                        duration_ms=round(_enc_ms, 1), model=self.model)
 
         return vecs
 
@@ -178,10 +186,12 @@ class FastEmbedClient:
             except Exception as _e:
                 logger.debug("embedding cache symlink-heal skipped: %s", _e)
         kwargs = {"model_name": self.model, "cache_dir": cache_dir}
+        _load_start = time.monotonic()
         self._embedding = TextEmbedding(**kwargs)
+        _load_ms = (time.monotonic() - _load_start) * 1000
         self._dim: Optional[int] = None
         self.url = "local://fastembed"
-        logger.info(f"FastEmbed loaded model={self.model}")
+        logger.info("fastembed_loaded", model=self.model, load_ms=round(_load_ms, 1))
 
     def get_sentence_embedding_dimension(self) -> int:
         if self._dim is not None:
@@ -242,6 +252,8 @@ def get_embedding_client():
     """Factory: try HTTP API first, fall back to local fastembed."""
     global _http_embed_down
 
+    _factory_start = time.monotonic()
+
     # Check for a persisted custom endpoint (saved from admin panel)
     persisted = _load_persisted_endpoint()
     if persisted.get("url"):
@@ -261,7 +273,9 @@ def get_embedding_client():
         try:
             client = EmbeddingClient()
             client.get_sentence_embedding_dimension()  # health check
-            logger.info(f"Using HTTP embedding API: {client.url} model={client.model}")
+            logger.info("embedding_client_selected", backend="http",
+                        url=client.url, model=client.model,
+                        factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
             return client
         except Exception as e:
             _http_embed_down = True
@@ -271,7 +285,9 @@ def get_embedding_client():
     try:
         client = FastEmbedClient()
         client.get_sentence_embedding_dimension()
-        logger.info(f"Using local FastEmbed: model={client.model}")
+        logger.info("embedding_client_selected", backend="fastembed",
+                    model=client.model,
+                    factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
         return client
     except ImportError:
         logger.error("fastembed not installed — run: pip install fastembed")

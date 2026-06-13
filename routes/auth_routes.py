@@ -4,8 +4,9 @@ from fastapi import APIRouter, Request, Response, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import asyncio
-import logging
+import hashlib
 import os
+import structlog
 
 import json
 import re
@@ -35,7 +36,14 @@ from src.integrations import (
     migrate_from_settings,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
+
+
+def _log_uid(username: str | None) -> str:
+    """Stable opaque identifier — correlatable across log events but not reversible."""
+    if not username:
+        return "(none)"
+    return hashlib.sha256(username.encode()).hexdigest()[:12]
 
 
 class LoginRequest(BaseModel):
@@ -131,6 +139,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         ok = await asyncio.to_thread(auth_manager.create_user, body.username, body.password, is_admin=False)
         if not ok:
             raise HTTPException(409, "Username already taken")
+        logger.info("auth_signup", uid=_log_uid(body.username))
         return {"ok": True, "message": "Account created"}
 
     @router.post("/login")
@@ -140,6 +149,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         # Verify password first
         username = body.username.strip().lower()
         if not await asyncio.to_thread(auth_manager.verify_password, username, body.password):
+            logger.warning("auth_login_failed", reason="invalid_password")
             raise HTTPException(401, "Invalid credentials")
         # Check 2FA if enabled
         if auth_manager.totp_enabled(username):
@@ -147,11 +157,13 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
                 # Password OK but need TOTP — tell client to show code input
                 return {"ok": False, "requires_totp": True, "username": username}
             if not auth_manager.totp_verify(username, body.totp_code):
+                logger.warning("auth_login_failed", reason="invalid_totp")
                 raise HTTPException(401, "Invalid 2FA code")
         # All checks passed — create session (password already verified above)
         token = await asyncio.to_thread(auth_manager.create_session_trusted, username)
         if not token:
             raise HTTPException(401, "Invalid credentials")
+        logger.info("auth_login_success", uid=_log_uid(username))
         cookie_kwargs = dict(
             key=SESSION_COOKIE,
             value=token,
@@ -169,7 +181,9 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     async def logout(request: Request, response: Response):
         token = request.cookies.get(SESSION_COOKIE)
         if token:
+            user = auth_manager.get_username_for_token(token) if auth_manager.validate_token(token) else None
             auth_manager.revoke_token(token)
+            logger.info("auth_logout", uid=_log_uid(user))
         response.delete_cookie(SESSION_COOKIE, path="/")
         return {"ok": True}
 
@@ -205,8 +219,10 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         current_token = request.cookies.get(SESSION_COOKIE)
         ok = await asyncio.to_thread(auth_manager.change_password, user, body.current_password, body.new_password)
         if not ok:
+            logger.warning("auth_password_change_failed", uid=_log_uid(user))
             raise HTTPException(400, "Current password is incorrect")
         await asyncio.to_thread(auth_manager.revoke_user_sessions, user, current_token)
+        logger.info("auth_password_changed", uid=_log_uid(user))
         return {"ok": True}
 
     # ------------------------------------------------------------------
@@ -290,6 +306,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         ok = auth_manager.create_user(body.username, body.password, body.is_admin)
         if not ok:
             raise HTTPException(409, "Username already taken")
+        logger.info("auth_admin_create_user", admin_uid=_log_uid(user), new_user_uid=_log_uid(body.username), is_admin=body.is_admin)
         return {"ok": True}
 
     @router.put("/users/{username}/privileges")
@@ -600,6 +617,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             raise
         if not ok:
             raise HTTPException(400, "Cannot delete user")
+        logger.info("auth_admin_delete_user", admin_uid=_log_uid(user), deleted_user_uid=_log_uid(body.username))
         # delete_user removes the user's ApiToken rows, but the bearer-auth
         # middleware serves from an in-memory prefix->token cache that only
         # rebuilds when flagged dirty. Without this, a deleted user's already
@@ -650,12 +668,11 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             raise HTTPException(403, "Admin only")
         body = await request.json()
         current = _load_settings()
-        # Per-key validation for numeric settings: coerce to int and clamp to a
-        # sane range so a bad value can't disable the agent or let it run away.
         _INT_RANGES = {
             "agent_max_rounds": (1, 200),
-            "agent_max_tool_calls": (0, 1000),  # 0 = unlimited
+            "agent_max_tool_calls": (0, 1000),
         }
+        changes = {}
         for key in DEFAULT_SETTINGS:
             if key not in body:
                 continue
@@ -667,8 +684,12 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
                 except (TypeError, ValueError):
                     raise HTTPException(400, f"{key} must be an integer")
                 val = max(lo, min(val, hi))
+            if current.get(key) != val:
+                changes[key] = {"old": current.get(key), "new": val}
             current[key] = val
         _save_settings(current)
+        if changes:
+            logger.info("settings_changed", admin=_log_uid(user), changes=changes)
         return current
 
     # ---- Integrations CRUD ----
@@ -823,6 +844,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         health_paths = {
             "miniflux": "/v1/me",
             "gitea": "/api/v1/version",
+            "github": "/user",
             "linkding": "/api/tags/",
             "homeassistant": "/api/",
             "home assistant": "/api/",
@@ -830,6 +852,19 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         path = health_paths.get(preset, "/")
         result = await execute_api_call(integration_id, "GET", path)
         if result.get("exit_code", 1) == 0:
+            # For GitHub, extract the login name so the user knows which
+            # account they're authenticated as.
+            if preset == "github":
+                import json as _json
+                try:
+                    body = result.get("output", "")
+                    # output starts with "HTTP 200\n{json...}"
+                    json_str = body.split("\n", 1)[1] if "\n" in body else body
+                    user_data = _json.loads(json_str)
+                    login = user_data.get("login", "unknown")
+                    return {"ok": True, "message": f"Authenticated as GitHub user '{login}'"}
+                except Exception:
+                    pass
             return {"ok": True, "message": "Connection successful"}
         return {"ok": False, "message": (result.get("error") or "Connection failed")[:300]}
 

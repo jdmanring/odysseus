@@ -1,8 +1,9 @@
 """Search provider implementations: SearXNG, Brave, DuckDuckGo, Google PSE, Tavily, Serper."""
 
 import json
-import logging
+import structlog
 import os
+import time
 from typing import List, Optional
 from urllib.parse import urljoin, urlparse, parse_qs
 
@@ -13,7 +14,7 @@ from src.constants import SEARXNG_INSTANCE, REQUEST_TIMEOUT, WEB_FETCH_USER_AGEN
 from .analytics import RateLimitError, error_logger
 from .query import build_enhanced_query
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Provider registry — maps setting value to (label, needs_key, needs_url)
 PROVIDER_INFO = {
@@ -184,6 +185,7 @@ def searxng_search_api(query: str, count: Optional[int] = None, categories: str 
             ]
 
         def _run(search_params):
+            _t0 = time.monotonic()
             response = httpx.get(
                 f"{instance}/search",
                 params=search_params,
@@ -192,6 +194,11 @@ def searxng_search_api(query: str, count: Optional[int] = None, categories: str 
             )
             response.raise_for_status()
             data = response.json()
+            _elapsed_ms = (time.monotonic() - _t0) * 1000
+            if _elapsed_ms > 500:
+                logger.info("searxng_http", elapsed_ms=round(_elapsed_ms, 1),
+                            status=response.status_code)
+                logger.debug("searxng_http_query", query=query[:80])
             return _parse_results(data.get("results", [])), data
 
         active_params = params

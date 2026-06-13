@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import structlog
 import subprocess
 import time
 import uuid
@@ -30,6 +31,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.atomic_io import atomic_write_json
+
+logger = structlog.get_logger(__name__)
 from core.platform_compat import (
     detached_popen_kwargs,
     find_bash,
@@ -156,6 +159,9 @@ def launch(command: str, session_id: str, cwd: Optional[str] = None,
     jobs = _load()
     jobs[job_id] = rec
     _save(jobs)
+    short_cmd = command.strip().split("\n")[0][:80]
+    logger.info("bg_job_launched", job_id=job_id, session_id=session_id,
+ command=short_cmd)
     return rec
 
 
@@ -207,6 +213,13 @@ def refresh() -> Dict[str, Dict[str, Any]]:
             rec["status"] = "done" if code == 0 else "failed"
             rec["ended_at"] = now
             changed = True
+            duration = now - rec.get("started_at", now)
+            if code == 0:
+                logger.info("bg_job_completed", job_id=rec["id"],
+                            duration_ms=round(duration * 1000, 1))
+            else:
+                logger.warning("bg_job_failed", job_id=rec["id"], exit_code=code,
+                               duration_ms=round(duration * 1000, 1))
         elif (now - rec.get("started_at", now)) > rec.get("max_runtime_s", DEFAULT_MAX_RUNTIME_S):
             # Runaway / stuck — reap it but STILL surface a follow-up.
             _kill(rec.get("pid"))
@@ -215,6 +228,8 @@ def refresh() -> Dict[str, Dict[str, Any]]:
             rec["ended_at"] = now
             rec["timed_out"] = True
             changed = True
+            logger.error("bg_job_timeout", job_id=rec["id"],
+                         max_runtime_s=rec.get("max_runtime_s", DEFAULT_MAX_RUNTIME_S))
         elif not _pid_alive(rec.get("pid")) and not exit_path.exists():
             # Process vanished without writing an exit code (killed, OOM,
             # crash). Don't leave it "running" forever.

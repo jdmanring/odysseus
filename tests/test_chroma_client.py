@@ -24,7 +24,8 @@ def _free_port() -> int:
 def test_port_open_false_for_closed_port_and_is_fast():
     port = _free_port()
     t0 = time.monotonic()
-    assert cc._port_open("127.0.0.1", port, timeout=1.0) is False
+    is_open, _elapsed_ms = cc._port_open("127.0.0.1", port, timeout=1.0)
+    assert is_open is False
     # The whole point: we fail fast, nowhere near the 30-60s OS timeout.
     assert time.monotonic() - t0 < 5.0
 
@@ -35,7 +36,8 @@ def test_port_open_true_for_listening_socket():
     srv.listen(1)
     host, port = srv.getsockname()
     try:
-        assert cc._port_open(host, port, timeout=1.0) is True
+        is_open, _elapsed_ms = cc._port_open(host, port, timeout=1.0)
+        assert is_open is True
     finally:
         srv.close()
 

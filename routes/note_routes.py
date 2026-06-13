@@ -3,7 +3,7 @@
 
 import json
 import uuid
-import logging
+import structlog
 from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -16,7 +16,7 @@ from src.constants import DATA_DIR
 from src.upload_handler import reserve_upload_references
 from sqlalchemy.orm.attributes import flag_modified
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -498,10 +498,15 @@ async def dispatch_reminder(
                     ntfy_error = f"ntfy URL rejected: {_reason}"
                 else:
                     async with httpx.AsyncClient(timeout=10.0) as client:
+                        _ntfy_t0 = time.monotonic()
                         resp = await client.post(f"{base}/{topic}", content=ntfy_body, headers=hdrs)
+                        _ntfy_ms = (time.monotonic() - _ntfy_t0) * 1000
                         ntfy_sent = resp.is_success
                         if not ntfy_sent:
                             ntfy_error = f"ntfy returned HTTP {resp.status_code}"
+                        logger.info("ntfy_publish", topic=topic, base=base,
+                                    status=resp.status_code, elapsed_ms=round(_ntfy_ms, 1),
+                                    success=ntfy_sent)
             else:
                 ntfy_error = "No enabled ntfy integration"
         except Exception as e:

@@ -6,16 +6,17 @@ Each server exposes tools that are made available to the agent loop.
 """
 
 import json
-import logging
 import os
+import structlog
 import re
-import asyncio 
+import asyncio
+import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 from src.database import McpServer, SessionLocal
 
 from src.runtime_paths import get_app_root
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 def _format_mcp_connection_error(name: str, command: str = "", args: Optional[List[str]] = None, error: Exception = None) -> str:
     """Return a user-actionable MCP connection error message."""
@@ -480,12 +481,15 @@ class McpManager:
         if not session:
             return {"error": f"MCP server not connected: {server_id}", "exit_code": 1}
 
+        _call_start = time.monotonic()
         try:
             result = await self._do_call(session, tool_name, arguments)
         except Exception as e:
-            # Auto-reconnect for builtin servers whose subprocess may have died
+            duration_ms = (time.monotonic() - _call_start) * 1000
             if self.is_builtin(server_id):
-                logger.warning(f"MCP call failed for {qualified_name}, attempting reconnect: {e}")
+                logger.warning("mcp_tool_call_failed", tool=qualified_name,
+                               server=server_id, error=str(e),
+                               duration_ms=round(duration_ms, 1))
                 reconnected = await self._reconnect_builtin(server_id)
                 if reconnected:
                     session = self._sessions.get(server_id)
@@ -493,17 +497,23 @@ class McpManager:
                         try:
                             result = await self._do_call(session, tool_name, arguments)
                         except Exception as e2:
-                            logger.error(f"MCP tool call failed after reconnect: {qualified_name}: {e2}")
+                            logger.error("mcp_tool_call_failed_after_reconnect",
+                                         tool=qualified_name, server=server_id, error=str(e2))
                             return {"error": str(e2), "exit_code": 1}
                     else:
                         return {"error": f"Reconnected but no session for {server_id}", "exit_code": 1}
                 else:
-                    logger.error(f"MCP reconnect failed for {server_id}")
+                    logger.error("mcp_reconnect_failed", server=server_id)
                     return {"error": f"MCP server crashed and reconnect failed: {server_id}", "exit_code": 1}
             else:
-                logger.error(f"MCP tool call failed: {qualified_name}: {e}")
+                logger.error("mcp_tool_call_failed", tool=qualified_name,
+                             server=server_id, error=str(e),
+                             duration_ms=round(duration_ms, 1))
                 return {"error": str(e), "exit_code": 1}
 
+        duration_ms = (time.monotonic() - _call_start) * 1000
+        logger.info("mcp_tool_call_success", tool=qualified_name,
+                    server=server_id, duration_ms=round(duration_ms, 1))
         return result
 
     async def _do_call(self, session, tool_name: str, arguments: Dict) -> Dict:

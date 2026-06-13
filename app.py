@@ -50,6 +50,7 @@ load_dotenv(encoding="utf-8-sig")
 import asyncio
 import logging
 import secrets
+import time
 from datetime import datetime, timezone
 from typing import Dict
 
@@ -81,38 +82,10 @@ from src.generated_images import GENERATED_IMAGE_HEADERS, resolve_generated_imag
 from starlette.responses import RedirectResponse
 
 # ========= LOGGING =========
-import logging.handlers
-from core.constants import DATA_DIR
-
-_root_logger = logging.getLogger()
-_root_logger.setLevel(logging.INFO)
-_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Clear existing handlers to avoid duplicates
-for _h in list(_root_logger.handlers):
-    _root_logger.removeHandler(_h)
-
-_console_h = logging.StreamHandler()
-_console_h.setFormatter(_formatter)
-_root_logger.addHandler(_console_h)
-
-try:
-    _log_dir = os.path.join(DATA_DIR, "logs")
-    os.makedirs(_log_dir, exist_ok=True)
-    _log_file = os.path.join(_log_dir, "app.log")
-
-    # RotatingFileHandler is not multi-process safe (e.g. if uvicorn is run with --workers N).
-    # Odysseus is single-process by convention, so this is acceptable, but be aware that
-    # concurrent log rotation issues can arise if multiple workers are configured.
-    _file_h = logging.handlers.RotatingFileHandler(
-        _log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
-    )
-    _file_h.setFormatter(_formatter)
-    _root_logger.addHandler(_file_h)
-except Exception as e:
-    _root_logger.warning(f"Failed to initialize file logging handler (falling back to console-only): {e}")
-
-logger = logging.getLogger(__name__)
+from src.logging_config import setup_logging
+setup_logging()
+import structlog
+logger = structlog.get_logger("odysseus")
 
 # ========= APP =========
 # Lifespan is defined below (after all helpers it references are in scope)
@@ -157,6 +130,62 @@ app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
 # ========= SECURITY HEADERS MIDDLEWARE =========
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+# ========= ACCESS LOGGING MIDDLEWARE =========
+# Logs every HTTP request with method, path, status, duration, and
+# request_id correlation. Must be outside AuthMiddleware so it captures
+# auth failures (401/403) too. Generates a per-request UUID that is
+# also returned in the X-Request-ID response header.
+_ACCESS_LOG_SKIP = {"/api/health", "/api/version", "/static"}
+
+
+class AccessLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path or ""
+        if any(path.startswith(p) for p in _ACCESS_LOG_SKIP):
+            return await call_next(request)
+
+        from src.log_context import bind_request_context, clear_request_context
+        req_id = bind_request_context()
+        start = time.monotonic()
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration_ms = (time.monotonic() - start) * 1000
+            logger.error(
+                "http_request",
+                method=request.method,
+                path=path,
+                status=500,
+                duration_ms=round(duration_ms, 1),
+                error="unhandled_exception",
+            )
+            raise
+        finally:
+            clear_request_context()
+
+        duration_ms = (time.monotonic() - start) * 1000
+        status = response.status_code
+        if status >= 500:
+            log = logger.error
+        elif status >= 400:
+            log = logger.warning
+        else:
+            log = logger.info
+        log(
+            "http_request",
+            method=request.method,
+            path=path,
+            status=status,
+            duration_ms=round(duration_ms, 1),
+        )
+        response.headers["X-Request-ID"] = req_id
+        return response
+
+
+app.add_middleware(AccessLoggingMiddleware)
 
 
 # ========= REQUEST TIMEOUT (FALLBACK FOR HUNG HANDLERS) =========
