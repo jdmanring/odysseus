@@ -4,7 +4,7 @@
 **Related PR draft:** `docs/fork/upstream/pr-drafts/feat-aria2c-downloader.md`
 **Branch:** `feat/aria2c-downloader`
 **Type:** Enhancement
-**References:** Related to #359 (download percentage request)
+**References:** Related to #359 (download percentage request); Related to #4059 (downloader stalls silently on large files)
 
 ---
 
