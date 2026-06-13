@@ -22,7 +22,8 @@ import smtplib
 import json
 import re
 import html
-import logging
+import structlog
+import time
 import inspect
 from datetime import datetime
 
@@ -42,7 +43,7 @@ from routes.email_helpers import (
     SCHEDULED_DB, _EMAIL_REPLY_SYS_PROMPT_BASE, _email_cache_owner_clause,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Recovers a `[{"action": ...}, ...]` JSON array from raw LLM output when the
 # fenced-block strip leaves nothing usable. Runs on model output influenced by
@@ -1361,7 +1362,11 @@ async def _auto_summarize_poller():
         try:
             settings = _load_settings()
             await _asyncio.sleep(60 if settings.get("email_auto_reply", False) else 1800)
+            _t0 = time.monotonic()
             await _auto_summarize_pass()
+            _elapsed = (time.monotonic() - _t0) * 1000
+            if _elapsed > 1000:
+                logger.info("auto_summarize_pass", elapsed_ms=round(_elapsed, 1))
         except Exception as e:
             logger.error(f"Auto-summarize poller crash: {e}")
 
@@ -1491,7 +1496,11 @@ async def _scheduled_email_poller():
     while True:
         try:
             await asyncio.sleep(30)
+            _t0 = time.monotonic()
             await asyncio.to_thread(_scheduled_poll_once)
+            _elapsed = (time.monotonic() - _t0) * 1000
+            if _elapsed > 1000:
+                logger.info("scheduled_poll_tick", elapsed_ms=round(_elapsed, 1))
         except Exception as e:
             logger.error(f"Scheduled poller error: {e}")
 

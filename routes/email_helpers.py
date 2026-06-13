@@ -23,7 +23,7 @@ import email.utils
 import json
 import re
 import html
-import logging
+import structlog
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
@@ -37,7 +37,7 @@ from typing import Optional, List
 from src.auth_helpers import _auth_disabled, get_current_user
 from src.secret_storage import decrypt as _decrypt
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class EmailNotConfiguredError(RuntimeError):
@@ -162,6 +162,10 @@ def _smtp_security_mode(cfg: dict) -> str:
 
 def _send_smtp_message(cfg: dict, from_addr: str, recipients: list[str], message: str | bytes, timeout: int = 30) -> None:
     """Send through SMTP using the configured transport security mode."""
+    import structlog as _structlog
+    import time as _time
+    _log = _structlog.get_logger(__name__)
+
     host = cfg["smtp_host"]
     port = int(cfg.get("smtp_port") or 465)
     user = cfg.get("smtp_user") or ""
@@ -179,17 +183,28 @@ def _send_smtp_message(cfg: dict, from_addr: str, recipients: list[str], message
 
     security = _smtp_security_mode(cfg)
 
-    if security == "ssl":
-        with smtplib.SMTP_SSL(host, port, timeout=timeout) as smtp:
-            _auth_smtp(smtp)
-            smtp.sendmail(from_addr, recipients, message)
-        return
-
-    with smtplib.SMTP(host, port, timeout=timeout) as smtp:
-        if security == "starttls":
-            smtp.starttls()
-        _auth_smtp(smtp)
-        smtp.sendmail(from_addr, recipients, message)
+    _log.info("smtp_send_start", host=host, port=port, from_addr=from_addr,
+               recipients_count=len(recipients), security=security)
+    _smtp_t0 = _time.monotonic()
+    try:
+        if security == "ssl":
+            with smtplib.SMTP_SSL(host, port, timeout=timeout) as smtp:
+                _auth_smtp(smtp)
+                smtp.sendmail(from_addr, recipients, message)
+        else:
+            with smtplib.SMTP(host, port, timeout=timeout) as smtp:
+                if security == "starttls":
+                    smtp.starttls()
+                _auth_smtp(smtp)
+                smtp.sendmail(from_addr, recipients, message)
+        _smtp_ms = (_time.monotonic() - _smtp_t0) * 1000
+        _log.info("smtp_send_success", host=host, recipients_count=len(recipients),
+                   duration_ms=round(_smtp_ms, 1))
+    except Exception as e:
+        _smtp_ms = (_time.monotonic() - _smtp_t0) * 1000
+        _log.error("smtp_send_failed", host=host, error=str(e),
+                   duration_ms=round(_smtp_ms, 1))
+        raise
 
 
 def _friendly_email_auth_error(protocol: str, host: str, error: object) -> str:
@@ -1046,6 +1061,8 @@ def _open_imap_connection(
     ssl_context=None,
 ):
     """Open an IMAP connection using the configured security mode."""
+    import time as _time
+    _t0 = _time.monotonic()
     port = int(port or 993)
     if starttls:
         conn = imaplib.IMAP4(host, port, timeout=timeout)
@@ -1075,10 +1092,15 @@ def _open_imap_connection(
     # large mailboxes (tens of thousands of messages) don't crash with
     # "got more than 1000000 bytes" on UID SEARCH ALL.  (#2883)
     imaplib._MAXLINE = 50_000_000
+    _elapsed = (_time.monotonic() - _t0) * 1000
+    if _elapsed > 200:
+        logger.info("imap_tcp_connected", host=host, port=port,
+                    starttls=starttls, elapsed_ms=round(_elapsed, 1))
     return conn
 
 def _imap_connect(account_id: str | None = None, owner: str = "",
                   timeout: int = _IMAP_TIMEOUT_SECONDS):
+    import time as _time
     # SECURITY: passing `owner` scopes the fallback config lookup so a brand
     # new user doesn't get connected against another user's default mailbox
     # when they have no account configured.
@@ -1107,6 +1129,7 @@ def _imap_connect(account_id: str | None = None, owner: str = "",
         starttls=bool(cfg.get("imap_starttls")),
         timeout=timeout,
     )
+    _login_t0 = _time.monotonic()
     try:
         if cfg.get("oauth_provider") == "google":
             token = _get_valid_google_token(cfg.get("account_id"), cfg)
@@ -1126,6 +1149,10 @@ def _imap_connect(account_id: str | None = None, owner: str = "",
         except Exception:
             pass
         raise
+    _login_ms = (_time.monotonic() - _login_t0) * 1000
+    if _login_ms > 200:
+        logger.info("imap_login", host=cfg["imap_host"], account=account_id,
+                    elapsed_ms=round(_login_ms, 1))
     return conn
 
 
