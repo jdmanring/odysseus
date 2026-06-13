@@ -104,6 +104,12 @@ its values directly, falling back to the resolver-banner total as the
 authoritative size. The multi-batch tracker is skipped for this case since
 there is only one logical file to track.
 
+The task actions menu (`⋮`) now toggles — a second click closes the dropdown
+instead of dismissing and immediately recreating it. `_downloadOutputLooksActive`
+gains an aria2c progress-line pattern so that if a task briefly hits a terminal
+status while aria2c is still mid-flight, the indicator becomes the reconnect
+affordance (flip back to running) rather than a destructive clear action.
+
 **`static/js/cookbook-hwfit.js`** — `refreshCachedModelIds()` now handles local
 downloads (no `remoteHost`). Previously returned early for empty host, making
 the downloaded-dot re-mark a no-op for local installs. Both Running tab
