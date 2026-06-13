@@ -66,17 +66,6 @@ _TOOL_CODE_PYCALL_RE = re.compile(
 # inner format so neither MiniMax nor Gemma variants leak as raw text to the user.
 _TOOL_CODE_ANY_RE = re.compile(r"<tool_code>[\s\S]*?</tool_code>", re.IGNORECASE)
 
-
-# Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — official JSON format)
-# {"name": "fn_name", "arguments": {"key": "val"}}
-# Non-JSON content (tag-pair format seen in partial captures) is stripped but not executed.
-_LONGCAT_TOOL_CALL_RE = re.compile(
-    r"<longcat_tool_call>\s*([\s\S]*?)\s*</longcat_tool_call>",
-    re.IGNORECASE,
-)
-
-
-
 # Pattern 5: DeepSeek DSML markup leaking into content. When deepseek
 # models can't emit structured tool_calls (e.g. we sent no tool schemas
 # that round, or the API didn't parse them), they fall back to raw
@@ -573,40 +562,6 @@ def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
     return None
 
 
-
-def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
-    """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat).
-
-    JSON content within the tag is parsed and executed. Tag-pair format
-    (community.vercel.com/t/33601) is stripped but not executed:
-        {"name": "fn_name", "arguments": {"key": "value"}}
-
-    Non-JSON content is not executed — strip_tool_blocks removes it from display.
-    """
-    content = content.strip()
-    if not content.startswith('{'):
-        return None
-    try:
-        obj = json.loads(content)
-        func_name = (obj.get("name") or "").lower()
-        raw_args = obj.get("arguments", {})
-        mapped = _TOOL_NAME_MAP.get(func_name)
-        tool_type = mapped or func_name
-        if tool_type:
-            args_str = json.dumps(raw_args) if isinstance(raw_args, dict) else str(raw_args)
-            from src.tool_schemas import function_call_to_tool_block
-            block = function_call_to_tool_block(tool_type, args_str)
-            if block:
-                return block
-            if isinstance(raw_args, dict):
-                first_val = next(iter(raw_args.values()), "")
-                return ToolBlock(tool_type, str(first_val)) if first_val else None
-    except (json.JSONDecodeError, Exception):
-        pass
-    return None
-
-
-
 def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
     """Extract executable tool blocks from LLM response text.
 
@@ -697,21 +652,7 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
             if block:
                 blocks.append(block)
 
-    # Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — JSON format only)
-    if not blocks:
-        for m in _LONGCAT_TOOL_CALL_RE.finditer(text):
-            block = _parse_longcat_tool_call(m.group(1))
-            if block:
-                blocks.append(block)
-
-    # Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — JSON format only)
-    if not blocks:
-        for m in _LONGCAT_TOOL_CALL_RE.finditer(text):
-            block = _parse_longcat_tool_call(m.group(1))
-            if block:
-                blocks.append(block)
-
-    # Pattern 7: local text-model web_search call leaked as prose + bare JSON.
+    # Pattern 6: local text-model web_search call leaked as prose + bare JSON.
     if not blocks and not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(text)
         if raw_web_json:
@@ -740,7 +681,6 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = _TOOL_CALL_RE.sub('', cleaned)
     cleaned = _XML_TOOL_CALL_RE.sub('', cleaned)
     cleaned = _TOOL_CODE_ANY_RE.sub('', cleaned)  # strips MiniMax {tool=>} and Gemma func() formats
-    cleaned = _LONGCAT_TOOL_CALL_RE.sub('', cleaned)
     if not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(cleaned)
         if raw_web_json:
