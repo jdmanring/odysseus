@@ -1,14 +1,13 @@
-# feat(agent): detect gh CLI and surface in system prompt; fix api_call discoverability
+# feat(agent): detect gh CLI and surface in system prompt
 
 **Branch:** `feat/github-integration`
-**Type:** Enhancement / Bug fix
+**Type:** Enhancement
 **Status:** Ready to file
 
 ## Summary
 
-When `gh` is installed and authenticated on the host, Odysseus now tells the agent —
-so the agent uses `bash` + `gh` for GitHub operations automatically. Also fixes
-`api_call` not appearing in tool retrieval, and two Settings UI bugs affecting all presets.
+When `gh` is installed and authenticated on the host, inject a GitHub CLI context block
+into the agent system prompt so the agent uses `bash` + `gh` for GitHub operations.
 
 ## Target branch
 
@@ -21,30 +20,42 @@ Fixes # <!-- [file upstream issue first] -->
 ## Type of Change
 
 - [x] New feature (non-breaking)
-- [x] Bug fix (non-breaking)
 
 ## Files changed
 
 | File | Change |
 |------|--------|
-| `src/integrations.py` | `get_github_cli_prompt()`: runs `gh auth status` at prompt-build time; injects a `## GitHub CLI` block with common commands when authenticated |
+| `src/integrations.py` | `get_github_cli_prompt()`: runs `gh auth status` (5 s timeout, silently skipped if absent/unauthed); returns a `## GitHub CLI` context block listing common commands |
 | `src/agent_loop.py` | Calls `get_github_cli_prompt()` and appends result to agent system prompt |
-| `src/tool_index.py` | Adds `api_call` to `BUILTIN_TOOL_DESCRIPTIONS`; adds integration keyword hints to `_KEYWORD_HINTS` |
-| `src/tool_implementations.py` | `do_api_call` accepts `integration_name`/`integration_id`/`name`/`id` as aliases; single-integration fallback when field is empty |
-| `static/js/settings.js` | `_applyPreset` sets `url.value` when preset defines `base_url`; edit form restores `preset.value` from saved item |
+
+## How it works
+
+On every prompt build, `get_github_cli_prompt()` runs `gh auth status --hostname github.com`.
+If `gh` is absent or not authenticated it returns empty string and nothing changes.
+When authenticated the agent sees:
+
+```
+## GitHub CLI
+
+`gh` is installed and authenticated (as USERNAME). Use the `bash` tool to run
+`gh` commands for GitHub:
+- `gh repo list`
+- `gh pr list --repo owner/repo`
+- `gh issue create ...`
+...
+```
 
 ## How to Test
 
+- [ ] `gh` installed and authenticated on host
+- [ ] Server restarted
 - [ ] Ask agent "show me my GitHub repos" — it runs `gh repo list` via `bash`
-- [ ] Ask agent to create a GitHub issue — it runs `gh issue create`
-- [ ] Settings → Integrations → Add → select Home Assistant preset → Base URL auto-fills
-- [ ] Save an integration → reopen it → preset dropdown shows preset name, not "Custom"
-- [ ] Configure Miniflux → ask about unread feeds → `api_call` is used correctly
+- [ ] Ask agent to create a GitHub issue — it uses `gh issue create`
+- [ ] On a host without `gh`, confirm no context block appears and behaviour is unchanged
 
 ## Visual / UI changes
 
-No visible change. The `## GitHub CLI` block appears in the agent system prompt only.
-The Settings preset/base-url fix is minor UX — no screenshot needed.
+None — context block appears in agent system prompt only, not in the UI.
 
 ## Checklist
 
@@ -56,5 +67,5 @@ The Settings preset/base-url fix is minor UX — no screenshot needed.
 
 ## Filing Notes
 
-- File the upstream issue first (draft: `docs/fork/upstream/issue-drafts/feat-github-integration.md`)
+- File upstream issue first (draft: `docs/fork/upstream/issue-drafts/feat-github-integration.md`)
 - No screenshots required
