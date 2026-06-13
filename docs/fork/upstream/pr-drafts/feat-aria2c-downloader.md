@@ -184,21 +184,38 @@ speed) live in the UI — not after-the-fact from a log file. `_parseDownloadSta
 captures aria2c's structured stdout, so if a file fails the failure is
 visible in the card, not buried in a tmux session.
 
-### Windows progress display (untested)
+### Windows progress display (implemented, not tested)
 
 On **local Windows**, Odysseus has no tmux — it spawns a detached process
 that writes stdout to a log file (`TMUX_LOG_DIR/{session_id}.log`). The
 backend reads that log file as `output_tail` on the same status-polling path
 used everywhere else, and the frontend passes it through `_parseDownloadState`
-— so the infrastructure for a working progress card already exists on Windows.
+— so the infrastructure for a working progress card is in place on Windows.
 
-Whether the card actually renders correctly depends on one untested variable:
-aria2c's output format when not attached to a TTY. On Linux/macOS the
-`[#gid XX/YY(%) CN:N DL:...]` verbose summary lines come from a PTY inside
-tmux; in non-TTY mode (piped to a log file) aria2c may format or suppress
-those lines differently. If it does, the card falls back to the spinner. This
-has not been tested on a Windows machine — the "downloads complete, card shows
-spinner" description is the expected fallback behavior, not a verified fact.
+aria2c's verbose Download Progress Summary (`[#gid XX/YY(%) CN:N DL:...]`
+lines, written at `--summary-interval`) is not TTY-gated — it is written
+regardless of whether stdout is a terminal. The compact `\r`-overwriting
+readout is TTY-only and suppressed in non-TTY mode, but `_parseDownloadState`
+does not rely on it.
+
+The known risk was output buffering: C stdio block-buffers writes to a pipe
+(~4–8 KB), so progress lines could sit unsent until the buffer filled. This
+has been addressed in `aria2c_download.py`:
+
+- `sys.stdout.reconfigure(line_buffering=True)` at module load ensures
+  Python's own `print()` calls reach the log file immediately.
+- The main download uses `subprocess.Popen` with `bufsize=1,
+  universal_newlines=True` and reads aria2c's merged stdout/stderr
+  line-by-line, flushing each line immediately to Python's stdout. This
+  eliminates pipe-buffering delay between aria2c and the log file.
+
+On Linux/macOS (tmux PTY) the behaviour is identical to before — aria2c
+already flushes via the PTY and the Popen wrapper adds no observable overhead.
+
+**This has not been tested on a Windows machine.** The implementation is
+based on researched buffering behaviour and should work, but a Windows
+contributor should verify the progress card renders before this is considered
+fully closed.
 
 Windows remote (SSH into a Windows machine) has the same untested status.
 
@@ -263,10 +280,10 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 - [x] Cancel mid-download — Stop removes card, tmux session torn down cleanly,
   partial `.aria2` sidecar files retained; subsequent download of same model
   resumes from last completed byte via `--continue=true`
-- [ ] Windows local install — log-file output_tail path is wired up; whether
-  aria2c's non-TTY stdout is parseable by _parseDownloadState is untested.
-  Card may work or fall back to spinner. Download completion itself is also
-  untested (assumed to work via detached bash wrapper, not verified).
+- [ ] Windows local install — buffering fix implemented (Popen line-reader +
+  line-buffered Python stdout); not testable without a Windows machine.
+  A Windows contributor should verify progress card renders and download
+  completes via the detached bash wrapper path.
 
 ---
 

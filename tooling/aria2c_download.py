@@ -7,6 +7,11 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
+# When stdout is a file (Windows detached-process path) Python defaults to
+# block buffering, delaying progress lines by up to 4-8 KB. Force line
+# buffering so each print() reaches the log file immediately.
+sys.stdout.reconfigure(line_buffering=True)
+
 try:
     from tooling.bin_manager import BinManager
     from tooling.hf_url_resolver import HfUrlResolver
@@ -187,13 +192,28 @@ def _main(args) -> None:
             f"--dir={base_dir}",
             f"--input-file={input_path}",
         ]
-        result = subprocess.run(cmd)
+        # Read aria2c output line-by-line and flush immediately. subprocess.run()
+        # inherits a block-buffered pipe on non-TTY systems (Windows log-file
+        # path), causing progress lines to sit in a 4-8 KB buffer. Popen with
+        # line reading flushes each line as it arrives so the progress card
+        # updates in real time. On Linux/Mac (tmux PTY) behavior is identical.
+        rc = 1
+        with subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+            universal_newlines=True,
+        ) as proc:
+            for line in proc.stdout:
+                print(line, end='', flush=True)
+        rc = proc.returncode
     finally:
         if input_path and input_path.exists():
             input_path.unlink()
 
-    if result.returncode != 0:
-        print(f"\n[!] Download failed (aria2c exit {result.returncode}).")
+    if rc != 0:
+        print(f"\n[!] Download failed (aria2c exit {rc}).")
         sys.exit(1)
 
     # Final verification: did we actually get any files?
