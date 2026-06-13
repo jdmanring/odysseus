@@ -825,6 +825,7 @@ def _open_imap_connection(host: str, port: int, *, starttls: bool, timeout: int 
 
 def _imap_connect(account_id: str | None = None, owner: str = "",
                   timeout: int = _IMAP_TIMEOUT_SECONDS):
+    import time as _time
     # SECURITY: passing `owner` scopes the fallback config lookup so a brand
     # new user doesn't get connected against another user's default mailbox
     # when they have no account configured.
