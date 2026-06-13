@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Response, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import asyncio
+import hashlib
 import os
 import structlog
 
@@ -36,6 +37,13 @@ from src.integrations import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def _log_uid(username: str | None) -> str:
+    """Stable opaque identifier — correlatable across log events but not reversible."""
+    if not username:
+        return "(none)"
+    return hashlib.sha256(username.encode()).hexdigest()[:12]
 
 
 class LoginRequest(BaseModel):
@@ -125,7 +133,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         ok = await asyncio.to_thread(auth_manager.create_user, body.username, body.password, is_admin=False)
         if not ok:
             raise HTTPException(409, "Username already taken")
-        logger.info("auth_signup", username=body.username)
+        logger.info("auth_signup", uid=_log_uid(body.username))
         return {"ok": True, "message": "Account created"}
 
     @router.post("/login")
@@ -135,7 +143,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         # Verify password first
         username = body.username.strip().lower()
         if not await asyncio.to_thread(auth_manager.verify_password, username, body.password):
-            logger.warning("auth_login_failed", username=username, reason="invalid_password")
+            logger.warning("auth_login_failed", reason="invalid_password")
             raise HTTPException(401, "Invalid credentials")
         # Check 2FA if enabled
         if auth_manager.totp_enabled(username):
@@ -143,11 +151,11 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
                 # Password OK but need TOTP — tell client to show code input
                 return {"ok": False, "requires_totp": True, "username": username}
             if not auth_manager.totp_verify(username, body.totp_code):
-                logger.warning("auth_login_failed", username=username, reason="invalid_totp")
+                logger.warning("auth_login_failed", reason="invalid_totp")
                 raise HTTPException(401, "Invalid 2FA code")
         # All checks passed — create session (password already verified above)
         token = await asyncio.to_thread(auth_manager.create_session_trusted, username)
-        logger.info("auth_login_success", username=username)
+        logger.info("auth_login_success", uid=_log_uid(username))
         cookie_kwargs = dict(
             key=SESSION_COOKIE,
             value=token,
@@ -167,7 +175,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         if token:
             user = auth_manager.get_username_for_token(token) if auth_manager.validate_token(token) else None
             auth_manager.revoke_token(token)
-            logger.info("auth_logout", username=user)
+            logger.info("auth_logout", uid=_log_uid(user))
         response.delete_cookie(SESSION_COOKIE, path="/")
         return {"ok": True}
 
@@ -198,10 +206,10 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         current_token = request.cookies.get(SESSION_COOKIE)
         ok = await asyncio.to_thread(auth_manager.change_password, user, body.current_password, body.new_password)
         if not ok:
-            logger.warning("auth_password_change_failed", username=user)
+            logger.warning("auth_password_change_failed", uid=_log_uid(user))
             raise HTTPException(400, "Current password is incorrect")
         await asyncio.to_thread(auth_manager.revoke_user_sessions, user, current_token)
-        logger.info("auth_password_changed", username=user)
+        logger.info("auth_password_changed", uid=_log_uid(user))
         return {"ok": True}
 
     # ------------------------------------------------------------------
@@ -281,7 +289,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         ok = auth_manager.create_user(body.username, body.password, body.is_admin)
         if not ok:
             raise HTTPException(409, "Username already taken")
-        logger.info("auth_admin_create_user", admin=user, new_user=body.username, is_admin=body.is_admin)
+        logger.info("auth_admin_create_user", admin_uid=_log_uid(user), new_user_uid=_log_uid(body.username), is_admin=body.is_admin)
         return {"ok": True}
 
     @router.put("/users/{username}/privileges")
@@ -575,7 +583,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             raise
         if not ok:
             raise HTTPException(400, "Cannot delete user")
-        logger.info("auth_admin_delete_user", admin=user, deleted_user=body.username)
+        logger.info("auth_admin_delete_user", admin_uid=_log_uid(user), deleted_user_uid=_log_uid(body.username))
         # delete_user removes the user's ApiToken rows, but the bearer-auth
         # middleware serves from an in-memory prefix->token cache that only
         # rebuilds when flagged dirty. Without this, a deleted user's already

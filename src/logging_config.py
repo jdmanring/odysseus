@@ -1,9 +1,8 @@
 """Centralized logging configuration for Odysseus — structlog + stdlib.
 
 Two output streams:
-  Console (stdout): human-readable colored/plain text, always active.
-  File (rotating) : plain text in stdlib format (TIMESTAMP - NAME - LEVEL - MSG),
-                    compatible with the diagnostics log terminal UI in settings.
+  Console (stdout): human-readable text, always active.
+  File (rotating) : JSON lines (machine-parseable for jq / ELK / etc.).
 
 Two modes:
   Normal (default): INFO to console + file.
@@ -18,7 +17,7 @@ Environment variables:
   ODYSSEUS_DEBUG=1                     enable debug mode
   ODYSSEUS_DEBUG_SUBSYSTEMS=odysseus.llm,odysseus.agent
                                         per-subsystem debug (comma-separated)
-  ODYSSEUS_LOG_FORMAT=text|json        console format
+  ODYSSEUS_LOG_FORMAT=text|json        console format (file is always JSON)
   ODYSSEUS_LOG_FILE=path               override log file path
 """
 
@@ -66,21 +65,6 @@ def _console_renderer():
     )
 
 
-def _file_renderer(logger, method, event_dict):
-    """Render to stdlib-compatible plain text: TIMESTAMP - NAME - LEVEL - MSG [k=v ...]
-
-    This format is required by the diagnostics log terminal UI, which parses
-    ' - INFO - ', ' - WARNING - ', ' - ERROR - ', ' - DEBUG - ' for colorization.
-    """
-    ts = event_dict.pop("timestamp", "")
-    name = event_dict.pop("logger", "") or ""
-    level = (event_dict.pop("level", method) or method).upper()
-    event = event_dict.pop("event", "")
-    extras = {k: v for k, v in event_dict.items() if not k.startswith("_")}
-    suffix = "  " + "  ".join(f"{k}={v}" for k, v in sorted(extras.items())) if extras else ""
-    return f"{ts} - {name} - {level} - {event}{suffix}"
-
-
 def setup_logging() -> None:
     """Configure structlog + stdlib logging. Call once at startup."""
 
@@ -108,8 +92,8 @@ def setup_logging() -> None:
         foreign_pre_chain=shared_processors,
     )
 
-    file_formatter = structlog.stdlib.ProcessorFormatter(
-        processor=_file_renderer,
+    json_formatter = structlog.stdlib.ProcessorFormatter(
+        processor=structlog.processors.JSONRenderer(),
         foreign_pre_chain=shared_processors,
     )
 
@@ -121,7 +105,7 @@ def setup_logging() -> None:
     root.addHandler(ch)
 
     fh = _file_handler()
-    fh.setFormatter(file_formatter)
+    fh.setFormatter(json_formatter)
     root.addHandler(fh)
 
     if DEBUG_MODE:
