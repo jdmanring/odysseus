@@ -48,6 +48,8 @@ function _downloadOutputLooksActive(task) {
   // progress lines that persist in the tmux capture-pane rolling buffer after completion.
   const tr = _dlFileTracker.get(task.sessionId);
   if (tr !== undefined) {
+    const out = task.output || '';
+    if (out.includes('DOWNLOAD_OK') || out.includes('DOWNLOAD_FAILED')) return false;
     if (tr.lastActiveAt === undefined) return false;
     return (Date.now() - tr.lastActiveAt) < 20_000;
   }
@@ -1828,6 +1830,10 @@ async function _retryDownload(name, payload, replaceSessionId = '') {
           if (_badge) { _badge.textContent = 'downloading'; _badge.className = 'cookbook-task-status cookbook-task-running'; }
           const _dlCard = existingEl.querySelector('[data-dl-card]');
           if (_dlCard) { _dlCard.dataset.dlPhase = 'initializing'; }
+          const _wave = existingEl.querySelector('.cookbook-task-wave');
+          if (_wave) _wave.style.display = '';
+          const _chk = existingEl.querySelector('.cookbook-task-check');
+          if (_chk) _chk.style.display = 'none';
           if (existingEl._abort) existingEl._abort.abort();
           _reconnectTask(existingEl, task);
         } else {
