@@ -105,10 +105,10 @@ authoritative size. The multi-batch tracker is skipped for this case since
 there is only one logical file to track.
 
 The task actions menu (`⋮`) now toggles — a second click closes the dropdown
-instead of dismissing and immediately recreating it. `_downloadOutputLooksActive`
-gains an aria2c progress-line pattern so that if a task briefly hits a terminal
-status while aria2c is still mid-flight, the indicator becomes the reconnect
-affordance (flip back to running) rather than a destructive clear action.
+instead of dismissing and immediately recreating it. Completed download cards
+show a green check that clears the card on click; the `_canClearTask` path
+correctly uses `done` status as the source of truth rather than output-buffer
+content, which would retain historical progress lines after completion.
 
 **`static/js/cookbook-hwfit.js`** — `refreshCachedModelIds()` now handles local
 downloads (no `remoteHost`). Previously returned early for empty host, making
@@ -251,9 +251,9 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
   and resumes partial files (`--continue=true`), so SSL drops no longer abort
   the download from scratch. The reported cache/local-dir confusion is a separate
   concern and not addressed here.
-- **Partially addresses upstream #787** — "Add pause and resume functionality":
-  resume-on-restart works; in-session pause button is not implemented. The
-  description above has full detail.
+- **Addresses upstream #787** — "Add pause and resume functionality":
+  in-session pause via the Pause button is implemented; resume continues from
+  the last completed byte. See the pause/resume section above for full detail.
 
 This PR can be filed independently. `fix/gguf-quality-scored` (#24) is a
 companion that adds auto-discovery of GGUF sources for llamacpp models — either
