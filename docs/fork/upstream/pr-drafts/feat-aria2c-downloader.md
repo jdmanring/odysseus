@@ -184,18 +184,26 @@ speed) live in the UI — not after-the-fact from a log file. `_parseDownloadSta
 captures aria2c's structured stdout, so if a file fails the failure is
 visible in the card, not buried in a tmux session.
 
-### Known limitation: Windows progress display
+### Windows progress display (untested)
 
-The aria2c progress card reads live output via `tmux capture-pane`. On Linux
-and macOS this works as expected. On **local Windows**, Odysseus has no tmux —
-it uses a detached-process path that writes to a log file instead. Downloads
-still complete correctly, but the UI shows a spinner rather than the live card.
-Windows remote (SSH into a Windows machine) has the same limitation.
+On **local Windows**, Odysseus has no tmux — it spawns a detached process
+that writes stdout to a log file (`TMUX_LOG_DIR/{session_id}.log`). The
+backend reads that log file as `output_tail` on the same status-polling path
+used everywhere else, and the frontend passes it through `_parseDownloadState`
+— so the infrastructure for a working progress card already exists on Windows.
 
-A proper fix would hook the aria2c output into the Windows log-file polling
-path rather than capture-pane. That work is deferred; it requires a Windows
-test environment to validate. The lock-file `/tmp` hardcode is fixed in this
-PR (`tempfile.gettempdir()` on all platforms).
+Whether the card actually renders correctly depends on one untested variable:
+aria2c's output format when not attached to a TTY. On Linux/macOS the
+`[#gid XX/YY(%) CN:N DL:...]` verbose summary lines come from a PTY inside
+tmux; in non-TTY mode (piped to a log file) aria2c may format or suppress
+those lines differently. If it does, the card falls back to the spinner. This
+has not been tested on a Windows machine — the "downloads complete, card shows
+spinner" description is the expected fallback behavior, not a verified fact.
+
+Windows remote (SSH into a Windows machine) has the same untested status.
+
+The lock-file `/tmp` hardcode is fixed in this PR (`tempfile.gettempdir()` on
+all platforms).
 
 ### Note on issue #787 (pause/resume)
 
@@ -255,8 +263,10 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 - [x] Cancel mid-download — Stop removes card, tmux session torn down cleanly,
   partial `.aria2` sidecar files retained; subsequent download of same model
   resumes from last completed byte via `--continue=true`
-- [ ] Windows local install — progress card not expected (known limitation),
-  but download completion should still work via the log-file path
+- [ ] Windows local install — log-file output_tail path is wired up; whether
+  aria2c's non-TTY stdout is parseable by _parseDownloadState is untested.
+  Card may work or fall back to spinner. Download completion itself is also
+  untested (assumed to work via detached bash wrapper, not verified).
 
 ---
 
