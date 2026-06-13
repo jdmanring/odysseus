@@ -41,6 +41,18 @@ function _taskBadge(task) {
 // in that case (click → revive the row + reattach the poll loop).
 function _downloadOutputLooksActive(task) {
   if (!task || task.type !== 'download') return false;
+
+  // For aria2c downloads: use the in-memory tracker's last-activity timestamp.
+  // The tracker is stamped each poll tick that sees live progress data and deleted
+  // when DOWNLOAD_OK is found. This avoids false positives from historical aria2c
+  // progress lines that persist in the tmux capture-pane rolling buffer after completion.
+  const tr = _dlFileTracker.get(task.sessionId);
+  if (tr !== undefined) {
+    if (tr.lastActiveAt === undefined) return false;
+    return (Date.now() - tr.lastActiveAt) < 20_000;
+  }
+
+  // hf-download format (no tracker): fall back to output-content check.
   const out = task.output || '';
   if (!out) return false;
   if (out.includes('DOWNLOAD_OK') || out.includes('DOWNLOAD_FAILED')) return false;
@@ -598,6 +610,7 @@ function _parseDownloadState(text, sessionId) {
         }
       }
       if (reportedTotalBytes && !_tr.reportedTotal) _tr.reportedTotal = reportedTotalBytes;
+      _tr.lastActiveAt = Date.now();
     }
   }
 
