@@ -58,7 +58,9 @@ function _canClearTask(task) {
   // actually finished — hide the clear/check pill so it doesn't show on a
   // task that's still doing work. (The next render will reflect this and
   // ideally the self-heal flips status back to running.)
-  if (_downloadOutputLooksActive(task)) return false;
+  // 'done' is conclusive — don't block clearing on historical output lines.
+  // Only run zombie detection for ambiguous terminal states (stopped/crashed/error).
+  if (task.status !== 'done' && _downloadOutputLooksActive(task)) return false;
   return ['done', 'stopped', 'error', 'crashed', 'failed'].includes(task.status);
 }
 
