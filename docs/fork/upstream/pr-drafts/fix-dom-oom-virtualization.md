@@ -123,29 +123,16 @@ triggers `resumeStream`. Without the DOM fix, OOM was fatal (nothing to
 recover); with it, crash recovery is a real path and the thinking-token bug
 becomes visible.
 
-**`static/style.css`** (6 changes)
+**`static/style.css`** (1 block, 6 lines)
 
-- `.chat-history { overflow-anchor: none; }` — Required for correct scroll
-  position management. Without it, Chrome's automatic scroll-anchor fires when
-  `_loadOlder()` prepends content and adjusts `scrollTop`, then our manual
-  `scrollTop +=` compensation also fires, doubling the scroll jump.
-- `.chat-container { will-change: transform; transform: translateZ(0); }`
-  removed — These two declarations promoted `.chat-container` to a GPU
-  compositor layer. The sidebar and dropdown menus use `backdrop-filter:
-  blur()` and sample their backdrop from the compositor layer behind them. When
-  `.chat-container` is its own GPU texture, Chrome flushes it on every
-  hover/state change, producing a 1–2 frame black-screen flash on menu open and
-  sidebar hover. The `margin-left/right` transition on `.chat-container` does
-  not require GPU promotion to animate smoothly on modern hardware.
-- `.chat-input-bar { will-change: transform; transform: translateZ(0); }`
-  removed (three occurrences: main rule, safe-area inset rule, container-query
-  rule) — Same compositor-layer issue, different trigger. The input bar's
-  `textarea` has `transition: height 0.12s ease-out`; as the user types and the
-  textarea grows, the GPU texture for `.chat-input-bar` is flushed, producing
-  a black-screen flash identical to the sidebar hover case.
-- `textarea#message { will-change: transform; transform: translateZ(0); }`
-  removed — The textarea itself was also promoted. `transition: height` is a
-  layout transition and does not require or benefit from GPU promotion.
+- `.chat-history-sentinel`, `.chat-history-bottom-sentinel`, `.chat-history-spacer`
+  all get `overflow-anchor: none` — Chrome's scroll-anchor algorithm
+  automatically adjusts `scrollTop` when content is prepended above the
+  viewport. `chatHistory.js` also adjusts `scrollTop` to compensate for
+  prepended nodes. Without this rule, both fire on the same prepend and the
+  scroll position jumps twice as far. The sentinels and spacer are the only
+  elements that participate in virtual scroll mechanics; setting the property
+  only on them avoids touching the broader scroll container.
 
 ### Correctness details worth noting for reviewers
 
@@ -300,4 +287,15 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+This fix restructures how chat messages are stored in the DOM but does not
+change their visual appearance. The virtualized implementation produces
+identical output — same message bubbles, same layout, same scroll behavior
+from the user's perspective. No before/after screenshot is meaningful.
+
+Files changed that touch HTML, CSS, or JS:
+- `static/index.html` — adds `<script src="chatHistory.js">` tag
+- `static/js/chatHistory.js` — new virtualization module (DOM-writing)
+- `static/js/chat.js`, `sessions.js` — delegate message management to the module
+- `static/style.css` — adds `overflow-anchor: none` to 3 non-visible sentinel/spacer classes
+
+None of the CSS additions are visible elements. No screenshot needed.
