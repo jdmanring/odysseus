@@ -3,7 +3,5 @@
 
 [[allowlists]]
 description = "Intentional fake API key in test_log_redaction.py — tests that _redact_dict() masks sk-* values"
-fingerprints = [
-    "718b5a43a6bbcd048cfca15b9492aceba767c836:tests/test_log_redaction.py:generic-api-key:36",
-    "4a2cc411ca6fc0d0dadf760f778b6690f861bb0b:tests/test_log_redaction.py:generic-api-key:36",
-]
+paths = ['''tests/test_log_redaction\.py''']
+regexes = ['''sk-abc123def456''']
