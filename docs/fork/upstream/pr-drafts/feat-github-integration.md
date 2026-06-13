@@ -6,10 +6,9 @@
 
 ## Summary
 
-When `gh` is installed and authenticated on the server, Odysseus now automatically
-tells the agent — so the agent uses `bash` + `gh` for GitHub operations instead of
-guessing. Also fixes two gaps in the integrations framework and two Settings UI bugs
-that affected all presets.
+When `gh` is installed and authenticated on the host, Odysseus now tells the agent —
+so the agent uses `bash` + `gh` for GitHub operations automatically. Also fixes
+`api_call` not appearing in tool retrieval, and two Settings UI bugs affecting all presets.
 
 ## Target branch
 
@@ -21,91 +20,41 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Type of Change
 
-- [x] New feature (non-breaking — adds new behaviour)
-- [x] Bug fix (non-breaking — fixes a confirmed issue)
-- [ ] Breaking change
-- [ ] Refactor / cleanup
-- [ ] Documentation only
-- [ ] CI / tooling / configuration
+- [x] New feature (non-breaking)
+- [x] Bug fix (non-breaking)
 
-## Problem
-
-**GitHub access:** The agent had `bash` available and `gh` may already be installed and
-authenticated on the host. But nothing in the system prompt said so, so the agent didn't
-know to use it and produced confused or broken behaviour when asked about GitHub repos.
-
-**`api_call` discoverability:** The `api_call` tool was missing from the RAG embedding
-index (`BUILTIN_TOOL_DESCRIPTIONS`). The tool retrieval system had nothing to match it
-against, so it was never surfaced when users asked about their configured integrations
-(Miniflux, Home Assistant, etc.). Additionally, the tool only accepted the exact key
-`"integration"` — models sometimes emit `"integration_name"`, `"integration_id"`, `"name"`,
-or `"id"` instead, causing every call to fail with `No integration matching ''`.
-
-**Settings UI (all presets):** Two bugs in the unified integrations form:
-1. Selecting a preset with a `base_url` (e.g. Home Assistant) did not auto-fill the
-   Base URL field — `_applyPreset` never set `url.value`.
-2. Reopening a saved integration showed "Custom (no preset)" in the preset dropdown
-   because `preset.value` was never restored from the saved item.
-
-## Solution
-
-### Files changed
+## Files changed
 
 | File | Change |
 |------|--------|
-| `src/integrations.py` | Added `get_github_cli_prompt()`: detects `gh` auth status at prompt-build time, injects a GitHub CLI context block so the agent uses `bash` + `gh` |
-| `src/agent_loop.py` | Calls `get_github_cli_prompt()` and appends result to the agent system prompt alongside integrations context |
-| `src/tool_index.py` | Added `api_call` to `BUILTIN_TOOL_DESCRIPTIONS` (embedding index); added integration-related keyword hints to `_KEYWORD_HINTS` (`github`, `miniflux`, `rss`, `home assistant`, etc.) |
-| `src/tool_implementations.py` | `do_api_call` now accepts `integration_name`, `integration_id`, `name`, `id` as aliases; falls back to the only configured integration when the field is empty and exactly one is configured |
-| `static/js/settings.js` | `_applyPreset` now sets `url.value` when preset defines `base_url`; edit form now restores `preset.value` from saved item |
+| `src/integrations.py` | `get_github_cli_prompt()`: runs `gh auth status` at prompt-build time; injects a `## GitHub CLI` block with common commands when authenticated |
+| `src/agent_loop.py` | Calls `get_github_cli_prompt()` and appends result to agent system prompt |
+| `src/tool_index.py` | Adds `api_call` to `BUILTIN_TOOL_DESCRIPTIONS`; adds integration keyword hints to `_KEYWORD_HINTS` |
+| `src/tool_implementations.py` | `do_api_call` accepts `integration_name`/`integration_id`/`name`/`id` as aliases; single-integration fallback when field is empty |
+| `static/js/settings.js` | `_applyPreset` sets `url.value` when preset defines `base_url`; edit form restores `preset.value` from saved item |
 
-### gh CLI detection
+## How to Test
 
-`get_github_cli_prompt()` runs `gh auth status --hostname github.com` (5 s timeout,
-no exception propagation). If `gh` is absent or unauthenticated it returns an empty
-string and nothing is injected. When authenticated, the agent sees:
+- [ ] Ask agent "show me my GitHub repos" — it runs `gh repo list` via `bash`
+- [ ] Ask agent to create a GitHub issue — it runs `gh issue create`
+- [ ] Settings → Integrations → Add → select Home Assistant preset → Base URL auto-fills
+- [ ] Save an integration → reopen it → preset dropdown shows preset name, not "Custom"
+- [ ] Configure Miniflux → ask about unread feeds → `api_call` is used correctly
 
-```
-## GitHub CLI
+## Visual / UI changes
 
-`gh` is installed and authenticated (as USERNAME). Use the `bash` tool to run
-`gh` commands for GitHub — this is faster and more reliable than the api_call
-integration:
-- `gh repo list` — list repositories
-- `gh pr list --repo owner/repo` — list pull requests
-...
-```
+No visible change. The `## GitHub CLI` block appears in the agent system prompt only.
+The Settings preset/base-url fix is minor UX — no screenshot needed.
 
 ## Checklist
 
 - [x] I searched open issues and open PRs — this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above.
-- [x] I actually ran the app and verified the change works end-to-end.
-
-## How to Test
-
-- [ ] Server restarted after code changes
-- [ ] Ask agent "show me my GitHub repos" — it uses `bash` + `gh repo list`, not api_call
-- [ ] Ask agent to create a GitHub issue — it uses `gh issue create`
-- [ ] Settings → Integrations → Add → select Home Assistant preset → Base URL auto-fills
-- [ ] Save an integration with a preset → reopen it → preset dropdown shows preset name (not "Custom")
-- [ ] Configure a Miniflux integration → ask agent about unread feeds → `api_call` is used
-
-## Screenshots
-
-No visible UI change. The gh CLI context appears in the agent's system prompt only.
-The Settings preset/base_url fix is minor UX — no screenshot needed.
-
-## Notes
-
-- `get_github_cli_prompt()` is pure read — no writes, no side effects, safe to call
-  on every prompt build. The subprocess timeout is 5 s; failure is silently swallowed.
-- The `api_call` RAG fix requires a server restart so the embedding index rebuilds.
-- The `tool_implementations.py` alias fix is defensive — no behaviour change for
-  callers that already use the correct `integration` key.
+- [x] Changes are limited to the scope described above.
+- [x] I ran the app and verified the change works end-to-end.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ## Filing Notes
 
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-github-integration.md`
-- No screenshots required (no visible UI change)
+- File the upstream issue first (draft: `docs/fork/upstream/issue-drafts/feat-github-integration.md`)
+- No screenshots required
