@@ -55,6 +55,17 @@ _TOOL_CODE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Pattern 4b: <tool_code> blocks with Python function-call syntax (Google Gemma style)
+# bash(command="gh repo list")  /  get_workspace()
+_TOOL_CODE_PYCALL_RE = re.compile(
+    r"<tool_code>\s*([\w]+\s*\([^<]*?\))\s*</tool_code>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+# Broad match used only for stripping — catches any <tool_code> block regardless of
+# inner format so neither MiniMax nor Gemma variants leak as raw text to the user.
+_TOOL_CODE_ANY_RE = re.compile(r"<tool_code>[\s\S]*?</tool_code>", re.IGNORECASE)
+
 # Pattern 5: DeepSeek DSML markup leaking into content. When deepseek
 # models can't emit structured tool_calls (e.g. we sent no tool schemas
 # that round, or the API didn't parse them), they fall back to raw
@@ -427,6 +438,53 @@ def _parse_tool_code_block(raw: str) -> Optional[ToolBlock]:
     return None
 
 
+def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
+    """Parse a <tool_code>func(kwarg=val, ...)</tool_code> block (Google Gemma style)."""
+    try:
+        module = ast.parse(content.strip(), mode="exec")
+    except SyntaxError:
+        return None
+    if len(module.body) != 1 or not isinstance(module.body[0], ast.Expr):
+        return None
+    call = module.body[0].value
+    if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
+        return None
+
+    func_name = call.func.id.lower()
+    mapped = _TOOL_NAME_MAP.get(func_name)
+    if mapped is None:
+        return None
+
+    # Build args dict from keyword arguments
+    args: dict = {}
+    for kw in call.keywords:
+        if kw.arg and isinstance(kw.value, ast.Constant):
+            args[kw.arg] = str(kw.value.value)
+
+    # Route through the canonical converter for structured args
+    if args:
+        from src.tool_schemas import function_call_to_tool_block
+        block = function_call_to_tool_block(mapped, json.dumps(args))
+        if block:
+            return block
+
+    # No keyword args — handle common zero-arg or positional-arg cases
+    if mapped == "bash":
+        cmd = args.get("command", "")
+        if not cmd and call.args and isinstance(call.args[0], ast.Constant):
+            cmd = str(call.args[0].value)
+        return ToolBlock("bash", cmd) if cmd else None
+    if mapped == "get_workspace":
+        return ToolBlock("get_workspace", "")
+    if mapped == "web_search":
+        q = args.get("query", "")
+        if not q and call.args and isinstance(call.args[0], ast.Constant):
+            q = str(call.args[0].value)
+        return ToolBlock("web_search", q) if q else None
+
+    return None
+
+
 def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
     """Extract executable tool blocks from LLM response text.
 
@@ -502,10 +560,16 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
                 if block:
                     blocks.append(block)
 
-    # Pattern 4: <tool_code> blocks (MiniMax-M2.5 style)
+    # Pattern 4: <tool_code> blocks — MiniMax {tool => ...} style first,
+    # then Google Gemma Python-call style (bash(command="...") / get_workspace())
     if not blocks:
         for m in _TOOL_CODE_RE.finditer(text):
             block = _parse_tool_code_block(m.group(1))
+            if block:
+                blocks.append(block)
+    if not blocks:
+        for m in _TOOL_CODE_PYCALL_RE.finditer(text):
+            block = _parse_tool_code_pycall(m.group(1))
             if block:
                 blocks.append(block)
 
@@ -531,7 +595,7 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = text if skip_fenced else _TOOL_BLOCK_RE.sub('', text)
     cleaned = _TOOL_CALL_RE.sub('', cleaned)
     cleaned = _XML_TOOL_CALL_RE.sub('', cleaned)
-    cleaned = _TOOL_CODE_RE.sub('', cleaned)
+    cleaned = _TOOL_CODE_ANY_RE.sub('', cleaned)  # strips MiniMax {tool=>} and Gemma func() formats
     # Strip bare <invoke> blocks not wrapped in <tool_call>
     cleaned = re.sub(r'<invoke\s+name=["\'].*?</invoke>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
     cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
