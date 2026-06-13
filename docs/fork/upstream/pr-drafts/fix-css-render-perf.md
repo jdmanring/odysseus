@@ -135,7 +135,7 @@ users who enable these accessibility modes.
 
 ## Linked Issue
 
-<!-- No upstream issue required — PR is self-describing. If asked, reference the upstream discussion or CONTRIBUTING guidance. -->
+Fixes # <!-- [file upstream issue first — see issue-drafts/fix-css-render-perf.md] -->
 
 ## Type of Change
 
@@ -171,15 +171,12 @@ Tested on: Linux desktop. No visual change visible on standard desktop. No scree
 
 ---
 
-## Filing notes
+## Filing Notes
 
-1. No upstream issue needed first — this is a self-contained CSS perf fix, not a
-   user-visible bug report. Open the PR directly.
-2. Target branch: `dev` (not `main`)
+1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-css-render-perf.md`. Add the issue number to `Fixes #` above before opening the PR.
+2. Target branch: `dev` (not `main`).
 3. The PR is CSS-only; no Python, JS, or HTML changes.
-4. The `fix/gpu-compositor-flicker` branch (#32) is a related but separate PR —
-   that one removes `backdrop-filter` and bad Chromium flags. This one is the
-   follow-on CSS efficiency pass. They can be reviewed independently.
+4. The `fix/gpu-compositor-flicker` branch is a related but separate PR — that one removes `backdrop-filter` and bad Chromium flags. This is the follow-on CSS efficiency pass. They can be reviewed independently.
 
 ## Visual / UI changes
 

@@ -94,7 +94,7 @@ On standard desktop use none of these changes are visible:
 
 ## Linked Issue
 
-<!-- No upstream issue required — PR is self-describing. If asked, reference the upstream discussion or CONTRIBUTING guidance. -->
+Fixes # <!-- [file upstream issue first — see issue-drafts/fix-gpu-compositor-flicker.md] -->
 
 ## Type of Change
 
@@ -140,16 +140,12 @@ Both fixes address the same symptom from different layers; each stands alone.
 
 ---
 
-## Filing notes
+## Filing Notes
 
-1. No upstream issue exists for this — open the PR directly.
+1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-gpu-compositor-flicker.md`. Add the issue number to `Fixes #` above before opening the PR.
 2. Target branch: `dev` (not `main`).
-3. Pure deletion — zero risk of introducing regressions. Reviewers can verify
-   each removed line against the element's `background` declaration to confirm
-   the blur was invisible.
-4. The companion flag fix (removing `DefaultANGLEVulkan` etc.) is in
-   `feat/qt-native-linux-app` — reference it as context for the severity of the
-   Qt/NVIDIA/Wayland case, but make clear this CSS fix benefits all platforms.
+3. Pure deletion — zero risk of regressions. Reviewers can verify each removed line against the element's `background` declaration to confirm the blur was invisible.
+4. The companion flag fix (removing `DefaultANGLEVulkan` etc.) is in `feat/qt-native-linux-app` — reference it as context for the severity of the Qt/NVIDIA/Wayland case, but make clear this CSS fix benefits all platforms.
 
 ## Visual / UI changes
 

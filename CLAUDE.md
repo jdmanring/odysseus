@@ -10,18 +10,19 @@ Branch and pipeline rules: `docs/dev/git-branch-workflow.md` — read before tou
 
 **This fork is a contribution workbench, not a divergent product.**
 
-James uses it to develop fixes and features and stage them as upstream pull requests to `pewdiepie-archdaemon/odysseus`. The fork is not meant to stay separate — everything that improves Odysseus should go upstream.
+It is used to develop fixes and features and stage them as upstream pull requests to `pewdiepie-archdaemon/odysseus`. The fork is not meant to stay separate — everything that improves Odysseus should go upstream.
 
 **The default classification for any fix, feature, or documentation is upstream-candidate.**
 
 Fork-only is the narrow exception, reserved for the workshop tooling itself:
 - `CLAUDE.md` — these instructions
 - `docs/fork/` — fork management state (active-work, issue-tracker, pr-status, changes-from-upstream)
-- `docs/dev/git-branch-workflow.md` — the fork/upstream workflow doc
 - `tooling/sync-upstreams/` — the sync pipeline
 - `.github/workflows/sync-upstream.yml` — CI for the sync
 
-Everything else defaults to upstream-candidate: bug fixes, features, `linux_wrapper.py`, the download stack, UI work, `docs/ai/CONTEXT.md`, `docs/ai/RULES.md`, architecture docs, user docs. If it makes Odysseus better, it belongs upstream.
+Everything else defaults to upstream-candidate: bug fixes, features, `linux_wrapper.py`, the download stack, UI work, `docs/ai/CONTEXT.md`, `docs/ai/RULES.md`, `docs/dev/` documentation, architecture docs, user docs. If it makes Odysseus better, it belongs upstream.
+
+**Use directory structure to determine classification, not explicit listing.** `docs/fork/` = fork management = fork-only. `docs/dev/` = development documentation = upstream-candidate. `docs/ai/` = AI onboarding content = upstream-candidate. When in doubt, ask: does this belong to the project, or does it belong to the workbench?
 
 **Never classify something as fork-only without a specific reason it cannot go upstream.** "It touches fork-specific code" is not a reason — that code is usually itself upstream-candidate. When in doubt, assume upstream-candidate.
 
@@ -29,7 +30,7 @@ Everything else defaults to upstream-candidate: bug fixes, features, `linux_wrap
 
 ## Hard Rules (non-negotiable)
 
-**No sudo.** Write `! sudo <command>` for James to run. Never execute elevated commands yourself.
+**No sudo.** Write `! sudo <command>` for the user to run. Never execute elevated commands yourself.
 
 **Read before coding.** For any non-trivial change: read the relevant source, report what you found, then wait for direction before modifying. Don't start editing because you think you know what needs to change.
 
@@ -39,11 +40,13 @@ Everything else defaults to upstream-candidate: bug fixes, features, `linux_wrap
 
 **Never cherry-pick upstream → `develop` directly.** Upstream changes come in through the ingest pipeline only: `upstream/dev` → `upstream-mirror` → `integration` → `develop`. This preserves gate verification and a clean merge history. See `docs/dev/git-branch-workflow.md` for the pipeline procedure.
 
-**Never file upstream issues or PRs.** Agents stage work; James files. Do not open issues or PRs on `pewdiepie-archdaemon/odysseus` without James's explicit per-action authorization. Upstream's CONTRIBUTING.md prohibits agent-filed PRs.
+**Never file upstream issues or PRs.** Agents stage work; the human author files. Do not open issues or PRs on `pewdiepie-archdaemon/odysseus` without explicit per-action authorization. Upstream's CONTRIBUTING.md prohibits agent-filed PRs.
 
 **Issue first, branch second.** No branch exists without a corresponding issue on `jdmanring/odysseus`. Create the issue before creating any branch.
 
 **Never close issues without verification.** An issue is closed only when the fix is confirmed working — not when you believe you've applied a fix. Incorrect closings disrupt workflow tracking and will not be tolerated.
+
+**Never write a person's name into a document.** Instructions and workflows apply to whoever is following them. Use second person ("you file", "open the PR") or imperative ("file the issue", "create a branch") — never "James files" or "James creates". URLs containing `jdmanring` (GitHub links, AUR package names, branch references) are factual resource identifiers and are correct — this rule applies to prose instructions only.
 
 ---
 

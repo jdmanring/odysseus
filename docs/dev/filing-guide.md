@@ -1,8 +1,8 @@
 # Upstream Filing Guide
 
-How to file a professional, complete upstream issue and pull request for `pewdiepie-archdaemon/odysseus`.
+How to file a professional, complete upstream issue and pull request from a contribution workbench.
 
-**James files. Agents stage.** This guide is for James to use when he is ready to submit.
+**You file. Agents stage.** This guide is for the human author when they are ready to submit.
 
 ---
 
@@ -244,12 +244,12 @@ CONTRIBUTING.md contains this warning:
 
 **This applies to unreviewed bulk submissions — not to work developed with AI assistance.**
 
-James reviewed every change, ran the tests, tested the app manually, and is the human author submitting the PR. This is no different from a developer using GitHub Copilot for code suggestions. The policy targets agents that open PRs directly without human review, not contributors who used AI as a development tool.
+You reviewed every change, ran the tests, tested the app manually, and are the human author submitting the PR. This is no different from a developer using GitHub Copilot for code suggestions. The policy targets agents that open PRs directly without human review, not contributors who used AI as a development tool.
 
 **When filing:**
 - Do not add any AI/agent disclosure to the PR description unless a reviewer asks.
-- James is the author. Write the PR in first person as James.
-- If a reviewer ever asks directly: "I developed this with Claude Code as an AI assistant, but I reviewed and tested all changes myself before submitting."
+- You are the author. Write the PR in first person.
+- If a reviewer ever asks directly: "I developed this with AI coding assistance, but I reviewed and tested all changes myself before submitting."
 
 ---
 
@@ -267,29 +267,76 @@ Odysseus runs on Linux (primary), macOS, and Windows (via PowerShell). Docker is
 
 ## Part 6: Using the PR Draft Files
 
-Every staging branch has a corresponding draft file in `docs/fork/upstream/pr-drafts/`. Each draft contains:
+### PR Drafts
+
+Every staging branch has a corresponding draft file in `docs/fork/upstream/pr-drafts/` (one file per branch, named with `/` replaced by `-`). Each draft contains:
 
 | Section | Purpose |
 |---------|---------|
-| **Title** | Ready to paste into GitHub PR title field |
-| **Description** | Ready to paste into GitHub PR body (everything except the "Filing Notes" block) |
-| **How to Test** | Numbered steps — should already be in the description body |
-| **Filing Notes** | Internal instructions for James — **do not paste upstream** |
+| **Proposed title** | Ready to paste into GitHub PR title field |
+| **Description body** | Everything between the title and "Filing Notes" — paste this into the GitHub PR body |
+| **Filing Notes** | Internal instructions — **do not paste upstream** |
+
+The description body is pre-filled with all 8 required PR template sections (Summary, Target branch, Linked Issue, Type of Change, detail sections, Checklist, How to Test, Visual / UI changes). Paste it directly and the upstream PR template bot will pass.
+
+### Issue Drafts
+
+Branches whose Filing Notes say "File upstream issue first" have a corresponding issue draft in `docs/fork/upstream/issue-drafts/`. This is a **separate file** from the PR draft — it contains the upstream issue title and body pre-written and ready to paste into GitHub's new issue form on `pewdiepie-archdaemon/odysseus`.
+
+**Issue draft format:**
+
+```
+# Upstream Issue Draft: <name>
+
+**File on:** `pewdiepie-archdaemon/odysseus`
+**Related PR draft:** docs/fork/upstream/pr-drafts/<name>.md
+**Branch:** <branch-name>
+**Type:** Bug | Enhancement | Refactor
+
+---
+
+## Title
+
+`[exact title to paste into GitHub]`
+
+---
+
+## Body
+
+[complete issue body — paste into the GitHub new-issue text box]
+```
+
+The body uses the upstream bug or feature request template, fully filled out — not a skeleton. For bugs: Install method, OS/device, Steps to Reproduce, Expected, Actual, Logs, Additional context. For features: Area, Problem/Motivation, Proposed Solution, Alternatives Considered.
+
+**Every PR draft needs a new upstream issue filed on `pewdiepie-archdaemon/odysseus` before the PR is opened.** The issue draft for each branch lives in `docs/fork/upstream/issue-drafts/<name>.md`.
+
+Even when a related upstream issue already exists (filed by someone else, or covering a broader topic), file a new issue for your specific PR. The new issue should describe your contribution's scope and approach precisely. Reference the existing issue in the body — `Related to #NNN` or `Addresses the [specific aspect] described in #NNN` — but use `Fixes #` on your own new issue, not on someone else's.
+
+The upstream CONTRIBUTING.md and its LLM agent policy both require opening an issue before opening a PR. There are no exceptions.
+
+All active PR drafts have `Fixes # <!-- [file upstream issue first] -->` and a corresponding issue draft file.
 
 ### Filing Workflow
 
-1. Open the PR draft file for the branch you're filing
-2. Read the **Filing Notes** section first — it may require:
-   - Filing an upstream issue first (and adding its number to the `Closes #` line)
-   - Capturing screenshots not yet in `docs/fork/screenshots/`
-   - Referencing a related upstream PR or issue in the body
-3. Complete any outstanding steps from Filing Notes
-4. Open the GitHub PR form: `jdmanring/odysseus:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
-5. Paste the title
-6. Paste the description body (everything above "Filing Notes")
-7. Attach screenshots by drag-and-drop
-8. Submit
-9. Add the upstream PR number to `docs/fork/upstream/pr-status.md`
+**Step 1 — If the PR draft says "file upstream issue first":**
+
+1. Open `docs/fork/upstream/issue-drafts/<name>.md`
+2. Go to `https://github.com/pewdiepie-archdaemon/odysseus/issues/new`
+3. Paste the **Title** from the issue draft into the title field
+4. Paste the **Body** from the issue draft into the body field
+5. Submit and note the issue number assigned
+6. Open `docs/fork/upstream/pr-drafts/<name>.md` and replace `Fixes # <!-- [file upstream issue first] -->` with `Fixes #NNN`
+
+**Step 2 — File the PR:**
+
+1. Open the PR draft file for the branch
+2. Read **Filing Notes** — confirm issue number is filled in and screenshots are ready
+3. Open: `<your-fork>:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
+4. Paste the proposed title
+5. Paste the description body (everything above "Filing Notes")
+6. Attach screenshots by drag-and-drop
+7. Submit
+8. Add the upstream PR number to `docs/fork/upstream/pr-status.md`
 
 ---
 

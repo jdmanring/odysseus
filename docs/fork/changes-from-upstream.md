@@ -8,7 +8,7 @@ Last updated: 2026-06-10
 
 ---
 
-## New Files (entirely James's work, no upstream equivalent)
+## New Files (no upstream equivalent)
 
 ### Native Linux Desktop App
 | File | Purpose |
@@ -28,7 +28,7 @@ Last updated: 2026-06-10
 
 ### Documentation System
 All files under `docs/fork/`, `docs/project/`, `docs/dev/`, `docs/user/`, `docs/audit/` —
-James's documentation system for managing fork state and enabling AI collaboration.
+documentation system for managing fork state and enabling AI collaboration.
 
 ---
 

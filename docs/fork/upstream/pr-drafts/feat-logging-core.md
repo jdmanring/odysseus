@@ -102,7 +102,7 @@ Replace stdlib `logging` with [structlog](https://www.structlog.org/) while pres
 
 ## Linked Issue
 
-Fixes #3803
+Fixes # <!-- [file upstream issue first — see issue-drafts/feat-logging-core.md] -->
 
 ## Type of Change
 
@@ -141,7 +141,9 @@ Fixes #3803
 
 ## Filing Notes
 
-This PR is built from `upstream-mirror` and contains only logging infrastructure changes. No fork-specific files. The PR should target `dev`.
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-logging-core.md`. Add the issue number to `Fixes #` above before opening the PR.
+- In the PR Summary body, reference #3803 as the hardening audit that identified the PII and audit logging gaps this PR addresses. Note explicitly that this PR does not address all items in #3803.
+- No fork-specific files. PR targets `dev`.
 
 ## Visual / UI changes
 

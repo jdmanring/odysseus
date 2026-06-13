@@ -27,8 +27,8 @@ This is the most important thing to get right. There are two categories of work 
 
 **The default is upstream-candidate.** Fork-only is the narrow exception — only the sync
 pipeline (`tooling/sync-upstreams/`), fork CI (`.github/workflows/sync-upstream.yml`),
-and fork management docs (`docs/fork/`, `docs/dev/git-branch-workflow.md`). Everything
-else defaults to upstream-candidate, including new files, large features, and documentation.
+and fork management docs (`docs/fork/`). Everything else defaults to upstream-candidate,
+including new files, large features, and documentation.
 
 ### Category 1: Upstream-Candidate (the default — almost all work)
 
@@ -81,7 +81,7 @@ git merge feat/short-description
 ## Remotes
 
 ```
-origin    → git@github.com:jdmanring/odysseus.git          (our fork — normal dev target)
+origin    → git@github.com:<you>/odysseus.git                (your fork — normal dev target)
 upstream  → git@github.com:pewdiepie-archdaemon/odysseus.git  (source — NEVER push here)
 ```
 
@@ -92,10 +92,10 @@ upstream  → git@github.com:pewdiepie-archdaemon/odysseus.git  (source — NEVE
 Every piece of work starts with a GitHub issue. No exceptions.
 
 ```
-1. Create issue on https://github.com/jdmanring/odysseus/issues
+1. Create issue on your fork's GitHub
    - Bug: include Install Method, OS, numbered Steps to Reproduce, Expected/Actual Behaviour
    - Enhancement: include Area, Problem or Motivation, Proposed Solution, "willing to implement?"
-   
+
 2. Determine work category:
    - Upstream-candidate → branch from upstream-mirror (see Category 1 above)
    - Fork-only          → branch from develop (see Category 2 above)
@@ -105,10 +105,10 @@ Every piece of work starts with a GitHub issue. No exceptions.
 4. Merge/cherry-pick to develop
 
 5. If upstream-candidate:
-   - Branch stays at single clean commit, ready for James to file a PR
+   - Branch stays at single clean commit, ready to file a PR
    - Update docs/fork/upstream/pr-status.md with status (Ready to file / Needs X)
-   - James opens the PR: jdmanring/odysseus:<branch> → pewdiepie-archdaemon/odysseus:dev
-   - Add upstream issue # to pr-status.md after James creates it
+   - Open the PR: `<your-fork>:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
+   - Add upstream issue # to pr-status.md after the issue is created
 
 6. Close the fork issue when the fix is confirmed working
 ```
@@ -132,7 +132,7 @@ sync/staging-TIMESTAMP
     ↓  Gate 2: ruff lint (warn-only — upstream style is their problem)
     ↓  Gate 3: pytest smoke tests (skipped in CI with --skip-tests)
 integration  [ff-only merge + LKG-TIMESTAMP tag]
-    ↓  (manual merge — James or agent does this)
+    ↓  (manual merge — done after reviewing what landed)
 develop
 ```
 
@@ -170,7 +170,7 @@ git merge integration
 git push origin develop
 ```
 
-This is a manual step — the pipeline does not auto-merge to `develop`. James or an agent does it after reviewing what landed on `integration`.
+This is a manual step — the pipeline does not auto-merge to `develop`. Review what landed on `integration` before merging.
 
 ### What the pipeline protects
 
@@ -231,9 +231,9 @@ git branch -D sync/staging-TIMESTAMP
 
 ## Upstream Pull Request Procedure
 
-Agents do not file upstream PRs. James files them. The agent's job is to ensure the branch is clean and ready.
+Agents do not file upstream PRs. The human author files them. The agent's job is to ensure the branch is clean and ready.
 
-**Full filing guide:** `docs/dev/filing-guide.md` — covers issue templates, PR template fields, "How to Test" requirements, screenshot rules, the LLM agent policy, and common mistakes. Read it before filing.
+**Full filing guide:** `docs/dev/filing-guide.md` — covers issue templates, PR template fields, the issue-drafts workflow, "How to Test" requirements, screenshot rules, the LLM agent policy, and common mistakes. Read it before filing.
 
 **What "ready to file" means:**
 - Branch starts from `upstream-mirror` (verify: `git log --oneline upstream-mirror..fix/branch-name` shows only your commit(s))
@@ -243,12 +243,14 @@ Agents do not file upstream PRs. James files them. The agent's job is to ensure 
 - Tests pass locally
 - For UI changes: screenshots captured (required — PR will be closed without them)
 - PR draft in `docs/fork/upstream/pr-drafts/` has a complete "How to Test" section (required — PR will be sent back without it)
+- Upstream issue draft exists in `docs/fork/upstream/issue-drafts/` (required for all branches)
 
-**When James is ready to file:**
-1. Read the PR draft's **Filing Notes** section — it may require filing an upstream issue first
-2. James creates an issue on `pewdiepie-archdaemon/odysseus` if required (not the agent)
-3. James opens PR: `jdmanring/odysseus:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
-4. Agent adds the upstream issue # to `docs/fork/upstream/pr-status.md`
+**When you are ready to file:**
+1. Open the issue draft in `docs/fork/upstream/issue-drafts/<name>.md`
+2. File the issue on the upstream repo — paste the title and body from the draft
+3. Fill the assigned issue number into `Fixes #` in the PR draft
+4. Open PR: `<your-fork>:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
+5. Record the upstream issue # and PR # in `docs/fork/upstream/pr-status.md`
 
 All upstream PRs target `upstream:dev`, never `upstream:main`.
 
@@ -263,7 +265,7 @@ All upstream PRs target `upstream:dev`, never `upstream:main`.
 | Committing to `upstream-mirror` | Commits destroyed on next sync | Use `upstream-mirror` as branch origin only; never commit there |
 | Cherry-picking from `upstream/dev` directly to `develop` | Bypasses gates; no syntax/lint/test verification | Run the ingest pipeline |
 | Merging an upstream-candidate branch to `develop` | Would import upstream history into develop | Cherry-pick specific commits to develop |
-| Filing upstream PR from an agent | Upstream CONTRIBUTING.md prohibits it; James must file | Stage the branch; update pr-status.md; wait for James |
+| Filing upstream PR from an agent | Upstream CONTRIBUTING.md prohibits it; the human author must file | Stage the branch; update pr-status.md; the human files |
 | Closing an issue before verifying the fix works | Disrupts workflow tracking | Verify first, close after |
 | Creating a branch without an issue | Untraceable work | Create issue first, always |
 | Editing `develop` directly for upstream-candidate work | Creates untracked work with no branch/issue/PR | Branch from upstream-mirror, commit there, cherry-pick to develop |
@@ -283,7 +285,7 @@ git rebase upstream-mirror
 
 **Conflict resolution:** Read both sides. Keep your fix AND incorporate upstream's changes. Remove all conflict markers. `git add <file> && git rebase --continue`.
 
-**If stuck:** `git rebase --abort` to return to pre-rebase state. Ask James before retrying.
+**If stuck:** `git rebase --abort` to return to pre-rebase state.
 
 **After rebase:** Develop's cherry-picks may be stale. Verify with `git diff upstream-mirror develop -- <files>`. If develop shows regressions, re-cherry-pick the rebased commit.
 

@@ -208,20 +208,12 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
 
 ---
 
-## Filing Notes (James)
+## Filing Notes
 
-1. File issue on `pewdiepie-archdaemon/odysseus` first; add its number here
-   before opening the PR.
-3. The screenshot path in the description above uses the repo-relative path.
-   Attach the image directly in the GitHub PR description instead (drag and
-   drop into the text box) — GitHub renders it inline and it won't depend on
-   the fork's file structure being visible to upstream reviewers.
-4. Upstream issue #3528 (Windows desktop) shows the maintainer is receptive to
-   native desktop wrappers. Reference it as a parallel effort if asked about
-   motivation.
-5. Our #7 (HF token persistence) overlaps with upstream PR #3459, which fixes
-   a related token detection bug. Monitor — if #3459 merges, check whether our
-   issue is fully resolved after next sync before filing separately.
+1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-qt-native-linux-app.md`. Add the issue number to `Fixes #` above before opening the PR.
+2. The screenshot in the description uses a repo-relative path. Attach the image directly in the GitHub PR text box via drag-and-drop — do not rely on the fork's file paths being visible to upstream reviewers.
+3. Upstream issue #3528 (Windows desktop wrapper) shows the maintainer is receptive to native desktop wrappers. Reference it as a parallel effort in the issue or PR if asked about motivation.
+4. Our fork issue #7 (HF token persistence) overlaps with upstream PR #3459. Monitor — if #3459 merges, verify after next sync whether the issue is fully resolved before filing separately.
 
 ## Visual / UI changes — REQUIRED if you touched anything that renders
 

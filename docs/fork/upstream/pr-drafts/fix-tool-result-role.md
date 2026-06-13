@@ -124,7 +124,7 @@ which role they carry.
 
 ## Linked Issue
 
-<!-- No upstream issue required — PR is self-describing. If asked, reference the upstream discussion or CONTRIBUTING guidance. -->
+Fixes # <!-- [file upstream issue first — see issue-drafts/fix-tool-result-role.md] -->
 
 ## Type of Change
 
@@ -135,14 +135,12 @@ which role they carry.
 - [ ] Documentation only
 - [ ] CI / tooling / configuration
 
-## Filing notes
+## Filing Notes
 
-1. No upstream issue exists for this. Open the PR directly.
+1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-tool-result-role.md`. Add the issue number to `Fixes #` above before opening the PR.
 2. Target branch: `dev` (not `main`).
-3. No tests currently cover `_append_tool_results()` or `_build_anthropic_payload()`
-   message role handling — worth noting in the PR if upstream asks.
-4. The native tool path (`role=tool`) is deliberately untouched — mention this
-   proactively to avoid reviewer confusion about why only the else-branch changed.
+3. No tests currently cover `_append_tool_results()` or `_build_anthropic_payload()` message role handling — worth noting in the PR if upstream asks.
+4. The native tool path (`role=tool`) is deliberately untouched — mention this proactively to avoid reviewer confusion about why only the else-branch changed.
 
 ## Visual / UI changes
 

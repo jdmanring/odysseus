@@ -82,6 +82,11 @@ Fixes # <!-- [file upstream issue first] -->
 - [ ] Screenshot of the main chat view with the Catppuccin theme active (showing background, sidebar, and chat area colors)
 - Attach via drag-and-drop in the GitHub PR form
 
+## Filing Notes
+
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-catppuccin-theme.md`. Add the issue number to `Fixes #` above before opening the PR.
+- Screenshots required — capture before filing (see How to Test above).
+
 ## Visual / UI changes — REQUIRED if you touched anything that renders
 
 - [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.

@@ -71,11 +71,10 @@ Fixes # <!-- [file upstream issue first] -->
 
 ---
 
-## Filing Notes (James)
+## Filing Notes
 
 - One commit, no squash needed.
-- File issue on `pewdiepie-archdaemon/odysseus` first; add its number here
-  before opening the PR.
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-pytest-timeout-dependency.md`. Add the issue number to `Fixes #` above before opening the PR.
 
 ## Visual / UI changes
 

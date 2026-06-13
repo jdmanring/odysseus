@@ -96,11 +96,10 @@ Tested on: Python 3.14. Not required on Python 3.11/3.12 (the standard `pip inst
 
 ---
 
-## Filing Notes (James)
+## Filing Notes
 
 - One commit, no squash needed.
-- File issue on `pewdiepie-archdaemon/odysseus` first; add its number here
-  before opening the PR.
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`. Add the issue number to `Fixes #` above before opening the PR.
 
 ## Visual / UI changes
 
