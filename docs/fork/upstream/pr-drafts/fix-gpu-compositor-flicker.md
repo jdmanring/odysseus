@@ -90,14 +90,18 @@ On standard desktop use none of these changes are visible:
 - The only behavioral change is the elimination of GPU work and, on affected
   hardware configurations, the elimination of black-screen flicker.
 
-### Testing
+### How to Test
 
-- Arch Linux, Wayland, NVIDIA GPU (proprietary drivers), QtWebEngine.
-- Sidebar hover: no black-screen flicker, transitions intact.
-- Downloads dropdown open: no flicker.
-- Settings / Providers modal open: no flicker.
-- Cookbook open: opacity + scale animation plays cleanly, no one-frame flash.
-- Standard desktop (non-Qt browser): no visual difference from before.
+1. Start the app (Docker or native).
+2. Open the sidebar and hover over multiple session entries — confirm no black-screen flash (the main symptom this PR fixes on Linux/NVIDIA/Wayland/QtWebEngine).
+3. Open and close the Downloads dropdown — confirm no flicker.
+4. Open Settings, then the Providers modal — confirm no flicker on open or close.
+5. Navigate to the Cookbook and open it — confirm the open animation (opacity + scale) plays cleanly with no one-frame flash at the end.
+6. Open DevTools → Rendering panel → enable "Highlight Composited Layers" — confirm the sidebar and dropdown are no longer highlighted as separate compositor layers.
+
+Tested on: Arch Linux, Wayland, NVIDIA GPU (proprietary drivers), QtWebEngine. On standard desktop Chrome/Firefox there is no visual change — the `backdrop-filter` removal only affects GPU layer behavior, not the visible appearance.
+
+**Screenshots:** Pure CSS deletion with no visual change on standard desktop. No before/after screenshots needed. If a reviewer asks for evidence of the flicker fix, describe the repro: open app in QtWebEngine on Linux/NVIDIA/Wayland, hover over sidebar entries — black screen flash visible before this patch, absent after.
 
 ### Related
 

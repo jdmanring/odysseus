@@ -44,9 +44,17 @@ The default theme remains `dark` — catppuccin is an opt-in choice.
 - Compatible with the existing custom theme engine, color picker, and background effects
 - No changes to theme scheduling, persistence, or UI
 
-### Testing
+### How to Test
 
-- [ ] Verify theme appears in theme dropdown/popup
-- [ ] Verify colors render correctly (background, foreground, panels, borders, accent)
-- [ ] Verify syntax highlighting derives correctly from the new theme
-- [ ] Verify other themes remain unaffected
+1. Start the server (`docker compose up -d --build` or `uvicorn app:app`).
+2. Open the app; go to Settings → Appearance → Theme.
+3. Select "Catppuccin" from the theme list. Verify the theme name appears in the dropdown.
+4. Confirm the background shifts to `#1e1e2e`, text to a soft lavender-white, and the accent color is a purple-mauve (not the default red).
+5. Open a conversation and send a message — verify syntax highlighting in code blocks renders correctly with the new palette.
+6. Switch to another theme (e.g. "dark") and back — confirm no bleed-through or broken state.
+7. Reload the page — confirm the selected Catppuccin theme persists.
+
+**Screenshots required** — this is a visual theme change:
+- [ ] Screenshot of the theme picker with "Catppuccin" selected and visible
+- [ ] Screenshot of the main chat view with the Catppuccin theme active (showing background, sidebar, and chat area colors)
+- Attach via drag-and-drop in the GitHub PR form

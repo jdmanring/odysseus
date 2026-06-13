@@ -97,12 +97,22 @@ Replace stdlib `logging` with [structlog](https://www.structlog.org/) while pres
 - `tests/test_logging_config.py` — 14 tests for setup, debug mode, JSON output
 - `tests/test_logging_integration.py` — 7 integration tests (subprocess-based, end-to-end)
 
-### Testing
+### How to Test
 
-- [x] 64 tests pass (59 unit + 7 integration)
-- [x] App startup verified: logging initializes, produces structured JSON output
-- [ ] Manual: start server with `ODYSSEUS_DEBUG=1`, verify DEBUG output
-- [ ] Manual: make HTTP request, verify `X-Request-ID` header
+**Automated (passing):**
+- [x] `pytest` — 64 tests pass (59 unit + 7 integration, including subprocess-based end-to-end)
+- [x] App startup verified: logging initializes, produces structured JSON output to `data/logs/odysseus.log`
+
+**Manual verification:**
+
+1. Start the server: `ODYSSEUS_DEBUG=1 uvicorn app:app --host 0.0.0.0 --port 7000`
+2. Verify the console shows DEBUG-level structured log lines (not just bare print statements).
+3. Make any HTTP request to the app (e.g. open the UI or `curl http://localhost:7000/api/health`).
+4. Confirm the response includes an `X-Request-ID` header (e.g. `curl -v http://localhost:7000/api/health 2>&1 | grep X-Request-ID`).
+5. Attempt a login — confirm `auth.login` and `auth.login.success` (or `auth.login.failure`) events appear in `data/logs/odysseus.log`.
+6. Change a setting via the Settings UI — confirm a `settings.audit` log entry appears with the changed key and old/new values.
+7. Restart the server with `ODYSSEUS_LOG_FORMAT=json` and confirm log output is valid JSON (one object per line).
+8. Start with no debug flags — confirm the console shows only INFO/WARNING/ERROR, not DEBUG spam.
 
 ---
 

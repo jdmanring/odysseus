@@ -233,18 +233,22 @@ git branch -D sync/staging-TIMESTAMP
 
 Agents do not file upstream PRs. James files them. The agent's job is to ensure the branch is clean and ready.
 
+**Full filing guide:** `docs/dev/filing-guide.md` — covers issue templates, PR template fields, "How to Test" requirements, screenshot rules, the LLM agent policy, and common mistakes. Read it before filing.
+
 **What "ready to file" means:**
 - Branch starts from `upstream-mirror` (verify: `git log --oneline upstream-mirror..fix/branch-name` shows only your commit(s))
 - Contains only the files relevant to the specific fix — nothing fork-specific
 - Single clean commit with a clear message
 - No hardcoded user-specific paths
 - Tests pass locally
-- For UI changes: screenshots captured
+- For UI changes: screenshots captured (required — PR will be closed without them)
+- PR draft in `docs/fork/upstream/pr-drafts/` has a complete "How to Test" section (required — PR will be sent back without it)
 
 **When James is ready to file:**
-1. James creates an issue on `pewdiepie-archdaemon/odysseus` (not the agent)
-2. James opens PR: `jdmanring/odysseus:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
-3. Agent adds the upstream issue # to `docs/fork/upstream/pr-status.md`
+1. Read the PR draft's **Filing Notes** section — it may require filing an upstream issue first
+2. James creates an issue on `pewdiepie-archdaemon/odysseus` if required (not the agent)
+3. James opens PR: `jdmanring/odysseus:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
+4. Agent adds the upstream issue # to `docs/fork/upstream/pr-status.md`
 
 All upstream PRs target `upstream:dev`, never `upstream:main`.
 

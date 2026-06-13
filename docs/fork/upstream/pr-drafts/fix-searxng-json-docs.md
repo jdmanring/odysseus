@@ -39,9 +39,11 @@ exact `settings.yml` snippet to enable JSON output:
 
 This is a documentation-only change — no runtime behavior is modified.
 
-### Testing
+### How to Test
 
-No code change; the comment is visible in `.env.example` after the change.
+1. Open `.env.example` and locate the `SEARXNG_INSTANCE` variable.
+2. Verify the comment block immediately above it explains the JSON output requirement and includes the exact `settings.yml` snippet.
+3. No runtime behavior changed — this is a documentation-only change. No app restart required.
 
 ---
 

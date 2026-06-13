@@ -71,10 +71,13 @@ and more.
 
 36 new files. No existing files modified.
 
-### Testing
+### How to Test
 
-Documentation only — no functional changes. Verify files render correctly on
-GitHub and that links between docs are valid.
+1. After merging, open `AI.md` at the repo root on GitHub — confirm it renders correctly and links to `docs/ai/CONTEXT.md` and `docs/ai/RULES.md`.
+2. Navigate to `docs/ai/CONTEXT.md` — confirm headers, code blocks, and internal links render.
+3. Open two or three files from `docs/ai/features/` — confirm each covers its feature area and renders without broken formatting.
+4. Run a link check if available: `find docs/ai -name "*.md" -exec grep -l "\[.*\](.*\.md)" {} \;` and spot-check that the linked files exist.
+5. No runtime behavior changes — no server restart required.
 
 ---
 

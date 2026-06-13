@@ -130,15 +130,17 @@ converts the full animation workload to near-zero with a single OS setting. This
 a significant accessibility and low-power-device improvement for tablet and phone
 users who enable these accessibility modes.
 
-### Testing
+### How to Test
 
-- Boot app; confirm no visual regression on standard desktop use
-- Sidebar hover: transitions intact, no flicker
-- Open a long session: scroll to bottom, add a message, confirm no layout jump
-- Open Settings, toggle provider dropdown: no clipping or overflow issues
-- Enable OS "Reduce Motion": all animations become instant
-- On Android/Chrome (if available): tap sidebar items — no stuck hover state after tap
-- DevTools Layers panel: compositor layer count lower than before (fewer `will-change`)
+1. Start the app and confirm no visual regression on standard desktop use — chat, sidebar, settings, dropdowns all look correct.
+2. Hover over sidebar session entries and items — confirm transitions still animate smoothly (no regression from `contain: content` on `.sidebar`).
+3. Open a long session, scroll to the bottom, send a new message — confirm no layout jump and the page scrolls to the new message correctly.
+4. Open Settings → Providers modal — confirm the provider dropdown menu is not clipped or hidden (validating `contain: layout style` on `.modal-content`).
+5. Enable OS "Reduce Motion" (System Settings → Accessibility on Linux, macOS, or Windows) and reload the app — confirm all animations and transitions become near-instant.
+6. Open DevTools → Rendering → "Highlight Composited Layers" — confirm compositor layer count is lower than before (the three permanent `will-change` allocations are gone).
+7. On Android/Chrome (optional): tap sidebar items — confirm no stuck hover state (item should not stay brightened after the tap).
+
+Tested on: Linux desktop. No visual change visible on standard desktop. No screenshots required — all changes are either invisible or activate only for touch/reduced-motion users.
 
 ### Files changed
 

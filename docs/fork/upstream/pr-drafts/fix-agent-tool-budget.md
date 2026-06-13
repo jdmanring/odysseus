@@ -36,11 +36,13 @@ Change the default in `DEFAULT_SETTINGS` from `0` to `20`:
 multi-step agentic runs while still bounding runaway loops. Users can raise or
 lower it in Settings.
 
-### Testing
+### How to Test
 
-With the default restored, agent mode executes tool calls normally on a fresh
-install without any settings change. Existing installs that have already set a
-non-zero value are unaffected (stored settings override the default).
+1. Start Odysseus on a fresh install (or clear `data/settings.json` to reset to defaults).
+2. Open the agent interface and send a prompt that requires tool use (e.g., "search the web for X" or "read my notes about Y").
+3. Confirm the agent executes tool calls and completes the task without hitting a zero-call cap.
+4. Check Settings → Agent — confirm `agent_max_tool_calls` defaults to `20` (not `0`).
+5. For existing installs with a previously stored non-zero value: confirm that stored value is preserved (the default is not overwritten on upgrade).
 
 ---
 

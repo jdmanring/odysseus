@@ -57,7 +57,11 @@ Once configured, the integration's endpoints are injected into the agent's syste
 
 ## Screenshots
 
-_(To be captured after filing)_
+**Required — capture before filing:**
+- [ ] Settings → Integrations → Add Integration → API Service: screenshot showing "GitHub" in the preset dropdown
+- [ ] After saving: the GitHub integration card in the integrations list, showing the name and connection status
+- [ ] Test result: screenshot of the success toast or confirmation showing "Authenticated as GitHub user '&lt;login&gt;'"
+- Attach via drag-and-drop in the GitHub PR form
 
 ## Notes
 

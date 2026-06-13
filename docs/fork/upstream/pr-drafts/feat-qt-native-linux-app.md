@@ -167,23 +167,22 @@ PyQt6, PyQt6-WebEngine. Installed by `build-linux-app.sh` into the existing
 venv — not added to `requirements.txt` (optional desktop feature, not needed
 for server installs or Docker).
 
-### Testing
+### How to Test
 
-- Arch Linux, Wayland, NVIDIA GPU (proprietary drivers).
-- Session persistence verified: login state, theme, and session history survive
-  app restart.
-- External links (URLs in AI responses, markdown links) open in the system
-  browser.
-- Renderer crash recovery: page reloads once on OOM without a reload loop.
-- Color picker: native Qt dialog opens, returns hex, closes; eyedropper button
-  hidden if `qtBridge` is unavailable.
-- GPU rendering: no black-screen flicker on sidebar hover, dropdown open,
-  Settings/Providers open, or Cookbook open. Verified after removing
-  `DefaultANGLEVulkan` and `--enable-zero-copy` flags. Chrome DevTools
-  accessible at `http://localhost:9222` for compositor layer inspection.
-- General use: chat, session management, model switching, Cookbook, Downloads,
-  Settings all function correctly through normal use.
-- Not yet tested: touchscreen/tablet input, Windows, macOS.
+**Prerequisites:** Linux with PyQt6 and PyQt6-WebEngine available (or run `bash build-linux-app.sh` to install).
+
+1. Run the wrapper: `bash build-linux-app.sh` — confirm it launches a native desktop window showing the Odysseus UI.
+2. Log in; confirm login state persists after closing and re-opening the app (session stored in `~/.local/share/odysseus/webengine/`).
+3. Click an external URL in an AI response — confirm it opens in the system browser, not inside the wrapper window.
+4. Open Settings → Appearance → Theme and use the color picker — confirm the native Qt color dialog opens (not the browser eyedropper which is unsupported in QWebEngineView).
+5. Open the sidebar, hover over items, open a dropdown, and open the Cookbook — confirm no black-screen flicker on any of these actions.
+6. Chrome DevTools: navigate to `http://localhost:9222` in a regular browser — confirm the remote debugging endpoint is accessible.
+7. Confirm standard features work: chat, session switching, model switching, Cookbook, Downloads, Settings.
+
+Tested on: Arch Linux, Wayland, NVIDIA GPU (proprietary drivers). Not tested on: macOS, Windows, touchscreen/tablet.
+
+**Screenshots required:**
+- Screenshot referenced in the description (`docs/fork/screenshots/qt-native-linux-app.png`) shows the app running with the color picker open. Attach via drag-and-drop in the GitHub PR form.
 
 ---
 

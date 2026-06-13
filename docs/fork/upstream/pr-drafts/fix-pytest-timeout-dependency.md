@@ -38,10 +38,13 @@ Add `pytest-timeout` to `requirements.txt` alongside the existing `pytest` and
 +pytest-timeout
 ```
 
-### Testing
+### How to Test
 
-`pip install -r requirements.txt` in a clean virtualenv now installs
-`pytest-timeout`. All existing tests pass.
+1. Create a fresh virtualenv: `python3 -m venv /tmp/test-venv && source /tmp/test-venv/bin/activate`
+2. Install requirements: `pip install -r requirements.txt`
+3. Confirm `pytest-timeout` is installed: `pip show pytest-timeout` should show the package details.
+4. Run the test suite: `python -m pytest` — confirm all tests pass and no `unrecognized arguments: --timeout` error appears.
+5. Deactivate and remove the temp venv: `deactivate && rm -rf /tmp/test-venv`
 
 ---
 
