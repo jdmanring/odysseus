@@ -12,8 +12,7 @@
 
 ---
 
-## Upstream PR description
-
+## Summary
 > This is the body to paste into GitHub when filing the PR.
 > It is written in first person and as if addressed to reviewers.
 
@@ -195,8 +194,14 @@ duplicating the message. Both paths include an explicit cleanup loop that
 removes any remaining DOM siblings that share the boundary message's `chIdx`
 before updating `_startIdx` or `_endIdx`.
 
-### Testing
+## Checklist
 
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
+## How to Test
 Verified manually on Linux (Artix Linux, Wayland, NVIDIA open drivers) running in the
 native Qt desktop wrapper (PyQt6 / QWebEngineView, Chromium-based). QtWebEngine has
 tighter compositor timing than standalone Chrome, which made scroll-position races more
@@ -262,6 +267,25 @@ covering backend endpoints is not affected by this change.
 
 ---
 
+
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [x] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
 ## Filing notes (internal — do not paste upstream)
 
 1. **File an upstream issue first.** Suggested title:
@@ -303,3 +327,7 @@ covering backend endpoints is not affected by this change.
    maintenance as the project scales"). If a framework migration PR lands before
    this one is reviewed, this module may need to be adapted. The virtualization
    logic is framework-agnostic; porting it would be straightforward.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

@@ -106,29 +106,47 @@ Keep the title under 72 characters. Put the "why" in the body, not the title.
 
 **Always target `dev`, not `main`.** The GitHub form may default to `main` — change it. PRs against `main` are redirected or closed.
 
-### PR Description Body
+### PR Description Bot
 
-The PR description should have these sections in order:
+The upstream repo runs an automated bot (`pr-description-check-bot`) on every new PR. It auto-comments and flags missing or empty sections. PRs that don't clear the bot are often closed by maintainers without review. The bot checks for:
 
-#### 1. Problem
+- **`## Summary`** — must exist and be non-empty ("describe what changed and why")
+- **`## Linked Issue`** — must contain `Fixes #NNN`, a bare `#NNN`, or an issue URL
+- **`## Type of Change`** — at least one box must be checked
+- **`## Checklist`** — the duplicate-search box must be checked
+- **`## How to Test`** — must contain real detail ("a sentence or two, not just 'tested locally'")
 
-One to three paragraphs explaining what is broken or missing. Write for a reviewer who has not seen your issue. Include:
-- What the user experiences (symptom)
-- Root cause (if you know it)
-- Reference to the upstream issue number: `Fixes #NNNN` (this auto-closes the issue on merge)
+The bot does not check `## Target branch` or `## Visual / UI changes` but reviewers do.
 
-Do not start with "This PR...". Start with the problem, not the solution.
+**All PR draft files already include these sections pre-filled.** Paste the draft body and the bot will pass.
 
-#### 2. Solution / Change
+### PR Description Sections (in order)
 
-What you changed and why you chose that approach. For non-trivial changes:
-- Why this approach over alternatives
-- Any architectural decisions
-- What you did NOT change and why (helps reviewers understand scope)
+#### 1. Summary (bot-required)
 
-#### 3. Files Changed
+One to two paragraphs explaining what changed and why — written for a reviewer who hasn't seen your issue.
 
-A table for any PR touching more than 2 files:
+#### 2. Target Branch
+
+`- [x] This PR targets **\`dev\`**, not \`main\`.` — pre-checked in all drafts.
+
+#### 3. Linked Issue (bot-required)
+
+`Fixes #NNN` — fill in the upstream issue number. The bot rejects a bare `Fixes #`. If filing the PR without a corresponding issue, reference a related discussion with `Related: #NNN`.
+
+#### 4. Type of Change (bot-required)
+
+Check at least one box. Pre-checked correctly in all draft files.
+
+#### 5. Detail Sections (optional but recommended for non-trivial PRs)
+
+Detail sections go between Type of Change and Checklist. Common subheadings:
+
+**Problem:** What the user experiences, root cause, symptom. Do not start with "This PR...".
+
+**Solution / Change:** What you changed and why this approach over alternatives. Note explicitly what you did NOT change and why.
+
+**Files Changed:** A table for any PR touching more than 2 files:
 
 ```markdown
 | File | Change |
@@ -137,7 +155,18 @@ A table for any PR touching more than 2 files:
 | `src/log_context.py` (new) | Request correlation via contextvars |
 ```
 
-#### 4. How to Test
+#### 6. Checklist (bot-required)
+
+Pre-checked in all draft files. The bot specifically checks the duplicate-search box:
+
+```markdown
+- [x] I searched open issues and open PRs — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above.
+- [x] I actually ran the app and verified the change works end-to-end.
+```
+
+#### 7. How to Test (bot-required)
 
 **Required.** A PR without test steps will be sent back.
 
@@ -158,7 +187,7 @@ Format: numbered steps, starting from a defined state. Write so that a reviewer 
 - For backend-only changes: include the API call or UI action that exercises the changed path.
 - For frontend-only changes: describe the exact user interaction and what the before/after looks like.
 - For bug fixes: include how to reproduce the original bug without the patch (even just in prose), so reviewers understand what changed.
-- If you couldn't test on a platform, say so explicitly: "Tested on Linux (Arch, Wayland). Not tested on macOS or Windows."
+- If you couldn't test on a platform, say so explicitly: "Tested on Artix Linux, Wayland, NVIDIA open drivers. Not tested on macOS or Windows."
 
 **Automated tests** — if you have them, list results:
 ```
@@ -166,9 +195,9 @@ Format: numbered steps, starting from a defined state. Write so that a reviewer 
 - [x] `node --check static/js/affected-file.js`
 ```
 
-#### 5. Screenshots
+#### 8. Visual / UI changes
 
-Required for any change that affects what the app looks like. See Part 3.
+Required for any UI-touching PR (full checklist). For non-UI PRs, just say "None — no HTML, CSS, or DOM-writing JS was changed." See Part 3 for requirements.
 
 ---
 

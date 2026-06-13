@@ -17,8 +17,7 @@
 
 ---
 
-## Description
-
+## Summary
 ### Problem
 
 Odysseus uses stdlib `logging` throughout (~1038 calls across 138 files) but lacks production-grade logging capabilities. The upstream hardening audit (#3803) explicitly identified:
@@ -97,6 +96,30 @@ Replace stdlib `logging` with [structlog](https://www.structlog.org/) while pres
 - `tests/test_logging_config.py` — 14 tests for setup, debug mode, JSON output
 - `tests/test_logging_integration.py` — 7 integration tests (subprocess-based, end-to-end)
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes #3803
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 **Automated (passing):**
@@ -119,3 +142,7 @@ Replace stdlib `logging` with [structlog](https://www.structlog.org/) while pres
 ## Filing Notes
 
 This PR is built from `upstream-mirror` and contains only logging infrastructure changes. No fork-specific files. The PR should target `dev`.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

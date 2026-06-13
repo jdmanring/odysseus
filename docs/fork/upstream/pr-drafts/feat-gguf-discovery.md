@@ -12,8 +12,7 @@
 
 ---
 
-## PR description (for upstream reviewers)
-
+## Summary
 *Closes #2342.*
 
 ### Problem
@@ -158,8 +157,14 @@ are not covered by existing automated tests. Manual in-app testing was the prima
 verification method (see Testing below). If upstream adds test infrastructure for
 the cookbook routes, coverage for this path would be a good addition.
 
-### Testing
+## Checklist
 
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
+## How to Test
 - Llama-3.2-11B-Vision-Instruct (llamacpp, no static ggufSource): resolver
   finds the correct repo; download uses `*Q4_K_M*` include pattern, not the
   mmproj file.
@@ -177,6 +182,25 @@ the cookbook routes, coverage for this path would be a good addition.
 
 ---
 
+
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes #2342
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
 ## Filing notes
 
 1. **Closes upstream #2342** — "Auto-discovered models without `gguf_sources`
@@ -189,3 +213,7 @@ the cookbook routes, coverage for this path would be a good addition.
 4. The `_REPUTED_AUTHORS` list is a starting point; upstream maintainers may
    want to add or remove names based on their own assessment.
 5. Fork tracker context: issues #24 and #29 on the fork's issue tracker.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

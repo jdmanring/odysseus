@@ -13,8 +13,7 @@
 
 ---
 
-## Description
-
+## Summary
 ### Problem
 
 When a user reports "the app is slow," there is no way to determine which subsystem is the bottleneck. Is it the IMAP server? ChromaDB? SearXNG? The LLM provider? Currently, debugging performance issues requires adding temporary debug logging, reproducing the issue, and checking timestamps manually.
@@ -63,6 +62,30 @@ All timing uses structured keys (`duration_ms`, `elapsed_ms`) so results are fil
 - `src/mcp_manager.py` — MCP call success/failure with duration
 - `src/tool_execution.py` — tool execution timing
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 **Automated (passing):**
@@ -84,3 +107,7 @@ All timing uses structured keys (`duration_ms`, `elapsed_ms`) so results are fil
 ## Filing Notes
 
 This PR depends on `feat/logging-core` and should be filed after it merges. It targets `dev`.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

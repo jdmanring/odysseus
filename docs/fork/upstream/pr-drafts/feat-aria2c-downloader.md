@@ -13,8 +13,7 @@
 
 ---
 
-## Description
-
+## Summary
 ### Problem
 
 Three open upstream issues point to the same underlying gap in the Cookbook
@@ -240,8 +239,14 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
 ![aria2c download card](../screenshots/aria2c.png)
 
-### Testing
+## Checklist
 
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
+## How to Test
 **Automated (passing):**
 
 - [x] `pytest tests/test_aria2c_circuit.py` — 9 passed, 1 skipped (system-PATH
@@ -287,6 +292,25 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
 ---
 
+
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes #359
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
 ## Filing Notes
 
 - **Closes upstream #359** — "Show Download Percentage During Cookbook Downloads"
@@ -302,3 +326,14 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 This PR can be filed independently. `fix/gguf-quality-scored` (#24) is a
 companion that adds auto-discovery of GGUF sources for llamacpp models — either
 order is fine; they don't depend on each other.
+
+## Visual / UI changes — REQUIRED if you touched anything that renders
+
+- [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
+- [x] Style match: the change uses Odysseus's existing visual language (existing CSS variables, button/card classes, no Unicode emoji, Fira Code font, dark-mode-first).
+- [x] No new component patterns — extended an existing widget rather than adding a parallel one.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+### Screenshots / clips
+
+<!-- Attach screenshots by dragging and dropping into this text box. -->

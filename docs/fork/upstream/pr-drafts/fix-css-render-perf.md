@@ -12,8 +12,7 @@
 
 ---
 
-## PR description (for upstream reviewers)
-
+## Summary
 ### Summary
 
 A targeted CSS-only performance pass on `static/style.css`. All changes are either
@@ -130,6 +129,30 @@ converts the full animation workload to near-zero with a single OS setting. This
 a significant accessibility and low-power-device improvement for tablet and phone
 users who enable these accessibility modes.
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+<!-- No upstream issue required — PR is self-describing. If asked, reference the upstream discussion or CONTRIBUTING guidance. -->
+
+## Type of Change
+
+- [x] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 1. Start the app and confirm no visual regression on standard desktop use — chat, sidebar, settings, dropdowns all look correct.
@@ -157,3 +180,7 @@ Tested on: Linux desktop. No visual change visible on standard desktop. No scree
 4. The `fix/gpu-compositor-flicker` branch (#32) is a related but separate PR —
    that one removes `backdrop-filter` and bad Chromium flags. This one is the
    follow-on CSS efficiency pass. They can be reviewed independently.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

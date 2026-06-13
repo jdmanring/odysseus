@@ -12,8 +12,7 @@
 
 ---
 
-## Description
-
+## Summary
 ### Problem
 
 Demo media files (screenshots, GIFs, WebM videos) were stored under `docs/`,
@@ -46,6 +45,30 @@ with the application icon (`odysseus.svg` / `odysseus.jpg` in the Qt taskbar).
 
 No functional changes. Pure file reorganization.
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [x] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 1. After merging, open `README.md` — verify all images render correctly (no broken image placeholders).
@@ -59,3 +82,7 @@ No functional changes. Pure file reorganization.
 ## Filing Notes
 
 This is a standalone refactor with no dependencies. Can be filed in any order.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

@@ -12,8 +12,7 @@
 
 ---
 
-## PR description (for upstream reviewers)
-
+## Summary
 ### Problem
 
 `_load_stored_hf_token()` in `routes/cookbook_routes.py` reads only from
@@ -86,6 +85,25 @@ before `HF_TOKEN` was standardised; both are checked for compatibility.
 
 ---
 
+
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+<!-- No upstream issue required — PR is self-describing. If asked, reference the upstream discussion or CONTRIBUTING guidance. -->
+
+## Type of Change
+
+- [x] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
 ## Filing notes
 
 1. No upstream issue needed first — open the PR directly. Reference upstream
@@ -94,3 +112,7 @@ before `HF_TOKEN` was standardised; both are checked for compatibility.
 3. This is a pure Python change; no JS, HTML, or CSS files touched.
 4. The change is backward-compatible: behaviour is identical when a stored
    token exists; the fallback only fires when the function previously returned `""`.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

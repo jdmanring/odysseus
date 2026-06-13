@@ -12,8 +12,7 @@
 
 ---
 
-## Description
-
+## Summary
 ### Problem
 
 SearXNG's JSON output format is disabled by default in `settings.yml`. When a
@@ -39,6 +38,30 @@ exact `settings.yml` snippet to enable JSON output:
 
 This is a documentation-only change — no runtime behavior is modified.
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [x] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 1. Open `.env.example` and locate the `SEARXNG_INSTANCE` variable.
@@ -52,3 +75,7 @@ This is a documentation-only change — no runtime behavior is modified.
 - One commit, no squash needed.
 - File issue on `pewdiepie-archdaemon/odysseus` first; add its number here
   before opening the PR.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.
