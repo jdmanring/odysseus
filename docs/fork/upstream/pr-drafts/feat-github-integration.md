@@ -42,9 +42,10 @@ A new `"github"` preset in `INTEGRATION_PRESETS` (`src/integrations.py`), follow
 
 | File | Change |
 |------|--------|
-| `src/integrations.py` | Added `github` preset with `base_url`, `bearer` auth type, and endpoint documentation |
+| `src/integrations.py` | Added `github` preset with `base_url`, `bearer` auth type, and agent-facing endpoint documentation |
 | `routes/auth_routes.py` | Added `/user` health-check path; test returns authenticated user's login name |
-| `static/js/settings.js` | Added GitHub icon to preset logo map; `_applyPreset` now populates Base URL and sets preset on edit reopen |
+| `src/tool_index.py` | Added `api_call` to embedding index (`BUILTIN_TOOL_DESCRIPTIONS`) and integration keyword hints (`_KEYWORD_HINTS`) so the tool is retrievable when users ask about GitHub and other connected services |
+| `static/js/settings.js` | Added GitHub icon to preset logo map; `_applyPreset` now populates Base URL and restores preset label when reopening saved integrations |
 
 ### User flow
 
