@@ -6,6 +6,10 @@ Tests the actual download path:
 
 Uses gpt2 (public, ~500MB tokenizer files only with --include filter) so the test
 completes in reasonable time without a large model download.
+
+All tests in TestHfUrlResolver and TestDownloadFile make live network calls to
+huggingface.co. They are marked ``slow`` so the fast lane (pytest -m "not slow")
+skips them. Run the full suite to exercise the end-to-end path.
 """
 import os
 import shutil
@@ -14,8 +18,37 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pytest
+
 # Allow running from project root or tests/ directory
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# ---------------------------------------------------------------------------
+# Schema and pre-flight contracts (static — no network, no binary needed)
+# ---------------------------------------------------------------------------
+
+_HELPERS_SRC = (Path(__file__).resolve().parents[1] / "routes" / "cookbook_helpers.py").read_text(encoding="utf-8")
+_ROUTES_SRC  = (Path(__file__).resolve().parents[1] / "routes" / "cookbook_routes.py").read_text(encoding="utf-8")
+
+
+def test_use_aria2c_defaults_to_true():
+    """aria2c is the default download path; hf download is the fallback."""
+    assert "use_aria2c: bool = True" in _HELPERS_SRC
+
+
+def test_preflight_check_present_in_routes():
+    """Pre-flight guard must exist before the download command is built."""
+    assert "get_aria2c() is None" in _ROUTES_SRC
+
+
+def test_preflight_logs_fallback():
+    """Fallback must be logged so operators can diagnose unexpected hf-download use."""
+    assert "falling back to hf download" in _ROUTES_SRC
+
+
+def test_preflight_skipped_for_ollama():
+    """aria2c pre-flight must be skipped for Ollama downloads (no HF resolution needed)."""
+    assert "req.use_aria2c and not is_ollama_download" in _ROUTES_SRC
 
 from tooling.bin_manager import BinManager
 from tooling.aria2c_download import get_aria2c, download_file
@@ -58,6 +91,7 @@ class TestGetAria2c(unittest.TestCase):
         self.assertTrue(os.access(path, os.X_OK))
 
 
+@pytest.mark.slow
 class TestHfUrlResolver(unittest.TestCase):
     """HfUrlResolver produces valid HTTPS URLs for a known public repo."""
 
@@ -84,6 +118,7 @@ class TestHfUrlResolver(unittest.TestCase):
             self.assertIn(commit, url, f"URL not pinned to commit {commit!r}: {url}")
 
 
+@pytest.mark.slow
 class TestDownloadFile(unittest.TestCase):
     """download_file() fetches a real file from HuggingFace via aria2c subprocess."""
 

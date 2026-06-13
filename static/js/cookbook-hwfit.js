@@ -1276,6 +1276,7 @@ export function _hwfitRenderList(el, models) {
     // 3. Fallback to the "some" check for partial matches (legacy/edge cases)
     if ([..._cachedModelIds].some(id => id === nameShort)) return '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>';
 
+
     // 4. GGUF suffix heuristic for page-reload where auto-discovered gguf_sources
     //    are no longer in memory. Community GGUF repos are named "{Name}[-IMat]-GGUF".
     const _stripGguf = s => s.replace(/[-._](i\d+-|imat-)?gguf$/i, '');
@@ -1283,6 +1284,7 @@ export function _hwfitRenderList(el, models) {
       const stripped = _stripGguf(id.split('/').pop());
       return stripped && stripped.toLowerCase() === nameShort.toLowerCase();
     })) return '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>';
+
 
     return '';
   })();

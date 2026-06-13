@@ -15,7 +15,6 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, Depends
 
 from src.auth_helpers import require_user
-from src.constants import COOKBOOK_STATE_FILE
 from pydantic import BaseModel
 
 from core.middleware import require_admin
@@ -34,6 +33,7 @@ from routes.cookbook_output import (
     error_aware_output_tail, classify_dead_download,
     HF_CACHE_COMPLETE_PROBE, HF_CACHE_INCOMPLETE_PROBE,
 )
+from src.constants import COOKBOOK_STATE_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -466,14 +466,35 @@ def setup_cookbook_routes() -> APIRouter:
         _dl_hf_home_shell = _shell_path(req.local_dir.rstrip("/")) if req.local_dir else None
         _dl_pyarg = ""  # snapshot_download honors the env vars too — no kwarg needed
 
+        _dl_short = req.repo_id.split("/")[-1] if "/" in req.repo_id else req.repo_id
+        _dl_base = (req.local_dir.rstrip("/") + "/" + _dl_short) if req.local_dir else None
+
+        # Pre-flight: verify aria2c is available before committing to that path.
+        # Fallback to hf download only here — not mid-stream — because the two paths
+        # write different filesystem layouts (flat vs hub blob cache) and a mid-stream
+        # switch would corrupt partial downloads.
+        if req.use_aria2c and not is_ollama_download:
+            try:
+                from tooling.aria2c_download import get_aria2c
+                if get_aria2c() is None:
+                    logger.warning(
+                        "aria2c unavailable (BinManager install failed or unsupported platform)"
+                        " — falling back to hf download for %s", req.repo_id,
+                    )
+                    req.use_aria2c = False
+            except Exception:
+                logger.warning(
+                    "aria2c pre-flight check raised — falling back to hf download for %s", req.repo_id,
+                )
+                req.use_aria2c = False
+
         # Build the download command.
+        ollama_cmd = f"ollama pull {shlex.quote(req.repo_id)}"
         if req.use_aria2c:
             # aria2c path: runs aria2c_download.py in the tmux session.
             _aria2c_script = (
                 Path(__file__).resolve().parent.parent / "tooling" / "aria2c_download.py"
             ).as_posix()
-            _dl_short = req.repo_id.split("/")[-1] if "/" in req.repo_id else req.repo_id
-            _dl_base = (req.local_dir.rstrip("/") + "/" + _dl_short) if req.local_dir else None
             token_quoted = _bash_squote(req.hf_token) if req.hf_token else "''"
             include_quoted = _bash_squote(req.include) if req.include else "''"
             local_dir_quoted = _bash_squote(_dl_base) if _dl_base else "''"
@@ -491,15 +512,17 @@ def setup_cookbook_routes() -> APIRouter:
             hf_cmd = f"hf download {req.repo_id}"
             if req.include:
                 hf_cmd += f" --include '{req.include}'"
-        ollama_cmd = f"ollama pull {shlex.quote(req.repo_id)}"
+            if _dl_shell:
+                hf_cmd += f" --local-dir {_dl_shell}"
 
         # Build the shell wrapper — runs hf download directly in tmux (which is a TTY)
         # No script/tee needed — we'll use tmux capture-pane to read output
         lines = ["#!/bin/bash"]
         lines.extend(_user_shell_path_bootstrap())
         if req.hf_token:
-            lines.append(f"export HF_TOKEN='{_bash_squote(req.hf_token)}'")
-            lines.append(f"export HUGGING_FACE_HUB_TOKEN='{_bash_squote(req.hf_token)}'")
+            token_quoted = _bash_squote(req.hf_token)
+            lines.append(f"export HF_TOKEN='{token_quoted}'")
+            lines.append(f"export HUGGING_FACE_HUB_TOKEN='{token_quoted}'")
         if _dl_hf_home_shell and not is_ollama_download:
             # Make hf download / snapshot_download honor the chosen dir via the
             # standard HF cache (gives us the models--org--name/blobs/... layout
@@ -560,8 +583,9 @@ def setup_cookbook_routes() -> APIRouter:
             ps_lines.append('$sessionDir = "$env:TEMP\\odysseus-sessions"')
             ps_lines.append('New-Item -ItemType Directory -Force -Path $sessionDir | Out-Null')
             if req.hf_token:
-                ps_lines.append(f"$env:HF_TOKEN = '{_ps_squote(req.hf_token)}'")
-                ps_lines.append(f"$env:HUGGING_FACE_HUB_TOKEN = '{_ps_squote(req.hf_token)}'")
+                token_quoted = _ps_squote(req.hf_token)
+                ps_lines.append(f"$env:HF_TOKEN = '{token_quoted}'")
+                ps_lines.append(f"$env:HUGGING_FACE_HUB_TOKEN = '{token_quoted}'")
             if req.local_dir and not is_ollama_download:
                 # Mirror the bash branch — point the HF cache at the user's dir
                 # via env vars instead of --local-dir, so resume works on flaky
@@ -636,8 +660,9 @@ def setup_cookbook_routes() -> APIRouter:
             runner_lines.append("# Auto-detect environment")
             runner_lines.append("deactivate 2>/dev/null; hash -r")
             if req.hf_token:
-                runner_lines.append(f"export HF_TOKEN='{_bash_squote(req.hf_token)}'")
-                runner_lines.append(f"export HUGGING_FACE_HUB_TOKEN='{_bash_squote(req.hf_token)}'")
+                token_quoted = _bash_squote(req.hf_token)
+                runner_lines.append(f"export HF_TOKEN='{token_quoted}'")
+                runner_lines.append(f"export HUGGING_FACE_HUB_TOKEN='{token_quoted}'")
             if _dl_hf_home_shell and not is_ollama_download:
                 runner_lines.append(f"export HF_HOME={_dl_hf_home_shell}")
                 runner_lines.append(f"export HUGGINGFACE_HUB_CACHE={_dl_hf_home_shell}/hub")
