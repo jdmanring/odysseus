@@ -44,11 +44,10 @@ function _downloadOutputLooksActive(task) {
   const out = task.output || '';
   if (!out) return false;
   if (out.includes('DOWNLOAD_OK') || out.includes('DOWNLOAD_FAILED')) return false;
-  // hf download format: "model-00001-of-00010.safetensors: 27%"
-  // aria2c format: "[#a1b2c3 1.23GiB/4.56GiB(27%) CN:3 ...]"
+  // An active shard line: filename + a colon + a percentage that isn't 100%.
+  // We catch any in-flight shard or "Downloading 'X' to ..." line (no %).
   return /model-\d+-of-\d+\.[a-z]+:\s+(?!100%)\d+%/i.test(out)
-      || /Downloading\s+'[^']+'\s+to\s+'[^']*\.incomplete'/i.test(out)
-      || /\[#[0-9a-f]+\s+[\d.]+[KMGT]iB\/[\d.]+[KMGT]iB\((?!100%)\d+%\)/i.test(out);
+      || /Downloading\s+'[^']+'\s+to\s+'[^']*\.incomplete'/i.test(out);
 }
 
 function _canClearTask(task) {
@@ -58,9 +57,7 @@ function _canClearTask(task) {
   // actually finished — hide the clear/check pill so it doesn't show on a
   // task that's still doing work. (The next render will reflect this and
   // ideally the self-heal flips status back to running.)
-  // 'done' is conclusive — don't block clearing on historical output lines.
-  // Only run zombie detection for ambiguous terminal states (stopped/crashed/error).
-  if (task.status !== 'done' && _downloadOutputLooksActive(task)) return false;
+  if (_downloadOutputLooksActive(task)) return false;
   return ['done', 'stopped', 'error', 'crashed', 'failed'].includes(task.status);
 }
 
