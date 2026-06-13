@@ -3,40 +3,62 @@
 **File on:** `pewdiepie-archdaemon/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/feat-github-integration.md`
 **Branch:** `feat/github-integration`
-**Type:** Enhancement
+**Type:** Enhancement / Bug fix
 
 ---
 
 ## Title
 
-`[Integrations] Add GitHub preset for agent API access`
+`[Agent] Surface gh CLI in system prompt when installed; fix api_call discoverability`
 
 ---
 
 ## Body
 
-**Area:** Integrations
+**Area:** Agent context / Integrations
 
 **Problem / Motivation:**
-The agent has no way to interact with the GitHub API. The `gh` CLI requires interactive terminal authentication that the agent cannot satisfy — it cannot respond to prompts. No GitHub integration preset exists in the integrations framework. Users who want the agent to create issues, read pull requests, search repositories, or read file contents from GitHub have no supported path to configure this.
+
+When `gh` (GitHub CLI) is installed and authenticated on the host, the agent has no way
+to know this. Users asking the agent to interact with GitHub — list repos, create issues,
+read pull requests, read file contents — get broken or confused responses because the
+agent doesn't know it can just run `gh` commands via `bash`.
+
+Separately, the `api_call` tool (used for Miniflux, Home Assistant, Linkding, etc.) is
+missing from the RAG embedding index, so the tool retrieval system never surfaces it when
+users ask about their configured external services. The tool also only accepts the exact
+key `"integration"` for the integration name, but models sometimes emit `"integration_name"`,
+`"integration_id"`, `"name"`, or `"id"`, causing every call to fail with
+`No integration matching ''`.
+
+Two Settings UI bugs also affect all presets: selecting a preset with a `base_url` does not
+auto-fill the Base URL field, and reopening a saved integration resets the preset dropdown
+to "Custom (no preset)".
 
 **Proposed Solution:**
-A `github` preset in `INTEGRATION_PRESETS` (`src/integrations.py`), following the same pattern as the existing Gitea preset:
 
-- **Auth:** `Authorization: token YOUR_TOKEN` header
-- **Base URL:** `https://api.github.com`
-- **Token:** GitHub Personal Access Token (classic) with `repo` scope, created at `https://github.com/settings/tokens`
+1. `get_github_cli_prompt()` in `src/integrations.py`: runs `gh auth status` at
+   prompt-build time (5 s timeout, silently skipped if `gh` is absent or unauthenticated).
+   When authenticated, injects a `## GitHub CLI` block into the agent system prompt
+   listing common `gh` commands. The agent then reaches for `bash` + `gh` naturally.
 
-Once configured via Settings → Integrations, the integration's endpoints are injected into the agent's system prompt. The agent uses the existing `api_call` tool with `integration: "github"` to access standard REST API endpoints:
+2. `src/agent_loop.py`: calls `get_github_cli_prompt()` and appends the result
+   alongside the integrations context block.
 
-- `GET /user/repos` — list repositories
-- `POST /repos/{owner}/{repo}/issues` — create issues
-- `GET /repos/{owner}/{repo}/pulls` — list pull requests
-- `GET /search/repositories` — search repos
-- `GET /repos/{owner}/{repo}/contents/{filepath}` — read file contents
-- `GET /orgs/{org}/members` — list org members
+3. `src/tool_index.py`: adds `api_call` to `BUILTIN_TOOL_DESCRIPTIONS` so the
+   embedding index can retrieve it; adds integration-related keyword hints
+   (`github`, `miniflux`, `rss`, `home assistant`, `feed`, `bookmark`, etc.) to
+   `_KEYWORD_HINTS`.
 
-**Alternatives Considered:**
-- `gh` CLI: requires interactive auth the agent cannot provide.
-- Raw `curl` / HTTP calls via system prompt: works ad-hoc but requires per-user manual configuration and has no UI for token management or connection testing.
-- A GitHub preset in the existing integrations framework is consistent with how Gitea is handled, gives users a tested-connection flow, and stores the token encrypted at rest via the same Fernet path as all other integrations.
+4. `src/tool_implementations.py`: `do_api_call` accepts `integration_name`,
+   `integration_id`, `name`, `id` as aliases; falls back to the only configured
+   integration when the field is empty and exactly one is configured.
+
+5. `static/js/settings.js`: `_applyPreset` sets `url.value = p.base_url` when the
+   preset defines one; edit form restores `preset.value` from the saved item on reopen.
+
+**Why `gh` and not the REST API directly?**
+`gh` is already authenticated via the system credential store — no token management
+needed. It handles pagination, rate limiting, and auth transparently. For users who
+don't have `gh`, the integrations framework with a PAT token remains the fallback
+(supported by the `api_call` discoverability fixes in this same PR).
