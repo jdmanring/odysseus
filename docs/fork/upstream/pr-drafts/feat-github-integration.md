@@ -42,14 +42,14 @@ A new `"github"` preset in `INTEGRATION_PRESETS` (`src/integrations.py`), follow
 
 | File | Change |
 |------|--------|
-| `src/integrations.py` | Added `github` preset with endpoint documentation |
+| `src/integrations.py` | Added `github` preset with `base_url`, auth config, and endpoint documentation |
 | `routes/auth_routes.py` | Added `/user` health-check path; test returns authenticated user's login name |
-| `static/js/settings.js` | Added GitHub icon to preset logo map |
+| `static/js/settings.js` | Added GitHub icon to preset logo map; `_applyPreset` now populates Base URL when the preset defines one |
 
 ### User flow
 
 1. Settings → Integrations → Add Integration → select "API Service"
-2. Select "GitHub" from the preset dropdown (auto-fills name, auth, and endpoint docs)
+2. Select "GitHub" from the preset dropdown (auto-fills name, base URL, auth type, and endpoint docs)
 3. Paste a GitHub Personal Access Token
 4. Save → Test → confirms "Authenticated as GitHub user '<login>'"
 
@@ -75,7 +75,7 @@ Once configured, the integration's endpoints are injected into the agent's syste
 - [ ] Server restarted after code changes
 - [ ] `GET /api/auth/integrations/presets` returns the `github` preset
 - [ ] Settings UI → Integrations → Add → API Service → "GitHub" appears in preset dropdown
-- [ ] Selecting "GitHub" auto-fills name, auth type, auth header, and description
+- [ ] Selecting "GitHub" auto-fills name (`GitHub`), Base URL (`https://api.github.com`), auth type (`header`), auth header (`Authorization`), and description
 - [ ] Save + Test with a valid token returns "Authenticated as GitHub user '<login>'"
 - [ ] Save + Test with an invalid token returns an error message
 - [ ] Agent system prompt includes GitHub endpoints after configuration
