@@ -56,7 +56,7 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   for GPU compositor layer inspection). Flags explicitly absent: `DefaultANGLEVulkan`
   (forces ANGLE to Vulkan — documented to cause blank/invisible windows on
   ozone/Wayland, Chromium bug 334275637) and `--enable-zero-copy` (requires
-  GBM buffer allocation, which NVIDIA proprietary drivers don't support — Qt
+  GBM buffer allocation, which NVIDIA drivers on Linux generally don't support — Qt
   WebEngine 6.6 release notes; was a no-op and a source of texture-sharing
   failures). `QTWEBENGINE_FORCE_USE_GBM=0` guards against a Qt 6.9+ regression
   (qutebrowser #8535) where Qt incorrectly forces GBM on drivers that don't
@@ -145,8 +145,8 @@ KDE, and is a first-class citizen on GNOME via GTK interop. PyQt6 is available
 from the package manager on Arch, Debian, Ubuntu, and Fedora. The GPU
 acceleration flags in `linux_wrapper.py` are chosen specifically for
 NVIDIA/Wayland compatibility: `--enable-gpu-rasterization` is safe and
-effective; the Vulkan/GBM flags that are problematic on NVIDIA proprietary
-drivers are explicitly absent. None of this is novel: PyQt6-WebEngine wrappers
+effective; the Vulkan/GBM flags that are problematic on NVIDIA drivers on Linux
+are explicitly absent. None of this is novel: PyQt6-WebEngine wrappers
 are a well-understood pattern for Python web apps that need a desktop presence
 on Linux.
 
@@ -179,7 +179,7 @@ for server installs or Docker).
 6. Chrome DevTools: navigate to `http://localhost:9222` in a regular browser — confirm the remote debugging endpoint is accessible.
 7. Confirm standard features work: chat, session switching, model switching, Cookbook, Downloads, Settings.
 
-Tested on: Arch Linux, Wayland, NVIDIA GPU (proprietary drivers). Not tested on: macOS, Windows, touchscreen/tablet.
+Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Windows, touchscreen/tablet.
 
 **Screenshots required:**
 - Screenshot referenced in the description (`docs/fork/screenshots/qt-native-linux-app.png`) shows the app running with the color picker open. Attach via drag-and-drop in the GitHub PR form.
