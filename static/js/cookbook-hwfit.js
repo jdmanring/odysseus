@@ -104,28 +104,8 @@ export async function refreshCachedModelIds(remoteHost) {
           if (_cachedModelIds.has(name) || _cachedModelIds.has(nameShort)) {
             isCached = true;
           } else {
-            // _hwfitCache is the in-memory catalog. Auto-discovered gguf_sources are
-            // mutated onto the model object during _runModelDownload and survive here
-            // for the page session.
-            const _modelObj = _hwfitCache?.models?.find(m => m.name === name);
-            if (_modelObj?.gguf_sources?.length) {
-              for (const _src of _modelObj.gguf_sources) {
-                const _repo = _src.repo;
-                if (_repo && (_cachedModelIds.has(_repo) || _cachedModelIds.has(_repo.split('/').pop()))) {
-                  isCached = true;
-                  break;
-                }
-              }
-            }
-            // Heuristic: community GGUF repos follow the "{ModelName}[-IMat]-GGUF" convention.
-            // Stripping the suffix handles the post-reload case where auto-discovered
-            // gguf_sources are no longer in memory.
-            if (!isCached) {
-              const _stripGguf = s => s.replace(/[-._](i\d+-|imat-)?gguf$/i, '');
-              isCached = [..._cachedModelIds].some(id => {
-                const stripped = _stripGguf(id.split('/').pop());
-                return stripped && stripped.toLowerCase() === nameShort.toLowerCase();
-              });
+            if ([..._cachedModelIds].some(id => id.endsWith('/' + nameShort) || id === nameShort)) {
+               isCached = true;
             }
           }
         }
@@ -1275,17 +1255,7 @@ export function _hwfitRenderList(el, models) {
     
     // 3. Fallback to the "some" check for partial matches (legacy/edge cases)
     if ([..._cachedModelIds].some(id => id === nameShort)) return '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>';
-
-
-    // 4. GGUF suffix heuristic for page-reload where auto-discovered gguf_sources
-    //    are no longer in memory. Community GGUF repos are named "{Name}[-IMat]-GGUF".
-    const _stripGguf = s => s.replace(/[-._](i\d+-|imat-)?gguf$/i, '');
-    if ([..._cachedModelIds].some(id => {
-      const stripped = _stripGguf(id.split('/').pop());
-      return stripped && stripped.toLowerCase() === nameShort.toLowerCase();
-    })) return '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>';
-
-
+    
     return '';
   })();
     html += `<div class="hwfit-row" data-model="${esc(m.name)}">`;
