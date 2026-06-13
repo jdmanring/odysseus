@@ -5,8 +5,26 @@
 **Status:** Ready to file
 
 ## Summary
-
 Adds a **GitHub** preset to the integrations framework so users can give the agent access to the GitHub REST API. Once configured, the agent can create issues, list pull requests, search repositories, read file contents, and manage organizations — all through the existing `api_call` tool.
+
+
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
 
 ## Problem
 
@@ -45,7 +63,14 @@ Once configured, the integration's endpoints are injected into the agent's syste
 - `GET /search/repositories` — search repos
 - `GET /repos/{owner}/{repo}/contents/{filepath}` — read files
 
-## Testing checklist
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
+## How to Test
 
 - [ ] Server restarted after code changes
 - [ ] `GET /api/auth/integrations/presets` returns the `github` preset
@@ -68,3 +93,14 @@ Once configured, the integration's endpoints are injected into the agent's syste
 - No new routes, tool schemas, or database tables — rides entirely on the existing integrations framework
 - Token stored encrypted at rest via Fernet (same as all other integrations)
 - Follows the exact same pattern as the existing `gitea` preset
+
+## Visual / UI changes — REQUIRED if you touched anything that renders
+
+- [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
+- [x] Style match: the change uses Odysseus's existing visual language (existing CSS variables, button/card classes, no Unicode emoji, Fira Code font, dark-mode-first).
+- [x] No new component patterns — extended an existing widget rather than adding a parallel one.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+### Screenshots / clips
+
+<!-- Attach screenshots by dragging and dropping into this text box. -->

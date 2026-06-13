@@ -12,8 +12,7 @@
 
 ---
 
-## Description
-
+## Summary
 ### Problem
 
 In `static/js/chat.js`, `streamingTTS` is declared with `const` inside the
@@ -44,16 +43,45 @@ Hoist the declaration to `let` before the `try` block, and change the
 The `catch` block can now read `streamingTTS` correctly and stop TTS when
 streaming errors.
 
-### Testing
+## Checklist
 
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
+## How to Test
 - Stream an LLM response, kill the server mid-stream — TTS now stops cleanly
   in the catch block with no `ReferenceError` in the console.
 - Normal streaming (no error) is unaffected.
 
 ---
 
+
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [x] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
 ## Filing Notes (James)
 
 - One commit, no squash needed.
 - File issue on `pewdiepie-archdaemon/odysseus` first; add its number here
   before opening the PR.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

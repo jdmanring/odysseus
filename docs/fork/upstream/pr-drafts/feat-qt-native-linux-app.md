@@ -14,9 +14,7 @@
 
 ---
 
-## Description
-
-### Summary
+## Summary
 
 Adds an optional native Linux desktop wrapper that embeds the Odysseus web UI in
 a `QWebEngineView` window. Users get a launcher/taskbar entry, desktop icon
@@ -167,6 +165,30 @@ PyQt6, PyQt6-WebEngine. Installed by `build-linux-app.sh` into the existing
 venv — not added to `requirements.txt` (optional desktop feature, not needed
 for server installs or Docker).
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 **Prerequisites:** Linux with PyQt6 and PyQt6-WebEngine available (or run `bash build-linux-app.sh` to install).
@@ -200,3 +222,14 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
 5. Our #7 (HF token persistence) overlaps with upstream PR #3459, which fixes
    a related token detection bug. Monitor — if #3459 merges, check whether our
    issue is fully resolved after next sync before filing separately.
+
+## Visual / UI changes — REQUIRED if you touched anything that renders
+
+- [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
+- [x] Style match: the change uses Odysseus's existing visual language (existing CSS variables, button/card classes, no Unicode emoji, Fira Code font, dark-mode-first).
+- [x] No new component patterns — extended an existing widget rather than adding a parallel one.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+### Screenshots / clips
+
+<!-- Attach screenshots by dragging and dropping into this text box. -->

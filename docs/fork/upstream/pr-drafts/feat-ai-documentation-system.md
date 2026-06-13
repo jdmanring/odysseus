@@ -12,8 +12,7 @@
 
 ---
 
-## Description
-
+## Summary
 ### Problem
 
 Odysseus has no structured documentation for contributors or AI agents trying
@@ -71,6 +70,30 @@ and more.
 
 36 new files. No existing files modified.
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [x] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 1. After merging, open `AI.md` at the repo root on GitHub — confirm it renders correctly and links to `docs/ai/CONTEXT.md` and `docs/ai/RULES.md`.
@@ -85,3 +108,7 @@ and more.
 
 This PR has no dependencies and can be filed in any order. It adds only new
 files and does not modify any existing code or documentation.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

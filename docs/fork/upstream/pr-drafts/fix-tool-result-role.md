@@ -12,8 +12,7 @@
 
 ---
 
-## PR description (for upstream reviewers)
-
+## Summary
 ### Problem
 
 `_append_tool_results()` in `src/agent_loop.py` injects textual tool execution
@@ -91,8 +90,14 @@ that skips these records uses `startswith("[Tool execution results]")` — not a
 role check — so old records continue to be correctly excluded regardless of
 which role they carry.
 
-### Testing
+## Checklist
 
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
+## How to Test
 - Multi-round agent sessions with text-encoded tool calls: model correctly
   treats results as infrastructure context and proceeds without re-reading or
   hedging.
@@ -111,6 +116,25 @@ which role they carry.
 
 ---
 
+
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+<!-- No upstream issue required — PR is self-describing. If asked, reference the upstream discussion or CONTRIBUTING guidance. -->
+
+## Type of Change
+
+- [x] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
 ## Filing notes
 
 1. No upstream issue exists for this. Open the PR directly.
@@ -119,3 +143,7 @@ which role they carry.
    message role handling — worth noting in the PR if upstream asks.
 4. The native tool path (`role=tool`) is deliberately untouched — mention this
    proactively to avoid reviewer confusion about why only the else-branch changed.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.

@@ -13,8 +13,7 @@
 
 ---
 
-## Description
-
+## Summary
 ### Problem
 
 Odysseus ships 16 built-in themes but has no Catppuccin option. Catppuccin is a widely-used, well-designed color palette with a strong community following.
@@ -44,6 +43,30 @@ The default theme remains `dark` — catppuccin is an opt-in choice.
 - Compatible with the existing custom theme engine, color picker, and background effects
 - No changes to theme scheduling, persistence, or UI
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first] -->
+
+## Type of Change
+
+- [ ] Bug fix (non-breaking — fixes a confirmed issue)
+- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 1. Start the server (`docker compose up -d --build` or `uvicorn app:app`).
@@ -58,3 +81,14 @@ The default theme remains `dark` — catppuccin is an opt-in choice.
 - [ ] Screenshot of the theme picker with "Catppuccin" selected and visible
 - [ ] Screenshot of the main chat view with the Catppuccin theme active (showing background, sidebar, and chat area colors)
 - Attach via drag-and-drop in the GitHub PR form
+
+## Visual / UI changes — REQUIRED if you touched anything that renders
+
+- [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
+- [x] Style match: the change uses Odysseus's existing visual language (existing CSS variables, button/card classes, no Unicode emoji, Fira Code font, dark-mode-first).
+- [x] No new component patterns — extended an existing widget rather than adding a parallel one.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+### Screenshots / clips
+
+<!-- Attach screenshots by dragging and dropping into this text box. -->

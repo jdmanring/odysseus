@@ -12,8 +12,7 @@
 
 ---
 
-## PR description (for upstream reviewers)
-
+## Summary
 ### Summary
 
 Removes `backdrop-filter: blur()` from ten elements where the background is
@@ -89,6 +88,30 @@ On standard desktop use none of these changes are visible:
 - The only behavioral change is the elimination of GPU work and, on affected
   hardware configurations, the elimination of black-screen flicker.
 
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+<!-- No upstream issue required — PR is self-describing. If asked, reference the upstream discussion or CONTRIBUTING guidance. -->
+
+## Type of Change
+
+- [x] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+
 ### How to Test
 
 1. Start the app (Docker or native).
@@ -127,3 +150,7 @@ Both fixes address the same symptom from different layers; each stands alone.
 4. The companion flag fix (removing `DefaultANGLEVulkan` etc.) is in
    `feat/qt-native-linux-app` — reference it as context for the severity of the
    Qt/NVIDIA/Wayland case, but make clear this CSS fix benefits all platforms.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.
