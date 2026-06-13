@@ -14,7 +14,7 @@
 
 ## Upstream PR description
 
-> This is the body James pastes into GitHub when filing the PR.
+> This is the body to paste into GitHub when filing the PR.
 > It is written in first person and as if addressed to reviewers.
 
 ### Problem
@@ -197,11 +197,11 @@ before updating `_startIdx` or `_endIdx`.
 
 ### Testing
 
-Verified manually on Linux (Arch, Wayland, NVIDIA) running in the native Qt desktop
-wrapper (PyQt6 / QWebEngineView, Chromium-based). QtWebEngine has tighter compositor
-timing than standalone Chrome, which made scroll-position races more visible and drove
-several of the correctness fixes (the `_draining` flag, the double-rAF snap, the
-settling loop). All scenarios below were exercised directly.
+Verified manually on Linux (Artix Linux, Wayland, NVIDIA open drivers) running in the
+native Qt desktop wrapper (PyQt6 / QWebEngineView, Chromium-based). QtWebEngine has
+tighter compositor timing than standalone Chrome, which made scroll-position races more
+visible and drove several of the correctness fixes (the `_draining` flag, the double-rAF
+snap, the settling loop). All scenarios below were exercised directly.
 
 **Load-time windowing (Phase 1)**
 - Session with 0 messages → welcome screen; no sentinel, no spacer
@@ -262,7 +262,7 @@ covering backend endpoints is not affected by this change.
 
 ---
 
-## Filing notes (James only — do not paste upstream)
+## Filing notes (internal — do not paste upstream)
 
 1. **File an upstream issue first.** Suggested title:
    > "Renderer OOM / freeze on long sessions — chat history DOM grows without bound"

@@ -19,7 +19,7 @@ How to file a professional, complete upstream issue and pull request for `pewdie
 ```
 **Install method:** Docker | manual Python | WSL | native
 
-**OS / device:** [e.g. "Arch Linux, Wayland, NVIDIA 3080"] or "macOS 14.4, M1"
+**OS / device:** [e.g. "Artix Linux, Wayland, NVIDIA open drivers" or "macOS 14.4, M1 MacBook Pro" or "Windows 11, RTX 4080"]
 
 **Browser (if applicable):** Chrome 124 | Firefox 125 | Safari 17 | n/a (Docker)
 

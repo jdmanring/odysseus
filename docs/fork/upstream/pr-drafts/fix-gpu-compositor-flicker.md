@@ -47,12 +47,11 @@ The cost is measurable on every platform:
 - **Layer invalidation** on hover or visibility change re-runs the blur sample
   and composite cycle. For elements like `.sidebar` that change on every
   sidebar item hover, this fires on every mouse movement across the sidebar.
-- **On Linux / NVIDIA proprietary + Wayland + QtWebEngine**: GPU layer
-  invalidation can stall the Vulkan command queue (compounded by a now-fixed
-  `DefaultANGLEVulkan` flag issue — see related PR). The stall produces
-  black-screen flicker lasting one to several seconds on sidebar hover, dropdown
-  open, and modal open. The backdrop-filter declarations on `.sidebar` and
-  `.dropdown` were the direct trigger.
+- **On Linux / NVIDIA + Wayland + QtWebEngine**: GPU layer invalidation can stall
+  the Vulkan command queue (compounded by a now-fixed `DefaultANGLEVulkan` flag
+  issue — see related PR). The stall produces black-screen flicker lasting one to
+  several seconds on sidebar hover, dropdown open, and modal open. The
+  backdrop-filter declarations on `.sidebar` and `.dropdown` were the direct trigger.
 
 ### Elements cleaned up
 
@@ -99,7 +98,7 @@ On standard desktop use none of these changes are visible:
 5. Navigate to the Cookbook and open it — confirm the open animation (opacity + scale) plays cleanly with no one-frame flash at the end.
 6. Open DevTools → Rendering panel → enable "Highlight Composited Layers" — confirm the sidebar and dropdown are no longer highlighted as separate compositor layers.
 
-Tested on: Arch Linux, Wayland, NVIDIA GPU (proprietary drivers), QtWebEngine. On standard desktop Chrome/Firefox there is no visual change — the `backdrop-filter` removal only affects GPU layer behavior, not the visible appearance.
+Tested on: Artix Linux, Wayland, NVIDIA open drivers, QtWebEngine. On standard desktop Chrome/Firefox there is no visual change — the `backdrop-filter` removal only affects GPU layer behavior, not the visible appearance.
 
 **Screenshots:** Pure CSS deletion with no visual change on standard desktop. No before/after screenshots needed. If a reviewer asks for evidence of the flicker fix, describe the repro: open app in QtWebEngine on Linux/NVIDIA/Wayland, hover over sidebar entries — black screen flash visible before this patch, absent after.
 

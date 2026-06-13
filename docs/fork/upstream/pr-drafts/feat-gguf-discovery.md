@@ -188,4 +188,4 @@ the cookbook routes, coverage for this path would be a good addition.
    auto-discovery path works with the standard `hf download` fallback too.
 4. The `_REPUTED_AUTHORS` list is a starting point; upstream maintainers may
    want to add or remove names based on their own assessment.
-5. Fork tracker context: issues #24 and #29 on `jdmanring/odysseus`.
+5. Fork tracker context: issues #24 and #29 on the fork's issue tracker.
