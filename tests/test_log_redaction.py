@@ -33,7 +33,7 @@ class TestRedactDict:
         assert result["password"] == "<REDACTED>"
 
     def test_redacts_api_key_value(self):
-        result = _redact_dict({"api_key": "sk-abc123def456"})  # gitleaks:allow
+        result = _redact_dict({"api_key": "sk-abc123def456"})
         assert result["api_key"] == "<REDACTED>"
 
     def test_redacts_nested_dict(self):
