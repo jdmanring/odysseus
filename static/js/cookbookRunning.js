@@ -44,10 +44,11 @@ function _downloadOutputLooksActive(task) {
   const out = task.output || '';
   if (!out) return false;
   if (out.includes('DOWNLOAD_OK') || out.includes('DOWNLOAD_FAILED')) return false;
-  // An active shard line: filename + a colon + a percentage that isn't 100%.
-  // We catch any in-flight shard or "Downloading 'X' to ..." line (no %).
+  // hf download format: "model-00001-of-00010.safetensors: 27%"
+  // aria2c format: "[#a1b2c3 1.23GiB/4.56GiB(27%) CN:3 ...]"
   return /model-\d+-of-\d+\.[a-z]+:\s+(?!100%)\d+%/i.test(out)
-      || /Downloading\s+'[^']+'\s+to\s+'[^']*\.incomplete'/i.test(out);
+      || /Downloading\s+'[^']+'\s+to\s+'[^']*\.incomplete'/i.test(out)
+      || /\[#[0-9a-f]+\s+[\d.]+[KMGT]iB\/[\d.]+[KMGT]iB\((?!100%)\d+%\)/i.test(out);
 }
 
 function _canClearTask(task) {
@@ -2750,7 +2751,9 @@ export function _renderRunningTab() {
       el.addEventListener('touchcancel', _lpCancel, { passive: true });
       menuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        const _wasOpen = menuBtn._myDropdown && document.body.contains(menuBtn._myDropdown);
         document.querySelectorAll('.cookbook-task-dropdown').forEach(d => { if (typeof d._dismiss === 'function') d._dismiss(); else d.remove(); });
+        if (_wasOpen) return;
 
         const dropdown = document.createElement('div');
         dropdown.className = 'cookbook-task-dropdown';
@@ -2942,6 +2945,7 @@ export function _renderRunningTab() {
         dropdown.style.top = rect.bottom + 2 + 'px';
         dropdown.style.right = (window.innerWidth - rect.right) + 'px';
         document.body.appendChild(dropdown);
+        menuBtn._myDropdown = dropdown;
         // Clamp into the *visible* area. On mobile (esp. Firefox) window.innerHeight
         // includes the strip hidden under the dynamic toolbar, so a menu that "fits"
         // by innerHeight still lands off-screen at the bottom. visualViewport gives
@@ -2974,6 +2978,7 @@ export function _renderRunningTab() {
         const _cleanup = () => {
           _unreg(); _unreg = () => {};
           dropdown.remove();
+          if (menuBtn._myDropdown === dropdown) menuBtn._myDropdown = null;
           document.removeEventListener('click', closeHandler);
           window.removeEventListener('scroll', scrollClose, true);
           window.visualViewport?.removeEventListener('scroll', scrollClose);
