@@ -8,7 +8,7 @@ Last updated: 2026-06-13. Fork is at milestone `v1.0.0-fork.1` — all CI passin
 
 | Issue | Branch | Status |
 |-------|--------|--------|
-| [#35 hf_transfer removal](https://github.com/jdmanring/odysseus/issues/35) | not started | Strip all hf_transfer install/enable code from cookbook_routes.py. Needs issue + branch. |
+| [#36 hf_transfer removal](https://github.com/jdmanring/odysseus/issues/36) | not started | Strip all hf_transfer install/enable code. Blocked pending upstream acceptance of feat/aria2c-downloader. |
 
 ---
 
@@ -34,7 +34,8 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Single commit, ready |
 | `fix/gpu-compositor-flicker` | [#32](https://github.com/jdmanring/odysseus/issues/32) | Single commit, ready |
 | `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Single commit, ready |
-| `feat/github-integration` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Single commit, ready. Detects gh CLI and injects GitHub context into agent system prompt; fixes api_call RAG discoverability and parameter aliases; fixes Settings preset UI bugs. Force-push needed (commit was amended). |
+| `feat/gh-cli-detection` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Two commits, ready. Detects gh CLI and injects GitHub context into agent system prompt; exports GH_TOKEN so bash tool subprocesses can use gh on keyring-auth systems. Force-push needed (branch was amended and renamed). |
+| `fix/tool-code-pycall-parsing` | [#35](https://github.com/jdmanring/odysseus/issues/35) | Single commit, ready. Parses and strips `<tool_code>` Python-call format (Google Gemma style) in tool_parsing.py. |
 | `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Single commit, ready |
 | `feat/logging-core` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. File before logging-timing. |
 | `feat/logging-timing` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. File after logging-core. |
