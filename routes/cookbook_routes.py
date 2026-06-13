@@ -709,9 +709,13 @@ def setup_cookbook_routes() -> APIRouter:
             _port = req.ssh_port
             _pf = f"-P {_port} " if _port and _port != "22" else ""
             _spf = f"-p {_port} " if _port and _port != "22" else ""
+            _aria2c_scp = (
+                f' && ssh {_spf}{remote} "mkdir -p ~/.cookbook"'
+                f' && scp -r tooling {remote}:~/.cookbook/'
+            ) if req.use_aria2c else ''
             setup_cmd = (
-                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner} "
-                f"{' && ssh ' + _spf + remote + ' \"mkdir -p ~/.cookbook\" && scp -r tooling ' + remote + ':~/.cookbook/' if req.use_aria2c else ''} && "
+                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner}"
+                f"{_aria2c_scp} && "
                 f"ssh {_spf}{remote} 'chmod +x {remote_runner} && tmux new-session -x 220 -y 50 -d -s {session_id} \"./{remote_runner}\"'"
             )
         else:
