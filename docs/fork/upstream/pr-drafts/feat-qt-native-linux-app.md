@@ -99,8 +99,8 @@ React/TypeScript.
 
 **Why not Electron**
 
-Electron ships its own full copy of Chromium (~200 MB on disk, ~100–200 MB
-additional RAM per process). On Linux, this means installing and running a
+Electron ships its own full copy of Chromium (zipped apps run 80–100 MB and
+exceed 100 MB unzipped, per [Electron's own documentation](https://www.electronjs.org/docs/latest/why-electron)). On Linux, this means installing and running a
 second Chromium runtime alongside whatever browser the user already has. For a
 Python application that already runs on the system, adding a Node.js + Electron
 runtime stack purely for a desktop window is a heavy dependency with a
@@ -121,12 +121,13 @@ integration and native webview usage are appropriate.
 
 Two reasons Tauri is not the right choice today:
 
-1. **Rendering engine**: Tauri uses WebKitGTK on Linux. WebKitGTK trails
-   Blink/Chrome in CSS and web platform feature support. Odysseus uses
-   `backdrop-filter`, `grid`, `container queries`, and progressive rendering
-   features that work on Chrome. Whether they work on the version of WebKitGTK
-   present on a given Linux distribution is untested and risky. Qt WebEngine
-   is Chromium-based and renders identically to the browser.
+1. **Rendering engine**: Tauri uses WebKitGTK on Linux. WebKitGTK feature availability depends on the
+   version packaged by each distribution: Ubuntu 22.04 LTS ships WebKitGTK 2.36,
+   which lacks `container queries`. Odysseus uses `backdrop-filter`,
+   `grid`, `container queries`, and features whose behavior across the full
+   range of distribution-packaged WebKitGTK versions is untested. Qt WebEngine
+   is Chromium-based and renders identically to the browser regardless of
+   distribution.
 
 2. **Toolchain**: Odysseus has no Rust code and no Rust toolchain. Adding Tauri
    means adding a full Rust build environment as a mandatory dependency for a
@@ -214,6 +215,20 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
 2. The screenshot in the description uses a repo-relative path. Attach the image directly in the GitHub PR text box via drag-and-drop; do not rely on the fork's file paths being visible to upstream reviewers.
 3. Upstream issue #3528 (Windows desktop wrapper) shows the maintainer is receptive to native desktop wrappers. Reference it as a parallel effort in the issue or PR if asked about motivation.
 4. Our fork issue #7 (HF token persistence) overlaps with upstream PR #3459. Monitor; if #3459 merges, verify after next sync whether the issue is fully resolved before filing separately.
+5. **Pre-file: harden hardcoded paths.** `INSTALL_DIR` and `VENV_PYTHON` at the top of
+   `linux_wrapper.py` are hardcoded to an absolute path on the author's machine. Before
+   filing, replace with runtime-derived equivalents:
+   - `INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))`
+   - `VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "bin", "python")`
+   - `LOG_DIR = os.path.join(INSTALL_DIR, "logs")` (currently declared at line 12, before
+     `INSTALL_DIR` exists — move the `LOG_DIR` declaration after `INSTALL_DIR` is set, or
+     derive it inline with `__file__` the same way)
+   These are the only changes blocking upstream submission.
+6. **Port:** `linux_wrapper.py` now reads `APP_PORT` from the environment (`.env` is
+   loaded automatically), defaulting to `7000` — the project's canonical upstream default
+   (`docker-compose.yml`, `src/constants.py`, `launch-windows.ps1`). The previous
+   hardcoded `8000` was a development artifact. No reviewer action needed; noted here for
+   traceability.
 
 ## Visual / UI changes; REQUIRED if you touched anything that renders
 

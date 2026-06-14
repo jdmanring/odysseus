@@ -20,40 +20,35 @@ documentation prose with binary assets. This causes several practical problems.
 
 ### Why the current layout is harmful
 
-**Documentation tooling requires workarounds.** Static site generators
-(Docusaurus, MkDocs, Sphinx) and search indexers that scan `docs/` for content
-encounter multi-megabyte GIF and WebM files alongside Markdown. These tools require
-explicit exclusion configuration to skip binary files; configuration that is not
-present in the repo. Adding a documentation site in the current layout means
-writing exclude rules before a single page can be built.
+**`docs/` is becoming a documentation directory, and binary media files pollute it.**
+A companion PR in the same batch (`feat/ai-documentation-system`) adds 36 markdown files
+to `docs/ai/`, `docs/project/`, `docs/user/`, and `docs/dev/`. Once those land, a
+contributor navigating to `docs/` to find architecture documentation or contributor guides
+will see 14 GIF, WebM, and JPEG files at the root — the same demo media that currently
+live there. The binary files have nothing to do with the documentation content; they are
+README embed assets. This refactor separates them before the documentation tree grows.
 
-**Git history is polluted.** Binary files in `docs/` appear in every `git log --stat`
-and `git diff --stat` that touches the documentation. Any change to a GIF produces an
-uninformative binary diff. Tools that blame or annotate documentation files include
-binary noise in the results.
+**Git history and diff quality.** Binary files in `docs/` appear in every
+`git log --stat` and `git diff --stat` that touches documentation. A change to a GIF
+produces an uninformative `Binary files ... differ` diff. Any patch that touches
+documentation alongside media files generates misleading stats. This is a concrete,
+verifiable problem: run `git log --stat -- docs/` on the current repo and observe that
+binary file churn appears in a directory that should contain only documentation diffs.
 
-**`docs/odysseus.jpg` causes a thumbnail collision with the app icon.** The Qt taskbar
-uses `odysseus.svg` as the application icon. Because `docs/odysseus.jpg` shares the same
-base name, file pickers and system thumbnail caches that scan the project directory use
-the landing page screenshot as the app thumbnail instead of the vector icon. Renaming to
-`landingpage.jpg` removes the collision.
-
-**Industry standard practice.** Major open-source projects (VSCode, Electron, React,
-FastAPI) separate code/docs from binary media using a top-level `assets/` directory.
-Odysseus following this convention makes the repository layout immediately recognisable
-to contributors familiar with these projects.
+**`docs/odysseus.jpg` is a self-describing name problem.** In an `assets/` directory,
+`odysseus.jpg` reads as a project logo or icon. It is actually a landing page screenshot.
+Renaming to `landingpage.jpg` makes the file's purpose clear without inspecting the content.
 
 ### Change
 
-Move all 17 demo media files to a top-level `assets/` directory. Update `README.md`
+Move all 14 demo media files to a top-level `assets/` directory. Update `README.md`
 references and `.gitignore` paths accordingly.
 
 ```
 docs/odysseus.jpg  →  assets/landingpage.jpg  (renamed; see above)
-docs/odysseus.svg  →  assets/odysseus.svg
 docs/chat.gif      →  assets/chat.gif
 docs/bg.webm       →  assets/bg.webm
-... (all demo media)
+... (all 14 demo media files)
 ```
 
 No functional changes. Pure file reorganization with one rename.
@@ -97,6 +92,11 @@ Fixes # <!-- [file upstream issue first] -->
 
 - **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/refactor-assets-move.md`. Add the issue number to `Fixes #` above before opening the PR.
 - No dependencies. Can be filed in any order.
+- **Companion script breakage (maintainer note):** `build-macos-app.sh` line 46 references
+  `docs/odysseus.jpg` — the path that this PR renames to `assets/landingpage.jpg`. After
+  this PR merges, `build-macos-app.sh` must be updated: `docs/odysseus.jpg` →
+  `assets/landingpage.jpg`. File a follow-up issue or include the one-line fix in this PR
+  if the maintainer prefers atomic changes.
 
 ## Visual / UI changes
 

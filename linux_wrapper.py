@@ -42,6 +42,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
 import signal
 import subprocess
 import time
+from dotenv import load_dotenv
 from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
@@ -50,9 +51,11 @@ from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, pyqtSlot, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
 INSTALL_DIR = "/home/james/Projects/odysseus"
 VENV_PYTHON = "/home/james/Projects/odysseus/venv/bin/python"
-PORT = "8000"
+PORT = os.environ.get("APP_PORT", "7000")
 WINDOW_TITLE = "Odysseus"
 PROFILE_NAME = "odysseus"
 DATA_DIR = os.path.expanduser("~/.local/share/odysseus/webengine")
