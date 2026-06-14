@@ -23,8 +23,9 @@ snake_case `"tool_calls"`. The streaming parser in `llm_core.py` only reads
 are silently dropped — the model responds as if no tools are available even when schemas
 were sent.
 
-Confirmed against Google's published API documentation: the deviation from the OpenAI
-spec is a known issue on their side and has not been corrected.
+Confirmed in Google's own developer forum: [Gemini OpenAI compatibility issue with
+tool_call + streaming](https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886).
+The deviation from the OpenAI spec is a known issue on their side and has not been corrected.
 
 ### Solution
 
