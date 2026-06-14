@@ -1910,6 +1910,7 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
                                     or _delta0.get("reasoning")
                                     or _delta0.get("thinking")
                                     or _delta0.get("tool_calls")
+                                    or _delta0.get("toolCalls")  # Google OpenAI-compat sends camelCase
                                 )
                                 if "usage" in j and not _delta_has_output:
                                     u = j["usage"] or {}
@@ -1998,8 +1999,10 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
                                                         content = "<think>" + content
                                                     _first_content_sent = True
                                                     yield f'data: {json.dumps({"delta": content})}\n\n'
-                                        # Native tool calls — accumulate across chunks
-                                        for tc in delta.get("tool_calls") or []:
+                                        # Native tool calls — accumulate across chunks.
+                                        # Google's OpenAI-compat endpoint sends camelCase "toolCalls"
+                                        # instead of snake_case "tool_calls" (documented API bug).
+                                        for tc in delta.get("tool_calls") or delta.get("toolCalls") or []:
                                             if tc is None:
                                                 continue
                                             func = tc.get("function") or {}
