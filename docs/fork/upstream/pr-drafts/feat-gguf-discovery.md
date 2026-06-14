@@ -43,11 +43,13 @@ source configured" have no path forward except asking in community forums.
 
 #### Scale of the inaccessible ecosystem
 
-TheBloke quantized over 2,000 models before retiring from active uploads.
-Bartowski currently maintains 100+ actively-updated imatrix-calibrated repos.
-Mradermacher covers models neither TheBloke nor bartowski has processed.
-Combined, the community GGUF library contains quantizations of virtually
-every notable open-weights model released in the past two years.
+[TheBloke](https://huggingface.co/TheBloke) has 3,863 HuggingFace repositories
+covering GGUF and GPTQ quantizations across a wide range of models.
+[Bartowski](https://huggingface.co/bartowski) currently has 2,340 repositories,
+most of them imatrix-calibrated GGUF models actively updated to cover new
+releases. Mradermacher covers models neither TheBloke nor bartowski has processed.
+Combined, the community quantization library covers virtually every notable
+open-weights model released in the past few years.
 
 This library is invisible to users who don't already know it exists.
 Auto-discovery makes the entire community GGUF ecosystem accessible from
