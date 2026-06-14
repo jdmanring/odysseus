@@ -27,8 +27,8 @@ def get_version():
 
 Python 3.13 changed how `exec()` interacts with local variable scopes in
 nested functions: assignments made inside `exec()` are no longer visible
-through `locals()` in the calling frame. The call to `locals()['__version__']`
-raises `KeyError`, aborting the build.
+through `locals()` in the calling frame ([CPython issue #118888](https://github.com/python/cpython/issues/118888)).
+The call to `locals()['__version__']` raises `KeyError`, aborting the build.
 
 basicsr has not released a fix and the repository shows minimal maintenance activity.
 The package is effectively uninstallable on any Python 3.13+ environment via a normal
@@ -40,7 +40,7 @@ The package is effectively uninstallable on any Python 3.13+ environment via a n
 future-proofing concern — it is a present-day breakage affecting users right now.
 
 Modern Linux distributions ship Python 3.13 as the system interpreter by default:
-- Arch Linux — Python 3.13 since late 2024
+- Artix Linux / Arch Linux — Python 3.13 since late 2024
 - Fedora 41+ — Python 3.13 default
 - openSUSE Tumbleweed — Python 3.13
 - Ubuntu 25.04 — Python 3.13

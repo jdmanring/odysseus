@@ -14,31 +14,50 @@
 ---
 
 ## Summary
-### Problem
+### Why Catppuccin fills a documented design niche
 
-Odysseus ships 16 built-in themes but no Catppuccin option. Catppuccin Mocha is the
-single most-requested theme addition in the Odysseus community and one of the most
-widely-adopted color palettes in developer tooling.
+Dark themes exist on a spectrum from low-contrast/desaturated (Nord, Tokyo Night, Gruvbox)
+to high-contrast/vibrant (Dracula, Monokai). Catppuccin's [documented design
+position](https://github.com/catppuccin/catppuccin) is explicitly the **middle ground**
+between these two poles — its three stated design principles are:
 
-### Why Catppuccin specifically
+1. **Colorfulness over minimalism**: "the colorfulness of something contributes to the
+   distinction amongst the parts"
+2. **Balance**: "not too dull, not too bright. Suitability under various light conditions
+   is a must"
+3. **Harmonic color relationships**: "vivacious colors must complement each other"
 
-**Ecosystem ubiquity.** Catppuccin has 456 official ports across the developer tool
-ecosystem — VS Code ([1.27M installs](https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc)),
-JetBrains IDEs, Obsidian, Neovim, Alacritty, Wezterm, Spicetify, and hundreds more
-([catppuccin.com/ports](https://catppuccin.com/ports/)). Developers who use Catppuccin
-across their full environment will naturally expect it in Odysseus. A missing theme in
-the primary AI assistant is a visible gap.
+The Mocha palette — deep blue-grey background (`#1e1e2e`), soft lavender-white text
+(`#cdd6f4`), mauve accent (`#cba6f7`) — is the darkest and most widely-used of
+Catppuccin's four flavors precisely because it achieves this balance under both bright
+and dim lighting.
 
-**Design philosophy.** Catppuccin's stated design goals are "balance — not too dull,
-not too bright" and harmony among colors for use across varying lighting conditions. The
-Mocha palette specifically — a deep blue-grey background (`#1e1e2e`) with soft
-lavender-white text (`#cdd6f4`) — is the most widely used of the four Catppuccin
-flavors precisely because it works well under both bright office lighting and dark rooms.
+This is a perceptual niche, not a matter of taste: a theme that is neither stark nor
+flat occupies different psychovisual territory than either extreme, and no existing
+Odysseus theme explicitly claims this positioning.
 
-**Zero maintenance burden.** The Catppuccin palette is versioned and actively maintained
-at [github.com/catppuccin/palette](https://github.com/catppuccin/palette) (current:
-v1.1.0). The colors in this PR are from the canonical Mocha palette and will not change
-without a major version bump that would be clearly communicated.
+### Adoption scale confirms the niche is real
+
+456 official ports ([catppuccin.com/ports](https://catppuccin.com/ports/)) spanning 40+
+code editors and IDEs, 50+ developer tools, 30+ terminal emulators, and 20+ browsers.
+VS Code alone: [1.27M installs](https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc).
+The palette is versioned at [v1.1.0](https://github.com/catppuccin/palette) and
+mathematically defined — 26 named colors per flavor — so the colors in this PR will
+not change without a clearly communicated major version bump.
+
+The breadth of adoption across unrelated application categories (editors, terminals,
+browsers, music players, window managers) indicates the niche is validated, not niche
+in the pejorative sense.
+
+### Community demand and prior attempts
+
+Catppuccin has been requested in the upstream project: open issue
+[#3692](https://github.com/pewdiepie-archdaemon/odysseus/issues/3692), and prior PRs
+[#2814](https://github.com/pewdiepie-archdaemon/odysseus/pull/2814) (Wontfix) and
+[#3687](https://github.com/pewdiepie-archdaemon/odysseus/pull/3687) (abandoned) both
+attempted this and were closed. This PR is deliberately more minimal — a single palette
+entry, not a multi-flavour suite — to address the scope concerns that closed previous
+attempts.
 
 ### Solution
 

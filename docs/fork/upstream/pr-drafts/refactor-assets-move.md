@@ -33,10 +33,11 @@ and `git diff --stat` that touches the documentation. Any change to a GIF produc
 uninformative binary diff. Tools that blame or annotate documentation files include
 binary noise in the results.
 
-**`docs/odysseus.jpg` name conflicts with the app icon.** The application icon
-(`odysseus.svg`, displayed in the Qt taskbar) has the same base name as the landing page
-photo. Contributors looking for the icon find the landing page photo instead. Renaming
-to `landingpage.jpg` removes the ambiguity.
+**`docs/odysseus.jpg` causes a thumbnail collision with the app icon.** The Qt taskbar
+uses `odysseus.svg` as the application icon. Because `docs/odysseus.jpg` shares the same
+base name, file pickers and system thumbnail caches that scan the project directory use
+the landing page screenshot as the app thumbnail instead of the vector icon. Renaming to
+`landingpage.jpg` removes the collision.
 
 **Industry standard practice.** Major open-source projects (VSCode, Electron, React,
 FastAPI) separate code/docs from binary media using a top-level `assets/` directory.

@@ -16,10 +16,8 @@
 
 ### Problem
 
-Meituan LongCat models (served via vLLM or Vercel AI SDK) emit tool calls wrapped in
-`<longcat_tool_call>...</longcat_tool_call>` blocks. Odysseus has no pattern for this
-format, so tool calls from LongCat models are silently ignored and the raw XML is
-displayed to the user as response text.
+Odysseus has no pattern for this format, so tool calls from LongCat models are silently
+ignored and the raw XML is displayed to the user as response text.
 
 Two distinct variants appear in the wild:
 
