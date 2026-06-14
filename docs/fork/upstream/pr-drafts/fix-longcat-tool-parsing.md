@@ -92,8 +92,11 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-longcat-tool-pa
    (i.e. send a prompt that produces a `<longcat_tool_call>` block but do not execute it;
    confirm the raw XML does not appear in the displayed response).
 
-**Unit tests:** `pytest tests/test_tool_parsing.py -k longcat` — tests added for both
-Variant A and Variant B parsing and for `strip_tool_blocks` cleanup.
+**Unit tests:** `pytest tests/test_longcat_tool_parsing.py` — 13 tests covering
+Variant A (JSON object), Variant B (tag-pair), unknown-name pass-through (intentional
+behavioral difference from the pycall parser — longcat passes unknown names through as
+raw ToolBlocks rather than filtering them), no-args rejection, malformed JSON
+no-crash, and `strip_tool_blocks` for both variants. No network access required.
 
 ---
 
