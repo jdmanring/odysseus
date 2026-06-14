@@ -21,15 +21,15 @@ open, `sessions.js` loops through the full history and calls `addMessage()` for
 every message. During an active session, `addMessage()` appends new nodes but
 nothing ever removes them. This has two concrete failure modes:
 
-**Load crash** — A session with 300+ messages at ~3 DOM nodes each lands 900+
+**Load crash**: A session with 300+ messages at ~3 DOM nodes each lands 900+
 nodes in a single synchronous render. Agent-mode sessions produce 5–7 nodes per
 message (role header, thinking block, content, tool-call panel, tool-result
 panel); a 150-turn agent session produces 900–1050 nodes. All nodes are live
-and held by the DOM tree — the GC correctly retains them all. The renderer
+and held by the DOM tree; the GC correctly retains them all. The renderer
 process exhausts its memory allocation on fully-live objects and crashes before
 the page is interactive. Users experience a blank white screen on open.
 
-**Accumulation crash** — A session that starts short grows OOM during a long
+**Accumulation crash**: A session that starts short grows OOM during a long
 agentic run. No mechanism exists to reclaim nodes once they are appended.
 
 Both failure modes are consistently reproducible. In my testing they occur at
@@ -38,7 +38,7 @@ running alongside other applications; the threshold is lower on constrained
 machines.
 
 **Self-hosted AI users run long sessions.** The entire point of running Odysseus
-locally is to have extended, persistent conversations — coding sessions, research
+locally is to have extended, persistent conversations; coding sessions, research
 threads, agent runs that span many tool calls. A user working with a coding agent
 for two hours will have 200+ messages easily. These are exactly the sessions that
 accumulate messages, and exactly the sessions where an OOM crash is most disruptive.
@@ -47,19 +47,19 @@ accumulate messages, and exactly the sessions where an OOM crash is most disrupt
 often run Odysseus on lower-spec machines: 8 GB RAM laptops, mini PCs, ARM SBCs,
 or machines that are also running the LLM inference stack itself (which consumes
 several GB of RAM or unified memory). The 16 GB baseline quoted above is the
-comfortable case — the actual OOM threshold scales with available renderer memory
+comfortable case; the actual OOM threshold scales with available renderer memory
 and will be lower on machines with less RAM or more competing processes.
 
 **Agent mode amplifies the severity.** An agent tasked with a multi-step coding
 task produces 5–7 DOM nodes per message round (role header, thinking block,
 content, tool-call panel, tool-result panel, metadata row). A 150-turn agent
-session produces 900–1050 nodes — the same node count as 300 standard
+session produces 900–1050 nodes; the same node count as 300 standard
 user/model turns. The users who push agent mode hardest are the most likely
 to hit OOM.
 
 **Crash recovery is lossy.** When the renderer crashes mid-stream, the in-progress
 model response is lost. The `resumeStream` path in `chat.js` can replay the SSE
-buffer from the server, but the buffer is bounded — a long response that was
+buffer from the server, but the buffer is bounded; a long response that was
 actively streaming when the crash hit may be partially or fully missing on reload.
 No mechanism exists to re-request the cut-off portion. The user must prompt again
 from scratch, consuming more rounds of an active agent session or losing context.
@@ -73,27 +73,27 @@ in `sessions.js`.
 
 The implementation has three phases:
 
-**Phase 1 — Load-time windowing.**  
+**Phase 1: Load-time windowing.**  
 `window.chatHistory.load(messages)` renders only the most recent `WINDOW_SIZE`
 (50) messages on session open. An `IntersectionObserver` watches a sentinel
 element at the top of the list; scrolling up to the sentinel triggers
 `_loadOlder()`, which prepends a `BATCH_SIZE` (25) message batch. Scroll
 position is preserved by capturing `scrollHeight` before and after the insert
-and adjusting `scrollTop` by the difference — preventing the viewport jump that
+and adjusting `scrollTop` by the difference; preventing the viewport jump that
 `insertBefore` would otherwise cause.
 
-**Phase 2 — Live pruning.**  
+**Phase 2: Live pruning.**  
 A `MutationObserver` watches `#chat-history` for `childList` changes. When
 total non-control DOM children exceed `PRUNE_AT` (80) and the user is at the
 scroll bottom, `_pruneTop()` removes the oldest `PRUNE_COUNT` (20) historical
 nodes and inserts a height-matched `.chat-history-spacer` div in their place.
 The spacer preserves scroll geometry; `scrollHeight` is unchanged so `scrollTop`
 needs no adjustment. The pruned content is reachable again by scrolling up past
-the sentinel. Phase 2 does not fire during `load()` — a `_loading` flag holds
+the sentinel. Phase 2 does not fire during `load()`: a `_loading` flag holds
 it off through the initial render (a 50-message agent session produces ~250
 nodes, far above `PRUNE_AT`).
 
-**Phase 3 — Bidirectional pruning.**  
+**Phase 3: Bidirectional pruning.**  
 When the user scrolls up and `_loadOlder()` pushes historical DOM children past
 `BIDI_CAP` (120), `_pruneBottom()` removes the newest historical nodes from just
 above the `_histSep` boundary and inserts a "↓ N earlier messages" bottom
@@ -152,7 +152,7 @@ becomes visible.
 **`static/style.css`** (1 block, 6 lines)
 
 - `.chat-history-sentinel`, `.chat-history-bottom-sentinel`, `.chat-history-spacer`
-  all get `overflow-anchor: none` — Chrome's scroll-anchor algorithm
+  all get `overflow-anchor: none`: Chrome's scroll-anchor algorithm
   automatically adjusts `scrollTop` when content is prepended above the
   viewport. `chatHistory.js` also adjusts `scrollTop` to compensate for
   prepended nodes. Without this rule, both fire on the same prepend and the
@@ -168,7 +168,7 @@ means the 34 px sentinel height is not auto-compensated into `scrollTop`, so
 the user ended up 34 px above the actual bottom. By attaching the sentinel
 first, the single `this._c.scrollTop = this._c.scrollHeight` call at the end
 of `load()` accounts for the sentinel's height in one shot. (IntersectionObserver
-callbacks are asynchronous — they never fire within the same JS task, so there
+callbacks are asynchronous; they never fire within the same JS task, so there
 is no risk of the observer triggering `_loadOlder()` before the scroll sets the
 sentinel out of view.)
 
@@ -207,9 +207,9 @@ before updating `_startIdx` or `_endIdx`.
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
@@ -231,7 +231,7 @@ snap, the settling loop). All scenarios below were exercised directly.
 - Load session while batch load from previous session is in flight → new session
   loads cleanly; old rAF callbacks bail via `_gen` check
 
-**Phase 2 — Live pruning**
+**Phase 2: Live pruning**
 - Open 50-message agent session; exchange 10 user+model turns → historical nodes
   exceed PRUNE\_AT; oldest historical nodes pruned; height-matched spacer
   appears above remaining history; scroll position does not jump
@@ -240,7 +240,7 @@ snap, the settling loop). All scenarios below were exercised directly.
 - Phase 2 does not fire during initial load of a 50-message agent session
   (would otherwise immediately prune 250 nodes > PRUNE\_AT)
 
-**Phase 3 — Bidirectional pruning**
+**Phase 3: Bidirectional pruning**
 - Session with 200 messages; scroll to first message; scroll back down →
   historical nodes cap at BIDI\_CAP; bottom sentinel appears;
   "↓ N earlier messages" count is accurate
@@ -266,14 +266,14 @@ snap, the settling loop). All scenarios below were exercised directly.
 - Click scroll-to-bottom button while any content is unloaded → reaches live
   section; bottom sentinel disappears
 
-**Regression check — normal-length sessions**
+**Regression check; normal-length sessions**
 - Sessions with 5, 15, 30 messages → all messages visible, no pagination UI,
   no spacer; behavior identical to pre-patch
 
 **Automated tests.**  
 `tests/test_chat_history_js.py` covers the virtualization state machine logic
 (window sizing, sentinel management, index tracking, generation counter) using
-a lightweight DOM stub — no browser required. `tests/test_chat_history_playwright.py`
+a lightweight DOM stub; no browser required. `tests/test_chat_history_playwright.py`
 covers the scroll behaviour end-to-end using Playwright. The existing pytest suite
 covering backend endpoints is not affected by this change.
 
@@ -291,8 +291,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Type of Change
 
-- [x] Bug fix (non-breaking — fixes a confirmed issue)
-- [ ] New feature (non-breaking — adds new behaviour)
+- [x] Bug fix (non-breaking, fixes a confirmed issue)
+- [ ] New feature (non-breaking, adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -300,13 +300,13 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Filing Notes
 
-1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-dom-oom-virtualization.md`. Reference upstream reports #2869 and #3746 in the issue body (same root cause). Add the new issue number to `Fixes #` above before opening the PR. Do not ask to close #2869 or #3746 — let maintainers decide.
+1. **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/fix-dom-oom-virtualization.md`. Reference upstream reports #2869 and #3746 in the issue body (same root cause). Add the new issue number to `Fixes #` above before opening the PR. Do not ask to close #2869 or #3746: let maintainers decide.
 
-2. No screenshot needed — fix is behavioral (OOM prevention), not visual. If reviewers ask: load a 600-message session from the DB; renderer crashes before this patch, loads cleanly after.
+2. No screenshot needed; fix is behavioral (OOM prevention), not visual. If reviewers ask: load a 600-message session from the DB; renderer crashes before this patch, loads cleanly after.
 
 3. **Reviewer question to anticipate:** "Why not React virtualization libraries?" Answer: Odysseus uses plain HTML/JS with no bundler or framework. Vanilla JS with direct DOM manipulation, consistent with the rest of the codebase.
 
-4. **Reviewer question to anticipate:** "Why include the chat.js resumeStream fix here?" Answer: The thinking-token bug only manifests when `resumeStream` replays a buffer after a crash — inseparable in practice from the crash-recovery path this PR introduces.
+4. **Reviewer question to anticipate:** "Why include the chat.js resumeStream fix here?" Answer: The thinking-token bug only manifests when `resumeStream` replays a buffer after a crash; inseparable in practice from the crash-recovery path this PR introduces.
 
 5. **Watch upstream discussion #929** (frontend framework migration). Virtualization logic is framework-agnostic; porting would be straightforward if needed.
 
@@ -314,13 +314,13 @@ Fixes # <!-- [file upstream issue first] -->
 
 This fix restructures how chat messages are stored in the DOM but does not
 change their visual appearance. The virtualized implementation produces
-identical output — same message bubbles, same layout, same scroll behavior
+identical output; same message bubbles, same layout, same scroll behavior
 from the user's perspective. No before/after screenshot is meaningful.
 
 Files changed that touch HTML, CSS, or JS:
-- `static/index.html` — adds `<script src="chatHistory.js">` tag
-- `static/js/chatHistory.js` — new virtualization module (DOM-writing)
-- `static/js/chat.js`, `sessions.js` — delegate message management to the module
-- `static/style.css` — adds `overflow-anchor: none` to 3 non-visible sentinel/spacer classes
+- `static/index.html`: adds `<script src="chatHistory.js">` tag
+- `static/js/chatHistory.js`: new virtualization module (DOM-writing)
+- `static/js/chat.js`, `sessions.js`: delegate message management to the module
+- `static/style.css`: adds `overflow-anchor: none` to 3 non-visible sentinel/spacer classes
 
 None of the CSS additions are visible elements. No screenshot needed.

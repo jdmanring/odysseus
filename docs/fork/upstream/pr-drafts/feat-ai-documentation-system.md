@@ -8,7 +8,7 @@
 
 ## Title
 
-`docs: AI-first documentation system — universal hub-and-spoke onboarding and reference guides`
+`docs: AI-first documentation system; universal hub-and-spoke onboarding and reference guides`
 
 ---
 
@@ -35,13 +35,13 @@ have read the source code: DOM virtualizer invariants that break if violated, th
 format string `aria2c` expects, tmux terminal width truncation that causes parsing bugs,
 Anthropic tool result placement requirements that differ from OpenAI, and QWebEngineView
 API gaps that break features ported from standard browser environments. These behaviors
-are invisible from the source code alone — they are discovered only by breaking
+are invisible from the source code alone; they are discovered only by breaking
 something in production. The documentation prevents them proactively.
 
 **Human contributor onboarding is undocumented.** There is no standard path from "I
 cloned the repo" to "I understand the architecture and can contribute safely." Critical
-context — how the request/response flow works, which subsystems own which files, where
-secrets live, how settings are structured — exists only in the heads of people who have
+context; how the request/response flow works, which subsystems own which files, where
+secrets live, how settings are structured; exists only in the heads of people who have
 read the full codebase. The `docs/project/architecture.md` and feature reference files
 in this PR capture that context permanently.
 
@@ -49,7 +49,7 @@ in this PR capture that context permanently.
 root is a single entrypoint that any AI tool reads first. It points to `CONTEXT.md`
 (architecture) and `RULES.md` (contribution constraints). From those two files, an AI
 agent has a complete mental model without reading 200+ source files. This structure
-works identically for Claude Code, Copilot Chat, Cursor, and any future tool — it is
+works identically for Claude Code, Copilot Chat, Cursor, and any future tool; it is
 not platform-specific.
 
 ### Solution
@@ -60,16 +60,16 @@ hub-and-spoke model for maximum agent precision.
 
 ### Root level
 
-**`AI.md`** — The universal entry point for AI agents. A root-level index that
+**`AI.md`**: The universal entry point for AI agents. A root-level index that
 directs agents to the authoritative laws and maps of the project.
 
-### `docs/ai/` — AI reference documentation
+### `docs/ai/`: AI reference documentation
 
-**`RULES.md`** — Behavioral rules for AI agents contributing to the project.
+**`RULES.md`**: Behavioral rules for AI agents contributing to the project.
 Platform-agnostic. Covers hard rules around destructive operations, upstream
 contribution policy, and issue tracking.
 
-**`CONTEXT.md`** — Mental model of the codebase for AI agents. Covers the
+**`CONTEXT.md`**: Mental model of the codebase for AI agents. Covers the
 architecture, subsystem map, key files, and common task patterns.
 
 **`arch/AI_ARCH_CORE_FLOW.md`**: core request/response flow
@@ -79,22 +79,22 @@ architecture, subsystem map, key files, and common task patterns.
   and YouTube
 **`system/`**: secrets storage patterns and the settings key map
 
-### `docs/project/` — technical tribal knowledge
+### `docs/project/`: technical tribal knowledge
 
-**`architecture.md`** — deep-dive on subsystems, request flows, payload
+**`architecture.md`**: deep-dive on subsystems, request flows, payload
 building, the Cookbook pipeline, and the native Qt app layer.
 
-**`non-obvious-behaviors.md`** — sharp edges that will surprise contributors:
+**`non-obvious-behaviors.md`**: sharp edges that will surprise contributors:
 DOM virtualizer invariants, aria2c regex format, tmux terminal width truncation,
 Anthropic tool result placement requirements, QWebEngineView browser API gaps,
 and more.
 
-### `docs/user/` — user-facing guides
+### `docs/user/`: user-facing guides
 
 `interface_ui_map.md`, `user_journeys_workflows.md`, `cookbook_lifecycle.md`,
 `plan_sync_guide.md`, `ux_tips.md`
 
-### `docs/dev/` — contributor guides
+### `docs/dev/`: contributor guides
 
 `documentation_templates.md`, `lessons_learned.md`, `local-setup-and-running.md`
 
@@ -112,8 +112,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Type of Change
 
-- [ ] Bug fix (non-breaking — fixes a confirmed issue)
-- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Bug fix (non-breaking, fixes a confirmed issue)
+- [ ] New feature (non-breaking, adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [x] Documentation only
@@ -121,27 +121,27 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
 
-1. After merging, open `AI.md` at the repo root on GitHub — confirm it renders correctly and links to `docs/ai/CONTEXT.md` and `docs/ai/RULES.md`.
-2. Navigate to `docs/ai/CONTEXT.md` — confirm headers, code blocks, and internal links render.
-3. Open two or three files from `docs/ai/features/` — confirm each covers its feature area and renders without broken formatting.
+1. After merging, open `AI.md` at the repo root on GitHub; confirm it renders correctly and links to `docs/ai/CONTEXT.md` and `docs/ai/RULES.md`.
+2. Navigate to `docs/ai/CONTEXT.md`: confirm headers, code blocks, and internal links render.
+3. Open two or three files from `docs/ai/features/`: confirm each covers its feature area and renders without broken formatting.
 4. Run a link check if available: `find docs/ai -name "*.md" -exec grep -l "\[.*\](.*\.md)" {} \;` and spot-check that the linked files exist.
-5. No runtime behavior changes — no server restart required.
+5. No runtime behavior changes; no server restart required.
 
 ---
 
 ## Filing Notes
 
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-ai-documentation-system.md`. Add the issue number to `Fixes #` above before opening the PR.
-- No dependencies. Can be filed in any order. Adds only new files — no existing code or documentation modified.
+- **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-ai-documentation-system.md`. Add the issue number to `Fixes #` above before opening the PR.
+- No dependencies. Can be filed in any order. Adds only new files; no existing code or documentation modified.
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+None; no HTML, CSS, or DOM-writing JS was changed.
