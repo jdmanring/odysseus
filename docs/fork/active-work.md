@@ -14,6 +14,7 @@ Last updated: 2026-06-13. Fork is at milestone `v1.0.0-fork.1` — all CI passin
 | [#39 Google toolCalls camelCase](https://github.com/jdmanring/odysseus/issues/39) | `fix/google-compat-toolcalls` | Fix delta.get("tool_calls") to also check "toolCalls". Branch complete. |
 | [#40 Google native API path](https://github.com/jdmanring/odysseus/issues/40) | not started | Full GoogleProvider implementation in llm_core.py. Substantial feature, no existing SDK deps. |
 | [#41 Gemma 4 local serving format](https://github.com/jdmanring/odysseus/issues/41) | not started | Low priority. Raw `<\|tool_call>` tokens leak only through self-hosted Ollama/llama-cpp-python/mlx-lm when chat template is incomplete. Google's hosted API is unaffected (already translates to `<tool_code>` format). |
+| [#42 Expanded quality-scored resolver — all backends + imatrix tiers](https://github.com/jdmanring/odysseus/issues/42) | not started | Depends on `feat/aria2c-downloader` and `fix/gguf-quality-scored` landing upstream. Scope: add imatrix variants to QUANT_HIERARCHY, extend HfUrlResolver with find_vllm_sources(), wire resolver into all download paths (not just missing-config fallback). |
 
 ---
 
