@@ -270,32 +270,15 @@ class OdysseusWindow(QMainWindow):
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)
 
-        # Tracks the last known windowed (non-maximized) geometry so closeEvent
-        # can persist it even when the window is closed while maximized. On Wayland
-        # the compositor does not expose the normal geometry to the application
-        # while maximized, so saveGeometry() at close time captures the maximized
-        # dimensions and destroys the restore target. resizeEvent/moveEvent update
-        # this only while the window is in normal state.
-        self._windowed_geometry = None
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if not self.isMaximized() and not self.isFullScreen():
-            self._windowed_geometry = self.saveGeometry()
-
-    def moveEvent(self, event):
-        super().moveEvent(event)
-        if not self.isMaximized() and not self.isFullScreen():
-            self._windowed_geometry = self.saveGeometry()
-
     def closeEvent(self, event):
         s = QSettings("odysseus", "odysseus")
-        geom = self._windowed_geometry
-        if geom is None and not self.isMaximized():
-            geom = self.saveGeometry()
-        if geom is not None:
-            s.setValue("windowGeometry", geom)
         s.setValue("windowMaximized", self.isMaximized())
+        # Only write geometry when windowed. On Wayland, saveGeometry() while
+        # maximized records the maximized dimensions as the "normal" size, which
+        # destroys the restore target on next open. Skipping the write when
+        # maximized leaves the last good windowed geometry intact in QSettings.
+        if not self.isMaximized():
+            s.setValue("windowGeometry", self.saveGeometry())
         s.sync()
         self.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.browser))
         stop_server()
@@ -328,15 +311,20 @@ if __name__ == "__main__":
     win = OdysseusWindow(profile)
     win.show()
 
-    # Restore window geometry from previous session. show() must precede
-    # restoreGeometry() so the window handle exists on all platforms including
-    # Wayland. On Wayland the compositor ignores restored position (by design);
-    # size and maximized state both restore correctly.
+    # Restore window state from previous session. show() must precede any
+    # geometry calls so the window handle exists (required on Wayland).
+    # When opening maximized we skip restoreGeometry() entirely: the stored
+    # geometry blob was saved while windowed and is correct, but calling
+    # restoreGeometry() before showMaximized() would make Qt treat the blob's
+    # size as the maximized size rather than the restore target, repeating the
+    # Wayland normal-geometry bug. We just maximize; Qt uses resize(1280,800)
+    # from __init__ as the un-maximize restore target.
     _s = QSettings("odysseus", "odysseus")
-    _geom = _s.value("windowGeometry")
-    if _geom:
-        win.restoreGeometry(_geom)
     if _s.value("windowMaximized", False, type=bool):
         win.showMaximized()
+    else:
+        _geom = _s.value("windowGeometry")
+        if _geom:
+            win.restoreGeometry(_geom)
 
     sys.exit(app.exec())
