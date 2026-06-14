@@ -47,7 +47,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
-from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, pyqtSlot, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 
 INSTALL_DIR = "/home/james/Projects/odysseus"
@@ -271,6 +271,10 @@ class OdysseusWindow(QMainWindow):
         self.resize(1280, 800)
 
     def closeEvent(self, event):
+        s = QSettings("odysseus", "odysseus")
+        s.setValue("windowGeometry", self.saveGeometry())
+        s.setValue("windowMaximized", self.isMaximized())
+        s.sync()
         self.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.browser))
         stop_server()
         event.accept()
@@ -301,4 +305,16 @@ if __name__ == "__main__":
 
     win = OdysseusWindow(profile)
     win.show()
+
+    # Restore window geometry from previous session. show() must precede
+    # restoreGeometry() so the window handle exists on all platforms including
+    # Wayland. On Wayland the compositor ignores restored position (by design);
+    # size and maximized state both restore correctly.
+    _s = QSettings("odysseus", "odysseus")
+    _geom = _s.value("windowGeometry")
+    if _geom:
+        win.restoreGeometry(_geom)
+    if _s.value("windowMaximized", False, type=bool):
+        win.showMaximized()
+
     sys.exit(app.exec())
