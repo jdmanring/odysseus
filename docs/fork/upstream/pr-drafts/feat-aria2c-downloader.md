@@ -96,8 +96,17 @@ subdirectories.
 - Passes HF token as both `HF_TOKEN` env var and `--token` arg to
   `aria2c_download.py`
 
-**`routes/cookbook_helpers.py`** — adds `use_aria2c: bool = False` to
-`ModelDownloadRequest`; sets `disable_hf_transfer` default to `True`.
+**`routes/cookbook_helpers.py`** — adds `use_aria2c: bool = True` to
+`ModelDownloadRequest` (aria2c is the default path; hf download is the fallback);
+sets `disable_hf_transfer` default to `True`.
+
+**Pre-flight availability check** (`routes/cookbook_routes.py`) — before building the
+download command, if `req.use_aria2c` is set and the download is not Ollama-bound,
+`get_aria2c()` is called. If it returns `None` (BinManager install failed or platform
+unsupported), a warning is logged and `req.use_aria2c` is set to `False` so the handler
+falls back to `hf download`. The check is pre-flight-only: a mid-stream switch would
+corrupt partial downloads because aria2c and `hf download` write different filesystem
+layouts (flat files vs hub blob cache).
 
 ### Frontend
 
@@ -149,20 +158,29 @@ appears immediately without a page reload.
 
 ### Tests
 
-**`tests/test_aria2c_circuit.py`** — end-to-end integration tests against the
-real HuggingFace API (no mocks):
+**`tests/test_aria2c_circuit.py`** — integration tests against the real HuggingFace
+API (no mocks), plus static contract tests for the default and pre-flight guard:
+
+**Network-dependent** (`@pytest.mark.slow` — excluded from fast lane by `-m "not slow"`):
 
 - **BinManager**: installs aria2c for the current platform, verifies the binary
   exists, is executable, and responds to `--version`.
 - **`get_aria2c()`**: resolves via BinManager and system PATH fallback.
-- **`HfUrlResolver`**: calls the live HF API for `gpt2`; asserts that returned
-  URLs are valid `https://huggingface.co/` URLs pinned to the resolved commit
-  hash, that `rel_path` values are relative (no leading `/`), and that each
-  tuple includes an integer `size_bytes` field.
-- **`download_file()`**: downloads `gpt2/tokenizer.json` via a real aria2c
-  subprocess; asserts the file exists on disk and is non-empty.
-- **Resume idempotency**: runs `download_file()` twice on the same target;
-  asserts `--continue=true` exits 0 and the file size is unchanged.
+- **`HfUrlResolver`**: calls the live HF API for `gpt2`; asserts returned URLs are
+  valid `https://huggingface.co/` URLs pinned to the resolved commit hash, that
+  `rel_path` values are relative (no leading `/`), and that each tuple includes an
+  integer `size_bytes` field.
+- **`download_file()`**: downloads `gpt2/tokenizer.json` via a real aria2c subprocess;
+  asserts the file exists on disk and is non-empty.
+- **Resume idempotency**: runs `download_file()` twice on the same target; asserts
+  `--continue=true` exits 0 and the file size is unchanged.
+
+**Static contract tests** (no network — fast lane):
+
+- `use_aria2c` schema default is `True`
+- Pre-flight `get_aria2c() is None` guard is present in `cookbook_routes.py`
+- Fallback warning `"falling back to hf download"` is logged
+- Guard is skipped for Ollama downloads (`req.use_aria2c and not is_ollama_download`)
 
 All tests pass against the live API as of 2026-06-12.
 
@@ -269,10 +287,12 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 ## How to Test
 **Automated (passing):**
 
-- [x] `pytest tests/test_aria2c_circuit.py` — 9 passed, 1 skipped (system-PATH
-  fallback, skipped when system aria2c not on PATH). Tests hit the live HF API:
-  URL resolution, commit pinning, size retrieval, real file download, and resume
-  idempotency all verified against `gpt2`.
+- [x] `pytest tests/test_aria2c_circuit.py` — 4 static contract tests (fast lane,
+  no network) + 9 network tests (marked `@pytest.mark.slow`; 1 skipped when no
+  system aria2c on PATH). Network tests cover URL resolution, commit pinning, size
+  retrieval, real file download, and resume idempotency against live `gpt2` API.
+- [x] `pytest tests/test_aria2c_circuit.py -m "not slow"` — 4 static tests pass
+  without outbound internet (CI-safe).
 
 **Manual (verified during development):**
 

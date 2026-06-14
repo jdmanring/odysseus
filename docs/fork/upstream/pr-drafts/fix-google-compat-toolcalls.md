@@ -91,6 +91,13 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-google-compat-t
 directly and confirm `toolCalls` (camelCase) is present in the delta chunks for models
 that emit tool calls.
 
+**Static contract tests (no API key, no network):**
+
+- [x] `pytest tests/test_google_compat_toolcalls.py` — 3 tests assert that both
+  camelCase fallback sites exist in `src/llm_core.py`: the `_delta_has_output` guard
+  (`_delta0.get("toolCalls")`), the accumulator loop (`delta.get("toolCalls")`), and
+  that `get("toolCalls")` appears at least twice in the source.
+
 ---
 
 ## Filing Notes

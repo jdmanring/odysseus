@@ -181,14 +181,21 @@ VRAM/RAM fit, and backend support remain future work.
 python -m py_compile tooling/hf_url_resolver.py routes/cookbook_routes.py
 # JS check
 node --check static/js/cookbookDownload.js
-# Existing test suite (no new tests cover this code path — see note below)
-python -m pytest
+# Pure-function unit tests (no network)
+python -m pytest tests/test_gguf_scoring.py
 ```
 
-The `_probe_gguf_repo`, `_score_candidate`, and `_ggufIncludePattern` code paths
-are not covered by existing automated tests. Manual in-app testing was the primary
-verification method (see Testing below). If upstream adds test infrastructure for
-the cookbook routes, coverage for this path would be a good addition.
+**`tests/test_gguf_scoring.py`** — 20 pure-function tests, no network access required:
+
+- **`_preferred_quant_file`** (6 tests): exact match, imatrix preference over K-quant,
+  tier-distance fallback, closest-quant selection when requested tier absent.
+- **`_detect_imatrix`** (6 tests): filename pattern recognition for IQ/imat variants,
+  false-positive resistance for non-imatrix files.
+- **`_score_candidate`** (8 tests): zero-signal baseline returns 0, downloads capped at
+  40, reputed author bonus (`bartowski` ≥ 25), imatrix bonus, likes ratio contribution,
+  eval score contribution, recency bonus, score never goes negative.
+
+All 20 tests pass with no internet connection.
 
 ## Checklist
 
