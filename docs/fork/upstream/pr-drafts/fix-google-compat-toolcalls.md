@@ -91,6 +91,8 @@ that emit tool calls.
 - One commit, no squash needed. Change is 3 lines in `src/llm_core.py`.
 - This is a pure OpenAI-compat path fix and does not affect native Google API usage
   (which is a separate provider path not yet implemented in Odysseus).
+- ROADMAP alignment: "Provider setup/probing audit for Anthropic, Gemini, Groq, xAI, OpenRouter, OpenAI, and DeepSeek" — mention this in the PR body.
+- Related discussion: #829 (user reports HTTP 400 from Gemini on tool calls via the compat path — different failure mode but same provider/path).
 
 ## Visual / UI changes
 
