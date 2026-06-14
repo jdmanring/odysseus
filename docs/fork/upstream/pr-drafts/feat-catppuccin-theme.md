@@ -61,7 +61,7 @@ The Catppuccin README states three design principles
 
 The palette targets "the middle ground between low and high-contrast themes." The requirement to perform across bright offices and dim environments drives a specific contrast decision — one that shows up in the numbers.
 
-#### Contrast ratios across all Odysseus dark themes
+**Contrast ratios across all Odysseus dark themes**
 
 WCAG 2.1 defines contrast ratio thresholds for text accessibility
 ([w3.org/TR/WCAG21/#contrast-minimum](https://www.w3.org/TR/WCAG21/#contrast-minimum)):
@@ -89,7 +89,7 @@ in `static/js/theme.js`:
 Catppuccin's 11.34:1 ratio is comfortably above WCAG AAA while staying well below
 the near-maximum achromatic themes — exactly where its design documentation puts it.
 
-#### Halation
+**Halation**
 
 Higher contrast is not always better for sustained reading. At near-maximum contrast
 levels, a perceptual artifact called **halation** worsens significantly: bright text on a
@@ -116,7 +116,7 @@ four of those use achromatic or near-achromatic foregrounds (`gpt`, `claude`, `m
 11.34:1 sits in a deliberately calibrated range: well above the AAA floor, substantially
 below the near-maximum achromatic themes.
 
-#### Helmholtz-Kohlrausch (H-K) effect
+**Helmholtz-Kohlrausch (H-K) effect**
 
 The WCAG luminance formula does not capture a significant perceptual factor: chromatic
 (coloured) text at moderate saturation appears *perceptually brighter* than its measured
@@ -138,7 +138,7 @@ predicts — which is why the palette can sit at 11.34:1 rather than 13–14:1 a
 feel as readable. It is also why Catppuccin describes the palette as "eye-candy": the
 chroma is doing real perceptual work, not just decorating.
 
-#### Environmental suitability: bright offices and dim locations
+**Environmental suitability: bright offices and dim locations**
 
 Catppuccin's explicit design requirement — "suitability under various light conditions" —
 maps to two distinct ergonomic scenarios:
@@ -173,7 +173,7 @@ The case here is grounded in WCAG contrast ratios computed from actual `static/j
 hex values, Piepenbrock et al. 2013, and established colour science. The gap is
 measurable.
 
-### Adoption scale confirms the niche is real
+### Adoption
 
 456 official ports ([catppuccin.com/ports](https://catppuccin.com/ports/)) spanning 40+
 code editors and IDEs, 50+ developer tools, 30+ terminal emulators, and 20+ browsers

@@ -134,10 +134,8 @@ which role they carry.
 
 ### Files changed
 
-| File | Change |
-|------|--------|
-| `src/agent_loop.py` | 4 insertions, 1 deletion — `_append_tool_results()` role change + comment update |
-| `src/llm_core.py` | 7 insertions, 1 deletion — `_build_anthropic_payload()` tool-result routing |
+- `src/agent_loop.py` — `_append_tool_results()` role change + comment update (4 insertions, 1 deletion)
+- `src/llm_core.py` — `_build_anthropic_payload()` tool-result routing (7 insertions, 1 deletion)
 
 ---
 

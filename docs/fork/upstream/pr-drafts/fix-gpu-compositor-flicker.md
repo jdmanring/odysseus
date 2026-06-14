@@ -148,9 +148,7 @@ Both fixes address the same symptom from different layers; each stands alone.
 
 ### Files changed
 
-| File | Change |
-|------|--------|
-| `static/style.css` | 13 deletions — 10 `backdrop-filter` lines + 3 `filter: saturate()` lines |
+- `static/style.css` — 13 deletions: 10 `backdrop-filter` lines + 3 `filter: saturate()` lines
 
 ---
 

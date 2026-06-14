@@ -38,8 +38,6 @@ has no built-in retry, exposes no structured progress output, and leaves no
 partial files that could be resumed. Fixing any one of them correctly requires
 replacing the downloader itself.
 
-### Scale of the problem
-
 Modern LLMs have grown well beyond what a single-stream download handles
 reliably. Llama 3.1 70B in Q4_K_M is 42.5 GB
 ([bartowski/Meta-Llama-3.1-70B-Instruct-GGUF](https://huggingface.co/bartowski/Meta-Llama-3.1-70B-Instruct-GGUF)).
@@ -181,7 +179,7 @@ All tests pass against the live API as of 2026-06-12.
 - `static/js/cookbook-hwfit.js`
 - `static/style.css`
 
-### Relation to ROADMAP
+### ROADMAP alignment
 
 This directly addresses two ROADMAP items:
 
@@ -205,7 +203,7 @@ speed) live in the UI — not after-the-fact from a log file. `_parseDownloadSta
 captures aria2c's structured stdout, so if a file fails the failure is
 visible in the card, not buried in a tmux session.
 
-### Windows progress display (implemented, not tested)
+**Windows progress display (implemented, not tested)**
 
 On **local Windows**, Odysseus has no tmux — it spawns a detached process
 that writes stdout to a log file (`TMUX_LOG_DIR/{session_id}.log`). The
@@ -243,7 +241,7 @@ Windows remote (SSH into a Windows machine) has the same untested status.
 The lock-file `/tmp` hardcode is fixed in this PR (`tempfile.gettempdir()` on
 all platforms).
 
-### Note on issue #787 (pause/resume)
+**Note on issue #787 (pause/resume)**
 
 This PR implements in-session pause and resume. The Pause button sends SIGINT
 to the aria2c process via `tmux send-keys C-c`; the download card immediately
