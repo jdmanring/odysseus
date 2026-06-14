@@ -41,12 +41,14 @@ replacing the downloader itself.
 ### Scale of the problem
 
 Modern LLMs have grown well beyond what a single-stream download handles
-reliably. Qwen3-235B-A22B is 183 GB across 47 shards. Llama 3.1 70B in
-Q4_K_M is 43 GB. DeepSeek-V2.5 is 133 GB. Users who want the best
-locally-runnable models are transferring files that take 30–90 minutes on
-a fast home connection.
+reliably. Llama 3.1 70B in Q4_K_M is 42.5 GB
+([bartowski/Meta-Llama-3.1-70B-Instruct-GGUF](https://huggingface.co/bartowski/Meta-Llama-3.1-70B-Instruct-GGUF)).
+Qwen3-235B-A22B in Q4_K_M is 142 GB split across 3 shards
+([ggml-org/Qwen3-235B-A22B-GGUF](https://huggingface.co/ggml-org/Qwen3-235B-A22B-GGUF)).
+These are the files users want. They are large enough to expose every weakness
+in a single-stream download path with no retry, no resume, and no progress.
 
-The current `hf download` experience for a 43 GB model:
+The current `hf download` experience for a large model download:
 
 - Displays a spinner with no progress, no speed, no ETA, and no per-file status
 - Provides no retry mechanism — a single SSL ReadError anywhere in the transfer

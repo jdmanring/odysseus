@@ -49,11 +49,9 @@ accumulate messages, and exactly the sessions where an OOM crash is most disrupt
 **Constrained hardware is common in the target audience.** Users who self-host LLMs
 often run Odysseus on lower-spec machines: 8 GB RAM laptops, mini PCs, ARM SBCs,
 or machines that are also running the LLM inference stack itself (which consumes
-several GB of RAM or unified memory). On an 8 GB machine with Ollama running
-alongside Odysseus and a system browser, the OOM threshold for the chat renderer
-may be closer to 200–300 messages, not 600. On a Raspberry Pi 5 (8 GB shared
-RAM), a 100-turn agent session can reproduce the crash. The 16 GB baseline quoted
-above is the comfortable case.
+several GB of RAM or unified memory). The 16 GB baseline quoted above is the
+comfortable case — the actual OOM threshold scales with available renderer memory
+and will be lower on machines with less RAM or more competing processes.
 
 **Agent mode amplifies the severity.** An agent tasked with a multi-step coding
 task produces 5–7 DOM nodes per message round (role header, thinking block,
