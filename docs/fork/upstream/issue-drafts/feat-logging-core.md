@@ -19,7 +19,7 @@
 **Area:** Logging / Observability / Security
 
 **Problem / Motivation:**
-Odysseus uses stdlib `logging` throughout (~1038 calls across 138 files) but lacks production-grade logging capabilities. The hardening audit in #3803 specifically identified two logging problems this PR addresses:
+Odysseus uses stdlib `logging` throughout (~1038 calls across 138 files) but lacks production-grade logging capabilities. The hardening audit in #3803 identified two logging problems this PR addresses:
 
 - "PII (emails, usernames, message bodies) logged at INFO level in several paths"
 - "No audit trail for sensitive operations (auth events, vault unlock, admin wipes)"
