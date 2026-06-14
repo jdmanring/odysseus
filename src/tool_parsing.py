@@ -194,6 +194,14 @@ _QWEN_BARE_MARKER_RE = re.compile(
 )
 
 
+# Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — official JSON format)
+# {"name": "fn_name", "arguments": {"key": "val"}}
+# Non-JSON content (tag-pair format seen in partial captures) is stripped but not executed.
+_LONGCAT_TOOL_CALL_RE = re.compile(
+    r"<longcat_tool_call>\s*([\s\S]*?)\s*</longcat_tool_call>",
+    re.IGNORECASE,
+)
+
 # Pattern 5: DeepSeek DSML markup leaking into content. When deepseek
 # models can't emit structured tool_calls (e.g. we sent no tool schemas
 # that round, or the API didn't parse them), they fall back to raw
@@ -1232,6 +1240,41 @@ def _iter_xml_direct(text):
     return _iter_backref_blocks(text, _XML_DIRECT_OPEN_RE, _XML_DIRECT_CLOSE_ANY_RE, ci=True)
 
 
+def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
+    """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat).
+
+    JSON content within the tag is parsed and executed. Tag-pair format
+    (community.vercel.com/t/33601) is stripped but not executed:
+        {"name": "fn_name", "arguments": {"key": "value"}}
+
+    Non-JSON content is not executed — strip_tool_blocks removes it from display.
+    """
+    content = content.strip()
+    if not content.startswith('{'):
+        return None
+    try:
+        obj = json.loads(content)
+        func_name = (obj.get("name") or "").lower()
+        raw_args = obj.get("arguments", {})
+        mapped = _TOOL_NAME_MAP.get(func_name)
+        tool_type = mapped or func_name
+        if tool_type:
+            args_str = json.dumps(raw_args) if isinstance(raw_args, dict) else str(raw_args)
+            from src.tool_schemas import function_call_to_tool_block
+            block = function_call_to_tool_block(tool_type, args_str)
+            if block:
+                return block
+            if isinstance(raw_args, dict):
+                first_val = next(iter(raw_args.values()), "")
+                return ToolBlock(tool_type, str(first_val)) if first_val else None
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        # Malformed/non-object model output is simply "not a tool call".
+        # A real bug in function_call_to_tool_block must NOT be swallowed here,
+        # so this does not catch bare Exception.
+        pass
+    return None
+
+
 def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
     """Extract executable tool blocks from LLM response text.
 
@@ -1390,6 +1433,13 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
         if block:
             blocks.append(block)
 
+    # Pattern 4e: <longcat_tool_call> blocks (Meituan LongCat — JSON format only)
+    if not blocks:
+        for m in _LONGCAT_TOOL_CALL_RE.finditer(text):
+            block = _parse_longcat_tool_call(m.group(1))
+            if block:
+                blocks.append(block)
+
     # Pattern 6: local text-model web_search call leaked as prose + bare JSON.
     if not blocks and not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(text)
@@ -1440,6 +1490,7 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = _strip_raw_openai_tool_call_json(cleaned)
     cleaned = _QWEN_ROLE_MARKER_RE.sub('', cleaned)
     cleaned = _QWEN_BARE_MARKER_RE.sub(' ', cleaned)
+    cleaned = _LONGCAT_TOOL_CALL_RE.sub('', cleaned)
     if not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(cleaned)
         if raw_web_json:
