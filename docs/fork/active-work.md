@@ -13,7 +13,7 @@ Last updated: 2026-06-13. Fork is at milestone `v1.0.0-fork.1` — all CI passin
 | [#38 LongCat tool call support](https://github.com/jdmanring/odysseus/issues/38) | `fix/longcat-tool-parsing` | Parser for both Variant A (JSON) and Variant B (tag-pair) formats + "longcat" keyword in _model_supports_tools. Branch complete. |
 | [#39 Google toolCalls camelCase](https://github.com/jdmanring/odysseus/issues/39) | `fix/google-compat-toolcalls` | Fix delta.get("tool_calls") to also check "toolCalls". Branch complete. |
 | [#40 Google native API path](https://github.com/jdmanring/odysseus/issues/40) | not started | Full GoogleProvider implementation in llm_core.py. Substantial feature, no existing SDK deps. |
-| [#41 Gemma 4 local token format](https://github.com/jdmanring/odysseus/issues/41) | not started | `<\|tool_call>call:fn{key:<\|"\|>val<\|"\|>}<tool_call\|>` leaks through Ollama/llama-cpp-python/mlx-lm. Parser needed in tool_parsing.py. |
+| [#41 Gemma 4 local serving format](https://github.com/jdmanring/odysseus/issues/41) | not started | Low priority. Raw `<\|tool_call>` tokens leak only through self-hosted Ollama/llama-cpp-python/mlx-lm when chat template is incomplete. Google's hosted API is unaffected (already translates to `<tool_code>` format). |
 
 ---
 
@@ -41,9 +41,10 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Single commit, ready |
 | `feat/gh-cli-detection` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Two commits, ready. Detects gh CLI and injects GitHub context into agent system prompt; exports GH_TOKEN so bash tool subprocesses can use gh on keyring-auth systems. Force-push needed (branch was amended and renamed). |
 | `fix/tool-code-pycall-parsing` | [#35](https://github.com/jdmanring/odysseus/issues/35) | Single commit, ready. Parses and strips `<tool_code>` Python-call format (Google Gemma style) in tool_parsing.py. |
-| `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Single commit, ready |
-| `feat/logging-core` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. File before logging-timing. |
-| `feat/logging-timing` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. File after logging-core. |
+| `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Single commit, ready. File after `feat/aria2c-downloader` (extends HfUrlResolver with GGUF discovery). |
+| `fix/longcat-tool-parsing` | [#38](https://github.com/jdmanring/odysseus/issues/38) | Single commit, ready. |
+| `fix/google-compat-toolcalls` | [#39](https://github.com/jdmanring/odysseus/issues/39) | Single commit, ready. |
+| `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. Infrastructure + timing callsites combined — callsites are untestable without infrastructure. Replaces feat/logging-core and feat/logging-timing. |
 
 ---
 

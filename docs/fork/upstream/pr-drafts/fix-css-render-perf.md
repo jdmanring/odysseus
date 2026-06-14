@@ -152,6 +152,7 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-css-render-perf
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
 
@@ -180,4 +181,8 @@ Tested on: Linux desktop. No visual change visible on standard desktop. No scree
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+`static/style.css` changed (53 insertions, 24 deletions). No visual change visible on
+standard desktop — `will-change` removals and CSS containment additions affect compositor
+behavior only; hover-guard changes activate only for touch users; `prefers-reduced-motion`
+block activates only when the OS setting is enabled. No screenshot needed for this PR;
+all effects are either invisible or require specific hardware/settings to observe.

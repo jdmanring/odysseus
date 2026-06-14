@@ -1,0 +1,110 @@
+# PR Draft: fix/longcat-tool-parsing
+
+**Fork issue:** [#38](https://github.com/jdmanring/odysseus/issues/38)
+**Branch:** `fix/longcat-tool-parsing` (from `upstream-mirror`)
+**Target:** `pewdiepie-archdaemon/odysseus:dev`
+
+---
+
+## Proposed title
+
+`fix(tool_parsing): add parser and strip support for Meituan LongCat tool_call format`
+
+---
+
+## Summary
+
+### Problem
+
+Meituan LongCat models (served via vLLM or Vercel AI SDK) emit tool calls wrapped in
+`<longcat_tool_call>...</longcat_tool_call>` blocks. Odysseus has no pattern for this
+format, so tool calls from LongCat models are silently ignored and the raw XML is
+displayed to the user as response text.
+
+Two distinct variants appear in the wild:
+
+**Variant A — JSON object** (documented in HuggingFace model card):
+```xml
+<longcat_tool_call>{"name": "fn_name", "arguments": {"key": "value"}}</longcat_tool_call>
+```
+
+**Variant B — tag pairs** (observed in vLLM and Vercel AI SDK output):
+```xml
+<longcat_tool_call>fn_name
+<longcat_arg_key>path</longcat_arg_key>
+<longcat_arg_value>./index.vue</longcat_arg_value>
+</longcat_tool_call>
+```
+
+### Solution
+
+Adds `_LONGCAT_TOOL_CALL_RE` (Pattern 6 in `tool_parsing.py`) and
+`_parse_longcat_tool_call()`, which handles both variants:
+
+- Variant A: JSON-parsed; `name` → tool type, `arguments` → JSON args string.
+- Variant B: first text line → tool name; `<longcat_arg_key>`/`<longcat_arg_value>` tag
+  pairs → argument dict.
+
+Both variants go through `function_call_to_tool_block()` for normalisation and tool name
+mapping, with a single-value fallback identical to the other parsers.
+
+`strip_tool_blocks()` gains the corresponding cleanup regex so unexecuted
+`<longcat_tool_call>` blocks do not leak into displayed text.
+
+`_model_supports_tools()` in `agent_loop.py` gains "longcat" as a known keyword so the
+agent loop sends tool schemas to LongCat models.
+
+---
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
+
+## Linked Issue
+
+Fixes # <!-- [file upstream issue first — see issue-drafts/fix-longcat-tool-parsing.md] -->
+
+## Type of Change
+
+- [x] Bug fix (non-breaking — fixes a confirmed issue)
+- [ ] New feature (non-breaking — adds new behaviour)
+- [ ] Breaking change (changes or removes existing behaviour)
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+## How to Test
+
+1. Configure a LongCat model endpoint (e.g. MiniCPM3-4B-FC via vLLM or Vercel AI SDK).
+2. Send a prompt that triggers a tool call (e.g. "read the file ./index.vue" with the
+   file tool enabled).
+3. Confirm the tool executes and the result is returned to the model — the raw
+   `<longcat_tool_call>` block should not appear in the chat response.
+4. Repeat with a Variant A (JSON) and Variant B (tag-pair) model if available.
+5. Confirm `strip_tool_blocks()` removes the block when the tool is not executed
+   (i.e. send a prompt that produces a `<longcat_tool_call>` block but do not execute it;
+   confirm the raw XML does not appear in the displayed response).
+
+**Unit tests:** `pytest tests/test_tool_parsing.py -k longcat` — tests added for both
+Variant A and Variant B parsing and for `strip_tool_blocks` cleanup.
+
+---
+
+## Filing Notes
+
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-longcat-tool-parsing.md`. Add the issue number to `Fixes #` above before opening the PR.
+- One commit, no squash needed.
+- This PR coexists cleanly with `fix/tool-code-pycall-parsing` (Pattern 5, `<tool_code>`
+  blocks). The two parsers handle different formats and are independent.
+
+## Visual / UI changes
+
+None — no HTML, CSS, or DOM-writing JS was changed.
