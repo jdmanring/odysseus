@@ -42,6 +42,14 @@ Two targeted fixes in `stream_llm()` in `src/llm_core.py`:
 No changes to any other path. The snake_case key remains the primary check; camelCase is
 an explicit fallback that fires only when `tool_calls` is absent.
 
+### ROADMAP alignment
+
+The ROADMAP lists "Provider setup/probing audit for Anthropic, Gemini, Groq, xAI,
+OpenRouter, OpenAI, and DeepSeek" as a high-priority item. Gemini via the OpenAI-compat
+path is currently broken for tool use due to this key mismatch — tools appear available
+in the UI but never execute. This fix makes the compat path functional for Gemini tool
+use without touching any other provider.
+
 ---
 
 ## Target branch
