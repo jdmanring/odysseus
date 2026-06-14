@@ -43,8 +43,9 @@ contents: ...` as if the user typed it. The next model turn starts with phrases 
 
 The model adds a hedging acknowledgement turn rather than immediately acting on the
 result. In a multi-round agent session, this wastes one round per tool call — a session
-doing 5 tool calls loses 5 rounds to unnecessary acknowledgements before any productive
-work happens. Against `agent_max_rounds=20`, this is a 25% round budget loss per tool.
+doing 5 tool calls loses 5 rounds to acknowledgements before any productive work begins.
+Against `agent_max_rounds=20`, that is 25% of the session's round budget consumed by
+role-confusion overhead rather than task execution.
 
 As the conversation history grows, tool results injected as `role=user` messages also
 accumulate as apparent user turns. Models that weight recent user turns heavily begin

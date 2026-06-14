@@ -122,7 +122,9 @@ Selection priority:
 1. **Same-tier best**: if the repo has any quant in the same bit-depth tier as
    the requested quant, the best one in that tier wins (lowest quality index).
    This means IQ4_XS wins over Q4_K_S when Q4_K_M was requested — imatrix
-   calibration is an objective upgrade within the same tier.
+   calibration consistently reduces perplexity at the same bit-width relative to
+   standard K-quants, as documented in the llama.cpp importance-matrix benchmarks
+   (`./examples/perplexity/README.md` in the llama.cpp repository).
 2. **Cross-tier nearest**: if nothing is in the same tier, pick the quant in
    the closest adjacent tier. For equidistant tiers (one above, one below),
    prefer the smaller file (go down a tier) to avoid overshooting the user's

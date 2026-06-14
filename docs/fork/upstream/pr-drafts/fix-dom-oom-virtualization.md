@@ -24,8 +24,9 @@ nothing ever removes them. This has two concrete failure modes:
 **Load crash** — A session with 300+ messages at ~3 DOM nodes each lands 900+
 nodes in a single synchronous render. Agent-mode sessions produce 5–7 nodes per
 message (role header, thinking block, content, tool-call panel, tool-result
-panel); a 150-turn agent session produces 900–1050 nodes. Chrome's V8 Oilpan
-GC cannot keep up with the initial alloc burst and the renderer crashes before
+panel); a 150-turn agent session produces 900–1050 nodes. All nodes are live
+and held by the DOM tree — the GC correctly retains them all. The renderer
+process exhausts its memory allocation on fully-live objects and crashes before
 the page is interactive. Users experience a blank white screen on open.
 
 **Accumulation crash** — A session that starts short grows OOM during a long

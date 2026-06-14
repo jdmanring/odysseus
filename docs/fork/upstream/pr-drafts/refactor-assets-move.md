@@ -20,12 +20,12 @@ documentation prose with binary assets. This causes several practical problems.
 
 ### Why the current layout is harmful
 
-**Documentation tooling breaks.** Static site generators and documentation tools
-(Docusaurus, MkDocs, Sphinx, GitHub Pages) that scan `docs/` for content will
-encounter multi-megabyte GIF and WebM files mixed in with Markdown. These tools weren't
-built to handle binary assets in documentation directories — they fail to process them,
-index them incorrectly, or need explicit exclusions that aren't configured. Adding a
-documentation system in the current layout means working around the binaries first.
+**Documentation tooling requires workarounds.** Static site generators
+(Docusaurus, MkDocs, Sphinx) and search indexers that scan `docs/` for content
+encounter multi-megabyte GIF and WebM files alongside Markdown. These tools require
+explicit exclusion configuration to skip binary files — configuration that is not
+present in the repo. Adding a documentation site in the current layout means
+writing exclude rules before a single page can be built.
 
 **Git history is polluted.** Binary files in `docs/` appear in every `git log --stat`
 and `git diff --stat` that touches the documentation. Any change to a GIF produces an

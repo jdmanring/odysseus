@@ -78,7 +78,9 @@ absent or not authenticated it returns empty string and nothing changes.
 When authenticated, the function also runs `gh auth token --hostname github.com` and
 sets `os.environ["GH_TOKEN"]` so that subprocesses spawned by the bash tool inherit
 the token without needing keyring access (which is unavailable in D-Bus-less subprocess
-contexts on Linux).
+contexts on Linux). Note: `os.environ` is process-wide — `GH_TOKEN` is therefore
+inherited by all subprocesses, not only agent bash calls. On single-user installations
+this is the correct behavior. Multi-tenant deployments should be aware of the scope.
 
 The agent then sees:
 

@@ -82,7 +82,9 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-longcat-tool-pa
 
 ## How to Test
 
-1. Configure a LongCat model endpoint (e.g. MiniCPM3-4B-FC via vLLM or Vercel AI SDK).
+1. Configure a Meituan LongCat model endpoint via vLLM or a compatible inference server
+   (LongCat is Meituan's model family — MiniCPM is a separate Shanghai AI Lab model and
+   does not use this format).
 2. Send a prompt that triggers a tool call (e.g. "read the file ./index.vue" with the
    file tool enabled).
 3. Confirm the tool executes and the result is returned to the model — the raw

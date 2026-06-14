@@ -75,8 +75,9 @@ and caches it in `~/.odysseus/bin`. No system package manager required.
 - Sums the resolved file sizes and prints `[*] Total size: X bytes` so
   the UI has the exact model total before any files download
 - Writes an aria2c input file (tab-indented options, Bearer auth header)
-- Spawns aria2c with 4 parallel files × 3 connections each (12 total —
-  tuned to avoid HF CDN throttling)
+- Spawns aria2c with 4 parallel files × 3 connections each (12 total
+  connections — empirically tuned for throughput without triggering HF CDN
+  rate limiting; HuggingFace does not publish its throttle thresholds)
 - Verifies the output directory is non-empty after aria2c exits 0
 
 **`tooling/hf_url_resolver.py`** — resolves a HF repo to a list of
