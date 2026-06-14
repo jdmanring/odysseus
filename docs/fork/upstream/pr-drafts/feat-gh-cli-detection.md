@@ -6,10 +6,34 @@
 
 ## Summary
 
+### Problem
+
+Developers using Odysseus's agent mode for GitHub tasks — PR review, issue triage,
+release management, code search across repos — have no working path out of the box.
+Two separate failures block them.
+
+**1 — No GitHub context in the agent prompt.** Without knowing `gh` is available, the
+agent tries workarounds: it may attempt to construct `curl` calls to the GitHub REST
+API, ask the user for a PAT, or refuse GitHub tasks entirely. Even if the agent tries
+`gh`, it does not know the authenticated username, the available commands, or that `gh`
+should be preferred over raw API calls. Developers have to manually instruct the agent
+on every session.
+
+**2 — GH_TOKEN not available in bash subprocesses on Linux.** On Linux systems that
+store authentication in the system keyring (GNOME Keyring, KWallet, or any
+secret-service provider), `gh auth status` succeeds at the command line because the
+terminal has a D-Bus session. When the Odysseus server spawns a subprocess via the bash
+tool, that subprocess does not inherit the D-Bus session. `gh` inside the bash tool
+falls back to looking for `GH_TOKEN` in the environment, finds nothing, and fails with
+an authentication error. The user's `gh` installation appears broken from the agent's
+perspective even though it works perfectly from the terminal.
+
+### Solution
+
 When `gh` is installed and authenticated on the host, inject a GitHub CLI context block
 into the agent system prompt so the agent uses `bash` + `gh` for GitHub operations.
-Also fixes a keyring access gap that prevented `gh` from working inside the bash tool
-on Linux systems using the system keyring.
+Also fixes the keyring access gap by extracting the token via `gh auth token` at prompt
+build time and setting `GH_TOKEN` in the process environment for subprocess inheritance.
 
 ## Target branch
 

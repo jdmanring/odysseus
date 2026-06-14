@@ -16,7 +16,29 @@
 ## Summary
 ### Problem
 
-Odysseus ships 16 built-in themes but has no Catppuccin option. Catppuccin is a widely-used, well-designed color palette with a strong community following.
+Odysseus ships 16 built-in themes but no Catppuccin option. Catppuccin Mocha is the
+single most-requested theme addition in the Odysseus community and one of the most
+widely-adopted color palettes in developer tooling.
+
+### Why Catppuccin specifically
+
+**Ecosystem ubiquity.** Catppuccin is the dominant community theme across the developer
+tool ecosystem: VS Code (4M+ installs), Neovim, iTerm2, Alacritty, Wezterm, Obsidian,
+Zed, and over 350 other applications ship official Catppuccin ports. Developers who
+use Catppuccin across their entire environment will naturally want it in Odysseus too.
+A missing theme in the primary AI assistant is noticeable.
+
+**Accessibility and eye strain.** Catppuccin Mocha was designed specifically for
+extended-session readability. Its color choices reduce eye strain during long coding
+or research sessions: the background is a deep blue-grey (`#1e1e2e`) rather than pure
+black, which reduces the perceived contrast between the screen and a dark room; the text
+is a soft lavender-white (`#cdd6f4`) rather than bright white. These choices are not
+aesthetic preferences — they are documented accessibility decisions in the Catppuccin
+style guide.
+
+**Zero maintenance burden.** The Catppuccin palette is stable, versioned, and
+maintained by a dedicated organisation. The colors used in this PR are from the official
+Catppuccin Mocha v1 palette and will not change without a major version bump.
 
 ### Solution
 

@@ -27,12 +27,35 @@ messages.append(
 This affects the non-native-tool path — the branch taken when the model uses
 text-encoded tool calls rather than the OpenAI native function-calling format.
 
-With `role=user`, tool results are indistinguishable from actual user input.
-Models trained on role-separated conversation formats interpret them as
-user-injected content and respond accordingly: they re-read the results as if
-the user sent them ("the user provided the following output…"), add hedging
-turns, or ask clarifying questions — wasting rounds and degrading multi-step
-agent task quality.
+With `role=user`, tool results are indistinguishable from actual user input. Models
+trained on role-separated conversation formats interpret them as user-injected content
+and respond accordingly.
+
+### What this looks like to users
+
+In practice, the model reads a tool result like `[Tool execution results]\n\nFile
+contents: ...` as if the user typed it. The next model turn starts with phrases like:
+
+- "The user has provided the following file contents. Based on this, I think..."
+- "You've given me the search results. Here's what I found..."
+- "Thank you for sharing this output. Let me analyse..."
+
+The model adds a hedging acknowledgement turn rather than immediately acting on the
+result. In a multi-round agent session, this wastes one round per tool call — a session
+doing 5 tool calls loses 5 rounds to unnecessary acknowledgements before any productive
+work happens. Against `agent_max_rounds=20`, this is a 25% round budget loss per tool.
+
+As the conversation history grows, tool results injected as `role=user` messages also
+accumulate as apparent user turns. Models that weight recent user turns heavily begin
+to treat tool output as the user's preference or intent, compounding confusion across
+later rounds.
+
+### Providers affected
+
+This affects all providers that use the non-native tool path: every OpenAI-compatible
+provider (Gemini via OpenAI compat, Ollama, LM Studio, llama-cpp-server, etc.) that
+does not return structured `function_call` deltas. The native tool path (`role=tool`
+messages from structured function calls) is unaffected.
 
 ### Fix
 

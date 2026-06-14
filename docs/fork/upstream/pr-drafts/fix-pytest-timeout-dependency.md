@@ -15,27 +15,43 @@
 ## Summary
 ### Problem
 
-`pytest-timeout` is used by the test suite (via `--timeout` flags and
-`@pytest.mark.timeout` decorators) but is not declared in `requirements.txt`.
-A fresh install runs tests without it, causing `pytest` to silently ignore all
-timeout markers and any invocation with `--timeout` to fail with:
+`pytest-timeout` is used throughout the test suite via `--timeout` flags and
+`@pytest.mark.timeout` decorators, but it is not declared in `requirements.txt`. Three
+distinct failure modes result.
 
-```
-error: unrecognized arguments: --timeout=...
-```
+### Failure modes
 
-This breaks CI on clean environments and makes contributor setup unreliable.
+**1 — Hard failure in CI.** Any CI pipeline that runs `pytest --timeout=N` on a clean
+checkout fails immediately with `error: unrecognized arguments: --timeout=N`. The entire
+test run is aborted; no tests execute. Any CI configuration that uses the flag (which
+most do, to prevent infinite-loop hangs) is broken for all contributors and all automated
+pipelines.
+
+**2 — Silent correctness failure.** When `pytest-timeout` is absent but the `--timeout`
+flag is not used, `@pytest.mark.timeout` decorators are silently ignored. Tests that are
+designed to catch infinite loops or deadlocks pass unconditionally — not because the code
+is correct, but because the timeout that would expose the hang never fires. This creates
+false confidence: a test suite that appears green is actually not enforcing any of its
+timeout guarantees.
+
+**3 — Contributor onboarding failure.** Every new contributor who follows the standard
+setup path (`pip install -r requirements.txt` → `pytest`) sees either error (1) or
+silent issue (2) on their very first test run. The error message gives no indication that
+a dependency is missing — it looks like a pytest configuration problem. Contributors
+spend time debugging test infrastructure rather than contributing code.
 
 ### Fix
 
-Add `pytest-timeout` to `requirements.txt` alongside the existing `pytest` and
-`pytest-asyncio` entries.
+One line added to `requirements.txt`:
 
 ```diff
  pytest
  pytest-asyncio
 +pytest-timeout
 ```
+
+Zero risk. `pytest-timeout` has no transitive dependencies and no version conflicts with
+the existing test stack.
 
 ## Target branch
 

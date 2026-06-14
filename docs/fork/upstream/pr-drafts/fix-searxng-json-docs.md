@@ -15,17 +15,39 @@
 ## Summary
 ### Problem
 
-SearXNG's JSON output format is disabled by default in `settings.yml`. When a
-user points `SEARXNG_INSTANCE` at a default SearXNG install, every search
-request returns HTTP 404 with no useful error message. The only indication is
-an opaque failure in the Odysseus search panel. There is currently no
-documentation anywhere in the repository warning about this requirement.
+SearXNG's JSON output format is disabled in its default `settings.yml`. When a user
+points `SEARXNG_INSTANCE` at a stock SearXNG install, every search request Odysseus
+makes returns HTTP 404. There is no useful error message anywhere in the Odysseus UI —
+only a blank or failed search result.
+
+### Who is affected and why it's a trap
+
+This affects **every user who self-hosts SearXNG and follows SearXNG's own installation
+guide**, which does not mention enabling JSON output because that requirement is specific
+to API consumers. The SearXNG web interface works fine without JSON — HTML output is
+enough to render a search page in a browser. Users have no reason to know the JSON
+format must be explicitly enabled; it is an invisible Odysseus-specific prerequisite
+with no indication it is missing.
+
+The typical debugging path for a user hitting this:
+
+1. Odysseus search fails silently — assume it's a network problem
+2. Verify SearXNG is running — it is, the web interface works fine
+3. Check Odysseus logs — see HTTP 404 from SearXNG with no explanation
+4. Search for "odysseus searxng 404" — either find nothing, or find a GitHub issue
+5. Eventually discover the JSON format requirement by reading SearXNG's API docs
+
+This is a multi-hour debugging experience for a problem that a single comment in
+`.env.example` would have prevented entirely.
+
+There is currently **no documentation anywhere in the repository** about this
+requirement. It is not in the README, not in `.env.example`, not in any guide. The only
+way to know is to have been burned by it.
 
 ### Fix
 
-Add a comment block to `.env.example` immediately before the
-`SEARXNG_INSTANCE` variable explaining the requirement and providing the
-exact `settings.yml` snippet to enable JSON output:
+Add a comment block to `.env.example` immediately before `SEARXNG_INSTANCE` with the
+exact `settings.yml` snippet needed:
 
 ```
 # IMPORTANT: SearXNG must have JSON output enabled in its settings.yml, or all
@@ -36,7 +58,7 @@ exact `settings.yml` snippet to enable JSON output:
 #       - json
 ```
 
-This is a documentation-only change — no runtime behavior is modified.
+Documentation-only change. No runtime behavior modified. Zero risk.
 
 ## Target branch
 

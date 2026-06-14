@@ -15,35 +15,48 @@
 ## Summary
 ### Problem
 
-Demo media files (screenshots, GIFs, WebM videos) were stored under `docs/`,
-which mixes documentation prose with binary assets. This makes it harder to
-maintain the docs directory and adds noise to documentation diffs.
+Demo media files (screenshots, GIFs, WebM videos) are stored under `docs/`, mixing
+documentation prose with binary assets. This causes several practical problems.
+
+### Why the current layout is harmful
+
+**Documentation tooling breaks.** Static site generators and documentation tools
+(Docusaurus, MkDocs, Sphinx, GitHub Pages) that scan `docs/` for content will
+encounter multi-megabyte GIF and WebM files mixed in with Markdown. These tools either
+choke on binary files, include them in search indexes where they do not belong, or
+require explicit exclusion configuration that currently does not exist. Adding a
+documentation system to the project in its current state requires working around the
+binary files in `docs/`.
+
+**Git history is polluted.** Binary files in `docs/` appear in every `git log --stat`
+and `git diff --stat` that touches the documentation. Any change to a GIF produces an
+uninformative binary diff. Tools that blame or annotate documentation files include
+binary noise in the results.
+
+**`docs/odysseus.jpg` name conflicts with the app icon.** The application icon
+(`odysseus.svg`, displayed in the Qt taskbar) has the same base name as the landing page
+photo. Contributors looking for the icon find the landing page photo instead. Renaming
+to `landingpage.jpg` removes the ambiguity.
+
+**Industry standard practice.** Major open-source projects (VSCode, Electron, React,
+FastAPI) separate code/docs from binary media using a top-level `assets/` directory.
+Odysseus following this convention makes the repository layout immediately recognisable
+to contributors familiar with these projects.
 
 ### Change
 
-Move all media assets to a top-level `assets/` directory and update
-`README.md` and `.gitignore` accordingly.
+Move all 17 demo media files to a top-level `assets/` directory. Update `README.md`
+references and `.gitignore` paths accordingly.
 
 ```
-docs/odysseus.jpg  →  assets/landingpage.jpg  (renamed to avoid confusion with icon)
+docs/odysseus.jpg  →  assets/landingpage.jpg  (renamed — see above)
 docs/odysseus.svg  →  assets/odysseus.svg
 docs/chat.gif      →  assets/chat.gif
 docs/bg.webm       →  assets/bg.webm
 ... (all demo media)
 ```
 
-The `odysseus.jpg` → `landingpage.jpg` rename prevents the file from being confused
-with the application icon (`odysseus.svg` / `odysseus.jpg` in the Qt taskbar).
-
-### Files Changed
-
-- `assets/` (new directory — 17 media files moved here)
-- `README.md` (updated image/video references)
-- `.gitignore` (updated paths)
-
-### Notes
-
-No functional changes. Pure file reorganization.
+No functional changes. Pure file reorganization with one rename.
 
 ## Target branch
 

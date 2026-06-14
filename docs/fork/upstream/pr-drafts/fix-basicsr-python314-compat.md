@@ -8,15 +8,15 @@
 
 ## Title
 
-`fix: add install-basicsr.sh to patch Python 3.14 incompatibilities`
+`fix: add install-basicsr.sh to patch basicsr Python 3.13+ incompatibility`
 
 ---
 
 ## Summary
 ### Problem
 
-`basicsr` 1.4.2 and `realesrgan` (which depends on it) fail to install on
-Python 3.13 and 3.14. The root cause is in basicsr's `setup.py`:
+`basicsr` 1.4.2 and `realesrgan` (which depends on it) fail to install on Python 3.13
+and 3.14. The root cause is in basicsr's `setup.py`:
 
 ```python
 def get_version():
@@ -30,8 +30,31 @@ nested functions: assignments made inside `exec()` are no longer visible
 through `locals()` in the calling frame. The call to `locals()['__version__']`
 raises `KeyError`, aborting the build.
 
-basicsr has not released a fix. The package is effectively uninstallable on any
-Python 3.13+ environment via a normal `pip install`.
+basicsr has not released a fix and the repository shows minimal maintenance activity.
+The package is effectively uninstallable on any Python 3.13+ environment via a normal
+`pip install`.
+
+### Who is affected — and why "3.14" in the title understates it
+
+**Python 3.13 is the current stable release** (released October 2024). This is not a
+future-proofing concern — it is a present-day breakage affecting users right now.
+
+Modern Linux distributions ship Python 3.13 as the system interpreter by default:
+- Arch Linux — Python 3.13 since late 2024
+- Fedora 41+ — Python 3.13 default
+- openSUSE Tumbleweed — Python 3.13
+- Ubuntu 25.04 — Python 3.13
+
+Users on these distributions who try to use Odysseus's image upscaling feature
+(ESRGAN / Real-ESRGAN) **have no working path** to install the required packages. A
+standard `pip install` fails. There is no user-facing workaround short of maintaining a
+separate Python 3.12 virtual environment, which is not documented anywhere and requires
+knowing why the install failed in the first place.
+
+The `KeyError: '__version__'` error from basicsr's `setup.py` is also not immediately
+recognisable as a Python version compatibility issue — it looks like a packaging
+configuration error. Users typically assume they have corrupted files or a broken pip
+installation before discovering the root cause.
 
 ### Fix
 

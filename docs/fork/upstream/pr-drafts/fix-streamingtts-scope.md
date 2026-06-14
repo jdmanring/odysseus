@@ -15,24 +15,42 @@
 ## Summary
 ### Problem
 
-In `static/js/chat.js`, `streamingTTS` is declared with `const` inside the
-`try` block of the stream handler. The `catch` block references it to call
-`window.aiTTSManager.streamingStop()` on error, but since `const` is
-block-scoped, `streamingTTS` is not accessible in `catch`. This causes a
-`ReferenceError: streamingTTS is not defined` on every stream error, which
-aborts the catch block before the TTS stop and cleanup logic runs.
+In `static/js/chat.js`, `streamingTTS` is declared with `const` inside the `try` block
+of the stream handler. The `catch` block references it to call
+`window.aiTTSManager.streamingStop()` on error, but `const` is block-scoped —
+`streamingTTS` does not exist in `catch`. This throws `ReferenceError: streamingTTS is
+not defined` on every stream error, which aborts the catch block before the TTS stop
+and cleanup logic runs.
 
-The result: when streaming fails (network error, server disconnect, model
-timeout), TTS is left in a streaming state indefinitely and subsequent TTS
-playback is broken until the page is reloaded.
+### Why this matters beyond one ReferenceError
+
+**The trigger is any streaming failure** — network drop, server crash, model timeout,
+connection reset. These are not rare edge cases; they are the normal error recovery path
+for anyone using Odysseus on a flaky connection, running a slow local model, or working
+with a server that occasionally restarts. Every streaming failure hits this bug.
+
+**The consequence is permanent TTS breakage for the session.** When the catch block
+aborts at the ReferenceError, `aiTTSManager.streamingStop()` is never called. The TTS
+manager stays in its streaming state and refuses to start new playback. Every subsequent
+TTS request for the rest of the session is silently ignored. The user sees the TTS button
+but nothing plays. The only recovery is a full page reload.
+
+**Page reload is lossy.** The current session context (open conversation, partially
+composed message, scroll position) is lost on reload. On slow connections or with large
+sessions, reload is also slow. A user who experiences a stream error while composing a
+long reply loses their work in addition to losing TTS.
+
+**The catch block's other cleanup also aborts.** The ReferenceError is thrown before the
+rest of the catch block runs. Any additional cleanup logic that follows the TTS stop call
+— UI state resets, reconnect logic, error display — may also be partially or fully
+skipped depending on where exactly the error is thrown.
 
 ### Fix
 
-Hoist the declaration to `let` before the `try` block, and change the
-`const` inside `try` to a plain assignment:
+Hoist the declaration to `let` before the `try` block:
 
 ```diff
-+    let streamingTTS = false; // hoisted — must be accessible in catch
++    let streamingTTS = false;
 +
      try {
        ...
@@ -40,8 +58,9 @@ Hoist the declaration to `let` before the `try` block, and change the
 +      streamingTTS = !!(window.aiTTSManager && ...);
 ```
 
-The `catch` block can now read `streamingTTS` correctly and stop TTS when
-streaming errors.
+The `catch` block can now read `streamingTTS` and stop TTS correctly. Normal streaming
+(no error) is unaffected — the assignment still happens at the same point in the try
+block.
 
 ## Checklist
 
@@ -52,9 +71,13 @@ streaming errors.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ## How to Test
-- Stream an LLM response, kill the server mid-stream — TTS now stops cleanly
-  in the catch block with no `ReferenceError` in the console.
-- Normal streaming (no error) is unaffected.
+
+1. Enable TTS in Odysseus (Settings → Voice → enable a TTS provider).
+2. Start an LLM stream response.
+3. While streaming, kill or restart the server (or disconnect the network) to force a stream error.
+4. Open the browser console — confirm **no** `ReferenceError: streamingTTS is not defined` appears in the catch block.
+5. After the error, send another message and enable TTS on its response — confirm TTS plays correctly (i.e., TTS is not stuck in the broken streaming state).
+6. Send a normal message with TTS enabled and let it complete without error — confirm no regression.
 
 ---
 
