@@ -65,7 +65,7 @@ def test_longcat_json_malformed_does_not_crash():
 
 # ---------------------------------------------------------------------------
 # Tag-pair format — stripped but not executed
-# (format unverifiable; official vLLM parser uses JSON only)
+# (observed in session; documented at community.vercel.com/t/33601)
 # ---------------------------------------------------------------------------
 
 def test_longcat_tagpair_not_executed():

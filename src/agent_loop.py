@@ -10,8 +10,8 @@ import asyncio
 import collections
 import json
 import re
-import structlog
 import time
+import logging
 from typing import AsyncGenerator, List, Dict, Optional, Set
 from urllib.parse import urlparse
 
@@ -36,7 +36,7 @@ from src.agent_tools import (
     MAX_AGENT_ROUNDS,
 )
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _load_mcp_disabled_map() -> Dict[str, set]:
@@ -617,16 +617,6 @@ _API_HOSTS = frozenset([
     "api.perplexity.ai", "api.x.ai",
     "ollama.com", "api.venice.ai", "api.kimi.com",
     "api.githubcopilot.com",
-    "integrate.api.nvidia.com",   # NIM — OpenAI-compatible function calling
-    "api.longcat.chat",           # LongCat (Meituan)
-    # Provider secondary domains and endpoints whose model names do not
-    # contain a keyword in _model_supports_tools — without explicit host
-    # coverage they silently degrade to fenced-block tool calling.
-    "generativelanguage.googleapis.com",  # Google Gemini OpenAI-compat
-    "pollinations.ai",                    # text.pollinations.ai proxy
-    "moonshot.cn",                        # api.moonshot.cn (Kimi/Moonshot CN)
-    "together.ai",                        # api.together.ai (Together secondary)
-    "bigmodel.cn",                        # open.bigmodel.cn (Zhipu GLM)
     # Local OpenAI-compatible endpoints (llama.cpp, vLLM, LM Studio, etc.).
     # Without these, `_is_api_model` falls back to keyword sniffing on the
     # model name, so well-behaved local servers don't get native tool
@@ -824,7 +814,7 @@ def _classify_agent_request(messages: List[Dict], last_user: str) -> Dict[str, o
         domains.add("ui")
     if has(r"\b(session|chat history|rename chat|delete chat|archive chat|fork chat|list chats)\b"):
         domains.add("sessions")
-    if has(r"\b(files?|folders?|director(?:y|ies)|repo(?:s|sitory|sitories)?|git|grep|find in files|read file|edit file|shell|terminal|bash|python|filesystem|codebase|source code|browse)\b|/home/|/usr/|/etc/|~/|\.(py|js|ts|json|yaml|yml|toml|sh|cfg|ini|md|txt)\b"):
+    if has(r"\b(file|folder|directory|repo|git|grep|find in files|read file|edit file|shell|terminal|bash|python)\b"):
         domains.add("files")
     # Managing detached bash jobs: "kill the background job", "stop the job",
     # "kill that job", "check the job output", "is the bg job done".
@@ -1466,10 +1456,7 @@ def _build_base_prompt(
 
     # Inject integration descriptions
     if not suppress_local_context:
-        from src.integrations import get_integrations_prompt, get_github_cli_prompt
-        gh_prompt = get_github_cli_prompt()
-        if gh_prompt:
-            agent_prompt += gh_prompt
+        from src.integrations import get_integrations_prompt
         integ_prompt = get_integrations_prompt()
         if integ_prompt:
             agent_prompt += "\n\n" + integ_prompt
@@ -1933,19 +1920,15 @@ async def stream_agent_loop(
     if not guide_only and not _relevant_tools and bool(_intent.get("low_signal")):
         from src.tool_index import ALWAYS_AVAILABLE
         if workspace:
-            # Workspace is an explicit file-work signal. Include file tools
-            # unconditionally; respect the shell/web toggles for the rest.
+            # An active workspace IS the file-work signal: a vague "look at the
+            # project" means explore this folder. Surface only the READ-ONLY file
+            # tools (intersection with the plan-mode read-only allowlist) so the
+            # agent can investigate; write/shell tools stay out until the request
+            # actually calls for them (RAG retrieval adds those on a real ask).
             _relevant_tools = set(ALWAYS_AVAILABLE)
             from src.tool_security import PLAN_MODE_READONLY_TOOLS
             _relevant_tools |= (_DOMAIN_TOOL_MAP["files"] & PLAN_MODE_READONLY_TOOLS)
-            if "bash" not in disabled_tools:
-                _relevant_tools.add("bash")
-            if "python" not in disabled_tools:
-                _relevant_tools.add("python")
-            if "web_search" not in disabled_tools:
-                _relevant_tools.add("web_search")
-                _relevant_tools.add("web_fetch")
-            logger.info("[tool-rag] Low-signal but workspace active; including read-only file tools + shell/web if enabled")
+            logger.info("[tool-rag] Low-signal but workspace active; including read-only file tools")
         else:
             # Don't short-circuit: fall through to RAG retrieval below.
             # Non-English queries are flagged low_signal by the English-only
@@ -2108,9 +2091,6 @@ async def stream_agent_loop(
         "deepseek-v", "deepseek-chat",
         # LongCat (Meituan) is OpenAI-compatible and supports tool schemas.
         "longcat",
-        # NVIDIA NIM — Nemotron-native model names contain no existing keyword.
-        # All NIM models support OpenAI-compatible function calling.
-        "nemotron",
     ))
     # Models known to reject tool schemas at the Ollama/local level even when
     # the endpoint URL would otherwise enable native function calling.
@@ -2308,7 +2288,6 @@ async def stream_agent_loop(
     _exhausted_rounds = False
 
     for round_num in range(1, max_rounds + 1):
-        _round_start = time.monotonic()
         round_response = ""
         round_reasoning = ""  # reasoning_content deltas (DeepSeek-thinking, vLLM --reasoning-parser)
         native_tool_calls = []  # populated if model uses function calling
@@ -3162,13 +3141,6 @@ async def stream_agent_loop(
         # paths, including a verifier `continue` on the final round (the old
         # bottom-of-loop flag missed those).
         _exhausted_rounds = True
-
-    total_elapsed = time.time() - total_start
-    logger.info("agent_loop_complete",
-                rounds=round_num,
-                messages=len(messages),
-                tool_events=len(tool_events),
-                total_duration_ms=round(total_elapsed * 1000, 1))
 
     # If the loop hit the round cap while still working, tell the client so it
     # can show a "Continue" affordance instead of the turn just stopping.

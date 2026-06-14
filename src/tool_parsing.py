@@ -55,16 +55,13 @@ _TOOL_CODE_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Pattern 4b: <tool_code> blocks with Python function-call syntax (Google Gemma style)
-# bash(command="gh repo list")  /  get_workspace()
-_TOOL_CODE_PYCALL_RE = re.compile(
-    r"<tool_code>\s*([\w]+\s*\([^<]*?\))\s*</tool_code>",
-    re.IGNORECASE | re.DOTALL,
+# Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — official JSON format)
+# {"name": "fn_name", "arguments": {"key": "val"}}
+# Non-JSON content (tag-pair format seen in partial captures) is stripped but not executed.
+_LONGCAT_TOOL_CALL_RE = re.compile(
+    r"<longcat_tool_call>\s*([\s\S]*?)\s*</longcat_tool_call>",
+    re.IGNORECASE,
 )
-
-# Broad match used only for stripping — catches any <tool_code> block regardless of
-# inner format so neither MiniMax nor Gemma variants leak as raw text to the user.
-_TOOL_CODE_ANY_RE = re.compile(r"<tool_code>[\s\S]*?</tool_code>", re.IGNORECASE)
 
 # Pattern 5: DeepSeek DSML markup leaking into content. When deepseek
 # models can't emit structured tool_calls (e.g. we sent no tool schemas
@@ -138,7 +135,6 @@ _TOOL_NAME_MAP = {
     "list_sessions": "list_sessions",
     "send_to_session": "send_to_session",
     "message_session": "send_to_session",
-    "get_workspace": "get_workspace",
     "pipeline": "pipeline",
     "chain": "pipeline",
     "manage_session": "manage_session",
@@ -515,50 +511,35 @@ def _parse_tool_code_block(raw: str) -> Optional[ToolBlock]:
     return None
 
 
-def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
-    """Parse a <tool_code>func(kwarg=val, ...)</tool_code> block (Google Gemma style)."""
+def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
+    """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat).
+
+    JSON content within the tag is parsed and executed. Tag-pair format
+    (community.vercel.com/t/33601) is stripped but not executed:
+        {"name": "fn_name", "arguments": {"key": "value"}}
+
+    Non-JSON content is not executed — strip_tool_blocks removes it from display.
+    """
+    content = content.strip()
+    if not content.startswith('{'):
+        return None
     try:
-        module = ast.parse(content.strip(), mode="exec")
-    except SyntaxError:
-        return None
-    if len(module.body) != 1 or not isinstance(module.body[0], ast.Expr):
-        return None
-    call = module.body[0].value
-    if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
-        return None
-
-    func_name = call.func.id.lower()
-    mapped = _TOOL_NAME_MAP.get(func_name)
-    if mapped is None:
-        return None
-
-    # Build args dict from keyword arguments
-    args: dict = {}
-    for kw in call.keywords:
-        if kw.arg and isinstance(kw.value, ast.Constant):
-            args[kw.arg] = str(kw.value.value)
-
-    # Route through the canonical converter for structured args
-    if args:
-        from src.tool_schemas import function_call_to_tool_block
-        block = function_call_to_tool_block(mapped, json.dumps(args))
-        if block:
-            return block
-
-    # No keyword args — handle common zero-arg or positional-arg cases
-    if mapped == "bash":
-        cmd = args.get("command", "")
-        if not cmd and call.args and isinstance(call.args[0], ast.Constant):
-            cmd = str(call.args[0].value)
-        return ToolBlock("bash", cmd) if cmd else None
-    if mapped == "get_workspace":
-        return ToolBlock("get_workspace", "")
-    if mapped == "web_search":
-        q = args.get("query", "")
-        if not q and call.args and isinstance(call.args[0], ast.Constant):
-            q = str(call.args[0].value)
-        return ToolBlock("web_search", q) if q else None
-
+        obj = json.loads(content)
+        func_name = (obj.get("name") or "").lower()
+        raw_args = obj.get("arguments", {})
+        mapped = _TOOL_NAME_MAP.get(func_name)
+        tool_type = mapped or func_name
+        if tool_type:
+            args_str = json.dumps(raw_args) if isinstance(raw_args, dict) else str(raw_args)
+            from src.tool_schemas import function_call_to_tool_block
+            block = function_call_to_tool_block(tool_type, args_str)
+            if block:
+                return block
+            if isinstance(raw_args, dict):
+                first_val = next(iter(raw_args.values()), "")
+                return ToolBlock(tool_type, str(first_val)) if first_val else None
+    except (json.JSONDecodeError, Exception):
+        pass
     return None
 
 
@@ -639,20 +620,21 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
                 if block:
                     blocks.append(block)
 
-    # Pattern 4: <tool_code> blocks — MiniMax {tool => ...} style first,
-    # then Google Gemma Python-call style (bash(command="...") / get_workspace())
+    # Pattern 4: <tool_code> blocks (MiniMax-M2.5 style)
     if not blocks:
         for m in _TOOL_CODE_RE.finditer(text):
             block = _parse_tool_code_block(m.group(1))
             if block:
                 blocks.append(block)
+
+    # Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — JSON format only)
     if not blocks:
-        for m in _TOOL_CODE_PYCALL_RE.finditer(text):
-            block = _parse_tool_code_pycall(m.group(1))
+        for m in _LONGCAT_TOOL_CALL_RE.finditer(text):
+            block = _parse_longcat_tool_call(m.group(1))
             if block:
                 blocks.append(block)
 
-    # Pattern 6: local text-model web_search call leaked as prose + bare JSON.
+    # Pattern 7: local text-model web_search call leaked as prose + bare JSON.
     if not blocks and not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(text)
         if raw_web_json:
@@ -680,7 +662,8 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = text if skip_fenced else _TOOL_BLOCK_RE.sub('', text)
     cleaned = _TOOL_CALL_RE.sub('', cleaned)
     cleaned = _XML_TOOL_CALL_RE.sub('', cleaned)
-    cleaned = _TOOL_CODE_ANY_RE.sub('', cleaned)  # strips MiniMax {tool=>} and Gemma func() formats
+    cleaned = _TOOL_CODE_RE.sub('', cleaned)
+    cleaned = _LONGCAT_TOOL_CALL_RE.sub('', cleaned)
     if not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(cleaned)
         if raw_web_json:
