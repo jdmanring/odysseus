@@ -13,8 +13,6 @@
 ---
 
 ## Summary
-> This is the body to paste into GitHub when filing the PR.
-> It is written in first person and as if addressed to reviewers.
 
 ### Problem
 
@@ -163,9 +161,7 @@ becomes visible.
   elements that participate in virtual scroll mechanics; setting the property
   only on them avoids touching the broader scroll container.
 
-### Correctness details worth noting for reviewers
-
-A few implementation points that warrant explanation:
+### Implementation notes
 
 **Why does `load()` attach the sentinel before scrolling?**  
 The original order was: scroll then attach sentinel. `overflow-anchor: none`

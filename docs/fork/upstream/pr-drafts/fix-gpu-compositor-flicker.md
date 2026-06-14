@@ -14,7 +14,6 @@
 ---
 
 ## Summary
-### Summary
 
 Removes `backdrop-filter: blur()` from ten elements where the background is
 already opaque or near-opaque, making the blur result invisible but keeping the
@@ -54,7 +53,7 @@ The cost is measurable on every platform:
   and overlays means ten GPU texture allocations held for the lifetime of the
   session, consuming memory that would otherwise be available for model context,
   browser tabs, or other applications. On low-memory devices (4–8 GB unified RAM)
-  this is not theoretical — compositor layer count is a first-class memory cost.
+  compositor layer count is a real memory cost on constrained hardware.
 - **On touch devices** (phones, tablets): the browser fires a synthetic hover event
   on tap that persists until the user taps elsewhere. The `.sidebar`
   `backdrop-filter` blur therefore re-samples and re-composites on every sidebar

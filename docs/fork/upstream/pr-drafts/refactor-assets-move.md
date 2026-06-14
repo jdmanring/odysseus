@@ -22,11 +22,10 @@ documentation prose with binary assets. This causes several practical problems.
 
 **Documentation tooling breaks.** Static site generators and documentation tools
 (Docusaurus, MkDocs, Sphinx, GitHub Pages) that scan `docs/` for content will
-encounter multi-megabyte GIF and WebM files mixed in with Markdown. These tools either
-choke on binary files, include them in search indexes where they do not belong, or
-require explicit exclusion configuration that currently does not exist. Adding a
-documentation system to the project in its current state requires working around the
-binary files in `docs/`.
+encounter multi-megabyte GIF and WebM files mixed in with Markdown. These tools weren't
+built to handle binary assets in documentation directories — they fail to process them,
+index them incorrectly, or need explicit exclusions that aren't configured. Adding a
+documentation system in the current layout means working around the binaries first.
 
 **Git history is polluted.** Binary files in `docs/` appear in every `git log --stat`
 and `git diff --stat` that touches the documentation. Any change to a GIF produces an

@@ -14,7 +14,6 @@
 ---
 
 ## Summary
-### Summary
 
 A targeted CSS-only performance pass on `static/style.css`. All changes are either
 invisible on standard desktop use or activate only for touch/reduced-motion users.
