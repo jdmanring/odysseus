@@ -75,11 +75,16 @@ The MiniMax `{tool => ...}` path is unchanged and still tried first.
 
 ## How to Test
 
-- [ ] With a Google Gemma model: ask the agent to run a shell command — confirm it
-      executes via `bash` rather than printing `<tool_code>bash(...)</tool_code>` as text
-- [ ] Confirm `get_workspace()` in a `<tool_code>` block executes correctly
+**Automated:**
+```
+pytest tests/test_tool_parsing_pycall.py
+```
+Covers: bash and web_search parsing, MiniMax regression, `strip_tool_blocks` universality, unknown function name, malformed Python syntax.
+
+**Manual (with a Gemma model):**
+- [ ] Ask the agent to run a shell command — confirm it executes via `bash` rather than printing `<tool_code>bash(...)</tool_code>` as text
 - [ ] Confirm MiniMax-style `{tool => 'bash', args => '...'}` blocks still execute
-- [ ] Confirm a `<tool_code>` block with unrecognised content is stripped and not shown
+- [ ] Confirm a `<tool_code>` block with unrecognised content is stripped and not shown to the user
 
 ## Visual / UI changes
 
@@ -99,3 +104,4 @@ None visible when working correctly — tool calls execute silently. Previously 
 
 - File upstream issue first (draft: `docs/fork/upstream/issue-drafts/fix-tool-code-pycall-parsing.md`)
 - No screenshots required
+- `pytest tests/test_tool_parsing_pycall.py` — 9 tests: bash/web_search parsing, MiniMax regression, strip universality, unknown function and malformed syntax rejection
