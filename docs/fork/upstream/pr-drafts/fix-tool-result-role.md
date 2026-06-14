@@ -164,6 +164,7 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-tool-result-rol
 2. Target branch: `dev` (not `main`).
 3. No tests currently cover `_append_tool_results()` or `_build_anthropic_payload()` message role handling — worth noting in the PR if upstream asks.
 4. The native tool path (`role=tool`) is deliberately untouched — mention this proactively to avoid reviewer confusion about why only the else-branch changed.
+5. **Conflict with PR #1629 (OPEN):** "harden(agent-loop): wrap non-native tool results as untrusted data" modifies the same function (`_append_tool_results` in `src/agent_loop.py`). That PR addresses prompt injection security; this PR addresses model quality (role confusion causing hedging turns). The concerns are different but the files overlap. If #1629 merges before this PR is filed, rebase this branch against the updated upstream-mirror before opening. Mention #1629 in the PR body to show awareness and distinguish the two concerns.
 
 ## Visual / UI changes
 

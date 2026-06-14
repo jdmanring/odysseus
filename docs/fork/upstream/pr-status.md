@@ -16,7 +16,7 @@ per-action authorization. Agents stage; you file.**
 | `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Bug | Ready to file — see pr-drafts/ |
 | `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Bug/Docs | Ready to file — see pr-drafts/ |
 | `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Bug | Superseded — upstream PR #3741 fixes the same bug, integrated into `cookbook_helpers.py` with tests (better approach). Do not file. Delete branch once #3741 merges into upstream-mirror. |
-| `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Bug | Ready to file — see pr-drafts/ |
+| `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Bug | Superseded — upstream PR #2418 makes the same hoist fix, also restores abort message rendering (broader scope), and has a test. Do not file. Delete branch once #2418 merges into upstream-mirror. |
 | `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Refactor | Ready to file — see pr-drafts/ |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Bug | Ready to file — see pr-drafts/fix-tool-result-role.md |
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | Ready to file — single clean commit, scroll verified. **File after `fix/streamingtts-scope`** (depends on `let streamingTTS` hoist being present). File upstream issue first. See pr-drafts/ |
