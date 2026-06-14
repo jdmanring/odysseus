@@ -52,6 +52,23 @@ Fixes # <!-- [file upstream issue first] -->
 
 - `src/integrations.py` — `get_github_cli_prompt()`: runs `gh auth status --hostname github.com` (5 s timeout, no-op if absent/unauthed); extracts token via `gh auth token` and sets `GH_TOKEN` in process env for subprocess inheritance; returns a `## GitHub CLI` context block listing common commands
 - `src/agent_loop.py` — calls `get_github_cli_prompt()` and appends result to agent system prompt
+- `tests/test_gh_cli_detection.py` (new) — 11 behavioral tests using `monkeypatch` on `shutil.which` and `subprocess.run`
+
+## Tests
+
+**`tests/test_gh_cli_detection.py`** — 11 tests covering all guarded paths:
+
+- **Not installed** (2 tests): `shutil.which` returns `None` → returns `""` and returns a `str`
+- **Auth failure** (2 tests): `gh auth status` exits non-zero → returns `""`;
+  subprocess raises `OSError` → returns `""` (exception guard)
+- **Authenticated** (7 tests): both guards pass → returns a non-empty string
+  containing "GitHub CLI", the authenticated username, and example commands
+  (`gh repo list`, `gh pr list`, `gh issue create`); `GH_TOKEN` is set from
+  `gh auth token` when not already present; existing `GH_TOKEN` is not overwritten;
+  username falls back to "you" when not parseable from `gh auth status` output
+
+Uses `monkeypatch.setattr` on `shutil.which` and `subprocess.run` (OS-boundary
+functions). No network access required.
 
 ## How it works
 
