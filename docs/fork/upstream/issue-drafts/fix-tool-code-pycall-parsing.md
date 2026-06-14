@@ -54,3 +54,5 @@ the model couldn't emit on a structured channel, not user-facing prose.
   it converted to a tool call"
 
 **Files:** `src/tool_parsing.py` only.
+
+**Related:** Discussion #2095 reports the same symptom (agent outputs raw tool call markup instead of executing) with Qwen and Mistral models. Those involve different parser gaps; this issue covers the Gemma-specific `<tool_code>` Python-call format.
