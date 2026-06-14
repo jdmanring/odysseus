@@ -132,10 +132,28 @@ which role they carry.
 - OpenAI-compatible providers (Gemini, Ollama, etc.): no change in behavior for
   the native tool path; text-based path produces cleaner reasoning.
 
+### Tests
+
+**`tests/test_agent_loop.py`** — updated existing test to match the new role:
+- `test_non_native_path_uses_system_role`: asserts the non-native fallback appends
+  `role=system` (was `role=user`). Corrects the pre-existing upstream test that would
+  have failed CI.
+- `TestRecentContextForRetrieval` (6 new tests): verifies `_recent_context_for_retrieval`
+  excludes old-format records (`role=user` + `[Tool execution results]` prefix,
+  present in existing databases) and new-format records (`role=system`), includes only
+  genuine user turns, and respects `max_user`.
+
+**`tests/test_tool_result_role.py`** (new, 6 tests): verifies `_build_anthropic_payload`
+inline routing — tool result system messages stay in `chat_messages` as `role=user` (not
+extracted to `system_parts`), coexist with real system instructions, preserve their
+temporal order across multiple agent rounds, and have their content preserved exactly.
+
 ### Files changed
 
 - `src/agent_loop.py` — `_append_tool_results()` role change + comment update (4 insertions, 1 deletion)
 - `src/llm_core.py` — `_build_anthropic_payload()` tool-result routing (7 insertions, 1 deletion)
+- `tests/test_agent_loop.py` — updated assertion + added `TestRecentContextForRetrieval`
+- `tests/test_tool_result_role.py` (new) — `_build_anthropic_payload` inline routing tests
 
 ---
 
@@ -162,7 +180,7 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-tool-result-rol
 
 1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-tool-result-role.md`. Add the issue number to `Fixes #` above before opening the PR.
 2. Target branch: `dev` (not `main`).
-3. No tests currently cover `_append_tool_results()` or `_build_anthropic_payload()` message role handling — worth noting in the PR if upstream asks.
+3. The PR updates the existing `test_non_native_path_unaffected` test (renamed `test_non_native_path_uses_system_role`) because the role change is the fix — the old assertion would have failed CI. Mention this proactively to show the test suite stays green.
 4. The native tool path (`role=tool`) is deliberately untouched — mention this proactively to avoid reviewer confusion about why only the else-branch changed.
 5. **Conflict with PR #1629 (OPEN):** "harden(agent-loop): wrap non-native tool results as untrusted data" modifies the same function (`_append_tool_results` in `src/agent_loop.py`). That PR addresses prompt injection security; this PR addresses model quality (role confusion causing hedging turns). The concerns are different but the files overlap. If #1629 merges before this PR is filed, rebase this branch against the updated upstream-mirror before opening. Mention #1629 in the PR body to show awareness and distinguish the two concerns.
 
