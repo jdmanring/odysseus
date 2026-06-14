@@ -37,32 +37,29 @@ Both failure modes are consistently reproducible. In my testing they occur at
 running alongside other applications; the threshold is lower on constrained
 machines.
 
-**Self-hosted AI users run long sessions.** The entire point of running Odysseus
-locally is to have extended, persistent conversations; coding sessions, research
-threads, agent runs that span many tool calls. A user working with a coding agent
-for two hours will have 200+ messages easily. These are exactly the sessions that
-accumulate messages, and exactly the sessions where an OOM crash is most disruptive.
+The entire point of running Odysseus locally is extended, persistent conversations:
+coding sessions, research threads, agent runs that span many tool calls. A user
+working with a coding agent for two hours will have 200+ messages easily, and these
+are exactly the sessions where an OOM crash is most disruptive.
 
-**Constrained hardware is common in the target audience.** Users who self-host LLMs
-often run Odysseus on lower-spec machines: 8 GB RAM laptops, mini PCs, ARM SBCs,
-or machines that are also running the LLM inference stack itself (which consumes
-several GB of RAM or unified memory). The 16 GB baseline quoted above is the
-comfortable case; the actual OOM threshold scales with available renderer memory
-and will be lower on machines with less RAM or more competing processes.
+The problem is worse on constrained hardware, which is common in this audience. Users
+who self-host LLMs often run Odysseus on 8 GB RAM laptops, mini PCs, ARM SBCs, or
+machines that are also running the inference stack itself (which consumes several GB of
+RAM or unified memory). The 16 GB baseline above is the comfortable case; the actual
+OOM threshold will be lower on machines with less RAM or more competing processes.
 
-**Agent mode amplifies the severity.** An agent tasked with a multi-step coding
-task produces 5–7 DOM nodes per message round (role header, thinking block,
-content, tool-call panel, tool-result panel, metadata row). A 150-turn agent
-session produces 900–1050 nodes; the same node count as 300 standard
-user/model turns. The users who push agent mode hardest are the most likely
-to hit OOM.
+Agent mode compounds this further. A multi-step coding task produces 5–7 DOM nodes per
+message round (role header, thinking block, content, tool-call panel, tool-result panel,
+metadata row). A 150-turn agent session produces 900–1050 nodes — the same node count
+as 300 standard user/model turns. The users who push agent mode hardest are the most
+likely to hit OOM.
 
-**Crash recovery is lossy.** When the renderer crashes mid-stream, the in-progress
-model response is lost. The `resumeStream` path in `chat.js` can replay the SSE
-buffer from the server, but the buffer is bounded; a long response that was
-actively streaming when the crash hit may be partially or fully missing on reload.
-No mechanism exists to re-request the cut-off portion. The user must prompt again
-from scratch, consuming more rounds of an active agent session or losing context.
+When the renderer crashes mid-stream, the in-progress model response is lost. The
+`resumeStream` path in `chat.js` can replay the SSE buffer from the server, but the
+buffer is bounded; a long response that was actively streaming when the crash hit may be
+partially or fully missing on reload. No mechanism exists to re-request the cut-off
+portion. The user must prompt again from scratch, consuming more rounds of an active
+agent session or losing context.
 
 ### Solution
 

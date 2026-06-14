@@ -38,9 +38,9 @@ service calls (SearXNG searches, email API polling, ntfy push requests). With no
 cap, there is nothing to stop runaway execution if a model loops or hallucinates repeated
 tool calls.
 
-The codebase acknowledges this risk in a comment at `agent_loop.py` line 2073: *"Small
-models can get stuck firing the same tool call over and over with no text; burns all 20
-rounds, looks like the chat 'died'."* The existing loop-breaker only catches repeated
+The codebase acknowledges this risk in a comment in `agent_loop.py`: *"Small models
+(e.g. deepseek-v4-flash) can get stuck firing the same tool call over and over with no
+text — burns all 20 rounds, looks like the chat 'died'."* The existing loop-breaker only catches repeated
 identical calls. A model that varies its calls slightly continues unchecked. The budget
 cap is the general-purpose backstop.
 

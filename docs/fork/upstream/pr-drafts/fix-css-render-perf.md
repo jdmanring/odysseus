@@ -55,15 +55,18 @@ Added `contain` to the three highest-churn containers:
   modal boundary. Scopes the modal's internal layout from affecting the surrounding
   page without introducing new clipping.
 
-On mobile processors with lower memory bandwidth, style containment is the single
-largest source of avoidable recalculation work eliminated here.
+On mobile processors with lower memory bandwidth, style containment eliminates a primary
+source of avoidable recalculation work in this PR.
 
 **`touch-action: manipulation` on interactive elements**
 
 Added to the `button` base rule and as a grouped rule covering `button, a,
-[role="button"], .list-item, .dropdown-item`. This removes the 300ms tap-delay that
-mobile browsers impose to distinguish single-tap from double-tap-zoom. Pan and
-pinch-zoom are preserved (`manipulation` ≠ `none`). WCAG-safe.
+[role="button"], .list-item, .dropdown-item`. This removes the 300-millisecond delay
+mobile browsers impose to distinguish a single tap from a double-tap-to-zoom gesture:
+the browser waits up to 300 ms after each tap to check whether a second tap follows
+before committing the click. `manipulation` tells the browser the element does not
+participate in double-tap-zoom, so the click fires immediately. Pan and pinch-zoom are
+preserved (`manipulation` ≠ `none`). WCAG-safe.
 
 Effect: every sidebar item, session entry, dropdown option, and button tap feels
 immediate on phone and tablet rather than delayed by 300ms.
@@ -95,9 +98,12 @@ Strategy per element:
   opacity 0.12s`.
 
 `filter: brightness` on `:hover` promotes the element to its own compositor layer on
-hover entry. On the corrected Qt compositor stack, these layer promotions are
-inexpensive on desktop; on mobile they compound with the sticky-hover bug. The fix
-removes both the bug and the unnecessary layer promotion.
+hover entry. CSS filters require the browser to rasterize the element to an offscreen
+texture, apply the filter pipeline to that texture, and composite the result back into
+the page; the offscreen render target is the compositor layer, and the promotion is a
+structural consequence of the filter, not an optimization. On the corrected Qt compositor
+stack, these promotions are inexpensive on desktop; on mobile they compound with the
+sticky-hover bug. The fix removes both the bug and the unnecessary layer promotion.
 
 **Global `prefers-reduced-motion` catch-all**
 
@@ -122,8 +128,10 @@ specificity still applies within the `!important` tier; so the existing
 universal rule (0-0-0), and their behavior is unchanged. The global catches the
 remaining animations and transitions that had no reduced-motion handling.
 
-`0.01ms` rather than `0` preserves delivery of `animationend` and `transitionend` JS
-events (browsers may skip these for `duration: 0`).
+`0.01ms` rather than `0` preserves `transitionend` delivery: browsers do not fire
+`transitionend` for `transition-duration: 0`
+([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Element/transitionend_event)).
+`animationend` fires at any duration, including `0s`.
 
 On Android with Battery Saver enabled and on iOS with Reduce Motion enabled, this
 converts the full animation workload to near-zero with a single OS setting. This is
