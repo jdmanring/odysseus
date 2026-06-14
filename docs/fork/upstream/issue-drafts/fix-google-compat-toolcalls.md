@@ -37,4 +37,4 @@ Odysseus's `stream_llm()` in `src/llm_core.py` reads only `delta.get("tool_calls
 
 This is a documented deviation on Google's side and has not been corrected in their API. All other OpenAI-compat providers use the correct snake_case key; only Google's endpoint is affected.
 
-**PR:** Two targeted fixes in `stream_llm()`: (1) the `_delta_has_output` early-exit guard gains `or _delta0.get("toolCalls")` to prevent camelCase-only chunks from being skipped; (2) the accumulator loop uses `delta.get("tool_calls") or delta.get("toolCalls") or []` to consume both spellings. Three lines changed in `src/llm_core.py`.
+**Proposed fix:** Two targeted fixes in `stream_llm()`: (1) the `_delta_has_output` early-exit guard gains `or _delta0.get("toolCalls")` to prevent camelCase-only chunks from being skipped; (2) the accumulator loop uses `delta.get("tool_calls") or delta.get("toolCalls") or []` to consume both spellings. Three lines changed in `src/llm_core.py`.

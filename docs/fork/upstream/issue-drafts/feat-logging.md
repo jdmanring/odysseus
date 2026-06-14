@@ -21,12 +21,10 @@
 
 **Summary:**
 
-The upstream hardening audit ([#3803](https://github.com/pewdiepie-archdaemon/odysseus/issues/3803)) explicitly identified two classes of logging defect:
+The upstream hardening audit ([#3803](https://github.com/pewdiepie-archdaemon/odysseus/issues/3803)) identified two classes of logging defect:
 
 > "PII (emails, usernames, message bodies) logged at INFO level in several paths"
 > "No audit trail for sensitive operations (auth events, vault unlock, admin wipes)"
-
-This issue documents those gaps and proposes a structured logging layer to address them.
 
 **Current behaviour:**
 
