@@ -101,13 +101,20 @@ refracts differently through the periphery of an irregularly-curved cornea, and 
 larger the pupil aperture, the worse this aberration. The result is that high-brightness
 text bleeds perceptibly into the surrounding dark field.
 
-Astigmatism is a common refractive condition affecting approximately one in three adults
+Astigmatism is a very common refractive condition
 (American Academy of Ophthalmology). Piepenbrock et al. (2013, *Ergonomics*, DOI:
 [10.1080/00140139.2013.790485](https://doi.org/10.1080/00140139.2013.790485)) confirmed
 the pupil-mediated mechanism: positive-polarity displays (dark text on light) avoid
 halation by keeping pupils constricted, producing smaller pupil apertures and sharper
-retinal images. In dark themes, reducing contrast from near-21:1 toward 10–12:1 reduces halation while
-staying well above WCAG AAA (source: [astigmatismofit.com/blog/dark-mode-vs-light-mode-astigmatism](https://www.astigmatismofit.com/blog/dark-mode-vs-light-mode-astigmatism)).
+retinal images. Buchner & Baumgartner (2007, *Ergonomics*, DOI:
+[10.1080/00140130701306413](https://doi.org/10.1080/00140130701306413)) independently
+found consistent proofreading performance advantages for positive-polarity displays
+across ambient lighting conditions and colour contrasts, providing converging evidence
+from the same journal. In dark themes, reducing foreground luminance directly reduces the halation load: a
+less-bright foreground produces less retinal illuminance through a dilated pupil, which
+means a smaller aberration footprint in astigmatic eyes. The direction is a direct
+consequence of the pupil-mediated mechanism Piepenbrock established; the specific
+magnitude depends on the individual's degree of astigmatism and pupil aperture.
 
 Six existing Odysseus dark themes sit at 12:1 or above; organs (15.76:1), terminal
 (15.38:1), cyberpunk (14:1), claude (13.78:1), gpt (13.63:1), midnight (12.26:1); and
@@ -193,8 +200,8 @@ cleanly done" and "no issue with the implementation itself."
 
 The phrasing hedges rather than closes: "I prob shouldnt" and "if themes come back into scope later this can be revisited." Issue
 [#3692](https://github.com/pewdiepie-archdaemon/odysseus/issues/3692), opened June 2026
-and labeled "Ready for review," is the most recent signal from the project; indicating
-the maintainer has since reopened consideration.
+and labeled "Ready for review," is the most recent community request for Catppuccin and
+shows the topic remains active.
 
 This PR makes the minimum possible ask: one entry in the `THEMES` object, no new files,
 no maintenance obligation. The design argument above distinguishes this from a generic

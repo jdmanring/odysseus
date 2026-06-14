@@ -46,7 +46,7 @@ source configured" have no path forward except asking in community forums.
 
 [TheBloke](https://huggingface.co/TheBloke) has 3,863 HuggingFace repositories
 covering GGUF and GPTQ quantizations across a wide range of models.
-[Bartowski](https://huggingface.co/bartowski) currently has 2,340 repositories,
+[Bartowski](https://huggingface.co/bartowski) has over 2,300 repositories,
 most of them imatrix-calibrated GGUF models actively updated to cover new
 releases. Mradermacher covers models neither TheBloke nor bartowski has processed.
 Combined, the community quantization library covers virtually every notable

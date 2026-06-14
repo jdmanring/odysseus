@@ -29,8 +29,6 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/agent-tool-budget` | [#10](https://github.com/jdmanring/odysseus/issues/10) | Single commit, ready |
 | `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Single commit, ready |
 | `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Single commit, ready |
-| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready |
-| `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Single commit, ready |
 | `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Single commit, ready |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Single commit, ready |
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Single commit, ready. File upstream issue first. |
@@ -55,6 +53,8 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 |-------|--------|-------|
 | [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | Closed 2026-06-12 — superseded by upstream #3459 (`load_stored_hf_token()` in cookbook_helpers.py) |
 | [#34 HF token env fallback](https://github.com/jdmanring/odysseus/issues/34) | `fix/hf-token-env-fallback` | Closed 2026-06-12 — same upstream fix covers this |
+| [#9 basicsr Python 3.14 compat](https://github.com/jdmanring/odysseus/issues/9) | `fix/basicsr-python314-compat` | Superseded — upstream PR #3741 fixes same bug in `cookbook_helpers.py` with tests. Delete branch once #3741 merges into upstream-mirror. |
+| [#11 streamingTTS scope](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | Superseded — upstream PR #2418 makes same hoist fix with broader scope and a test. Delete branch once #2418 merges into upstream-mirror. |
 
 ---
 
