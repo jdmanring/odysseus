@@ -57,9 +57,7 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Files changed
 
-| File | Change |
-|------|--------|
-| `src/tool_parsing.py` | Add `_TOOL_CODE_PYCALL_RE`, `_TOOL_CODE_ANY_RE`, `_parse_tool_code_pycall()`; hook into `parse_tool_blocks`; update `strip_tool_blocks` |
+- `src/tool_parsing.py` — add `_TOOL_CODE_PYCALL_RE`, `_TOOL_CODE_ANY_RE`, `_parse_tool_code_pycall()`; hook into `parse_tool_blocks`; update `strip_tool_blocks`
 
 ## How it works
 

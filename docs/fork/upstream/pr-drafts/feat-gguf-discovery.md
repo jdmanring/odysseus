@@ -23,7 +23,7 @@ the app has no way to find the community-quantized GGUF repo automatically.
 Users must know to search HuggingFace for a third-party quantization (e.g.,
 `bartowski/Meta-Llama-3.1-8B-GGUF`) and enter it manually.
 
-#### User experience of the current failure
+**User experience of the current failure**
 
 The "No GGUF source configured" error appears with no explanation of what a
 GGUF source is, where to find one, or why the model the user selected doesn't
@@ -42,7 +42,7 @@ have one. The complete path to fix it manually requires:
 None of this is documented anywhere in Odysseus. New users who hit "No GGUF
 source configured" have no path forward except asking in community forums.
 
-#### Scale of the inaccessible ecosystem
+**Scale of the inaccessible ecosystem**
 
 [TheBloke](https://huggingface.co/TheBloke) has 3,863 HuggingFace repositories
 covering GGUF and GPTQ quantizations across a wide range of models.
@@ -132,7 +132,7 @@ Within each tier, imatrix variants lead the ranking (IQ4_XS → IQ4_NL → Q4_K_
 → Q4_K_S → Q4_1 → Q4_0) so the same-tier rule automatically selects the best
 available quantization method, not just the closest name.
 
-### Reputed author list
+### Author tiers
 
 The `_REPUTED_AUTHORS` set contains quantizers with a demonstrated track
 record of quality and maintenance:
@@ -147,13 +147,11 @@ non-imatrix repos.
 
 ### Files changed
 
-| File | Change |
-|------|--------|
-| `tooling/hf_url_resolver.py` | Complete rewrite of `_probe_gguf_repo` with expand= quality signals; new `_score_candidate`, `_REPUTED_AUTHORS`, `_IMATRIX_AUTHORS`, `_detect_imatrix`; updated `find_gguf_sources` to sort by quality score; mmproj filter |
-| `routes/cookbook_routes.py` | `GET /api/cookbook/resolve-gguf` endpoint (unchanged from prior simple version) |
-| `static/js/cookbookDownload.js` | Auto-discovery call in `_runModelDownload`; `_ggufIncludePattern` reordered to check `model.quant` first; resolver source mapped with `file: null` so model.quant drives selection; `_QUANT_QUALITY` flat ranking list; `_QUANT_TIER_RANGES` + `_quantTierRank`; tier-aware `_closestQuantFile` |
+- `tooling/hf_url_resolver.py` — complete rewrite of `_probe_gguf_repo` with expand= quality signals; new `_score_candidate`, `_REPUTED_AUTHORS`, `_IMATRIX_AUTHORS`, `_detect_imatrix`; `find_gguf_sources` now sorts by quality score; mmproj filter added
+- `routes/cookbook_routes.py` — `GET /api/cookbook/resolve-gguf` endpoint (unchanged from prior simple version)
+- `static/js/cookbookDownload.js` — auto-discovery call in `_runModelDownload`; `_ggufIncludePattern` reordered to check `model.quant` first; `_QUANT_QUALITY` flat ranking list; `_QUANT_TIER_RANGES` + `_quantTierRank`; tier-aware `_closestQuantFile`
 
-### Relation to ROADMAP
+### ROADMAP alignment
 
 This directly addresses the ROADMAP item:
 

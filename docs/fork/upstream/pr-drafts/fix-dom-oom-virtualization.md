@@ -36,8 +36,6 @@ Both failure modes are consistently reproducible. In my testing they occur at
 running alongside other applications; the threshold is lower on constrained
 machines.
 
-### Who is most affected
-
 **Self-hosted AI users run long sessions.** The entire point of running Odysseus
 locally is to have extended, persistent conversations — coding sessions, research
 threads, agent runs that span many tool calls. A user working with a coding agent

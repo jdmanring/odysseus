@@ -39,26 +39,24 @@ Replace stdlib `logging` initialisation with [structlog](https://www.structlog.o
 
 ## New Files
 
-| File | Purpose |
-|------|---------|
-| `src/logging_config.py` | Processor pipeline: contextvars binding, sensitive data redaction, JSON file output + text console output, per-subsystem debug control via `ODYSSEUS_DEBUG_SUBSYSTEMS` |
-| `src/log_context.py` | `contextvars`-based request correlation (request_id, session_key, user_id) — bind once in middleware, available in every log call |
-| `src/log_redaction.py` | Key-name-based sensitive data redaction (Sentry-style denylist) — matches exact key names, never scans string values |
-| `src/log_timing.py` | `timed_operation()` context manager for critical-path operations |
+- `src/logging_config.py` — processor pipeline: contextvars binding, sensitive data redaction, JSON file output + text console output, per-subsystem debug control via `ODYSSEUS_DEBUG_SUBSYSTEMS`
+- `src/log_context.py` — `contextvars`-based request correlation (request_id, session_key, user_id); bind once in middleware, available in every log call
+- `src/log_redaction.py` — key-name-based sensitive data redaction (Sentry-style denylist); matches exact key names, never scans string values
+- `src/log_timing.py` — `timed_operation()` context manager for critical-path operations
 
 ## Infrastructure Changes
 
-#### Access Logging Middleware (`app.py`)
+**Access Logging Middleware (`app.py`)**
 - Generates a UUID4 `request_id` per request, binds it to contextvars
 - Logs method, path, status code, duration at INFO/WARNING/ERROR level
 - Returns `X-Request-ID` response header for client-side tracing
 
-#### Auth Event Logging (`routes/auth_routes.py`) — addresses upstream #3803
+**Auth Event Logging (`routes/auth_routes.py`) — addresses upstream #3803**
 - Login success/failure (with reason: invalid_password, invalid_totp)
 - Signup, logout, password change, admin user create/delete
 - Every `POST /api/auth/settings` logs actor, key changed, and old → new values
 
-#### Environment Variables
+**Environment Variables**
 
 | Variable | Default | Purpose |
 |----------|---------|---------|

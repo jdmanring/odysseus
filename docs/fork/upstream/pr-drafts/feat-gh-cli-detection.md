@@ -50,10 +50,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Files changed
 
-| File | Change |
-|------|--------|
-| `src/integrations.py` | `get_github_cli_prompt()`: runs `gh auth status --hostname github.com` (5 s timeout, silently skipped if absent/unauthed); extracts token via `gh auth token` and sets `GH_TOKEN` in process environment for subprocess inheritance; returns a `## GitHub CLI` context block listing common commands |
-| `src/agent_loop.py` | Calls `get_github_cli_prompt()` and appends result to agent system prompt |
+- `src/integrations.py` — `get_github_cli_prompt()`: runs `gh auth status --hostname github.com` (5 s timeout, no-op if absent/unauthed); extracts token via `gh auth token` and sets `GH_TOKEN` in process env for subprocess inheritance; returns a `## GitHub CLI` context block listing common commands
+- `src/agent_loop.py` — calls `get_github_cli_prompt()` and appends result to agent system prompt
 
 ## How it works
 
