@@ -111,7 +111,7 @@ Structured timing added to all major network I/O paths. Logs at INFO only when a
 
 ## Linked Issue
 
-Fixes # <!-- [file upstream issue first — see issue-drafts/feat-logging-core.md] -->
+Fixes # <!-- [file upstream issue first — see issue-drafts/feat-logging.md] -->
 
 ## Type of Change
 
