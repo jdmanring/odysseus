@@ -46,6 +46,19 @@ The cost is measurable on every platform:
 - **Layer invalidation** on hover or visibility change re-runs the blur sample
   and composite cycle. For elements like `.sidebar` that change on every
   sidebar item hover, this fires on every mouse movement across the sidebar.
+- **On devices with unified memory** (mobile SoCs, ARM chips, Intel integrated
+  graphics, most laptops): GPU VRAM and system RAM are the same physical pool.
+  Each compositor layer promotion directly reduces the memory available to the rest
+  of the system. Ten unnecessary promoted layers across the sidebar, dropdowns,
+  and overlays means ten GPU texture allocations held for the lifetime of the
+  session, consuming memory that would otherwise be available for model context,
+  browser tabs, or other applications. On low-memory devices (4–8 GB unified RAM)
+  this is not theoretical — compositor layer count is a first-class memory cost.
+- **On touch devices** (phones, tablets): the browser fires a synthetic hover event
+  on tap that persists until the user taps elsewhere. The `.sidebar`
+  `backdrop-filter` blur therefore re-samples and re-composites on every sidebar
+  tap, not just on mouse movement. Combined with the persistent layer allocation,
+  this is the dominant source of GPU overhead during sidebar navigation on mobile.
 - **On Linux / NVIDIA + Wayland + QtWebEngine**: GPU layer invalidation can stall
   the Vulkan command queue (compounded by a now-fixed `DefaultANGLEVulkan` flag
   issue — see related PR). The stall produces black-screen flicker lasting one to
@@ -120,17 +133,10 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-gpu-compositor-
 3. Open and close the Downloads dropdown — confirm no flicker.
 4. Open Settings, then the Providers modal — confirm no flicker on open or close.
 5. Navigate to the Cookbook and open it — confirm the open animation (opacity + scale) plays cleanly with no one-frame flash at the end.
-6. Open DevTools → Rendering panel → enable "Highlight Composited Layers" — confirm the sidebar and dropdown are no longer highlighted as separate compositor layers.
 
 Tested on: Artix Linux, Wayland, NVIDIA open drivers, QtWebEngine. On standard desktop Chrome/Firefox there is no visual change — the `backdrop-filter` removal only affects GPU layer behavior, not the visible appearance.
 
-**On screenshots:** The black-screen flicker is a transient GPU artifact that occurs between frames — it cannot be captured in a still screenshot, and a screen recording is not a standard PR artifact. However, the compositor behavior change *can* be verified and captured:
-
-- Open DevTools → More Tools → Rendering → enable **Highlight composited layers**
-- Before this patch: `.sidebar` and `.dropdown` show colored layer borders (GPU-promoted)
-- After this patch: those layer borders are absent from both elements
-
-Step 6 above produces this screenshot. The claim that each `backdrop-filter` was invisible is also directly verifiable in the diff: each removed line sits alongside the element's `background` declaration confirming the fill is opaque.
+**On screenshots:** The black-screen flicker is a transient GPU artifact that occurs between frames and cannot be captured in a still screenshot. A before/after UI screenshot is also not meaningful here — the visual output is identical before and after on all platforms, because the removed `backdrop-filter` declarations were applied to opaque elements where the blur was always hidden by the fill color. The correctness of every deletion can be verified directly in the diff: each removed `backdrop-filter` line appears alongside the element's `background` declaration confirming the fill is opaque.
 
 ### Related
 
@@ -165,7 +171,5 @@ platform:
 - The removed `filter: saturate()` animation step (±15%) is imperceptible; the
   opacity + transform animation continues to play identically.
 
-The only behavioral change is a reduction in GPU compositor layer count. This *can* be
-captured: DevTools → Rendering → Highlight composited layers shows `.sidebar` and
-`.dropdown` as promoted layers before the patch and as normal flow elements after. See
-How to Test step 6.
+The only behavioral change is a reduction in GPU compositor layer count and the
+elimination of unnecessary blur sampling on state changes.
