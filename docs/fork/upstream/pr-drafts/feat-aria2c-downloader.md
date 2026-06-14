@@ -38,6 +38,27 @@ has no built-in retry, exposes no structured progress output, and leaves no
 partial files that could be resumed. Fixing any one of them correctly requires
 replacing the downloader itself.
 
+### Scale of the problem
+
+Modern LLMs have grown well beyond what a single-stream download handles
+reliably. Qwen3-235B-A22B is 183 GB across 47 shards. Llama 3.1 70B in
+Q4_K_M is 43 GB. DeepSeek-V2.5 is 133 GB. Users who want the best
+locally-runnable models are transferring files that take 30–90 minutes on
+a fast home connection.
+
+The current `hf download` experience for a 43 GB model:
+
+- Displays a spinner with no progress, no speed, no ETA, and no per-file status
+- Provides no retry mechanism — a single SSL ReadError anywhere in the transfer
+  aborts the entire download
+- Leaves no partial files on disk — every failure restarts from byte 0
+- Gives users no way to know if the download is progressing or has silently stalled
+
+In practice: users either sit watching an unresponsive spinner hoping it hasn't
+frozen, start over after SSL errors and hope the CDN holds this time, or give
+up on models large enough to expose the problem. Issue #2722 has been open since
+2024 with no fix possible under the current downloader architecture.
+
 ### Solution
 
 A tmux-backed aria2c download pipeline with a real-time per-file progress
