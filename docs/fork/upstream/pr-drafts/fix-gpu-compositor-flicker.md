@@ -111,6 +111,7 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-gpu-compositor-
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
 
@@ -149,4 +150,9 @@ Both fixes address the same symptom from different layers; each stands alone.
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+`static/style.css` changed (13 deletions). No visual change on standard desktop — the
+removed `backdrop-filter` declarations were on opaque elements where the blur was hidden
+by the fill color, and the removed `filter: saturate()` animation step (±15%) is
+imperceptible. No before/after screenshot needed; reviewers can verify each deleted line
+against the element's `background` declaration. If upstream asks for evidence of the
+flicker fix, the repro is in the How to Test section above.
