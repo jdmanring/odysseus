@@ -9,7 +9,7 @@ import time as _time
 # OS-level file descriptors (fd 1, fd 2), not Python's sys.stdout/stderr.
 # os.dup2 replaces the OS fds so all child process output lands in our log.
 # ==============================================================================
-LOG_DIR = "/home/james/Projects/odysseus/logs"
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
@@ -50,8 +50,8 @@ from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, pyqtSlot, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 
-INSTALL_DIR = "/home/james/Projects/odysseus"
-VENV_PYTHON = "/home/james/Projects/odysseus/venv/bin/python"
+INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
+VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "bin", "python")
 PORT = os.environ.get("APP_PORT", "7000")
 WINDOW_TITLE = "Odysseus"
 PROFILE_NAME = "odysseus"

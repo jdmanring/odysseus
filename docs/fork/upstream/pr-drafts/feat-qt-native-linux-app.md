@@ -215,16 +215,7 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
 2. The screenshot in the description uses a repo-relative path. Attach the image directly in the GitHub PR text box via drag-and-drop; do not rely on the fork's file paths being visible to upstream reviewers.
 3. Upstream issue #3528 (Windows desktop wrapper) shows the maintainer is receptive to native desktop wrappers. Reference it as a parallel effort in the issue or PR if asked about motivation.
 4. Our fork issue #7 (HF token persistence) overlaps with upstream PR #3459. Monitor; if #3459 merges, verify after next sync whether the issue is fully resolved before filing separately.
-5. **Pre-file: harden hardcoded paths.** `INSTALL_DIR` and `VENV_PYTHON` at the top of
-   `linux_wrapper.py` are hardcoded to an absolute path on the author's machine. Before
-   filing, replace with runtime-derived equivalents:
-   - `INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))`
-   - `VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "bin", "python")`
-   - `LOG_DIR = os.path.join(INSTALL_DIR, "logs")` (currently declared at line 12, before
-     `INSTALL_DIR` exists — move the `LOG_DIR` declaration after `INSTALL_DIR` is set, or
-     derive it inline with `__file__` the same way)
-   These are the only changes blocking upstream submission.
-6. **Port:** `linux_wrapper.py` now reads `APP_PORT` from the environment (`.env` is
+5. **Port:** `linux_wrapper.py` now reads `APP_PORT` from the environment (`.env` is
    loaded automatically), defaulting to `7000` — the project's canonical upstream default
    (`docker-compose.yml`, `src/constants.py`, `launch-windows.ps1`). The previous
    hardcoded `8000` was a development artifact. No reviewer action needed; noted here for
