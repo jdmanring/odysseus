@@ -270,9 +270,31 @@ class OdysseusWindow(QMainWindow):
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)
 
+        # Tracks the last known windowed (non-maximized) geometry so closeEvent
+        # can persist it even when the window is closed while maximized. On Wayland
+        # the compositor does not expose the normal geometry to the application
+        # while maximized, so saveGeometry() at close time captures the maximized
+        # dimensions and destroys the restore target. resizeEvent/moveEvent update
+        # this only while the window is in normal state.
+        self._windowed_geometry = None
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if not self.isMaximized() and not self.isFullScreen():
+            self._windowed_geometry = self.saveGeometry()
+
+    def moveEvent(self, event):
+        super().moveEvent(event)
+        if not self.isMaximized() and not self.isFullScreen():
+            self._windowed_geometry = self.saveGeometry()
+
     def closeEvent(self, event):
         s = QSettings("odysseus", "odysseus")
-        s.setValue("windowGeometry", self.saveGeometry())
+        geom = self._windowed_geometry
+        if geom is None and not self.isMaximized():
+            geom = self.saveGeometry()
+        if geom is not None:
+            s.setValue("windowGeometry", geom)
         s.setValue("windowMaximized", self.isMaximized())
         s.sync()
         self.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.browser))
