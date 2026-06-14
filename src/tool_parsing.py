@@ -447,7 +447,6 @@ def _parse_tool_code_block(raw: str) -> Optional[ToolBlock]:
     return None
 
 
-<<<<<<< HEAD
 def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
     """Parse a <tool_code>func(kwarg=val, ...)</tool_code> block (Google Gemma style)."""
     try:
@@ -493,7 +492,8 @@ def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
         return ToolBlock("web_search", q) if q else None
 
     return None
-=======
+
+
 def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
     """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat style).
 
@@ -548,7 +548,6 @@ def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
 
     first_val = next(iter(args.values()), "")
     return ToolBlock(tool_type, first_val) if first_val else None
->>>>>>> 5f331ed (fix(tool_parsing): parse and strip <longcat_tool_call> blocks; register LongCat model)
 
 
 def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
@@ -668,12 +667,8 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = text if skip_fenced else _TOOL_BLOCK_RE.sub('', text)
     cleaned = _TOOL_CALL_RE.sub('', cleaned)
     cleaned = _XML_TOOL_CALL_RE.sub('', cleaned)
-<<<<<<< HEAD
     cleaned = _TOOL_CODE_ANY_RE.sub('', cleaned)  # strips MiniMax {tool=>} and Gemma func() formats
-=======
-    cleaned = _TOOL_CODE_RE.sub('', cleaned)
     cleaned = re.sub(r'<longcat_tool_call>[\s\S]*?</longcat_tool_call>', '', cleaned, flags=re.IGNORECASE)
->>>>>>> 5f331ed (fix(tool_parsing): parse and strip <longcat_tool_call> blocks; register LongCat model)
     # Strip bare <invoke> blocks not wrapped in <tool_call>
     cleaned = re.sub(r'<invoke\s+name=["\'].*?</invoke>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
     cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
