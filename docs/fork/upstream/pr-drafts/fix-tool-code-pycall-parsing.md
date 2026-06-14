@@ -1,4 +1,4 @@
-# fix(tool_parsing): parse and strip <tool_code> Python-call format
+# fix(tool_parsing): parse and strip <tool_code> Python-call format (Google Gemma)
 
 **Branch:** `fix/tool-code-pycall-parsing`
 **Type:** Bug fix
@@ -6,9 +6,42 @@
 
 ## Summary
 
+### Problem
+
 Google Gemma models emit tool calls as Python function-call syntax inside `<tool_code>`
-tags. The existing parser only handled MiniMax's `{tool => ...}` form, so Gemma-style
-calls were neither executed nor stripped — leaking raw XML into the chat.
+tags:
+
+```xml
+<tool_code>bash(command="gh repo list --limit 10")</tool_code>
+```
+
+The existing `<tool_code>` handler in `parse_tool_blocks()` only recognised MiniMax's
+`{tool => 'name', args => '...'}` format. Gemma-style Python-call blocks were neither
+executed nor stripped from the response — the raw `<tool_code>...</tool_code>` XML
+appeared verbatim in the chat as if it were plain text.
+
+### Who is affected
+
+**Every user running a Google Gemma model via Odysseus** who tries to use tools. This
+is not an edge case: Gemma is Google's openly-available model family with tens of
+millions of downloads on HuggingFace. It is among the most commonly self-hosted models.
+Users trying agentic tasks with Gemma see what appears to be a broken model — the model
+"knows" to call a tool (the `<tool_code>` block appears), but nothing happens. The raw
+XML is then visible in the chat as response text, making it look like an error or a
+template rendering bug.
+
+The failure is also silent from the agent loop's perspective: no exception is raised,
+no tool budget is consumed, no error appears in logs. The model simply does not act.
+
+### Why `_TOOL_CODE_ANY_RE` matters beyond Gemma
+
+The PR also changes `strip_tool_blocks()` to use `_TOOL_CODE_ANY_RE` (matches any
+`<tool_code>` block regardless of inner format) instead of the narrower `_TOOL_CODE_RE`.
+The existing docstring states: "that markup should never reach the user regardless of
+whether it converted to a tool call." The old regex honoured this for the MiniMax format
+only; an unrecognised `<tool_code>` inner format would still leak. `_TOOL_CODE_ANY_RE`
+makes the guarantee universal — any `<tool_code>` block that does not parse into a
+recognised tool is stripped rather than displayed.
 
 ## Target branch
 

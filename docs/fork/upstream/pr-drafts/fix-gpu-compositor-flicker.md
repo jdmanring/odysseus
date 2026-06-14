@@ -133,6 +133,7 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-gpu-compositor-
 3. Open and close the Downloads dropdown — confirm no flicker.
 4. Open Settings, then the Providers modal — confirm no flicker on open or close.
 5. Navigate to the Cookbook and open it — confirm the open animation (opacity + scale) plays cleanly with no one-frame flash at the end.
+6. Open DevTools → More Tools → Rendering → enable "Highlight composited layers" — confirm the sidebar and dropdown are **not** highlighted as separate compositor layers.
 
 Tested on: Artix Linux, Wayland, NVIDIA open drivers, QtWebEngine. On standard desktop Chrome/Firefox there is no visual change — the `backdrop-filter` removal only affects GPU layer behavior, not the visible appearance.
 

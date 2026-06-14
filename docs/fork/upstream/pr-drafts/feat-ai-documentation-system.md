@@ -15,10 +15,42 @@
 ## Summary
 ### Problem
 
-Odysseus has no structured documentation for contributors or AI agents trying
-to understand the codebase. Critical behaviors are implicit and discovered
-only by reading source code or through trial and error. There is also no
-standard way for AI coding assistants to orient themselves to the project.
+Odysseus has no structured documentation for contributors or AI coding assistants. This
+has compounding effects on contribution quality and on the value of AI tooling for
+anyone working on the codebase.
+
+### Why the absence of documentation is a compounding problem
+
+**AI coding assistants are actively degraded.** Claude Code, GitHub Copilot, Cursor,
+and similar tools derive their understanding of a project from what they can read in the
+repository. When no documentation exists, these tools reverse-engineer the codebase from
+source on every session. They get architectural decisions wrong, misidentify which file
+owns which responsibility, and produce suggestions that conflict with established
+patterns. The result is that AI-assisted contributions to Odysseus introduce more bugs
+than they would in a well-documented project.
+
+**`docs/ai/non-obvious-behaviors.md` is particularly valuable.** This file documents
+the sharp edges that cause incorrect contributions even from experienced developers who
+have read the source code: DOM virtualizer invariants that break if violated, the exact
+format string `aria2c` expects, tmux terminal width truncation that causes parsing bugs,
+Anthropic tool result placement requirements that differ from OpenAI, and QWebEngineView
+API gaps that break features ported from standard browser environments. These behaviors
+are invisible from the source code alone — they are discovered only by breaking
+something in production. The documentation prevents them proactively.
+
+**Human contributor onboarding is undocumented.** There is no standard path from "I
+cloned the repo" to "I understand the architecture and can contribute safely." Critical
+context — how the request/response flow works, which subsystems own which files, where
+secrets live, how settings are structured — exists only in the heads of people who have
+read the full codebase. The `docs/project/architecture.md` and feature reference files
+in this PR capture that context permanently.
+
+**The hub-and-spoke model is designed for AI agent precision.** `AI.md` at the repo
+root is a single entrypoint that any AI tool reads first. It points to `CONTEXT.md`
+(architecture) and `RULES.md` (contribution constraints). From those two files, an AI
+agent has a complete mental model without reading 200+ source files. This structure
+works identically for Claude Code, Copilot Chat, Cursor, and any future tool — it is
+not platform-specific.
 
 ### Solution
 

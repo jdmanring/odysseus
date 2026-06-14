@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Agent] agent_max_tool_calls defaults to 0 — agent mode non-functional out of the box`
+`[Agent] agent_max_tool_calls defaults to 0 — no tool call budget on fresh installs`
 
 ---
 
@@ -21,14 +21,25 @@
 
 **Steps to Reproduce:**
 1. Fresh install — do not change `data/settings.json` or any agent settings.
-2. Open the agent interface and send a prompt that requires tool use (e.g. "search the web for recent news about X" or "read my notes about Y").
-3. Observe the agent response.
+2. Open the agent interface and send a complex prompt designed to trigger many tool calls (e.g. "research X thoroughly and summarise the latest findings").
+3. Observe the agent.
 
-**Expected:** The agent executes tool calls and completes the task.
+**Expected:** The agent runs tool calls up to a sensible cap, then stops cleanly.
 
-**Actual:** The agent executes zero tool calls and cannot complete any tool-dependent task. `agent_max_tool_calls` in `src/settings.py` defaults to `0`, which the agent loop interprets as a hard ceiling of zero tool calls per round.
+**Actual:** The agent runs unlimited tool calls with no cap. The budget check in `chat_routes.py` is:
+```python
+_tool_budget = int(get_setting("agent_max_tool_calls", 0))
+```
+and in `agent_loop.py`:
+```python
+if max_tool_calls > 0 and total_tool_calls >= max_tool_calls:
+```
+When `agent_max_tool_calls` is `0`, the condition `max_tool_calls > 0` is False and the check never fires. **`0` means unlimited.** A stuck or runaway agent can make hundreds of API calls in a single session with nothing to stop it.
 
-**Logs / Error Output:**
-No error is logged. The cap is silently enforced — the agent simply does not call any tools.
+**Additional context:**
 
-**Additional context:** The `0` value appears to be intended as a sentinel meaning "no limit," consistent with how `agent_timeout_secs` uses `0` to mean "no timeout." However, the agent loop implements `agent_max_tool_calls` as a literal ceiling. A value of `0` means no tool calls are permitted. The setting is only functional for users who have already explicitly changed it from the default — which new users have no reason to do, since the default is not documented as "requires manual configuration before agent mode works."
+The Settings UI displays `0` next to "Max tool calls," which users reasonably read as "zero calls allowed — tool use disabled." This causes confusion: users set it to a positive number thinking they are enabling tool use, when they are actually imposing a cap that did not previously exist.
+
+The companion setting `agent_max_rounds` defaults to `20`, giving each conversation a sensible round limit. `agent_max_tool_calls` at `0` (unlimited) is inconsistent with this: rounds are capped but tool calls within each round are not, leaving the door open for significant runaway cost in multi-tool-call-per-round scenarios.
+
+**Suggested fix:** Default to `20` to match `agent_max_rounds`, make both budgets consistent, and prevent unbounded tool call accumulation on fresh installs.
