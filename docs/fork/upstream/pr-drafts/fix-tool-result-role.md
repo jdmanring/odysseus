@@ -3,6 +3,7 @@
 **Fork issue:** [#4](https://github.com/jdmanring/odysseus/issues/4)
 **Branch:** `fix/tool-result-role` (from `upstream-mirror`)
 **Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Status:** Ready to file
 
 ---
 

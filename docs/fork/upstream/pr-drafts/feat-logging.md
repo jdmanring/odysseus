@@ -147,6 +147,6 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/feat-logging-core.m
 
 ## Filing Notes
 
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-logging-core.md`. Add the issue number to `Fixes #` above before opening the PR.
+- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-logging.md`. Add the issue number to `Fixes #` above before opening the PR.
 - Reference upstream #3803 in the PR summary as the hardening audit that identified the PII and audit logging gaps. Note this PR does not address all items in #3803.
 - Branch: `jdmanring/odysseus:feat/logging` (previously split into feat/logging-core and feat/logging-timing — combined here because callsites are untestable without the infrastructure).

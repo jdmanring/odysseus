@@ -3,6 +3,7 @@
 **Fork issue:** [#32](https://github.com/jdmanring/odysseus/issues/32)
 **Branch:** `fix/gpu-compositor-flicker` (from `upstream-mirror`)
 **Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Status:** Ready to file
 
 ---
 

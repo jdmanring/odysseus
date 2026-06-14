@@ -3,6 +3,7 @@
 **Fork issues:** [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29)
 **Branch:** `fix/gguf-quality-scored` (from `upstream-mirror`)
 **Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Status:** Ready to file
 
 ---
 
