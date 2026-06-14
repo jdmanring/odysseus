@@ -43,9 +43,9 @@ The cost is measurable on every platform:
 - **Compositor layer promotion** holds a GPU texture allocation for the element
   for as long as `backdrop-filter` is declared, even when the element is hidden
   or has no visible blur effect.
-- **Layer invalidation** on hover or visibility change re-runs the blur sample
-  and composite cycle. For elements like `.sidebar` that change on every
-  sidebar item hover, this fires on every mouse movement across the sidebar.
+- **Layer invalidation** on hover enter/exit or visibility change re-runs the blur
+  sample and composite cycle. For `.sidebar` items that each carry their own hover
+  state, entering and leaving each row fires a separate invalidation cycle.
 - **On devices with unified memory** (mobile SoCs, ARM chips, Intel integrated
   graphics, most laptops): GPU VRAM and system RAM are the same physical pool.
   Each compositor layer promotion directly reduces the memory available to the rest
@@ -72,9 +72,9 @@ The cost is measurable on every platform:
 | `.sidebar` | `blur(10px)` | `background: var(--panel)` — fully opaque |
 | `.dropdown` | `blur(12px)` | Solid panel background |
 | Import notification banner | `blur(12px)` | Solid panel background |
-| `#styled-confirm-overlay` | `blur(4px)` | `rgba(0,0,0,0.5)` — 4 px blur through 50% black is imperceptible |
+| `#styled-confirm-overlay` | `blur(4px)` | `rgba(0,0,0,0.5)` — 4 px blur at 50% opacity contributes minimal perceived sharpness; the overlay's decorative dimming is the visual intent |
 | `#styled-prompt-overlay` | `blur(4px)` | Same |
-| Recording indicator (×2) | `blur(10px)` | `rgba(0,0,0,0.8)` — blur invisible at 80% opacity |
+| Recording indicator (×2) | `blur(10px)` | `rgba(0,0,0,0.8)` — blur effectively invisible at 80% fill opacity; 20% transparency leaves insufficient contrast for the effect to be detectable |
 | `.search-overlay` | `blur(6px)` | `rgba(0,0,0,0.6)` |
 | `.popper-dropdown` | `blur(12px)` | Solid panel background |
 | `.doc-suggestion-banner` | `blur(12px)` | Solid panel background |

@@ -116,10 +116,11 @@ Appended at the end of the file, after all 17 existing per-component
 ```
 
 The existing per-component rules use class selectors (specificity 0-1-0), which
-override the universal selector (specificity 0-0-0) even with `!important` at equal
-specificity level — so existing `animation: none !important` blocks continue to apply
-correctly. The global catches the ~130 `@keyframe` animations and hundreds of
-transitions that had no reduced-motion handling.
+outrank the universal selector (specificity 0-0-0). When both rules carry `!important`,
+specificity still applies within the `!important` tier — so the existing
+`animation: none !important` class-selector blocks (0-1-0) continue to win over this
+universal rule (0-0-0), and their behavior is unchanged. The global catches the
+remaining animations and transitions that had no reduced-motion handling.
 
 `0.01ms` rather than `0` preserves delivery of `animationend` and `transitionend` JS
 events (browsers may skip these for `duration: 0`).
