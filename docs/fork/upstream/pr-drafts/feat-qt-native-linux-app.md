@@ -25,7 +25,7 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
 
 ### New files
 
-**`linux_wrapper.py`** — PyQt6 application entry point:
+**`linux_wrapper.py`**: PyQt6 application entry point:
 
 - **Server lifecycle:** spawns `uvicorn app:app` as a subprocess on startup,
   kills it on window close. Waits up to 30 s for the server to become ready
@@ -48,13 +48,13 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   features that require a native dialog.
 - **GPU flags:** sets `QTWEBENGINE_CHROMIUM_FLAGS` and
   `QTWEBENGINE_FORCE_USE_GBM` before importing Qt. Flags enabled:
-  `--enable-gpu-rasterization` (GPU tile rasterisation — safe on NVIDIA Linux),
+  `--enable-gpu-rasterization` (GPU tile rasterisation; safe on NVIDIA Linux),
   `WebGPU`, `SharedArrayBuffer`, `--enable-logging=stderr`,
   `--remote-debugging-port=9222` (Chrome DevTools at `http://localhost:9222`
   for GPU compositor layer inspection). Flags explicitly absent: `DefaultANGLEVulkan`
-  (forces ANGLE to Vulkan — documented to cause blank/invisible windows on
+  (forces ANGLE to Vulkan; documented to cause blank/invisible windows on
   ozone/Wayland, Chromium bug 334275637) and `--enable-zero-copy` (requires
-  GBM buffer allocation, which NVIDIA drivers on Linux generally don't support — Qt
+  GBM buffer allocation, which NVIDIA drivers on Linux generally don't support; Qt
   WebEngine 6.6 release notes; was a no-op and a source of texture-sharing
   failures). `QTWEBENGINE_FORCE_USE_GBM=0` guards against a Qt 6.9+ regression
   (qutebrowser #8535) where Qt incorrectly forces GBM on drivers that don't
@@ -63,20 +63,20 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   `logs/wrapper_system.log` before Qt is imported so all renderer subprocess
   output is captured.
 
-**`build-linux-app.sh`** — dependency installation and launch script. Installs
+**`build-linux-app.sh`**: dependency installation and launch script. Installs
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` into the project venv, then
 launches `linux_wrapper.py`.
 
-**`static/js/qt-bridge.js`** — injected into `QWebEngineView` at startup via
+**`static/js/qt-bridge.js`**: injected into `QWebEngineView` at startup via
 `QWebEngineScript`. Initialises `QWebChannel` and makes `window.qtBridge`
 available to the rest of the JS codebase.
 
 ### Modified files
 
-**`static/index.html`** — injects `qt-bridge.js` as a `<script>` tag so the
+**`static/index.html`**: injects `qt-bridge.js` as a `<script>` tag so the
 bridge initialises before any ES module code runs.
 
-**`static/js/colorPicker.js`** — the Web EyeDropper API is unavailable inside
+**`static/js/colorPicker.js`**: the Web EyeDropper API is unavailable inside
 `QWebEngineView` (no OS-level pixel picker), leaving the eyedropper button
 permanently disabled with "not supported in this browser". When
 `window.__QT_WRAPPER__` is set, the eyedropper click instead calls
@@ -109,7 +109,7 @@ meaningful install cost.
 PyQt6-WebEngine also uses a Chromium-based rendering engine (Qt WebEngine), so
 there is no capability gap between the two approaches. The difference is that on
 Linux, PyQt6-WebEngine can use the Qt WebEngine packages available from the
-distribution's package manager — no bundled browser binary needed. The
+distribution's package manager; no bundled browser binary needed. The
 community wrapper in discussion #3609 works correctly but requires an
 `npm install electron` path that adds this runtime overhead.
 
@@ -130,7 +130,7 @@ Two reasons Tauri is not the right choice today:
 
 2. **Toolchain**: Odysseus has no Rust code and no Rust toolchain. Adding Tauri
    means adding a full Rust build environment as a mandatory dependency for a
-   desktop wrapper. PyQt6 is a native Python binding — no new toolchain required.
+   desktop wrapper. PyQt6 is a native Python binding; no new toolchain required.
 
 When the React migration described in #605 is complete, revisiting Tauri may be
 the right call. This PR does not conflict with that path; `linux_wrapper.py` is
@@ -162,7 +162,7 @@ browser installs.
 ### Dependencies
 
 PyQt6, PyQt6-WebEngine. Installed by `build-linux-app.sh` into the existing
-venv — not added to `requirements.txt` (optional desktop feature, not needed
+venv; not added to `requirements.txt` (optional desktop feature, not needed
 for server installs or Docker).
 
 ## Target branch
@@ -175,8 +175,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Type of Change
 
-- [ ] Bug fix (non-breaking — fixes a confirmed issue)
-- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Bug fix (non-breaking, fixes a confirmed issue)
+- [x] New feature (non-breaking, adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -184,21 +184,21 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 
 ### How to Test
 
 **Prerequisites:** Linux with PyQt6 and PyQt6-WebEngine available (or run `bash build-linux-app.sh` to install).
 
-1. Run the wrapper: `bash build-linux-app.sh` — confirm it launches a native desktop window showing the Odysseus UI.
+1. Run the wrapper: `bash build-linux-app.sh`: confirm it launches a native desktop window showing the Odysseus UI.
 2. Log in; confirm login state persists after closing and re-opening the app (session stored in `~/.local/share/odysseus/webengine/`).
-3. Click an external URL in an AI response — confirm it opens in the system browser, not inside the wrapper window.
-4. Open Settings → Appearance → Theme and use the color picker — confirm the native Qt color dialog opens (not the browser eyedropper which is unsupported in QWebEngineView).
-5. Open the sidebar, hover over items, open a dropdown, and open the Cookbook — confirm no black-screen flicker on any of these actions.
-6. Chrome DevTools: navigate to `http://localhost:9222` in a regular browser — confirm the remote debugging endpoint is accessible.
+3. Click an external URL in an AI response; confirm it opens in the system browser, not inside the wrapper window.
+4. Open Settings → Appearance → Theme and use the color picker; confirm the native Qt color dialog opens (not the browser eyedropper which is unsupported in QWebEngineView).
+5. Open the sidebar, hover over items, open a dropdown, and open the Cookbook; confirm no black-screen flicker on any of these actions.
+6. Chrome DevTools: navigate to `http://localhost:9222` in a regular browser; confirm the remote debugging endpoint is accessible.
 7. Confirm standard features work: chat, session switching, model switching, Cookbook, Downloads, Settings.
 
 Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Windows, touchscreen/tablet.
@@ -210,16 +210,16 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
 
 ## Filing Notes
 
-1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-qt-native-linux-app.md`. Add the issue number to `Fixes #` above before opening the PR.
-2. The screenshot in the description uses a repo-relative path. Attach the image directly in the GitHub PR text box via drag-and-drop — do not rely on the fork's file paths being visible to upstream reviewers.
+1. **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-qt-native-linux-app.md`. Add the issue number to `Fixes #` above before opening the PR.
+2. The screenshot in the description uses a repo-relative path. Attach the image directly in the GitHub PR text box via drag-and-drop; do not rely on the fork's file paths being visible to upstream reviewers.
 3. Upstream issue #3528 (Windows desktop wrapper) shows the maintainer is receptive to native desktop wrappers. Reference it as a parallel effort in the issue or PR if asked about motivation.
-4. Our fork issue #7 (HF token persistence) overlaps with upstream PR #3459. Monitor — if #3459 merges, verify after next sync whether the issue is fully resolved before filing separately.
+4. Our fork issue #7 (HF token persistence) overlaps with upstream PR #3459. Monitor; if #3459 merges, verify after next sync whether the issue is fully resolved before filing separately.
 
-## Visual / UI changes — REQUIRED if you touched anything that renders
+## Visual / UI changes; REQUIRED if you touched anything that renders
 
 - [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
 - [x] Style match: the change uses Odysseus's existing visual language (existing CSS variables, button/card classes, no Unicode emoji, Fira Code font, dark-mode-first).
-- [x] No new component patterns — extended an existing widget rather than adding a parallel one.
+- [x] No new component patterns; extended an existing widget rather than adding a parallel one.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### Screenshots / clips

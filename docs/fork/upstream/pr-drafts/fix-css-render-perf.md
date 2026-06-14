@@ -9,7 +9,7 @@
 
 ## Proposed title
 
-`fix(css): render performance pass — containment, will-change cleanup, reduced-motion, touch improvements`
+`fix(css): render performance pass; containment, will-change cleanup, reduced-motion, touch improvements`
 
 ---
 
@@ -26,12 +26,12 @@ No visual changes for desktop users who don't have reduce-motion enabled.
 Removed `will-change` from three elements where it was permanently allocated rather
 than applied at the point of an animation:
 
-- `.chat-input-top > .model-picker-wrap` — always-visible element; `will-change:
+- `.chat-input-top > .model-picker-wrap`: always-visible element; `will-change:
   opacity, transform` was maintaining a permanent GPU compositor layer for a dropdown
   that only animates on autohide (which most users never trigger).
-- `.doc-line-number-content` — static text nodes; `will-change: transform` was
+- `.doc-line-number-content`: static text nodes; `will-change: transform` was
   pre-allocating a GPU layer for every line-number row in the document editor.
-- `#email-lib-modal .email-lib-fab` — the FAB has a 420ms expand transition, but
+- `#email-lib-modal .email-lib-fab`: the FAB has a 420ms expand transition, but
   `will-change: padding, transform` was set on the element permanently rather than
   only during the transition. The animation continues to work without it.
 
@@ -43,14 +43,14 @@ layer count without changing any visual behavior.
 
 Added `contain` to the three highest-churn containers:
 
-- `.sidebar { contain: content }` — scopes style recalculation caused by hover
+- `.sidebar { contain: content }`: scopes style recalculation caused by hover
   states and session navigation to the sidebar subtree. Safe: `.sidebar` already has
   `overflow: hidden`.
-- `.chat-history { contain: content }` — the most impactful addition. Every
+- `.chat-history { contain: content }`: the most impactful addition. Every
   `addMessage()` DOM append currently triggers a full-document style pass. With
   `contain: content` the pass is scoped to `.chat-history`. Safe: `overflow-y: auto`
   container with no absolutely-positioned children that escape it.
-- `.modal-content { contain: layout style }` — conservative variant (not `paint`)
+- `.modal-content { contain: layout style }`: conservative variant (not `paint`)
   because provider picker menus inside the Settings modal may visually overflow the
   modal boundary. Scopes the modal's internal layout from affecting the surrounding
   page without introducing new clipping.
@@ -74,22 +74,22 @@ immediate on phone and tablet rather than delayed by 300ms.
 
 On touch devices, tapping an element fires a synthetic hover event that persists until
 the user taps elsewhere. This left buttons, badges, and calendar blocks permanently
-brightened after a tap — a sticky-hover bug. The `(pointer: fine)` condition also
+brightened after a tap; a sticky-hover bug. The `(pointer: fine)` condition also
 excludes Samsung devices that falsely report `hover: hover`.
 
 Strategy per element:
 - **Accent/primary buttons** (`.confirm-btn-primary`, `.cmp-btn-primary`, `.doc-
-  suggestion-accept`, `#group-model-picker .btn-primary`) — filter kept inside the
+  suggestion-accept`, `#group-model-picker .btn-primary`); filter kept inside the
   wrapper (hover brightening is semantically correct for solid-color buttons); an
   `:active { opacity: 0.85; }` rule added outside for touch press feedback.
 - **Other interactive elements** (`.thumb.thumb-image button`, `.task-status-badge`,
-  `.cookbook-dep-installed-btn`, `.email-lib-unread-badge`) — `filter: brightness`
+  `.cookbook-dep-installed-btn`, `.email-lib-unread-badge`); `filter: brightness`
   replaced with `opacity: 0.88` (no compositor layer promotion); `:active { opacity:
   0.85; }` added outside the wrapper.
 - **`:active` states** (`#email-lib-modal .email-lib-fab:active`,
-  `.cmp-btn-primary:active`) — these are already touch-correct (`:active` fires
+  `.cmp-btn-primary:active`); these are already touch-correct (`:active` fires
   correctly on touch); `filter: brightness` replaced with `opacity` directly.
-- **`.cal-wk-block:hover`** — `filter: brightness(1.05)` dropped entirely (1.05 is a
+- **`.cal-wk-block:hover`**: `filter: brightness(1.05)` dropped entirely (1.05 is a
   <2% change, imperceptible); `transform: translateY(-0.5px)` kept and wrapped;
   transition updated from `filter 0.12s, transform 0.12s` to `transform 0.12s,
   opacity 0.12s`.
@@ -117,7 +117,7 @@ Appended at the end of the file, after all 17 existing per-component
 
 The existing per-component rules use class selectors (specificity 0-1-0), which
 outrank the universal selector (specificity 0-0-0). When both rules carry `!important`,
-specificity still applies within the `!important` tier — so the existing
+specificity still applies within the `!important` tier; so the existing
 `animation: none !important` class-selector blocks (0-1-0) continue to win over this
 universal rule (0-0-0), and their behavior is unchanged. The global catches the
 remaining animations and transitions that had no reduced-motion handling.
@@ -134,13 +134,13 @@ users who enable these accessibility modes.
 
 The ROADMAP lists two items this PR directly addresses:
 
-1. **"CSS cleanup. `static/style.css` basically Calypso's island atm."** — The
+1. **"CSS cleanup. `static/style.css` basically Calypso's island atm."**: The
    `will-change` removals, containment additions, and hover-guard refactor are
    exactly this: removing unnecessary declarations and tightening scope without
    changing visible behavior.
 
 2. **"Accessibility pass: keyboard navigation, focus states, contrast, reduced
-   motion."** — The global `prefers-reduced-motion` catch-all fills the gap left
+   motion."**: The global `prefers-reduced-motion` catch-all fills the gap left
    by the existing 17 per-component blocks, which cover known animations but not
    the ~130 unnamed `@keyframe` animations and hundreds of undeclared transitions.
    Issue #1857 ("Disable animations," closed) raised this exact concern —
@@ -154,12 +154,12 @@ The ROADMAP lists two items this PR directly addresses:
 
 ## Linked Issue
 
-Fixes # <!-- [file upstream issue first — see issue-drafts/fix-css-render-perf.md] -->
+Fixes # <!-- [file upstream issue first; see issue-drafts/fix-css-render-perf.md] -->
 
 ## Type of Change
 
-- [x] Bug fix (non-breaking — fixes a confirmed issue)
-- [ ] New feature (non-breaking — adds new behaviour)
+- [x] Bug fix (non-breaking, fixes a confirmed issue)
+- [ ] New feature (non-breaking, adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -167,41 +167,41 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-css-render-perf
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
 
-1. Start the app and confirm no visual regression on standard desktop use — chat, sidebar, settings, dropdowns all look correct.
-2. Hover over sidebar session entries and items — confirm transitions still animate smoothly (no regression from `contain: content` on `.sidebar`).
-3. Open a long session, scroll to the bottom, send a new message — confirm no layout jump and the page scrolls to the new message correctly.
-4. Open Settings → Providers modal — confirm the provider dropdown menu is not clipped or hidden (validating `contain: layout style` on `.modal-content`).
-5. Enable OS "Reduce Motion" (System Settings → Accessibility on Linux, macOS, or Windows) and reload the app — confirm all animations and transitions become near-instant.
-6. Open DevTools → Rendering → "Highlight Composited Layers" — confirm compositor layer count is lower than before (the three permanent `will-change` allocations are gone).
-7. On Android/Chrome (optional): tap sidebar items — confirm no stuck hover state (item should not stay brightened after the tap).
+1. Start the app and confirm no visual regression on standard desktop use; chat, sidebar, settings, dropdowns all look correct.
+2. Hover over sidebar session entries and items; confirm transitions still animate smoothly (no regression from `contain: content` on `.sidebar`).
+3. Open a long session, scroll to the bottom, send a new message; confirm no layout jump and the page scrolls to the new message correctly.
+4. Open Settings → Providers modal; confirm the provider dropdown menu is not clipped or hidden (validating `contain: layout style` on `.modal-content`).
+5. Enable OS "Reduce Motion" (System Settings → Accessibility on Linux, macOS, or Windows) and reload the app; confirm all animations and transitions become near-instant.
+6. Open DevTools → Rendering → "Highlight Composited Layers"; confirm compositor layer count is lower than before (the three permanent `will-change` allocations are gone).
+7. On Android/Chrome (optional): tap sidebar items; confirm no stuck hover state (item should not stay brightened after the tap).
 
-Tested on: Linux desktop. No visual change visible on standard desktop. No screenshots required — all changes are either invisible or activate only for touch/reduced-motion users.
+Tested on: Linux desktop. No visual change visible on standard desktop. No screenshots required; all changes are either invisible or activate only for touch/reduced-motion users.
 
 ### Files changed
 
-- `static/style.css` — 53 insertions, 24 deletions (no other files)
+- `static/style.css`: 53 insertions, 24 deletions (no other files)
 
 ---
 
 ## Filing Notes
 
-1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-css-render-perf.md`. Add the issue number to `Fixes #` above before opening the PR.
+1. **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/fix-css-render-perf.md`. Add the issue number to `Fixes #` above before opening the PR.
 2. Target branch: `dev` (not `main`).
 3. The PR is CSS-only; no Python, JS, or HTML changes.
-4. The `fix/gpu-compositor-flicker` branch is a related but separate PR — that one removes `backdrop-filter` and bad Chromium flags. This is the follow-on CSS efficiency pass. They can be reviewed independently.
+4. The `fix/gpu-compositor-flicker` branch is a related but separate PR; that one removes `backdrop-filter` and bad Chromium flags. This is the follow-on CSS efficiency pass. They can be reviewed independently.
 
 ## Visual / UI changes
 
 `static/style.css` changed (53 insertions, 24 deletions). No visual change visible on
-standard desktop — `will-change` removals and CSS containment additions affect compositor
+standard desktop; `will-change` removals and CSS containment additions affect compositor
 behavior only; hover-guard changes activate only for touch users; `prefers-reduced-motion`
 block activates only when the OS setting is enabled. No screenshot needed for this PR;
 all effects are either invisible or require specific hardware/settings to observe.

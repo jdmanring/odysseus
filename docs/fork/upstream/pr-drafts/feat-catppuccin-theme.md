@@ -36,17 +36,17 @@ The foreground column shows the gap: every dark theme in the blue-family backgro
 group (dark, midnight, retrowave, cyberpunk, ocean) uses either a fully desaturated
 near-white (midnight, S17%), an electric/highly-saturated hue (dark S77% cyan, ocean
 S100% blue, cyberpunk S98% electric-cyan), or a contrasting non-blue color (retrowave
-hot-pink). None uses a **blue-purple tinted white at moderate saturation** — Catppuccin's
+hot-pink). None uses a **blue-purple tinted white at moderate saturation**: Catppuccin's
 H226/S64%/L88% is a specific perceptual position not occupied by any existing theme.
 
 The accent column shows the same gap: the only purple/violet accent in the dark themes
 is cyberpunk's H291/S96% neon magenta. Catppuccin's H258/S54% mauve is a soft purple —
-the same hue family, 42 percentage points lower saturation — which behaves completely
+the same hue family, 42 percentage points lower saturation; which behaves completely
 differently in practice (readable alongside text, not attention-grabbing neon).
 
 That is the niche Catppuccin's [design
 philosophy](https://github.com/catppuccin/catppuccin) describes: "not too dull,
-not too bright" — colourful enough to carry distinct hues in foreground and accent
+not too bright"; colourful enough to carry distinct hues in foreground and accent
 without reaching electric saturation levels. No existing theme occupies this
 combination of blue-family background, lavender-tinted foreground, and soft-purple accent.
 
@@ -59,7 +59,7 @@ The Catppuccin README states three design principles
 
 > "Colorful is better than colorless: the colorfulness of something contributes to the distinction amongst the parts of that *something*, making it marginally easier to understand how things are structured."
 
-The palette targets "the middle ground between low and high-contrast themes." The requirement to perform across bright offices and dim environments drives a specific contrast decision — one that shows up in the numbers.
+The palette targets "the middle ground between low and high-contrast themes." The requirement to perform across bright offices and dim environments drives a specific contrast decision; one that shows up in the numbers.
 
 **Contrast ratios across all Odysseus dark themes**
 
@@ -87,7 +87,7 @@ in `static/js/theme.js`:
 | `retrowave` | `#1a1a2e` | `#e94560` | 4.46:1 | AA (large text only) |
 
 Catppuccin's 11.34:1 ratio is comfortably above WCAG AAA while staying well below
-the near-maximum achromatic themes — exactly where its design documentation puts it.
+the near-maximum achromatic themes; exactly where its design documentation puts it.
 
 **Halation**
 
@@ -109,8 +109,8 @@ halation by keeping pupils constricted, producing smaller pupil apertures and sh
 retinal images. In dark themes, reducing contrast from near-21:1 toward 10–12:1 reduces halation while
 staying well above WCAG AAA (source: [astigmatismofit.com/blog/dark-mode-vs-light-mode-astigmatism](https://www.astigmatismofit.com/blog/dark-mode-vs-light-mode-astigmatism)).
 
-Six existing Odysseus dark themes sit at 12:1 or above — organs (15.76:1), terminal
-(15.38:1), cyberpunk (14:1), claude (13.78:1), gpt (13.63:1), midnight (12.26:1) — and
+Six existing Odysseus dark themes sit at 12:1 or above; organs (15.76:1), terminal
+(15.38:1), cyberpunk (14:1), claude (13.78:1), gpt (13.63:1), midnight (12.26:1); and
 four of those use achromatic or near-achromatic foregrounds (`gpt`, `claude`, `midnight`,
 `organs`) where the halation risk from near-maximum contrast is highest. Catppuccin at
 11.34:1 sits in a deliberately calibrated range: well above the AAA floor, substantially
@@ -128,19 +128,19 @@ DOI: [10.1002/col.22839](https://doi.org/10.1002/col.22839); open-access related
 [pmc.ncbi.nlm.nih.gov/articles/PMC9855288/](https://pmc.ncbi.nlm.nih.gov/articles/PMC9855288/)).
 
 The effect is strongest in blue-violet hues (around 270° on the hue wheel). Catppuccin's
-foreground `#cdd6f4` sits at H226 (blue-violet) with S64% saturation — precisely the
+foreground `#cdd6f4` sits at H226 (blue-violet) with S64% saturation; precisely the
 region where chromatic brightness enhancement is greatest. A neutral grey with equal
 luminance would require a *higher* measured luminance to appear as subjectively bright.
 
 Catppuccin's 11.34:1 measured ratio therefore understates its effective perceptual
 contrast. The lavender-white foreground reads as subjectively brighter than the number
-predicts — which is why the palette can sit at 11.34:1 rather than 13–14:1 and still
+predicts; which is why the palette can sit at 11.34:1 rather than 13–14:1 and still
 feel as readable. It is also why Catppuccin describes the palette as "eye-candy": the
 chroma is doing real perceptual work, not just decorating.
 
 **Environmental suitability: bright offices and dim locations**
 
-Catppuccin's explicit design requirement — "suitability under various light conditions" —
+Catppuccin's explicit design requirement; "suitability under various light conditions" —
 maps to two distinct ergonomic scenarios:
 
 **Bright ambient environment (office lighting):** In bright rooms, a dark-theme display
@@ -153,7 +153,7 @@ legibility.
 
 **Dim ambient environment (home use, low-light working):** In dark rooms, pupils dilate
 maximally. This is the worst-case scenario for halation. Near-maximum contrast themes
-(15:1+) produce the strongest halation artifact in exactly this environment — maximally
+(15:1+) produce the strongest halation artifact in exactly this environment; maximally
 dilated pupils with maximally bright foreground text. Catppuccin's 11.34:1 ratio,
 combined with the H-K chromatic brightness compensation, maintains legibility while
 reducing the halation load on astigmatic users in low-light conditions.
@@ -161,14 +161,14 @@ reducing the halation load on astigmatic users in low-light conditions.
 The `gpt` and `claude` themes are specifically styled after the ChatGPT and Claude web
 interfaces respectively. Both use achromatic or near-achromatic foregrounds (S0% for
 `gpt`, S20% for `claude`) at 13–14:1 contrast. They are not designed for cross-environment
-ergonomics — they replicate a specific product's appearance. Catppuccin has a documented
+ergonomics; they replicate a specific product's appearance. Catppuccin has a documented
 ergonomic design mandate that none of the existing Odysseus themes share.
 
 Nothing in the existing Odysseus set has this combination: moderate contrast in the
 10–12:1 range, a blue-violet chromatic foreground that picks up H-K perceptual
 brightness, and a palette built around cross-environment suitability from the start.
 
-Prior PR closures cited the ROADMAP note on themes — a scope concern, not a quality one.
+Prior PR closures cited the ROADMAP note on themes; a scope concern, not a quality one.
 The case here is grounded in WCAG contrast ratios computed from actual `static/js/theme.js`
 hex values, Piepenbrock et al. 2013, and established colour science. The gap is
 measurable.
@@ -180,7 +180,7 @@ code editors and IDEs, 50+ developer tools, 30+ terminal emulators, and 20+ brow
 ([github.com/catppuccin/catppuccin](https://github.com/catppuccin/catppuccin)).
 VS Code alone: [1.27M installs](https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc).
 The palette is versioned at [v1.1.0](https://github.com/catppuccin/palette) and
-mathematically defined — 26 named colors per flavor — so the colors in this PR will
+mathematically defined; 26 named colors per flavor; so the colors in this PR will
 not change without a clearly communicated major version bump.
 
 ### Addressing the ROADMAP note and prior PR closures
@@ -188,12 +188,12 @@ not change without a clearly communicated major version bump.
 The ROADMAP contains the entry: *"I prob shouldnt add more themes."* Both prior
 Catppuccin PRs ([#2814](https://github.com/pewdiepie-archdaemon/odysseus/pull/2814),
 [#3687](https://github.com/pewdiepie-archdaemon/odysseus/pull/3687)) were closed for
-this reason, not for implementation problems — the maintainer noted "the palette is
+this reason, not for implementation problems; the maintainer noted "the palette is
 cleanly done" and "no issue with the implementation itself."
 
 The phrasing hedges rather than closes: "I prob shouldnt" and "if themes come back into scope later this can be revisited." Issue
 [#3692](https://github.com/pewdiepie-archdaemon/odysseus/issues/3692), opened June 2026
-and labeled "Ready for review," is the most recent signal from the project — indicating
+and labeled "Ready for review," is the most recent signal from the project; indicating
 the maintainer has since reopened consideration.
 
 This PR makes the minimum possible ask: one entry in the `THEMES` object, no new files,
@@ -208,20 +208,20 @@ Add a `catppuccin` theme using the Catppuccin Mocha palette with a mauve accent:
 | Property | Color | Rationale |
 |----------|-------|-----------|
 | Background | `#1e1e2e` | Mocha base surface |
-| Foreground | `#cdd6f4` | Mocha text — soft, readable lavender-white |
+| Foreground | `#cdd6f4` | Mocha text; soft, readable lavender-white |
 | Panel | `#181825` | Mocha surface0 |
 | Border | `#5b6078` | Mocha overlay0 |
-| Accent/Red | `#8565d1` | Mauve — distinctive accent that differentiates from other themes |
+| Accent/Red | `#8565d1` | Mauve; distinctive accent that differentiates from other themes |
 
-The default theme remains `dark` — catppuccin is an opt-in choice.
+The default theme remains `dark`: catppuccin is an opt-in choice.
 
 ### Files Changed
 
-- `static/js/theme.js` — added `catppuccin` entry to `THEMES` export
+- `static/js/theme.js`: added `catppuccin` entry to `THEMES` export
 
 ### Notes
 
-- Single-line addition — no default theme change, no breaking changes
+- Single-line addition; no default theme change, no breaking changes
 - Colors from the official Catppuccin Mocha palette (https://catppuccin.com)
 - Compatible with the existing custom theme engine, color picker, and background effects
 - No changes to theme scheduling, persistence, or UI
@@ -236,8 +236,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Type of Change
 
-- [ ] Bug fix (non-breaking — fixes a confirmed issue)
-- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Bug fix (non-breaking, fixes a confirmed issue)
+- [x] New feature (non-breaking, adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -245,9 +245,9 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 
 ### How to Test
@@ -256,26 +256,26 @@ Fixes # <!-- [file upstream issue first] -->
 2. Open the app; go to Settings → Appearance → Theme.
 3. Select "Catppuccin" from the theme list. Verify the theme name appears in the dropdown.
 4. Confirm the background shifts to `#1e1e2e`, text to a soft lavender-white, and the accent color is a purple-mauve (not the default red).
-5. Open a conversation and send a message — verify syntax highlighting in code blocks renders correctly with the new palette.
-6. Switch to another theme (e.g. "dark") and back — confirm no bleed-through or broken state.
-7. Reload the page — confirm the selected Catppuccin theme persists.
+5. Open a conversation and send a message; verify syntax highlighting in code blocks renders correctly with the new palette.
+6. Switch to another theme (e.g. "dark") and back; confirm no bleed-through or broken state.
+7. Reload the page; confirm the selected Catppuccin theme persists.
 
-**Screenshots required** — this is a visual theme change:
+**Screenshots required**: this is a visual theme change:
 - [ ] Screenshot of the theme picker with "Catppuccin" selected and visible
 - [ ] Screenshot of the main chat view with the Catppuccin theme active (showing background, sidebar, and chat area colors)
 - Attach via drag-and-drop in the GitHub PR form
 
 ## Filing Notes
 
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-catppuccin-theme.md`. Add the issue number to `Fixes #` above before opening the PR.
-- **Prior PRs:** #2814 (Wontfix) and #3687 (abandoned) were both closed with the same reason: ROADMAP note "I prob shouldnt add more themes." Neither was closed for implementation quality — vdmkenny said "the palette is cleanly done" (#2814) and "no issue with the implementation itself" (#3687). Reference these in the PR description to show awareness, and note that issue #3692 (labeled "Ready for review", June 2026) represents the maintainer's subsequent re-opening of the question.
-- Screenshots required — capture before filing (see How to Test above).
+- **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-catppuccin-theme.md`. Add the issue number to `Fixes #` above before opening the PR.
+- **Prior PRs:** #2814 (Wontfix) and #3687 (abandoned) were both closed with the same reason: ROADMAP note "I prob shouldnt add more themes." Neither was closed for implementation quality; vdmkenny said "the palette is cleanly done" (#2814) and "no issue with the implementation itself" (#3687). Reference these in the PR description to show awareness, and note that issue #3692 (labeled "Ready for review", June 2026) represents the maintainer's subsequent re-opening of the question.
+- Screenshots required; capture before filing (see How to Test above).
 
-## Visual / UI changes — REQUIRED if you touched anything that renders
+## Visual / UI changes; REQUIRED if you touched anything that renders
 
 - [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
 - [x] Style match: the change uses Odysseus's existing visual language (existing CSS variables, button/card classes, no Unicode emoji, Fira Code font, dark-mode-first).
-- [x] No new component patterns — extended an existing widget rather than adding a parallel one.
+- [x] No new component patterns; extended an existing widget rather than adding a parallel one.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### Screenshots / clips

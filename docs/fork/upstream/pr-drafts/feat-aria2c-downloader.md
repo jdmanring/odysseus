@@ -2,7 +2,7 @@
 
 **Branch:** `jdmanring/odysseus:feat/aria2c-downloader`
 **Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) (fork tracking)
-**Status:** Integration tests passing as of 2026-06-12 — ready to file
+**Status:** Integration tests passing as of 2026-06-12, ready to file
 **Screenshot:** `docs/fork/screenshots/aria2c.png`
 
 ---
@@ -19,17 +19,17 @@
 Three open upstream issues point to the same underlying gap in the Cookbook
 download stack:
 
-- **Issue #359** — *"Show Download Percentage During Cookbook Downloads"*:
+- **Issue #359**: *"Show Download Percentage During Cookbook Downloads"*:
   users see a spinner until the download completes or fails. No speed, ETA, or
   per-file progress is visible. For large models this is a black box for ten or
   more minutes.
 
-- **Issue #2722** — *"Cookbook large HF model downloads crash/restart due to
+- **Issue #2722**: *"Cookbook large HF model downloads crash/restart due to
   SSL ReadError"*: HuggingFace CDN connections drop on large files. The current
-  `hf download` CLI has no retry logic — a single SSL error aborts the entire
+  `hf download` CLI has no retry logic; a single SSL error aborts the entire
   download and the user must start over from zero.
 
-- **Issue #787** — *"Add pause and resume functionality for model downloads"*:
+- **Issue #787**: *"Add pause and resume functionality for model downloads"*:
   no way to interrupt a download and continue later, which is a hardship for
   users on slow or metered connections.
 
@@ -49,9 +49,9 @@ in a single-stream download path with no retry, no resume, and no progress.
 The current `hf download` experience for a large model download:
 
 - Displays a spinner with no progress, no speed, no ETA, and no per-file status
-- Provides no retry mechanism — a single SSL ReadError anywhere in the transfer
+- Provides no retry mechanism; a single SSL ReadError anywhere in the transfer
   aborts the entire download
-- Leaves no partial files on disk — every failure restarts from byte 0
+- Leaves no partial files on disk; every failure restarts from byte 0
 - Gives users no way to know if the download is progressing or has silently stalled
 
 Users end up watching an unresponsive spinner, restarting from scratch after an SSL
@@ -62,25 +62,25 @@ been open since 2024 with no fix possible under the current downloader architect
 
 A tmux-backed aria2c download pipeline with a real-time per-file progress
 card in the Cookbook UI. This closes #359, substantially mitigates #2722, and
-lays the groundwork for full pause/resume (#787 — see notes).
+lays the groundwork for full pause/resume (#787: see notes).
 
 ### Backend
 
-**`tooling/bin_manager.py`** — portable binary installer. Auto-downloads the
+**`tooling/bin_manager.py`**: portable binary installer. Auto-downloads the
 correct aria2c release for the current platform (linux/mac/windows x86/arm)
 and caches it in `~/.odysseus/bin`. No system package manager required.
 
-**`tooling/aria2c_download.py`** — one-shot download script that:
+**`tooling/aria2c_download.py`**: one-shot download script that:
 - Resolves HF repo files to pinned signed URLs via `HfUrlResolver`
 - Sums the resolved file sizes and prints `[*] Total size: X bytes` so
   the UI has the exact model total before any files download
 - Writes an aria2c input file (tab-indented options, Bearer auth header)
-- Spawns aria2c with 4 parallel files × 3 connections each (12 total
-  connections — empirically tuned for throughput without triggering HF CDN
-  rate limiting; HuggingFace does not publish its throttle thresholds)
+- Spawns aria2c with 4 parallel files × 3 connections per file (12 total
+  connections; aria2c default is 1 connection per server, configured maximum
+  is 16 per the man page)
 - Verifies the output directory is non-empty after aria2c exits 0
 
-**`tooling/hf_url_resolver.py`** — resolves a HF repo to a list of
+**`tooling/hf_url_resolver.py`**: resolves a HF repo to a list of
 `(url, relative_path, size_bytes)` tuples pinned to the HEAD commit hash.
 Uses `list_repo_tree()` (available since huggingface_hub 0.19) to retrieve
 file sizes in the same API call, so the downloader knows the exact model
@@ -90,18 +90,18 @@ The HTTP fallback correctly filters to file entries only. Includes a
 basename-aware `include` filter so `*.gguf` correctly matches files in
 subdirectories.
 
-**`routes/cookbook_routes.py`** — `use_aria2c` path in `model_download`:
+**`routes/cookbook_routes.py`**: `use_aria2c` path in `model_download`:
 - Copies `tooling/` to remote host when needed
 - Sets `tmux new-session -x 220 -y 50` to prevent 80-col truncation of
   `FILE:` progress lines (would cause wrong filename display in the UI)
 - Passes HF token as both `HF_TOKEN` env var and `--token` arg to
   `aria2c_download.py`
 
-**`routes/cookbook_helpers.py`** — adds `use_aria2c: bool = True` to
+**`routes/cookbook_helpers.py`**: adds `use_aria2c: bool = True` to
 `ModelDownloadRequest` (aria2c is the default path; hf download is the fallback);
 sets `disable_hf_transfer` default to `True`.
 
-**Pre-flight availability check** (`routes/cookbook_routes.py`) — before building the
+**Pre-flight availability check** (`routes/cookbook_routes.py`); before building the
 download command, if `req.use_aria2c` is set and the download is not Ollama-bound,
 `get_aria2c()` is called. If it returns `None` (BinManager install failed or platform
 unsupported), a warning is logged and `req.use_aria2c` is set to `False` so the handler
@@ -111,11 +111,11 @@ layouts (flat files vs hub blob cache).
 
 ### Frontend
 
-**`static/js/cookbookDownload.js`** — `_startManagedPolling()` drives the
+**`static/js/cookbookDownload.js`**: `_startManagedPolling()` drives the
 download card; `_runModelDownload()` routes to the aria2c path when `use_aria2c`
 is set.
 
-**`static/js/cookbookRunning.js`** — `_parseDownloadState()` parses aria2c
+**`static/js/cookbookRunning.js`**: `_parseDownloadState()` parses aria2c
 stdout (parallel progress lines, `FILE:` path, `[*] N files` banner,
 `[*] Total size: X bytes` banner). `_dlFileTracker` accumulates per-file
 byte counts across poll ticks and exposes accurate overall `pct`, `dlSize`,
@@ -133,7 +133,7 @@ its values directly, falling back to the resolver-banner total as the
 authoritative size. The multi-batch tracker is skipped for this case since
 there is only one logical file to track.
 
-The task actions menu (`⋮`) now toggles — a second click closes the dropdown
+The task actions menu (`⋮`) now toggles; a second click closes the dropdown
 instead of dismissing and immediately recreating it. Completed download cards
 show a green check that clears the card on click.
 
@@ -149,20 +149,20 @@ stamped. The in-place DOM resume path explicitly shows the wave spinner so
 multi-file downloads display activity immediately on resume without waiting for
 the next `_renderRunningTab` cycle.
 
-**`static/js/cookbook-hwfit.js`** — `refreshCachedModelIds()` now handles local
+**`static/js/cookbook-hwfit.js`**: `refreshCachedModelIds()` now handles local
 downloads (no `remoteHost`). Previously returned early for empty host, making
 the downloaded-dot re-mark a no-op for local installs. Both Running tab
 done-transition paths now call `refreshCachedModelIds` so the catalog dot
 appears immediately without a page reload.
 
-**`static/style.css`** — download card, per-file progress rows, cancel button.
+**`static/style.css`**: download card, per-file progress rows, cancel button.
 
 ### Tests
 
-**`tests/test_aria2c_circuit.py`** — integration tests against the real HuggingFace
+**`tests/test_aria2c_circuit.py`**: integration tests against the real HuggingFace
 API (no mocks), plus static contract tests for the default and pre-flight guard:
 
-**Network-dependent** (`@pytest.mark.slow` — excluded from fast lane by `-m "not slow"`):
+**Network-dependent** (`@pytest.mark.slow`: excluded from fast lane by `-m "not slow"`):
 
 - **BinManager**: installs aria2c for the current platform, verifies the binary
   exists, is executable, and responds to `--version`.
@@ -176,7 +176,7 @@ API (no mocks), plus static contract tests for the default and pre-flight guard:
 - **Resume idempotency**: runs `download_file()` twice on the same target; asserts
   `--continue=true` exits 0 and the file size is unchanged.
 
-**Static contract tests** (no network — fast lane):
+**Static contract tests** (no network; fast lane):
 
 - `use_aria2c` schema default is `True`
 - Pre-flight `get_aria2c() is None` guard is present in `cookbook_routes.py`
@@ -207,7 +207,7 @@ This directly addresses two ROADMAP items:
 > Python environments.*
 
 aria2c is self-installed per-platform (linux/mac/windows × x86/arm) by
-`BinManager` — no system package manager, no `apt`, no `brew`. The binary is
+`BinManager`: no system package manager, no `apt`, no `brew`. The binary is
 cached in `~/.odysseus/bin` and reused across downloads. `--continue=true`
 means a crashed or aborted download picks up where it left off on restart.
 Both directly improve cross-machine reliability.
@@ -218,20 +218,20 @@ Both directly improve cross-machine reliability.
 
 The aria2c progress card in `cookbookRunning.js` surfaces the actual
 per-file download state (filename, bytes transferred, percentage, current
-speed) live in the UI — not after-the-fact from a log file. `_parseDownloadState`
+speed) live in the UI; not after-the-fact from a log file. `_parseDownloadState`
 captures aria2c's structured stdout, so if a file fails the failure is
 visible in the card, not buried in a tmux session.
 
 **Windows progress display (implemented, not tested)**
 
-On **local Windows**, Odysseus has no tmux — it spawns a detached process
+On **local Windows**, Odysseus has no tmux; it spawns a detached process
 that writes stdout to a log file (`TMUX_LOG_DIR/{session_id}.log`). The
 backend reads that log file as `output_tail` on the same status-polling path
 used everywhere else, and the frontend passes it through `_parseDownloadState`
 — so the infrastructure for a working progress card is in place on Windows.
 
 aria2c's verbose Download Progress Summary (`[#gid XX/YY(%) CN:N DL:...]`
-lines, written at `--summary-interval`) is not TTY-gated — it is written
+lines, written at `--summary-interval`) is not TTY-gated; it is written
 regardless of whether stdout is a terminal. The compact `\r`-overwriting
 readout is TTY-only and suppressed in non-TTY mode, but `_parseDownloadState`
 does not rely on it.
@@ -247,7 +247,7 @@ has been addressed in `aria2c_download.py`:
   line-by-line, flushing each line immediately to Python's stdout. This
   eliminates pipe-buffering delay between aria2c and the log file.
 
-On Linux/macOS (tmux PTY) the behaviour is identical to before — aria2c
+On Linux/macOS (tmux PTY) the behaviour is identical to before; aria2c
 already flushes via the PTY and the Popen wrapper adds no observable overhead.
 
 **This has not been tested on a Windows machine.** The implementation is
@@ -268,65 +268,65 @@ shows a `paused` badge. Resume starts a new aria2c session against the same
 output directory; aria2c's `--continue=true` flag picks up from the last
 completed byte for each file. The background status-reconciliation loop is
 guarded so that a paused task's status is never overwritten by a stale
-server-side `done` or `running` signal — the card stays `paused` until the
+server-side `done` or `running` signal; the card stays `paused` until the
 user explicitly resumes or stops.
 
 ### Screenshot
 
-Qwen3-Coder-Next-AWQ-4bit (44.97 GiB, 25 files) mid-download — 4 files active
+Qwen3-Coder-Next-AWQ-4bit (44.97 GiB, 25 files) mid-download; 4 files active
 in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
 ![aria2c download card](../screenshots/aria2c.png)
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 
 ## How to Test
 **Automated (passing):**
 
-- [x] `pytest tests/test_aria2c_circuit.py` — 4 static contract tests (fast lane,
+- [x] `pytest tests/test_aria2c_circuit.py`: 4 static contract tests (fast lane,
   no network) + 9 network tests (marked `@pytest.mark.slow`; 1 skipped when no
   system aria2c on PATH). Network tests cover URL resolution, commit pinning, size
   retrieval, real file download, and resume idempotency against live `gpt2` API.
-- [x] `pytest tests/test_aria2c_circuit.py -m "not slow"` — 4 static tests pass
+- [x] `pytest tests/test_aria2c_circuit.py -m "not slow"`: 4 static tests pass
   without outbound internet (CI-safe).
 
 **Manual (verified during development):**
 
-- [x] Download a single-file GGUF model — progress card shows correct total
+- [x] Download a single-file GGUF model; progress card shows correct total
   size throughout (not doubled); connection count shows split count, not 2×;
   downloaded-dot (●) appears on catalog row immediately on completion
-- [x] Download a multi-shard model (25 files, 44.97 GiB) — per-file rows show
+- [x] Download a multi-shard model (25 files, 44.97 GiB); per-file rows show
   correct filenames; overall percentage, total size, and ETA all reflect the
   full model size (not just the 4 currently active files)
-- [x] Pause single-file download — card shows `paused` badge and type chip;
+- [x] Pause single-file download; card shows `paused` badge and type chip;
   does not flip to `finished` after the background reconciliation loop fires
-- [x] Pause multi-file download — same; clicking the task header to
+- [x] Pause multi-file download; same; clicking the task header to
   collapse/expand does not cause a spurious `finished` transition
-- [x] Resume paused single-file download — wave spinner reappears immediately;
+- [x] Resume paused single-file download; wave spinner reappears immediately;
   resumes from last completed byte; aria2c `--continue=true` confirmed working
-- [x] Resume paused multi-file download — wave spinner reappears immediately
+- [x] Resume paused multi-file download; wave spinner reappears immediately
   on resume (in-place DOM update shows wave without waiting for re-render cycle)
-- [x] Resume behavior on restart — restarting a download after interruption
+- [x] Resume behavior on restart; restarting a download after interruption
   resumes from last completed byte; verified via `test_resume_is_idempotent`
-- [x] Clear Finished — works immediately after download completes; no delay
+- [x] Clear Finished; works immediately after download completes; no delay
   waiting for zombie-detection timeout; `DOWNLOAD_OK` sentinel overrides tracker
-- [x] Spinner stays visible throughout active download — clear button does not
+- [x] Spinner stays visible throughout active download; clear button does not
   appear mid-download (tracker-timestamp zombie detection verified)
-- [x] GGUF auto-discovered repo — downloaded-dot appears on completion
-- [x] HF token auth — `authed` badge visible in screenshot; token found and
+- [x] GGUF auto-discovered repo; downloaded-dot appears on completion
+- [x] HF token auth; `authed` badge visible in screenshot; token found and
   applied to aria2c Bearer header for a 44.97 GiB 25-file download
 
 **Still needs manual verification before filing:**
 
-- [x] Cancel mid-download — Stop removes card, tmux session torn down cleanly,
+- [x] Cancel mid-download; Stop removes card, tmux session torn down cleanly,
   partial `.aria2` sidecar files retained; subsequent download of same model
   resumes from last completed byte via `--continue=true`
-- [ ] Windows local install — buffering fix implemented (Popen line-reader +
+- [ ] Windows local install; buffering fix implemented (Popen line-reader +
   line-buffered Python stdout); not testable without a Windows machine.
   A Windows contributor should verify progress card renders and download
   completes via the detached bash wrapper path.
@@ -341,12 +341,12 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
 ## Linked Issue
 
-Fixes # <!-- [file upstream issue first — see issue-drafts/feat-aria2c-downloader.md] -->
+Fixes # <!-- [file upstream issue first; see issue-drafts/feat-aria2c-downloader.md] -->
 
 ## Type of Change
 
-- [ ] Bug fix (non-breaking — fixes a confirmed issue)
-- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Bug fix (non-breaking, fixes a confirmed issue)
+- [x] New feature (non-breaking, adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -354,15 +354,15 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/feat-aria2c-downloa
 
 ## Filing Notes
 
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-aria2c-downloader.md`. Add the issue number to `Fixes #` above before opening the PR.
-- In the PR Summary body, reference related upstream issues as context: #359 (download percentage request this addresses), #2722 (SSL download crashes — aria2c's retry and resume substantially mitigates this), #787 (pause/resume request — implemented here).
-- This PR can be filed independently of `fix/gguf-quality-scored` — either order is fine.
+- **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-aria2c-downloader.md`. Add the issue number to `Fixes #` above before opening the PR.
+- In the PR Summary body, reference related upstream issues as context: #359 (download percentage request this addresses), #2722 (SSL download crashes; aria2c's retry and resume substantially mitigates this), #787 (pause/resume request; implemented here).
+- This PR can be filed independently of `fix/gguf-quality-scored`: either order is fine.
 
-## Visual / UI changes — REQUIRED if you touched anything that renders
+## Visual / UI changes; REQUIRED if you touched anything that renders
 
 - [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
 - [x] Style match: the change uses Odysseus's existing visual language (existing CSS variables, button/card classes, no Unicode emoji, Fira Code font, dark-mode-first).
-- [x] No new component patterns — extended an existing widget rather than adding a parallel one.
+- [x] No new component patterns; extended an existing widget rather than adding a parallel one.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### Screenshots / clips

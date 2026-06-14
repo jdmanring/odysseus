@@ -3,8 +3,8 @@
 **Branch:** `jdmanring/odysseus:feat/logging`
 **Issue:** [#31](https://github.com/jdmanring/odysseus/issues/31) (fork tracking)
 **Upstream Issues Addressed:**
-- [#3803](https://github.com/pewdiepie-archdaemon/odysseus/issues/3803) — PII in logs, no audit trail for sensitive operations
-- [#3799](https://github.com/pewdiepie-archdaemon/odysseus/issues/3799) — Hardening pass (PII scrubbed from logs)
+- [#3803](https://github.com/pewdiepie-archdaemon/odysseus/issues/3803); PII in logs, no audit trail for sensitive operations
+- [#3799](https://github.com/pewdiepie-archdaemon/odysseus/issues/3799); Hardening pass (PII scrubbed from logs)
 **Status:** Ready to file
 
 ---
@@ -17,7 +17,7 @@
 
 ## Why one PR
 
-The timing callsites added throughout the codebase (`timed_operation()`, `structlog.get_logger()`) are direct callers of the infrastructure introduced in the same commit. Splitting into two PRs leaves one half untest-able in isolation: the infrastructure PR would have no callers so you cannot verify timing output; the callsite PR would import from files that don't exist until the first PR lands. The smallest unit that can be installed, started, and verified end-to-end is the combination — and that is what this PR provides.
+The timing callsites added throughout the codebase (`timed_operation()`, `structlog.get_logger()`) are direct callers of the infrastructure introduced in the same commit. Splitting into two PRs leaves one half untest-able in isolation: the infrastructure PR would have no callers so you cannot verify timing output; the callsite PR would import from files that don't exist until the first PR lands. The smallest unit that can be installed, started, and verified end-to-end is the combination; and that is what this PR provides.
 
 ---
 
@@ -29,20 +29,20 @@ Odysseus uses stdlib `logging` throughout (~1038 calls across 138 files) but lac
 - "PII (emails, usernames, message bodies) logged at INFO level in several paths"
 - "No audit trail for sensitive operations (auth events, vault unlock, admin wipes)"
 
-Additionally, there is no request correlation, no structured output, no per-subsystem debug control, and no timing data — so when users report slow operations, there is no way to determine which subsystem is the bottleneck.
+Additionally, there is no request correlation, no structured output, no per-subsystem debug control, and no timing data; so when users report slow operations, there is no way to determine which subsystem is the bottleneck.
 
 ### Solution
 
-Replace stdlib `logging` initialisation with [structlog](https://www.structlog.org/) while preserving full backward compatibility — existing `logging.getLogger()` calls continue to work via structlog's stdlib integration. New code uses `structlog.get_logger()` for bound context. Timing instrumentation is added to the hottest network I/O paths.
+Replace stdlib `logging` initialisation with [structlog](https://www.structlog.org/) while preserving full backward compatibility; existing `logging.getLogger()` calls continue to work via structlog's stdlib integration. New code uses `structlog.get_logger()` for bound context. Timing instrumentation is added to the hottest network I/O paths.
 
 ---
 
 ## New Files
 
-- `src/logging_config.py` — processor pipeline: contextvars binding, sensitive data redaction, JSON file output + text console output, per-subsystem debug control via `ODYSSEUS_DEBUG_SUBSYSTEMS`
-- `src/log_context.py` — `contextvars`-based request correlation (request_id, session_key, user_id); bind once in middleware, available in every log call
-- `src/log_redaction.py` — key-name-based sensitive data redaction (Sentry-style denylist); matches exact key names, never scans string values
-- `src/log_timing.py` — `timed_operation()` context manager for critical-path operations
+- `src/logging_config.py`: processor pipeline: contextvars binding, sensitive data redaction, JSON file output + text console output, per-subsystem debug control via `ODYSSEUS_DEBUG_SUBSYSTEMS`
+- `src/log_context.py`: `contextvars`-based request correlation (request_id, session_key, user_id); bind once in middleware, available in every log call
+- `src/log_redaction.py`: key-name-based sensitive data redaction (Sentry-style denylist); matches exact key names, never scans string values
+- `src/log_timing.py`: `timed_operation()` context manager for critical-path operations
 
 ## Infrastructure Changes
 
@@ -51,7 +51,7 @@ Replace stdlib `logging` initialisation with [structlog](https://www.structlog.o
 - Logs method, path, status code, duration at INFO/WARNING/ERROR level
 - Returns `X-Request-ID` response header for client-side tracing
 
-**Auth Event Logging (`routes/auth_routes.py`) — addresses upstream #3803**
+**Auth Event Logging (`routes/auth_routes.py`); addresses upstream #3803**
 - Login success/failure (with reason: invalid_password, invalid_totp)
 - Signup, logout, password change, admin user create/delete
 - Every `POST /api/auth/settings` logs actor, key changed, and old → new values
@@ -86,7 +86,7 @@ Structured timing added to all major network I/O paths. Logs at INFO only when a
 ## Backward Compatibility
 
 - All existing `logging.getLogger()` calls continue to work via structlog's stdlib integration
-- No mass migration — only new code uses `structlog.get_logger()`
+- No mass migration; only new code uses `structlog.get_logger()`
 - `ODYSSEUS_DEBUG=1` behavior preserved
 
 ---
@@ -95,7 +95,7 @@ Structured timing added to all major network I/O paths. Logs at INFO only when a
 
 **New files (4):** `src/logging_config.py`, `src/log_context.py`, `src/log_redaction.py`, `src/log_timing.py`
 
-**New dependencies (1):** `requirements.txt` — added `structlog`
+**New dependencies (1):** `requirements.txt`: added `structlog`
 
 **Modified (infrastructure):** `app.py`, `routes/auth_routes.py`, `src/constants.py`
 
@@ -111,15 +111,15 @@ Structured timing added to all major network I/O paths. Logs at INFO only when a
 
 ## Linked Issue
 
-Fixes # <!-- [file upstream issue first — see issue-drafts/feat-logging.md] -->
+Fixes # <!-- [file upstream issue first; see issue-drafts/feat-logging.md] -->
 
 ## Type of Change
 
-- [x] New feature (non-breaking — adds new behaviour)
+- [x] New feature (non-breaking, adds new behaviour)
 
 ## Checklist
 
-- [x] I searched open issues and open PRs — this is not a duplicate.
+- [x] I searched open issues and open PRs; this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] Changes are limited to the scope described above.
 - [x] I ran the app and verified the change works end-to-end.
@@ -128,23 +128,23 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/feat-logging.md] --
 ## How to Test
 
 **Automated (passing):**
-- `pytest` — 64+ tests pass (unit + integration, including subprocess-based end-to-end)
+- `pytest`: 64+ tests pass (unit + integration, including subprocess-based end-to-end)
 
 **Manual verification:**
 
 1. `ODYSSEUS_DEBUG=1 uvicorn app:app --host 0.0.0.0 --port 7000`
 2. Verify structured log lines on the console (not bare print statements).
-3. `curl -v http://localhost:7000/api/health 2>&1 | grep X-Request-ID` — confirm the header is present.
-4. Attempt a login — confirm `auth.login.success` or `auth.login.failure` appears in `data/logs/odysseus.log`.
-5. Change a setting — confirm a `settings.audit` log entry appears with the changed key and old/new values.
-6. `ODYSSEUS_LOG_FORMAT=json uvicorn app:app ...` — confirm log output is one JSON object per line.
-7. Hit the health endpoint: `curl http://localhost:7000/api/health | python3 -m json.tool` — confirm `elapsed_ms` fields appear in subsystem probe results.
-8. Run the agent with a multi-step task — confirm `agent.timing` entries with `duration_ms` appear in the log on completion.
+3. `curl -v http://localhost:7000/api/health 2>&1 | grep X-Request-ID`: confirm the header is present.
+4. Attempt a login; confirm `auth.login.success` or `auth.login.failure` appears in `data/logs/odysseus.log`.
+5. Change a setting; confirm a `settings.audit` log entry appears with the changed key and old/new values.
+6. `ODYSSEUS_LOG_FORMAT=json uvicorn app:app ...`: confirm log output is one JSON object per line.
+7. Hit the health endpoint: `curl http://localhost:7000/api/health | python3 -m json.tool`: confirm `elapsed_ms` fields appear in subsystem probe results.
+8. Run the agent with a multi-step task; confirm `agent.timing` entries with `duration_ms` appear in the log on completion.
 
 ---
 
 ## Filing Notes
 
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-logging.md`. Add the issue number to `Fixes #` above before opening the PR.
+- **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-logging.md`. Add the issue number to `Fixes #` above before opening the PR.
 - Reference upstream #3803 in the PR summary as the hardening audit that identified the PII and audit logging gaps. Note this PR does not address all items in #3803.
-- Branch: `jdmanring/odysseus:feat/logging` (previously split into feat/logging-core and feat/logging-timing — combined here because callsites are untestable without the infrastructure).
+- Branch: `jdmanring/odysseus:feat/logging` (previously split into feat/logging-core and feat/logging-timing; combined here because callsites are untestable without the infrastructure).

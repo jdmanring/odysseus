@@ -54,7 +54,7 @@ open-weights model released in the past few years.
 
 This library is invisible to users who don't already know it exists.
 Auto-discovery makes the entire community GGUF ecosystem accessible from
-the same Cookbook UI that surfaces the original model — without requiring
+the same Cookbook UI that surfaces the original model; without requiring
 users to know what a quantizer is, who bartowski is, or what GGUF means.
 
 Additionally, the existing file-selection logic had two bugs affecting models
@@ -63,7 +63,7 @@ that do reach the downloader:
 1. **mmproj companion file selected for vision models.** Repos like
    `Leafspark/Llama-3.2-11B-Vision-Instruct-GGUF` publish both the quantized
    model weights and a `*-mmproj.f16.gguf` projector companion file. The
-   resolver was returning `files[0]` from the raw HF sibling list — which,
+   resolver was returning `files[0]` from the raw HF sibling list; which,
    depending on upload order, could be the tiny mmproj file rather than the
    actual model weights.
 
@@ -79,7 +79,7 @@ that do reach the downloader:
 
 `HfUrlResolver.find_gguf_sources(base_repo_id)` searches HuggingFace for
 `"{model_name} GGUF"`, then probes each candidate via the HF metadata API
-(a single `model_info(expand=[...])` call per repo — no file download needed).
+(a single `model_info(expand=[...])` call per repo; no file download needed).
 Results are scored on eight signals and sorted by score descending.
 
 | Signal | Max pts | Rationale |
@@ -93,7 +93,7 @@ Results are scored on eight signals and sorted by score descending.
 | Author reputation | 10 | Known high-quality quantizers (bartowski, TheBloke, etc.) |
 | Recency | 5 | Recently updated = actively maintained |
 
-The top-scored result is injected silently as `ggufSource` — no UI change.
+The top-scored result is injected silently as `ggufSource`: no UI change.
 
 **mmproj filter**
 
@@ -121,7 +121,7 @@ that groups quants by bit-depth family (all Q4*/IQ4* quants are tier 4, etc.).
 Selection priority:
 1. **Same-tier best**: if the repo has any quant in the same bit-depth tier as
    the requested quant, the best one in that tier wins (lowest quality index).
-   This means IQ4_XS wins over Q4_K_S when Q4_K_M was requested — imatrix
+   This means IQ4_XS wins over Q4_K_S when Q4_K_M was requested; imatrix
    calibration consistently reduces perplexity at the same bit-width relative to
    standard K-quants, as documented in the llama.cpp importance-matrix benchmarks
    (`./examples/perplexity/README.md` in the llama.cpp repository).
@@ -149,9 +149,9 @@ non-imatrix repos.
 
 ### Files changed
 
-- `tooling/hf_url_resolver.py` — complete rewrite of `_probe_gguf_repo` with expand= quality signals; new `_score_candidate`, `_REPUTED_AUTHORS`, `_IMATRIX_AUTHORS`, `_detect_imatrix`; `find_gguf_sources` now sorts by quality score; mmproj filter added
-- `routes/cookbook_routes.py` — `GET /api/cookbook/resolve-gguf` endpoint (unchanged from prior simple version)
-- `static/js/cookbookDownload.js` — auto-discovery call in `_runModelDownload`; `_ggufIncludePattern` reordered to check `model.quant` first; `_QUANT_QUALITY` flat ranking list; `_QUANT_TIER_RANGES` + `_quantTierRank`; tier-aware `_closestQuantFile`
+- `tooling/hf_url_resolver.py`: complete rewrite of `_probe_gguf_repo` with expand= quality signals; new `_score_candidate`, `_REPUTED_AUTHORS`, `_IMATRIX_AUTHORS`, `_detect_imatrix`; `find_gguf_sources` now sorts by quality score; mmproj filter added
+- `routes/cookbook_routes.py`: `GET /api/cookbook/resolve-gguf` endpoint (unchanged from prior simple version)
+- `static/js/cookbookDownload.js`: auto-discovery call in `_runModelDownload`; `_ggufIncludePattern` reordered to check `model.quant` first; `_QUANT_QUALITY` flat ranking list; `_QUANT_TIER_RANGES` + `_quantTierRank`; tier-aware `_closestQuantFile`
 
 ### ROADMAP alignment
 
@@ -169,7 +169,7 @@ VRAM/RAM fit, and backend support remain future work.
 
 ### Backward compatibility
 
-- Models with a static `ggufSource` configured are unaffected — discovery
+- Models with a static `ggufSource` configured are unaffected; discovery
   only fires when `backend === 'llamacpp' && !ggufSource`.
 - The `resolve-gguf` endpoint is additive; no existing routes changed.
 - `_ggufIncludePattern` fallback chain (`model.quant` → `source.file` →
@@ -179,7 +179,7 @@ VRAM/RAM fit, and backend support remain future work.
 ### Checks run
 
 ```bash
-# Syntax check — all modified Python files
+# Syntax check; all modified Python files
 python -m py_compile tooling/hf_url_resolver.py routes/cookbook_routes.py
 # JS check
 node --check static/js/cookbookDownload.js
@@ -187,7 +187,7 @@ node --check static/js/cookbookDownload.js
 python -m pytest tests/test_gguf_scoring.py
 ```
 
-**`tests/test_gguf_scoring.py`** — 20 pure-function tests, no network access required:
+**`tests/test_gguf_scoring.py`**: 20 pure-function tests, no network access required:
 
 - **`_preferred_quant_file`** (6 tests): exact match, imatrix preference over K-quant,
   tier-distance fallback, closest-quant selection when requested tier absent.
@@ -201,9 +201,9 @@ All 20 tests pass with no internet connection.
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
@@ -233,12 +233,12 @@ All 20 tests pass with no internet connection.
 
 ## Linked Issue
 
-Fixes # <!-- [file upstream issue first — see issue-drafts/feat-gguf-discovery.md] -->
+Fixes # <!-- [file upstream issue first; see issue-drafts/feat-gguf-discovery.md] -->
 
 ## Type of Change
 
-- [ ] Bug fix (non-breaking — fixes a confirmed issue)
-- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Bug fix (non-breaking, fixes a confirmed issue)
+- [x] New feature (non-breaking, adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -246,10 +246,10 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/feat-gguf-discovery
 
 ## Filing Notes
 
-1. **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-gguf-discovery.md`. Add the issue number to `Fixes #` above before opening the PR.
+1. **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-gguf-discovery.md`. Add the issue number to `Fixes #` above before opening the PR.
 2. In the PR Summary body, reference #2342 as the original symptom report this addresses.
 3. Target branch: `dev` (not `main`).
-4. Can be filed independently of `feat/aria2c-downloader` — auto-discovery works with the standard `hf download` fallback too.
+4. Can be filed independently of `feat/aria2c-downloader`: auto-discovery works with the standard `hf download` fallback too.
 5. The `_REPUTED_AUTHORS` list is a starting point; upstream maintainers may want to add or remove names.
 
 ## Visual / UI changes
