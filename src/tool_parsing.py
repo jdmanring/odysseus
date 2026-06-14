@@ -66,6 +66,7 @@ _TOOL_CODE_PYCALL_RE = re.compile(
 # inner format so neither MiniMax nor Gemma variants leak as raw text to the user.
 _TOOL_CODE_ANY_RE = re.compile(r"<tool_code>[\s\S]*?</tool_code>", re.IGNORECASE)
 
+
 # Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — official JSON format)
 # {"name": "fn_name", "arguments": {"key": "val"}}
 # Non-JSON content (tag-pair format seen in partial captures) is stripped but not executed.
@@ -567,6 +568,7 @@ def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
     return None
 
 
+
 def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
     """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat).
 
@@ -695,7 +697,14 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
             if block:
                 blocks.append(block)
 
-    # Pattern 6: local text-model web_search call leaked as prose + bare JSON.
+    # Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — JSON format only)
+    if not blocks:
+        for m in _LONGCAT_TOOL_CALL_RE.finditer(text):
+            block = _parse_longcat_tool_call(m.group(1))
+            if block:
+                blocks.append(block)
+
+    # Pattern 7: local text-model web_search call leaked as prose + bare JSON.
     if not blocks and not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(text)
         if raw_web_json:
@@ -724,7 +733,7 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = _TOOL_CALL_RE.sub('', cleaned)
     cleaned = _XML_TOOL_CALL_RE.sub('', cleaned)
     cleaned = _TOOL_CODE_ANY_RE.sub('', cleaned)  # strips MiniMax {tool=>} and Gemma func() formats
-    cleaned = re.sub(r'<longcat_tool_call>[\s\S]*?</longcat_tool_call>', '', cleaned, flags=re.IGNORECASE)
+    cleaned = _LONGCAT_TOOL_CALL_RE.sub('', cleaned)
     if not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(cleaned)
         if raw_web_json:
