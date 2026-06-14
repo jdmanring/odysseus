@@ -124,7 +124,13 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/fix-gpu-compositor-
 
 Tested on: Artix Linux, Wayland, NVIDIA open drivers, QtWebEngine. On standard desktop Chrome/Firefox there is no visual change — the `backdrop-filter` removal only affects GPU layer behavior, not the visible appearance.
 
-**Screenshots:** Pure CSS deletion with no visual change on standard desktop. No before/after screenshots needed. If a reviewer asks for evidence of the flicker fix, describe the repro: open app in QtWebEngine on Linux/NVIDIA/Wayland, hover over sidebar entries — black screen flash visible before this patch, absent after.
+**On screenshots:** The black-screen flicker is a transient GPU artifact that occurs between frames — it cannot be captured in a still screenshot, and a screen recording is not a standard PR artifact. However, the compositor behavior change *can* be verified and captured:
+
+- Open DevTools → More Tools → Rendering → enable **Highlight composited layers**
+- Before this patch: `.sidebar` and `.dropdown` show colored layer borders (GPU-promoted)
+- After this patch: those layer borders are absent from both elements
+
+Step 6 above produces this screenshot. The claim that each `backdrop-filter` was invisible is also directly verifiable in the diff: each removed line sits alongside the element's `background` declaration confirming the fill is opaque.
 
 ### Related
 
@@ -150,9 +156,16 @@ Both fixes address the same symptom from different layers; each stands alone.
 
 ## Visual / UI changes
 
-`static/style.css` changed (13 deletions). No visual change on standard desktop — the
-removed `backdrop-filter` declarations were on opaque elements where the blur was hidden
-by the fill color, and the removed `filter: saturate()` animation step (±15%) is
-imperceptible. No before/after screenshot needed; reviewers can verify each deleted line
-against the element's `background` declaration. If upstream asks for evidence of the
-flicker fix, the repro is in the How to Test section above.
+`static/style.css` changed (13 deletions only — no additions). No visual change on any
+platform:
+
+- The removed `backdrop-filter` declarations were applied to elements whose `background`
+  is already opaque or near-opaque. The blur output was hidden behind the fill color on
+  every browser. A before/after screenshot would be identical.
+- The removed `filter: saturate()` animation step (±15%) is imperceptible; the
+  opacity + transform animation continues to play identically.
+
+The only behavioral change is a reduction in GPU compositor layer count. This *can* be
+captured: DevTools → Rendering → Highlight composited layers shows `.sidebar` and
+`.dropdown` as promoted layers before the patch and as normal flow elements after. See
+How to Test step 6.
