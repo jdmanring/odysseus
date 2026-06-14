@@ -14,50 +14,71 @@
 ---
 
 ## Summary
-### Why Catppuccin fills a documented design niche
+### What gap Catppuccin fills in the existing theme set
 
-Dark themes exist on a spectrum from low-contrast/desaturated (Nord, Tokyo Night, Gruvbox)
-to high-contrast/vibrant (Dracula, Monokai). Catppuccin's [documented design
-position](https://github.com/catppuccin/catppuccin) is explicitly the **middle ground**
-between these two poles — its three stated design principles are:
+Odysseus ships 16 built-in themes. The dark and medium-dark themes, compared using their
+actual HSL values, fall into distinct hue families:
 
-1. **Colorfulness over minimalism**: "the colorfulness of something contributes to the
-   distinction amongst the parts"
-2. **Balance**: "not too dull, not too bright. Suitability under various light conditions
-   is a must"
-3. **Harmonic color relationships**: "vivacious colors must complement each other"
+| Theme | Background | Foreground | Accent hue |
+|-------|-----------|-----------|------------|
+| `dark` | H220 S13% L18% | H194 S77% L78% (cyan) | H355 (red) |
+| `midnight` | H216 S28% L7% | H210 S17% L82% (near-white, barely blue) | H3 (red) |
+| `gpt` | H0 S0% L13% | H0 S0% L93% (pure grey) | H0 (grey) |
+| `claude` | H60 S3% L15% | H48 S20% L95% (warm white) | H15 (orange) |
+| `retrowave` | H240 S28% L14% | H350 S79% L59% (hot pink) | H350 (hot pink) |
+| `cyberpunk` | H240 S20% L5% | H183 S98% L52% (electric cyan) | H291 S96% (neon magenta) |
+| `ume` | H291 S26% L14% | H316 S72% L86% (bright pink) | H337 (pink) |
+| `organs` | H340 S43% L3% | H38 S55% L86% (cream) | H354 (red) |
+| `ocean` | H213 S60% L11% | H197 S100% L70% (electric blue) | H208 (blue) |
+| `catppuccin` | H240 S21% L15% | **H226 S64% L88% (lavender-white)** | **H258 S54% (mauve)** |
 
-The Mocha palette — deep blue-grey background (`#1e1e2e`), soft lavender-white text
-(`#cdd6f4`), mauve accent (`#cba6f7`) — is the darkest and most widely-used of
-Catppuccin's four flavors precisely because it achieves this balance under both bright
-and dim lighting.
+The foreground column shows the gap: every dark theme in the blue-family background
+group (dark, midnight, retrowave, cyberpunk, ocean) uses either a fully desaturated
+near-white (midnight, S17%), an electric/highly-saturated hue (dark S77% cyan, ocean
+S100% blue, cyberpunk S98% electric-cyan), or a contrasting non-blue color (retrowave
+hot-pink). None uses a **blue-purple tinted white at moderate saturation** — Catppuccin's
+H226/S64%/L88% is a specific perceptual position not occupied by any existing theme.
 
-This is a perceptual niche, not a matter of taste: a theme that is neither stark nor
-flat occupies different psychovisual territory than either extreme, and no existing
-Odysseus theme explicitly claims this positioning.
+The accent column shows the same gap: the only purple/violet accent in the dark themes
+is cyberpunk's H291/S96% neon magenta. Catppuccin's H258/S54% mauve is a soft purple —
+the same hue family, 42 percentage points lower saturation — which behaves completely
+differently in practice (readable alongside text, not attention-grabbing neon).
+
+This is the niche Catppuccin's [documented design
+philosophy](https://github.com/catppuccin/catppuccin) explicitly targets: "not too dull,
+not too bright" — colourful enough to carry distinct hues in the foreground and accent
+without reaching electric saturation levels. None of the 16 existing themes occupies
+this specific combination of blue-family background, lavender-tinted foreground, and
+soft-purple accent.
 
 ### Adoption scale confirms the niche is real
 
 456 official ports ([catppuccin.com/ports](https://catppuccin.com/ports/)) spanning 40+
-code editors and IDEs, 50+ developer tools, 30+ terminal emulators, and 20+ browsers.
+code editors and IDEs, 50+ developer tools, 30+ terminal emulators, and 20+ browsers
+([github.com/catppuccin/catppuccin](https://github.com/catppuccin/catppuccin)).
 VS Code alone: [1.27M installs](https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc).
 The palette is versioned at [v1.1.0](https://github.com/catppuccin/palette) and
 mathematically defined — 26 named colors per flavor — so the colors in this PR will
 not change without a clearly communicated major version bump.
 
-The breadth of adoption across unrelated application categories (editors, terminals,
-browsers, music players, window managers) indicates the niche is validated, not niche
-in the pejorative sense.
+### Addressing the ROADMAP note and prior PR closures
 
-### Community demand and prior attempts
+The ROADMAP contains the entry: *"I prob shouldnt add more themes."* Both prior
+Catppuccin PRs ([#2814](https://github.com/pewdiepie-archdaemon/odysseus/pull/2814),
+[#3687](https://github.com/pewdiepie-archdaemon/odysseus/pull/3687)) were closed for
+this reason, not for implementation problems — the maintainer noted "the palette is
+cleanly done" and "no issue with the implementation itself."
 
-Catppuccin has been requested in the upstream project: open issue
-[#3692](https://github.com/pewdiepie-archdaemon/odysseus/issues/3692), and prior PRs
-[#2814](https://github.com/pewdiepie-archdaemon/odysseus/pull/2814) (Wontfix) and
-[#3687](https://github.com/pewdiepie-archdaemon/odysseus/pull/3687) (abandoned) both
-attempted this and were closed. This PR is deliberately more minimal — a single palette
-entry, not a multi-flavour suite — to address the scope concerns that closed previous
-attempts.
+The maintainer's own language is worth noting: "I prob shouldnt" (hedged, not absolute)
+and "if themes come back into scope later this can be revisited." Issue
+[#3692](https://github.com/pewdiepie-archdaemon/odysseus/issues/3692), opened June 2026
+and labeled "Ready for review," is the most recent signal from the project — indicating
+the maintainer has since reopened consideration.
+
+This PR makes the minimum possible ask: one entry in the `THEMES` object, no new files,
+no maintenance obligation. The design argument above distinguishes this from a generic
+"another theme" addition: the existing set has a measurable gap in the blue-purple
+moderate-saturation niche that Catppuccin specifically occupies.
 
 ### Solution
 
@@ -126,6 +147,7 @@ Fixes # <!-- [file upstream issue first] -->
 ## Filing Notes
 
 - **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-catppuccin-theme.md`. Add the issue number to `Fixes #` above before opening the PR.
+- **Prior PRs:** #2814 (Wontfix) and #3687 (abandoned) were both closed with the same reason: ROADMAP note "I prob shouldnt add more themes." Neither was closed for implementation quality — vdmkenny said "the palette is cleanly done" (#2814) and "no issue with the implementation itself" (#3687). Reference these in the PR description to show awareness, and note that issue #3692 (labeled "Ready for review", June 2026) represents the maintainer's subsequent re-opening of the question.
 - Screenshots required — capture before filing (see How to Test above).
 
 ## Visual / UI changes — REQUIRED if you touched anything that renders
