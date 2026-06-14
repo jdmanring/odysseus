@@ -101,6 +101,14 @@ On standard desktop use none of these changes are visible:
 - The only behavioral change is the elimination of GPU work and, on affected
   hardware configurations, the elimination of black-screen flicker.
 
+### ROADMAP alignment
+
+The ROADMAP lists "CSS cleanup. `static/style.css` basically Calypso's island
+atm." as a refactor target. This PR is the highest-value slice of that cleanup:
+thirteen lines removed, zero added, with a documented reason for each removal.
+Every deletion is verifiable against the adjacent `background` declaration in
+the diff.
+
 ## Target branch
 
 - [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.

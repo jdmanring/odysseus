@@ -48,3 +48,5 @@ No error logged — symptoms are visible in DevTools (compositor layer count, st
 - Add `touch-action: manipulation` to interactive elements — removes the 300 ms tap delay on mobile without affecting pan/pinch-zoom.
 - Wrap 11 `filter: brightness()` hover rules in `@media (hover: hover) and (pointer: fine)` — prevents sticky-hover on touch; adds `:active` states for touch press feedback instead.
 - Add a global `prefers-reduced-motion` catch-all after the existing per-component blocks — covers all animations and transitions not already handled.
+
+Related: #1857 ("Disable animations," closed) raised the animation CPU/GPU load concern for low-power hardware — users report fans spinning and heat from Odysseus animations even with OS "Reduce Motion" on. The per-component `prefers-reduced-motion` blocks in the existing CSS cover some animations but leave the majority unhandled; the catch-all makes the OS setting effective universally.

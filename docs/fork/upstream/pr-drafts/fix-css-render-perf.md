@@ -129,6 +129,24 @@ converts the full animation workload to near-zero with a single OS setting. This
 a significant accessibility and low-power-device improvement for tablet and phone
 users who enable these accessibility modes.
 
+### ROADMAP alignment
+
+The ROADMAP lists two items this PR directly addresses:
+
+1. **"CSS cleanup. `static/style.css` basically Calypso's island atm."** — The
+   `will-change` removals, containment additions, and hover-guard refactor are
+   exactly this: removing unnecessary declarations and tightening scope without
+   changing visible behavior.
+
+2. **"Accessibility pass: keyboard navigation, focus states, contrast, reduced
+   motion."** — The global `prefers-reduced-motion` catch-all fills the gap left
+   by the existing 17 per-component blocks, which cover known animations but not
+   the ~130 unnamed `@keyframe` animations and hundreds of undeclared transitions.
+   Issue #1857 ("Disable animations," closed) raised this exact concern —
+   users on constrained hardware see high CPU/GPU load from animations even when
+   system-level "Reduce Motion" is on. The catch-all makes the OS setting
+   effective for all animations with a single rule.
+
 ## Target branch
 
 - [x] This PR targets **`dev`**, not `main`. All PRs land in `dev`; `main` is curated by the maintainer at each release.
