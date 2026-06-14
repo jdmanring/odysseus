@@ -44,23 +44,22 @@ is cyberpunk's H291/S96% neon magenta. Catppuccin's H258/S54% mauve is a soft pu
 the same hue family, 42 percentage points lower saturation — which behaves completely
 differently in practice (readable alongside text, not attention-grabbing neon).
 
-This is the niche Catppuccin's [documented design
-philosophy](https://github.com/catppuccin/catppuccin) explicitly targets: "not too dull,
-not too bright" — colourful enough to carry distinct hues in the foreground and accent
-without reaching electric saturation levels. None of the 16 existing themes occupies
-this specific combination of blue-family background, lavender-tinted foreground, and
-soft-purple accent.
+That is the niche Catppuccin's [design
+philosophy](https://github.com/catppuccin/catppuccin) describes: "not too dull,
+not too bright" — colourful enough to carry distinct hues in foreground and accent
+without reaching electric saturation levels. No existing theme occupies this
+combination of blue-family background, lavender-tinted foreground, and soft-purple accent.
 
 ### Design philosophy: contrast calibration for sustained readability
 
-Catppuccin's design principles are stated explicitly in the project README
+The Catppuccin README states three design principles
 ([github.com/catppuccin/catppuccin](https://github.com/catppuccin/catppuccin)):
 
 > "There should be balance: not too dull, not too bright. **Suitability under various light conditions is a must.**"
 
 > "Colorful is better than colorless: the colorfulness of something contributes to the distinction amongst the parts of that *something*, making it marginally easier to understand how things are structured."
 
-The palette explicitly targets "the middle ground between low and high-contrast themes." This is a user-experience mandate, not a stylistic preference — the requirement that a theme perform across bright offices and dim environments drives a specific contrast decision with measurable consequences.
+The palette targets "the middle ground between low and high-contrast themes." The requirement to perform across bright offices and dim environments drives a specific contrast decision — one that shows up in the numbers.
 
 #### Contrast ratios across all Odysseus dark themes
 
@@ -87,11 +86,10 @@ in `static/js/theme.js`:
 | `forest` | `#1b2a1b` | `#a8d5a2` | 9.12:1 | AAA |
 | `retrowave` | `#1a1a2e` | `#e94560` | 4.46:1 | AA (large text only) |
 
-Catppuccin's 11.34:1 ratio places it well above WCAG AAA (7:1), well below the
-near-maximum achromatic themes, and squarely in the "middle ground" its design
-documentation explicitly claims.
+Catppuccin's 11.34:1 ratio is comfortably above WCAG AAA while staying well below
+the near-maximum achromatic themes — exactly where its design documentation puts it.
 
-#### The halation tradeoff in dark themes
+#### Halation
 
 Higher contrast is not always better for sustained reading. At near-maximum contrast
 levels, a perceptual artifact called **halation** worsens significantly: bright text on a
@@ -108,9 +106,8 @@ Astigmatism is a common refractive condition affecting approximately one in thre
 [10.1080/00140139.2013.790485](https://doi.org/10.1080/00140139.2013.790485)) confirmed
 the pupil-mediated mechanism: positive-polarity displays (dark text on light) avoid
 halation by keeping pupils constricted, producing smaller pupil apertures and sharper
-retinal images. Within dark-mode designs, the implication is that reducing contrast from
-near-21:1 toward 10–12:1 partially mitigates halation while remaining well above all
-WCAG thresholds (source: [astigmatismofit.com/blog/dark-mode-vs-light-mode-astigmatism](https://www.astigmatismofit.com/blog/dark-mode-vs-light-mode-astigmatism)).
+retinal images. In dark themes, reducing contrast from near-21:1 toward 10–12:1 reduces halation while
+staying well above WCAG AAA (source: [astigmatismofit.com/blog/dark-mode-vs-light-mode-astigmatism](https://www.astigmatismofit.com/blog/dark-mode-vs-light-mode-astigmatism)).
 
 Six existing Odysseus dark themes sit at 12:1 or above — organs (15.76:1), terminal
 (15.38:1), cyberpunk (14:1), claude (13.78:1), gpt (13.63:1), midnight (12.26:1) — and
@@ -119,7 +116,7 @@ four of those use achromatic or near-achromatic foregrounds (`gpt`, `claude`, `m
 11.34:1 sits in a deliberately calibrated range: well above the AAA floor, substantially
 below the near-maximum achromatic themes.
 
-#### The Helmholtz-Kohlrausch effect: chromatic text at moderate saturation
+#### Helmholtz-Kohlrausch (H-K) effect
 
 The WCAG luminance formula does not capture a significant perceptual factor: chromatic
 (coloured) text at moderate saturation appears *perceptually brighter* than its measured
@@ -135,13 +132,11 @@ foreground `#cdd6f4` sits at H226 (blue-violet) with S64% saturation — precise
 region where chromatic brightness enhancement is greatest. A neutral grey with equal
 luminance would require a *higher* measured luminance to appear as subjectively bright.
 
-In practical terms: Catppuccin's 11.34:1 measured ratio understates its effective
-perceptual contrast. The chromatic lavender-white foreground reads as perceptually
-comparable to a higher-ratio achromatic theme, while avoiding the elevated halation that
-near-maximum achromatic contrast produces. This is the same perceptual strategy used by
-all well-designed pastel dark themes — a lower luminance ratio compensated by chroma —
-and it is why Catppuccin's designers describe the palette as "eye-candy" while positioning
-it as the middle-ground comfortable choice.
+Catppuccin's 11.34:1 measured ratio therefore understates its effective perceptual
+contrast. The lavender-white foreground reads as subjectively brighter than the number
+predicts — which is why the palette can sit at 11.34:1 rather than 13–14:1 and still
+feel as readable. It is also why Catppuccin describes the palette as "eye-candy": the
+chroma is doing real perceptual work, not just decorating.
 
 #### Environmental suitability: bright offices and dim locations
 
@@ -169,20 +164,14 @@ interfaces respectively. Both use achromatic or near-achromatic foregrounds (S0%
 ergonomics — they replicate a specific product's appearance. Catppuccin has a documented
 ergonomic design mandate that none of the existing Odysseus themes share.
 
-#### Summary: this is a usability argument, not a taste argument
+Nothing in the existing Odysseus set has this combination: moderate contrast in the
+10–12:1 range, a blue-violet chromatic foreground that picks up H-K perceptual
+brightness, and a palette built around cross-environment suitability from the start.
 
-The existing Odysseus theme set has no dark theme that combines:
-
-1. Contrast in the 10–12:1 range, where halation is measurably reduced relative to the six near-maximum achromatic dark themes
-2. A chromatic foreground in the blue-violet range, where the H-K effect provides perceptual brightness compensation
-3. An explicit, documented design mandate for suitability across ambient light conditions
-
-The prior PR closures cited aesthetic taste ("I prob shouldnt add more themes"). This
-argument is orthogonal to taste: the ergonomic rationale for Catppuccin is
-scientifically grounded in WCAG contrast measurement, published halation research
-(Piepenbrock et al. 2013), and colour science (Helmholtz-Kohlrausch effect), and the
-gap it fills in the Odysseus theme set is measurable using the actual hex values in
-`static/js/theme.js`.
+Prior PR closures cited the ROADMAP note on themes — a scope concern, not a quality one.
+The case here is grounded in WCAG contrast ratios computed from actual `static/js/theme.js`
+hex values, Piepenbrock et al. 2013, and established colour science. The gap is
+measurable.
 
 ### Adoption scale confirms the niche is real
 
@@ -202,8 +191,7 @@ Catppuccin PRs ([#2814](https://github.com/pewdiepie-archdaemon/odysseus/pull/28
 this reason, not for implementation problems — the maintainer noted "the palette is
 cleanly done" and "no issue with the implementation itself."
 
-The maintainer's own language is worth noting: "I prob shouldnt" (hedged, not absolute)
-and "if themes come back into scope later this can be revisited." Issue
+The phrasing hedges rather than closes: "I prob shouldnt" and "if themes come back into scope later this can be revisited." Issue
 [#3692](https://github.com/pewdiepie-archdaemon/odysseus/issues/3692), opened June 2026
 and labeled "Ready for review," is the most recent signal from the project — indicating
 the maintainer has since reopened consideration.

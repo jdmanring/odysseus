@@ -56,10 +56,9 @@ The current `hf download` experience for a large model download:
 - Leaves no partial files on disk — every failure restarts from byte 0
 - Gives users no way to know if the download is progressing or has silently stalled
 
-In practice: users either sit watching an unresponsive spinner hoping it hasn't
-frozen, start over after SSL errors and hope the CDN holds this time, or give
-up on models large enough to expose the problem. Issue #2722 has been open since
-2024 with no fix possible under the current downloader architecture.
+Users end up watching an unresponsive spinner, restarting from scratch after an SSL
+error, or giving up on models large enough to expose the problem. Issue #2722 has
+been open since 2024 with no fix possible under the current downloader architecture.
 
 ### Solution
 
