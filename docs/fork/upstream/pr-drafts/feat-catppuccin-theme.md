@@ -22,23 +22,23 @@ widely-adopted color palettes in developer tooling.
 
 ### Why Catppuccin specifically
 
-**Ecosystem ubiquity.** Catppuccin is the dominant community theme across the developer
-tool ecosystem: VS Code (4M+ installs), Neovim, iTerm2, Alacritty, Wezterm, Obsidian,
-Zed, and over 350 other applications ship official Catppuccin ports. Developers who
-use Catppuccin across their entire environment will naturally want it in Odysseus too.
-A missing theme in the primary AI assistant is noticeable.
+**Ecosystem ubiquity.** Catppuccin has 456 official ports across the developer tool
+ecosystem — VS Code ([1.27M installs](https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc)),
+JetBrains IDEs, Obsidian, Neovim, Alacritty, Wezterm, Spicetify, and hundreds more
+([catppuccin.com/ports](https://catppuccin.com/ports/)). Developers who use Catppuccin
+across their full environment will naturally expect it in Odysseus. A missing theme in
+the primary AI assistant is a visible gap.
 
-**Accessibility and eye strain.** Catppuccin Mocha was designed specifically for
-extended-session readability. Its color choices reduce eye strain during long coding
-or research sessions: the background is a deep blue-grey (`#1e1e2e`) rather than pure
-black, which reduces the perceived contrast between the screen and a dark room; the text
-is a soft lavender-white (`#cdd6f4`) rather than bright white. These choices are not
-aesthetic preferences — they are documented accessibility decisions in the Catppuccin
-style guide.
+**Design philosophy.** Catppuccin's stated design goals are "balance — not too dull,
+not too bright" and harmony among colors for use across varying lighting conditions. The
+Mocha palette specifically — a deep blue-grey background (`#1e1e2e`) with soft
+lavender-white text (`#cdd6f4`) — is the most widely used of the four Catppuccin
+flavors precisely because it works well under both bright office lighting and dark rooms.
 
-**Zero maintenance burden.** The Catppuccin palette is stable, versioned, and
-maintained by a dedicated organisation. The colors used in this PR are from the official
-Catppuccin Mocha v1 palette and will not change without a major version bump.
+**Zero maintenance burden.** The Catppuccin palette is versioned and actively maintained
+at [github.com/catppuccin/palette](https://github.com/catppuccin/palette) (current:
+v1.1.0). The colors in this PR are from the canonical Mocha palette and will not change
+without a major version bump that would be clearly communicated.
 
 ### Solution
 
