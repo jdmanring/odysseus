@@ -22,6 +22,38 @@ the app has no way to find the community-quantized GGUF repo automatically.
 Users must know to search HuggingFace for a third-party quantization (e.g.,
 `bartowski/Meta-Llama-3.1-8B-GGUF`) and enter it manually.
 
+#### User experience of the current failure
+
+The "No GGUF source configured" error appears with no explanation of what a
+GGUF source is, where to find one, or why the model the user selected doesn't
+have one. The complete path to fix it manually requires:
+
+1. Knowing that the original model (e.g., `meta-llama/Llama-3.1-8B`) is not
+   a GGUF-format model and cannot be downloaded directly for llamacpp
+2. Knowing that community quantizers exist who re-release models in GGUF format
+   under their own HuggingFace accounts
+3. Knowing that `bartowski`, `TheBloke`, `mradermacher` and similar names are
+   the reliable community quantizers
+4. Knowing how to search HuggingFace for `Llama-3.1-8B GGUF` and distinguish
+   a trusted result from the list
+5. Copying the discovered repo ID into a manual configuration field
+
+None of this is documented anywhere in Odysseus. New users who hit "No GGUF
+source configured" have no path forward except asking in community forums.
+
+#### Scale of the inaccessible ecosystem
+
+TheBloke quantized over 2,000 models before retiring from active uploads.
+Bartowski currently maintains 100+ actively-updated imatrix-calibrated repos.
+Mradermacher covers models neither TheBloke nor bartowski has processed.
+Combined, the community GGUF library contains quantizations of virtually
+every notable open-weights model released in the past two years.
+
+This library is invisible to users who don't already know it exists.
+Auto-discovery makes the entire community GGUF ecosystem accessible from
+the same Cookbook UI that surfaces the original model — without requiring
+users to know what a quantizer is, who bartowski is, or what GGUF means.
+
 Additionally, the existing file-selection logic had two bugs affecting models
 that do reach the downloader:
 

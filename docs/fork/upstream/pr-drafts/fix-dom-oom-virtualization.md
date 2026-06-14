@@ -38,6 +38,37 @@ Both failure modes are consistently reproducible. In my testing they occur at
 running alongside other applications; the threshold is lower on constrained
 machines.
 
+### Who is most affected
+
+**Self-hosted AI users run long sessions.** The entire point of running Odysseus
+locally is to have extended, persistent conversations — coding sessions, research
+threads, agent runs that span many tool calls. A user working with a coding agent
+for two hours will have 200+ messages easily. These are exactly the sessions that
+accumulate messages, and exactly the sessions where an OOM crash is most disruptive.
+
+**Constrained hardware is common in the target audience.** Users who self-host LLMs
+often run Odysseus on lower-spec machines: 8 GB RAM laptops, mini PCs, ARM SBCs,
+or machines that are also running the LLM inference stack itself (which consumes
+several GB of RAM or unified memory). On an 8 GB machine with Ollama running
+alongside Odysseus and a system browser, the OOM threshold for the chat renderer
+may be closer to 200–300 messages, not 600. On a Raspberry Pi 5 (8 GB shared
+RAM), a 100-turn agent session can reproduce the crash. The 16 GB baseline quoted
+above is the comfortable case.
+
+**Agent mode amplifies the severity.** An agent tasked with a multi-step coding
+task produces 5–7 DOM nodes per message round (role header, thinking block,
+content, tool-call panel, tool-result panel, metadata row). A 150-turn agent
+session produces 900–1050 nodes — the same node count as 300 standard
+user/model turns. The users who push agent mode hardest are the most likely
+to hit OOM.
+
+**Crash recovery is lossy.** When the renderer crashes mid-stream, the in-progress
+model response is lost. The `resumeStream` path in `chat.js` can replay the SSE
+buffer from the server, but the buffer is bounded — a long response that was
+actively streaming when the crash hit may be partially or fully missing on reload.
+No mechanism exists to re-request the cut-off portion. The user must prompt again
+from scratch, consuming more rounds of an active agent session or losing context.
+
 ### Solution
 
 This PR introduces `static/js/chatHistory.js`, a ~600-line DOM virtualization
