@@ -3,6 +3,7 @@
 **Fork issue:** [#38](https://github.com/jdmanring/odysseus/issues/38)
 **Branch:** `fix/longcat-tool-parsing` (from `upstream-mirror`)
 **Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Status:** Ready to file
 
 ---
 

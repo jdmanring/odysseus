@@ -3,6 +3,7 @@
 **Fork issue:** [#39](https://github.com/jdmanring/odysseus/issues/39)
 **Branch:** `fix/google-compat-toolcalls` (from `upstream-mirror`)
 **Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Status:** Ready to file
 
 ---
 
