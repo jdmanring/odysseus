@@ -8,9 +8,14 @@ import pytest
 from fastapi import HTTPException
 
 from routes.cookbook_helpers import (
+    _REALESRGAN_BASICSR_PATCH,
+    run_basicsr_preflight_async,
     _cached_model_scan_script,
     _append_llama_cpp_linux_accel_build_lines,
     _append_pip_install_runner_lines,
+    _append_realesrgan_basicsr_preflight,
+    _is_realesrgan_pip_install,
+    _pip_install_python_executable,
     _append_serve_exit_code_lines,
     _append_serve_preflight_exit_lines,
     _llama_cpp_rebuild_cmd,
@@ -866,3 +871,264 @@ def test_cached_model_scan_runs_additional_hf_cache(tmp_path):
     assert rec["size_bytes"] == len(b"abc123")
     assert rec["has_incomplete"] is False
     assert rec["is_diffusion"] is False
+
+
+# -- basicsr / Real-ESRGAN Python 3.13+ compatibility preflight --
+
+def test_is_realesrgan_pip_install_positive():
+    assert _is_realesrgan_pip_install('python -m pip install --no-cache-dir "realesrgan"')
+    assert _is_realesrgan_pip_install("pip install realesrgan")
+
+
+def test_is_realesrgan_pip_install_negative():
+    assert not _is_realesrgan_pip_install('python -m pip install "playwright"')
+    assert not _is_realesrgan_pip_install('python -m pip install basicsr')
+    assert not _is_realesrgan_pip_install("")
+    assert not _is_realesrgan_pip_install("echo realesrgan")
+
+
+def test_pip_install_python_executable_extracts_interpreter():
+    assert _pip_install_python_executable("python3 -m pip install realesrgan") == "python3"
+    assert _pip_install_python_executable("/opt/venv/bin/python -m pip install realesrgan") == "/opt/venv/bin/python"
+
+
+def test_pip_install_python_executable_quoted_path():
+    result = _pip_install_python_executable("'/opt/ody venv/bin/python3' -m pip install realesrgan")
+    assert result == "/opt/ody venv/bin/python3"
+
+
+def test_pip_install_python_executable_fallback():
+    assert _pip_install_python_executable("pip install realesrgan") == "python3"
+    assert _pip_install_python_executable("") == "python3"
+
+
+def test_realesrgan_preflight_scoped_to_realesrgan_only():
+    lines = []
+    _append_realesrgan_basicsr_preflight(lines, 'python -m pip install "playwright"')
+    assert lines == []
+
+
+def test_realesrgan_preflight_posix_patch_content():
+    lines = []
+    _append_realesrgan_basicsr_preflight(lines, 'python -m pip install "realesrgan"')
+    script = "\n".join(lines)
+
+    # exec/locals scoping fix
+    assert "namespace = {}" in script
+    assert "return namespace['__version__']" in script
+
+    # Wired correctly into runner, with inline abort on failure
+    assert script.startswith("python - <<'PY'")
+    assert "ODYSSEUS_PREFLIGHT_EXIT=$?" in script
+    assert 'exit "$ODYSSEUS_PREFLIGHT_EXIT"' in script
+
+
+def test_realesrgan_preflight_posix_version_gate():
+    lines = []
+    _append_realesrgan_basicsr_preflight(lines, 'python -m pip install "realesrgan"')
+    script = "\n".join(lines)
+    assert "sys.version_info < (3, 13)" in script
+
+
+def test_realesrgan_preflight_powershell_patch_content():
+    lines = []
+    _append_realesrgan_basicsr_preflight(lines, 'python -m pip install "realesrgan"', powershell=True)
+    script = "\n".join(lines)
+
+    assert script.startswith("$odyBasicsrPatch = @'")
+    assert "namespace = {}" in script
+    assert "$LASTEXITCODE" in script
+
+
+def test_realesrgan_preflight_uses_correct_python_executable():
+    lines = []
+    _append_realesrgan_basicsr_preflight(
+        lines,
+        "'/opt/ody venv/bin/python3' -m pip install --no-cache-dir realesrgan",
+    )
+    assert lines[0].startswith("'/opt/ody venv/bin/python3' - <<'PY'")
+
+
+def test_run_basicsr_preflight_async_is_coroutine():
+    # shell_routes.py calls run_basicsr_preflight_async() — guard that it
+    # exists and is a coroutine function so the await doesn't blow up at runtime.
+    import inspect
+    assert inspect.iscoroutinefunction(run_basicsr_preflight_async)
+
+
+def test_realesrgan_basicsr_patch_noop_when_basicsr_importable(tmp_path):
+    # The preflight script must exit 0 without touching PyPI when basicsr is
+    # already importable (guards both the heredoc and the run_basicsr_preflight_async paths).
+    fake_basicsr = tmp_path / "basicsr" / "__init__.py"
+    fake_basicsr.parent.mkdir()
+    fake_basicsr.write_text("__version__ = '1.4.2'\n")
+
+    script = tmp_path / "patch.py"
+    script.write_text(_REALESRGAN_BASICSR_PATCH.strip())
+
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        env={**os.environ, "PYTHONPATH": str(tmp_path)},
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr.decode()
+
+
+def test_realesrgan_basicsr_setup_patch_fixes_get_version(tmp_path):
+    # Reproduce the exact broken pattern from basicsr 1.4.2 setup.py and verify
+    # our namespace-dict patch eliminates the KeyError on Python 3.13+.
+    version_file = tmp_path / "basicsr" / "version.py"
+    version_file.parent.mkdir(parents=True)
+    version_file.write_text("__version__ = '1.4.2'\n")
+
+    broken = (
+        "version_file = 'basicsr/version.py'\n"
+        "def get_version():\n"
+        "    with open(version_file, 'r') as f:\n"
+        "        exec(compile(f.read(), version_file, 'exec'))\n"
+        "    return locals()['__version__']\n"
+        "__version__ = get_version()\n"
+        "print(__version__)\n"
+    )
+    patched = (
+        "version_file = 'basicsr/version.py'\n"
+        "def get_version():\n"
+        "    namespace = {}\n"
+        "    with open(version_file, 'r') as f:\n"
+        "        exec(compile(f.read(), version_file, 'exec'), namespace)\n"
+        "    return namespace['__version__']\n"
+        "__version__ = get_version()\n"
+        "print(__version__)\n"
+    )
+    setup_py = tmp_path / "setup.py"
+
+    if sys.version_info >= (3, 13):
+        setup_py.write_text(broken)
+        r = subprocess.run([sys.executable, str(setup_py)], capture_output=True, cwd=tmp_path)
+        assert r.returncode != 0, "expected KeyError on Python 3.13+"
+        assert b"KeyError" in r.stderr or b"KeyError" in r.stdout
+
+    setup_py.write_text(patched)
+    r = subprocess.run([sys.executable, str(setup_py)], capture_output=True, cwd=tmp_path)
+    assert r.returncode == 0, r.stderr.decode()
+    assert r.stdout.decode().strip() == "1.4.2"
+
+
+@pytest.mark.asyncio
+async def test_install_realesrgan_calls_basicsr_preflight(monkeypatch):
+    # install_package() must call run_basicsr_preflight_async before pip for
+    # realesrgan — this is the path TomiKovacs used that PR #3741 did not cover.
+    import asyncio
+    import routes.shell_routes as _sr
+    import routes.cookbook_helpers as _helpers
+
+    preflight_called = []
+
+    async def _mock_preflight():
+        preflight_called.append(True)
+        return (0, b"")
+
+    class _MockProc:
+        returncode = 0
+        async def communicate(self):
+            return b"installed ok", b""
+
+    async def _mock_exec(*args, **kwargs):
+        return _MockProc()
+
+    monkeypatch.setattr(_helpers, "run_basicsr_preflight_async", _mock_preflight)
+    monkeypatch.setattr(_sr, "_require_admin", lambda req: None)
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _mock_exec)
+
+    router = _sr.setup_shell_routes()
+    handler = next(
+        (r.endpoint for r in router.routes
+         if getattr(r, "path", None) == "/api/cookbook/packages/install"),
+        None,
+    )
+    assert handler is not None, "install_package route not found in router"
+
+    class _MockRequest:
+        async def json(self):
+            return {"pip": "realesrgan"}
+
+    result = await handler(_MockRequest())
+
+    assert preflight_called, "run_basicsr_preflight_async was not called for realesrgan"
+    assert result.get("ok") is True
+
+
+@pytest.mark.asyncio
+async def test_install_realesrgan_aborts_on_preflight_failure(monkeypatch):
+    # If the preflight returns non-zero, install_package() must return ok=False
+    # immediately and must NOT invoke pip at all.
+    import asyncio
+    import routes.shell_routes as _sr
+    import routes.cookbook_helpers as _helpers
+
+    async def _failing_preflight():
+        return (1, b"urllib connection refused")
+
+    pip_invoked = []
+
+    async def _mock_exec(*args, **kwargs):
+        pip_invoked.append(args)
+
+        class _P:
+            returncode = 0
+            async def communicate(self): return b"", b""
+        return _P()
+
+    monkeypatch.setattr(_helpers, "run_basicsr_preflight_async", _failing_preflight)
+    monkeypatch.setattr(_sr, "_require_admin", lambda req: None)
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _mock_exec)
+
+    router = _sr.setup_shell_routes()
+    handler = next(
+        (r.endpoint for r in router.routes
+         if getattr(r, "path", None) == "/api/cookbook/packages/install"),
+        None,
+    )
+
+    class _MockRequest:
+        async def json(self):
+            return {"pip": "realesrgan"}
+
+    result = await handler(_MockRequest())
+
+    assert result.get("ok") is False
+    assert "urllib connection refused" in result.get("error", "")
+    assert pip_invoked == [], "pip must not be called when preflight fails"
+
+
+def test_realesrgan_basicsr_patch_uses_urllib_not_pip_download():
+    # Regression guard: the original approach used `pip download --no-binary :all:`
+    # which invokes get_requires_for_build_wheel, runs setup.py, and hits the same
+    # KeyError the preflight exists to fix. Must use urllib.request instead.
+    assert "urllib.request" in _REALESRGAN_BASICSR_PATCH
+    # Guard against reverting to `pip download --no-binary` which invokes
+    # get_requires_for_build_wheel → runs setup.py → hits the same KeyError.
+    assert '"-m", "pip", "download"' not in _REALESRGAN_BASICSR_PATCH
+
+
+@pytest.mark.asyncio
+async def test_run_basicsr_preflight_async_propagates_returncode(monkeypatch):
+    # run_basicsr_preflight_async() must return (returncode, stderr) from the
+    # subprocess so callers can inspect failures.
+    import asyncio
+    from routes.cookbook_helpers import run_basicsr_preflight_async
+
+    class _MockProc:
+        returncode = 42
+        async def communicate(self):
+            return b"", b"something went wrong"
+
+    async def _mock_exec(*args, **kwargs):
+        return _MockProc()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _mock_exec)
+
+    rc, stderr = await run_basicsr_preflight_async()
+
+    assert rc == 42
+    assert stderr == b"something went wrong"
