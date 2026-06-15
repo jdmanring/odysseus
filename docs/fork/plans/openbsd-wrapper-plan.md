@@ -9,7 +9,7 @@
 
 ## Overview
 
-Extend `linux_wrapper.py` with OpenBSD support. `qt6-qtwebengine` (v6.8.3p4) is in
+Extend `qt_wrapper.py` with OpenBSD support. `qt6-qtwebengine` (v6.8.3p4) is in
 OpenBSD ports for amd64 and aarch64. OpenBSD's Chromium port uses `pledge(2)` and
 `unveil(2)` for sandboxing instead of Linux's seccomp-bpf — the wrapper's existing
 `--no-sandbox` flag disables the Linux-specific sandbox path and is the correct flag
@@ -126,7 +126,7 @@ mkdir -p "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR"
 LAUNCHER="$BIN_DIR/odysseus"
 cat > "$LAUNCHER" <<LAUNCHER
 #!/bin/sh
-exec "$VENV_PY" "$INSTALL_DIR/linux_wrapper.py"
+exec "$VENV_PY" "$INSTALL_DIR/qt_wrapper.py"
 LAUNCHER
 chmod +x "$LAUNCHER"
 echo "Installed launcher: $LAUNCHER"
@@ -159,12 +159,12 @@ echo "Or find 'Odysseus' in your application menu."
 ## Implementation Steps
 
 1. `git checkout upstream-mirror && git checkout -b feat/qt-native-openbsd-app`
-2. Apply `pkill`/`pgrep` `FileNotFoundError` guards to `linux_wrapper.py`
+2. Apply `pkill`/`pgrep` `FileNotFoundError` guards to `qt_wrapper.py`
    (if #45 platform guard is already merged, only these two small catches are needed)
 3. Create `build-openbsd-app.sh` and `chmod +x build-openbsd-app.sh`
 4. Test on an OpenBSD amd64 machine:
    - `doas pkg_add qt6-qtwebengine py3-pyqt6-webengine`
-   - `python3 linux_wrapper.py` — confirm UI loads
+   - `python3 qt_wrapper.py` — confirm UI loads
    - Confirm `pkill`/`pgrep` fallback works without `proctools` installed
    - Install `sysutils/proctools` and confirm memory logging works with it present
 5. Write PR draft at `docs/fork/upstream/pr-drafts/feat-qt-native-openbsd-app.md`

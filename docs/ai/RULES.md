@@ -303,7 +303,7 @@ git checkout fix/short-description   # keep staging branch — it's the PR candi
 ```bash
 git log --oneline | tail -5   # should show upstream commits, not develop's fork history
 ```
-If you see fork-specific commits (docs/fork/, CLAUDE.md, linux_wrapper.py, etc.)
+If you see fork-specific commits (docs/fork/, CLAUDE.md, etc.)
 in the tail of the log, the branch was created from the wrong base. Delete it and
 start over from `upstream-mirror`.
 
@@ -342,7 +342,7 @@ git log --oneline upstream-mirror..fix/branch-name   # should show ONLY our comm
 # 2. Diff is exactly the intended fix — no extra files, no debug code, no fork-specific paths
 git diff upstream-mirror fix/branch-name
 
-# 3. No fork-specific content in the diff (CLAUDE.md, docs/fork/, linux_wrapper.py, etc.)
+# 3. No fork-specific content in the diff (CLAUDE.md, docs/fork/, etc.)
 git diff upstream-mirror fix/branch-name --name-only
 
 # 4. Single clean commit (for most fixes)

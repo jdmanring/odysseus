@@ -22,7 +22,7 @@ but without KDE taskbar pinning integration) and any other FreeBSD desktop
 
 ## Overview
 
-Extend `linux_wrapper.py` with platform-conditional code so it works on FreeBSD
+Extend `qt_wrapper.py` with platform-conditional code so it works on FreeBSD
 and GhostBSD without changes to its Linux behavior. The wrapper architecture is
 already compatible; only the memory monitor uses a Linux-specific `/proc` path.
 
@@ -111,12 +111,12 @@ def _log_renderer_memory():
 
 1. `git checkout upstream-mirror && git checkout -b feat/qt-native-freebsd-app`
 2. Apply the memory monitor platform guard above
-3. Verify `linux_wrapper.py` still works unchanged on Linux after the edit
+3. Verify `qt_wrapper.py` still works unchanged on Linux after the edit
 4. Test on a FreeBSD machine with KDE Plasma:
    - Install KDE Plasma: `pkg install plasma5-plasma`
    - Install deps: `pkg install py311-qt6-webengine py311-qt6-webchannel py311-dbus-python`
      or `pip install PyQt6 PyQt6-WebEngine PyQt6-sip` into venv
-   - Run `python linux_wrapper.py` and confirm the UI loads
+   - Run `python qt_wrapper.py` and confirm the UI loads
    - Confirm memory log lines appear in `logs/wrapper_system.log`
    - Confirm color picker opens (via portal or QColorDialog fallback)
    - Confirm external links open in the system browser
@@ -150,7 +150,7 @@ def _log_renderer_memory():
   `QTWEBENGINE_FORCE_USE_GBM=0` would be set globally and could degrade Mesa
   GPU acceleration on FreeBSD.
 - Scope the PR title and description carefully: this is not a separate wrapper,
-  it is `linux_wrapper.py` gaining cross-platform support. Suggest title:
+  it is `qt_wrapper.py` gaining cross-platform support. Suggest title:
   `feat(linux): extend Qt wrapper to support FreeBSD (KDE Plasma) and GhostBSD`
 - Primary test target is KDE Plasma on FreeBSD; note that GhostBSD/MATE and
   other FreeBSD desktops work via QColorDialog fallback and standard XDG spec.

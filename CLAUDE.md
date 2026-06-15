@@ -20,7 +20,7 @@ Fork-only is the narrow exception, reserved for the workshop tooling itself:
 - `tooling/sync-upstreams/` — the sync pipeline
 - `.github/workflows/sync-upstream.yml` — CI for the sync
 
-Everything else defaults to upstream-candidate: bug fixes, features, `linux_wrapper.py`, the download stack, UI work, `docs/ai/CONTEXT.md`, `docs/ai/RULES.md`, `docs/dev/` documentation, architecture docs, user docs. If it makes Odysseus better, it belongs upstream.
+Everything else defaults to upstream-candidate: bug fixes, features, `qt_wrapper.py`, the download stack, UI work, `docs/ai/CONTEXT.md`, `docs/ai/RULES.md`, `docs/dev/` documentation, architecture docs, user docs. If it makes Odysseus better, it belongs upstream.
 
 **Use directory structure to determine classification, not explicit listing.** `docs/fork/` = fork management = fork-only. `docs/dev/` = development documentation = upstream-candidate. `docs/ai/` = AI onboarding content = upstream-candidate. When in doubt, ask: does this belong to the project, or does it belong to the workbench?
 

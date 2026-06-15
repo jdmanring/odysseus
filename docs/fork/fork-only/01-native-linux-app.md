@@ -8,7 +8,7 @@ support, persistent login, and a JS↔Python bridge for native OS capabilities.
 
 ## Key Components
 
-- **`linux_wrapper.py`** — PyQt6/QWebEngineView wrapper; manages server lifecycle, GPU flags,
+- **`qt_wrapper.py`** — PyQt6/QWebEngineView wrapper; manages server lifecycle, GPU flags,
   persistent profile, QWebChannel bridge, zombie cleanup, and crash/signal handling.
 - **`build-linux-app.sh`** — XDG-compliant install: launcher at `~/.local/bin/odysseus`, SVG
   icon at `~/.local/share/icons/hicolor/scalable/apps/odysseus.svg`, `.desktop` entry.
@@ -22,7 +22,7 @@ Two separate Python runtimes:
 
 | Layer | Runtime | Why |
 |-------|---------|-----|
-| Display (`linux_wrapper.py`) | `/usr/bin/python3` (system) | Needs system-built PyQt6 with Wayland support |
+| Display (`qt_wrapper.py`) | `/usr/bin/python3` (system) | Needs system-built PyQt6 with Wayland support |
 | Backend (`uvicorn app:app`) | `venv/bin/python` | All ML/server deps live in the venv |
 
 **Do not use pip-distributed PyQt6 for the wrapper** — it is built without Wayland ozone support.
@@ -33,7 +33,7 @@ Qt auto-detects Wayland from `WAYLAND_DISPLAY`. The embedded Chromium renderer u
 for GPU rendering (NVIDIA does not support GBM direct compositing in the QtWebEngine subprocess
 context — this is an intentional Qt decision, not a misconfiguration).
 
-Chromium flags set in `linux_wrapper.py`:
+Chromium flags set in `qt_wrapper.py`:
 ```
 --no-sandbox                              required on Artix (user namespaces)
 --ignore-gpu-blocklist                    override NVIDIA GPU blocklist
@@ -58,7 +58,7 @@ needed. Both `QWebChannel` and `QtDBus` are bundled with `python-pyqt6`.
 - `openColorPicker()` — calls xdg-desktop-portal `PickColor` via `PyQt6.QtDBus`; native
   crosshair cursor, no intermediate dialog; falls back to `QColorDialog` if portal unavailable.
 
-**Extending:** Add a `@pyqtSlot` method and signal to `NativeBridge` in `linux_wrapper.py`.
+**Extending:** Add a `@pyqtSlot` method and signal to `NativeBridge` in `qt_wrapper.py`.
 
 ## Persistent Profile
 

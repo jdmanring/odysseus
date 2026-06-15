@@ -13,7 +13,7 @@ Self-hosted AI workspace. FastAPI backend + browser UI, running locally at
 Plan mode, memory (RAG via ChromaDB), model downloads, TTS/STT, MCP servers,
 calendar, email, notes, documents, gallery. Single-user.
 
-On Linux it also runs as a native Qt app (`linux_wrapper.py`) — PyQt6 wraps the
+On Linux it also runs as a native Qt app (`qt_wrapper.py`) — PyQt6 wraps the
 web UI in `QWebEngineView`, manages server lifecycle, GPU flags, crash recovery.
 
 ---
@@ -119,7 +119,7 @@ Lines look like `·[#a1b2c3 1GiB/5GiB(21%) CN:4 DL:50MiB ETA:1m20s]` followed by
 ## Fork Additions (James's code, not in upstream)
 
 **Entirely new files:**
-- `linux_wrapper.py` — the entire Qt native app
+- `qt_wrapper.py` — the entire Qt native app
 - `static/js/qt-bridge.js` — QWebChannel setup
 - `tooling/aria2c_download.py` — HF download via aria2c
 - `tooling/bin_manager.py` — auto-install external binaries
@@ -138,7 +138,7 @@ Full divergence record: `docs/fork/changes-from-upstream.md`
 - **No bundler.** A new JS file needs a `<script>` tag in `index.html`. ES imports
 between `static/js/` files work; `node_modules` doesn't exist.
 
-- **`linux_wrapper.py` starts the server.** When running the native app, don't also
+- **`qt_wrapper.py` starts the server.** When running the native app, don't also
 run uvicorn — the wrapper spawns it and owns its lifecycle.
 
 - **`QWebEngineView` is Chromium but not a browser.** Web EyeDropper API is missing.
