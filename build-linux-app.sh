@@ -87,7 +87,7 @@ Exec=$LAUNCHER_BIN
 Icon=$APP_NAME
 Terminal=false
 Categories=Office;Utility;Development;
-StartupWMClass=odysseus
+StartupWMClass=$APP_NAME
 DESKTOP
 echo "Installed desktop entry: $DESKTOP_FILE"
 
