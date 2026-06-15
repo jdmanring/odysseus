@@ -225,8 +225,13 @@ follow-up.
 
 - Depends on `feat/qt-native-linux-app` (issue #14) being merged upstream first.
   If filing before #14 merges: include the shared JS files and note the dependency.
-- Reference upstream issue #3528 (Windows desktop wrapper) as prior art — the
-  maintainer explicitly discussed a native Windows wrapper there.
+- Reference upstream issue #3528 (Windows desktop wrapper) and issue #606
+  (standalone native app) and PR #3310 (Electron wrapper) as prior art.
+  In the PR description, explain why Qt WebEngine is preferable to Electron:
+  same Chromium engine, 35–50% less RAM (180 MB vs 400 MB measured on
+  constrained hardware), no bundled Node.js runtime, direct Python integration,
+  and full server lifecycle management (PR #3310 requires the server to already
+  be running; this wrapper starts and manages it).
 - Must be tested on real Windows hardware before filing. Wine/VM testing is not
   sufficient for validating GPU flags and window management.
 - Note in the PR that `build-windows-app.ps1` requires PowerShell execution policy

@@ -135,5 +135,8 @@ def _log_renderer_memory():
 - Scope the PR title and description carefully: this is not a separate wrapper,
   it is `linux_wrapper.py` gaining cross-platform support. Suggest title:
   `feat(linux): extend Qt wrapper to support FreeBSD and GhostBSD`
-- Note in the PR that OpenBSD is out of scope: Chromium/Qt WebEngine requires
-  Linux kernel namespaces and seccomp-bpf that OpenBSD's kernel does not provide.
+- OpenBSD is tracked separately (issue #46). `qt6-qtwebengine` is in OpenBSD
+  ports (amd64/aarch64); the same platform guard applied here covers OpenBSD too.
+- Reference upstream issue #606 (standalone native app) and PR #3310 (Electron
+  wrapper) in the PR: Qt WebEngine uses the same Chromium engine without Node.js,
+  at 35–50% lower RAM, integrating directly with the Python server process.
