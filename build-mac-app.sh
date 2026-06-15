@@ -60,27 +60,25 @@ mkdir -p "$DIST"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-# Icon: try SVG → icns, fall back to JPEG via sips
-if [ -f "$REPO_DIR/assets/$APP_NAME.svg" ] && command -v rsvg-convert >/dev/null 2>&1; then
+# Icon: SVG → icns via rsvg-convert, fall back to 512px PNG via sips
+if [ -f "$REPO_DIR/static/icons/$APP_NAME.svg" ] && command -v rsvg-convert >/dev/null 2>&1; then
     TMPIMG="$(mktemp -d)"
-    rsvg-convert -w 512 -h 512 "$REPO_DIR/assets/odysseus.svg" \
+    rsvg-convert -w 512 -h 512 "$REPO_DIR/static/icons/odysseus.svg" \
         -o "$TMPIMG/icon.png" >/dev/null 2>&1 && \
     sips -s format icns "$TMPIMG/icon.png" \
         --out "$APP/Contents/Resources/odysseus.icns" >/dev/null 2>&1 || true
     rm -rf "$TMPIMG"
     echo "  icon: odysseus.icns (from SVG)"
-elif [ -f "$REPO_DIR/docs/odysseus.jpg" ] && command -v sips >/dev/null 2>&1; then
+elif [ -f "$REPO_DIR/static/icons/icon-512.png" ] && command -v sips >/dev/null 2>&1; then
     TMPIMG="$(mktemp -d)"
-    sips -c 720 720 "$REPO_DIR/docs/odysseus.jpg" \
-        --out "$TMPIMG/sq.png" >/dev/null 2>&1 \
-        || cp "$REPO_DIR/docs/odysseus.jpg" "$TMPIMG/sq.png"
-    sips -z 512 512 "$TMPIMG/sq.png" --out "$TMPIMG/icon.png" >/dev/null 2>&1
+    sips -z 512 512 "$REPO_DIR/static/icons/icon-512.png" \
+        --out "$TMPIMG/icon.png" >/dev/null 2>&1
     sips -s format icns "$TMPIMG/icon.png" \
         --out "$APP/Contents/Resources/odysseus.icns" >/dev/null 2>&1 || true
     rm -rf "$TMPIMG"
-    echo "  icon: odysseus.icns (from JPEG)"
+    echo "  icon: odysseus.icns (from PNG)"
 else
-    echo "  icon: (skipped — no assets/odysseus.svg or docs/odysseus.jpg)"
+    echo "  icon: (skipped — no static/icons/odysseus.svg or static/icons/icon-512.png)"
 fi
 
 # Info.plist

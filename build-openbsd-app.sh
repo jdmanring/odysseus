@@ -65,8 +65,8 @@ chmod +x "$LAUNCHER"
 echo "Installed launcher: $LAUNCHER"
 
 # --- Icon ---
-if [ -f "$INSTALL_DIR/assets/$APP_NAME.svg" ]; then
-    cp "$INSTALL_DIR/assets/$APP_NAME.svg" "$ICON_DIR/$APP_NAME.svg"
+if [ -f "$INSTALL_DIR/static/icons/$APP_NAME.svg" ]; then
+    cp "$INSTALL_DIR/static/icons/$APP_NAME.svg" "$ICON_DIR/$APP_NAME.svg"
     echo "Installed SVG icon: $ICON_DIR/$APP_NAME.svg"
 fi
 
