@@ -12,11 +12,11 @@ from starlette.testclient import TestClient
 diag = pytest.importorskip("routes.diagnostics_routes")
 
 
-def _client_with_admin_gate(monkeypatch, gate, tmp_path=None):
-    """Mount the diagnostics router with a mock require_admin and DATA_DIR."""
+def _client_with_admin_gate(monkeypatch, gate, log_file=None):
+    """Mount the diagnostics router with a mock require_admin and LOG_FILE."""
     monkeypatch.setattr(diag, "require_admin", gate)
-    if tmp_path:
-        monkeypatch.setattr(diag, "DATA_DIR", str(tmp_path))
+    if log_file is not None:
+        monkeypatch.setattr(diag, "LOG_FILE", str(log_file))
 
     app = FastAPI()
     app.include_router(diag.setup_diagnostics_routes(
@@ -44,7 +44,8 @@ def test_logs_non_admin_forbidden(monkeypatch):
 def test_logs_missing_file(monkeypatch, tmp_path):
     def gate(_request: Request):
         return None
-    client = _client_with_admin_gate(monkeypatch, gate, tmp_path)
+    nonexistent = tmp_path / "odysseus.log"
+    client = _client_with_admin_gate(monkeypatch, gate, log_file=nonexistent)
     r = client.get("/api/diagnostics/logs")
     assert r.status_code == 200
     body = r.json()
@@ -53,10 +54,7 @@ def test_logs_missing_file(monkeypatch, tmp_path):
 
 
 def test_logs_tailing_and_clamping(monkeypatch, tmp_path):
-    # Setup mock log file
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "app.log"
+    log_file = tmp_path / "odysseus.log"
 
     # Write 1500 log lines
     lines = [f"Log line {i}\n" for i in range(1, 1501)]
@@ -64,7 +62,7 @@ def test_logs_tailing_and_clamping(monkeypatch, tmp_path):
 
     def gate(_request: Request):
         return None
-    client = _client_with_admin_gate(monkeypatch, gate, tmp_path)
+    client = _client_with_admin_gate(monkeypatch, gate, log_file=log_file)
 
     # 1. Default limit (200)
     r = client.get("/api/diagnostics/logs")

@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Form, Request
 
 from services.youtube.youtube_handler import extract_youtube_id, extract_transcript_async
 from core.constants import DEFAULT_HOST, DATA_DIR
+from src.constants import LOG_FILE
 from core.middleware import require_admin
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ def setup_diagnostics_routes(
         require_admin(request)
         limit = max(1, min(limit, 1000))
         try:
-            log_file = os.path.join(DATA_DIR, "logs", "app.log")
+            log_file = LOG_FILE
             if not os.path.exists(log_file):
                 return {"status": "success", "logs": []}
 
