@@ -15,6 +15,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, Depends
 
 from src.auth_helpers import require_user
+from src.constants import COOKBOOK_STATE_FILE
 from pydantic import BaseModel
 
 from core.middleware import require_admin
@@ -33,7 +34,6 @@ from routes.cookbook_output import (
     error_aware_output_tail, classify_dead_download,
     HF_CACHE_COMPLETE_PROBE, HF_CACHE_INCOMPLETE_PROBE,
 )
-from src.constants import COOKBOOK_STATE_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +47,10 @@ from routes.cookbook_helpers import (
     _append_vllm_linux_preflight_lines, _ollama_bind_from_cmd, _pip_install_fallback_chain,
     _pip_install_no_cache, _user_shell_path_bootstrap, _venv_safe_local_pip_install_cmd,
     _diagnose_serve_output, run_ssh_command_async,
+    _append_realesrgan_basicsr_preflight,
     _normalize_llama_cpp_python_cache_types,
     ModelDownloadRequest, ServeRequest,
 )
-from tooling.hf_url_resolver import HfUrlResolver
 
 _HF_TOKEN_STATUS_SNIPPET = (
     'if [ -n "$HF_TOKEN" ]; then '
@@ -405,29 +405,6 @@ def setup_cookbook_routes() -> APIRouter:
         pid_path.write_text(str(proc.pid), encoding="utf-8")
         return {"pid": proc.pid, "log_path": str(log_path)}
 
-    @router.get("/api/cookbook/resolve-gguf")
-    async def resolve_gguf(request: Request, model: str = None):
-        """Dynamically discover GGUF sources for a given model repo ID.
-
-        Searches HuggingFace for community GGUF quantizations, verifies each
-        candidate contains actual GGUF files via metadata, and scores them on
-        downloads, likes ratio, imatrix calibration, author reputation,
-        benchmark scores, trending, and recency.
-        """
-        require_admin(request)
-        if not model:
-            raise HTTPException(status_code=400, detail="Missing model parameter")
-
-        token = _load_stored_hf_token()
-        resolver = HfUrlResolver(token=token)
-
-        try:
-            sources = resolver.find_gguf_sources(model)
-            return {"gguf_sources": sources}
-        except Exception as e:
-            logger.exception("GGUF discovery failed for %s", model)
-            raise HTTPException(status_code=500, detail=str(e))
-
     @router.post("/api/model/download")
     async def model_download(request: Request, req: ModelDownloadRequest):
         """Download a HuggingFace model in a tmux session.
@@ -464,60 +441,20 @@ def setup_cookbook_routes() -> APIRouter:
         _dl_hf_home_shell = _shell_path(req.local_dir.rstrip("/")) if req.local_dir else None
         _dl_pyarg = ""  # snapshot_download honors the env vars too — no kwarg needed
 
-        # Pre-flight: verify aria2c is available before committing to that path.
-        # Fallback to hf download only here — not mid-stream — because the two paths
-        # write different filesystem layouts (flat vs hub blob cache) and a mid-stream
-        # switch would corrupt partial downloads.
-        if req.use_aria2c and not is_ollama_download:
-            try:
-                from tooling.aria2c_download import get_aria2c
-                if get_aria2c() is None:
-                    logger.warning(
-                        "aria2c unavailable (BinManager install failed or unsupported platform)"
-                        " — falling back to hf download for %s", req.repo_id,
-                    )
-                    req.use_aria2c = False
-            except Exception:
-                logger.warning(
-                    "aria2c pre-flight check raised — falling back to hf download for %s", req.repo_id,
-                )
-                req.use_aria2c = False
-
-        # Build the download command.
+        # Build the hf download command. Redirection to suppress the interactive
+        # "update available? [Y/n]" prompt is added per-platform further down
+        # (< /dev/null on bash, $null | on PowerShell).
+        hf_cmd = f"hf download {req.repo_id}"
+        if req.include:
+            hf_cmd += f" --include '{req.include}'"
         ollama_cmd = f"ollama pull {shlex.quote(req.repo_id)}"
-        if req.use_aria2c:
-            # aria2c path: runs aria2c_download.py in the tmux session.
-            _aria2c_script = (
-                Path(__file__).resolve().parent.parent / "tooling" / "aria2c_download.py"
-            ).as_posix()
-            token_quoted = _bash_squote(req.hf_token) if req.hf_token else "''"
-            include_quoted = _bash_squote(req.include) if req.include else "''"
-            local_dir_quoted = _bash_squote(_dl_base) if _dl_base else "''"
-            hf_cmd = (
-                f"python3 {_bash_squote(_aria2c_script)} "
-                f"--repo {req.repo_id} "
-                f"--token {token_quoted} "
-                f"--local-dir {local_dir_quoted} "
-                f"--include {include_quoted}"
-            )
-        else:
-            # Standard hf download command. Redirection to suppress the interactive
-            # "update available? [Y/n]" prompt is added per-platform further down
-            # (< /dev/null on bash, $null | on PowerShell).
-            hf_cmd = f"hf download {req.repo_id}"
-            if req.include:
-                hf_cmd += f" --include '{req.include}'"
-            if _dl_shell:
-                hf_cmd += f" --local-dir {_dl_shell}"
 
         # Build the shell wrapper — runs hf download directly in tmux (which is a TTY)
         # No script/tee needed — we'll use tmux capture-pane to read output
         lines = ["#!/bin/bash"]
         lines.extend(_user_shell_path_bootstrap())
         if req.hf_token:
-            token_quoted = _bash_squote(req.hf_token)
-            lines.append(f"export HF_TOKEN='{token_quoted}'")
-            lines.append(f"export HUGGING_FACE_HUB_TOKEN='{token_quoted}'")
+            lines.append(f"export HF_TOKEN='{_bash_squote(req.hf_token)}'")
         if _dl_hf_home_shell and not is_ollama_download:
             # Make hf download / snapshot_download honor the chosen dir via the
             # standard HF cache (gives us the models--org--name/blobs/... layout
@@ -578,9 +515,7 @@ def setup_cookbook_routes() -> APIRouter:
             ps_lines.append('$sessionDir = "$env:TEMP\\odysseus-sessions"')
             ps_lines.append('New-Item -ItemType Directory -Force -Path $sessionDir | Out-Null')
             if req.hf_token:
-                token_quoted = _ps_squote(req.hf_token)
-                ps_lines.append(f"$env:HF_TOKEN = '{token_quoted}'")
-                ps_lines.append(f"$env:HUGGING_FACE_HUB_TOKEN = '{token_quoted}'")
+                ps_lines.append(f"$env:HF_TOKEN = '{_ps_squote(req.hf_token)}'")
             if req.local_dir and not is_ollama_download:
                 # Mirror the bash branch — point the HF cache at the user's dir
                 # via env vars instead of --local-dir, so resume works on flaky
@@ -637,13 +572,8 @@ def setup_cookbook_routes() -> APIRouter:
                 f"-RedirectStandardError \\\"$sd\\{session_id}.err.log\\\" "
                 f"-NoNewWindow -PassThru | ForEach-Object {{ $_.Id | Out-File \\\"$sd\\{session_id}.pid\\\" }}"
             )
-            _aria2c_scp = (
-                f' && ssh {_Pf}{remote} "mkdir -p ~/.cookbook"'
-                f' && scp -O -r tooling {remote}:~/.cookbook/'
-            ) if req.use_aria2c else ''
             setup_cmd = (
-                f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner}"
-                f"{_aria2c_scp} && "
+                f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner} && "
                 f'ssh {_pf}{remote} "powershell -Command \\"{launch_ps}\\""'
             )
 
@@ -655,9 +585,7 @@ def setup_cookbook_routes() -> APIRouter:
             runner_lines.append("# Auto-detect environment")
             runner_lines.append("deactivate 2>/dev/null; hash -r")
             if req.hf_token:
-                token_quoted = _bash_squote(req.hf_token)
-                runner_lines.append(f"export HF_TOKEN='{token_quoted}'")
-                runner_lines.append(f"export HUGGING_FACE_HUB_TOKEN='{token_quoted}'")
+                runner_lines.append(f"export HF_TOKEN='{_bash_squote(req.hf_token)}'")
             if _dl_hf_home_shell and not is_ollama_download:
                 runner_lines.append(f"export HF_HOME={_dl_hf_home_shell}")
                 runner_lines.append(f"export HUGGINGFACE_HUB_CACHE={_dl_hf_home_shell}/hub")
@@ -700,47 +628,39 @@ def setup_cookbook_routes() -> APIRouter:
                 # download's "not authorized" failure can be told apart from a missing
                 # token (the token is masked — we only print applied / not-set).
                 runner_lines.append(_HF_TOKEN_STATUS_SNIPPET)
-            if req.use_aria2c:
-                # aria2c handles resume via .aria2 sidecar files — no outer retry loop needed.
-                # The retry loop is harmful: C-c (Pause) exits aria2c non-zero and the loop
-                # would restart the download 30s later instead of staying paused.
-                runner_lines.append(f'{hf_cmd}')
-                runner_lines.append('_ec=$?')
-                runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec)"; fi')
+            # Wrap the download in a retry loop. Large HF/Ollama transfers can
+            # hit transient network failures; both backends resume cached partials.
+            mw = 4 if req.disable_hf_transfer else 8
+            runner_lines.append('_max_retries=10; _attempt=0; _ec=0')
+            runner_lines.append('while [ $_attempt -lt $_max_retries ]; do')
+            runner_lines.append('  _attempt=$((_attempt+1))')
+            if is_ollama_download:
+                runner_lines.append('  eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null')
             else:
-                # Retry loop for standard HF/Ollama downloads. Large transfers can hit
-                # transient network failures; both backends resume cached partials.
-                mw = 4 if req.disable_hf_transfer else 8
-                runner_lines.append('_max_retries=10; _attempt=0; _ec=0')
-                runner_lines.append('while [ $_attempt -lt $_max_retries ]; do')
-                runner_lines.append('  _attempt=$((_attempt+1))')
-                if is_ollama_download:
-                    runner_lines.append('  eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null')
+                runner_lines.append('  if command -v hf &>/dev/null; then')
+                runner_lines.append(f'    {hf_cmd} < /dev/null')
+                runner_lines.append('  elif python3 -c "import huggingface_hub" 2>/dev/null; then')
+                runner_lines.append('    [ $_attempt -eq 1 ] && echo "hf CLI not found, using Python huggingface_hub..."')
+                runner_lines.append(f'    python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(\'{req.repo_id}\'{_dl_pyarg}, max_workers={mw})"')
+                runner_lines.append('  else')
+                runner_lines.append('    echo "Installing huggingface-hub and dependencies..."')
+                runner_lines.append('    pip install --no-deps -q huggingface-hub 2>/dev/null')
+                if req.disable_hf_transfer:
+                    runner_lines.append('    pip install -q filelock fsspec packaging pyyaml tqdm typer httpx requests 2>/dev/null')
+                    runner_lines.append('    export HF_HUB_ENABLE_HF_TRANSFER=0')
                 else:
-                    runner_lines.append('  if command -v hf &>/dev/null; then')
-                    runner_lines.append(f'    {hf_cmd} < /dev/null')
-                    runner_lines.append('  elif python3 -c "import huggingface_hub" 2>/dev/null; then')
-                    runner_lines.append('    [ $_attempt -eq 1 ] && echo "hf CLI not found, using Python huggingface_hub..."')
-                    runner_lines.append(f'    python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(\'{req.repo_id}\'{_dl_pyarg}, max_workers={mw})"')
-                    runner_lines.append('  else')
-                    runner_lines.append('    echo "Installing huggingface-hub and dependencies..."')
-                    runner_lines.append('    pip install --no-deps -q huggingface-hub 2>/dev/null')
-                    if req.disable_hf_transfer:
-                        runner_lines.append('    pip install -q filelock fsspec packaging pyyaml tqdm typer httpx requests 2>/dev/null')
-                        runner_lines.append('    export HF_HUB_ENABLE_HF_TRANSFER=0')
-                    else:
-                        runner_lines.append('    pip install -q filelock fsspec packaging pyyaml tqdm typer httpx requests hf_transfer 2>/dev/null')
-                        runner_lines.append("    python3 -c 'import hf_transfer' 2>/dev/null && export HF_HUB_ENABLE_HF_TRANSFER=1")
-                    runner_lines.append(f'    python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(\'{req.repo_id}\'{_dl_pyarg}, max_workers={mw})"')
-                    runner_lines.append('  fi')
-                runner_lines.append('  _ec=$?')
-                runner_lines.append('  if [ $_ec -eq 0 ]; then break; fi')
-                runner_lines.append('  if [ $_attempt -lt $_max_retries ]; then')
-                runner_lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
-                runner_lines.append('    sleep 30')
+                    runner_lines.append('    pip install -q filelock fsspec packaging pyyaml tqdm typer httpx requests hf_transfer 2>/dev/null')
+                    runner_lines.append("    python3 -c 'import hf_transfer' 2>/dev/null && export HF_HUB_ENABLE_HF_TRANSFER=1")
+                runner_lines.append(f'    python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(\'{req.repo_id}\'{_dl_pyarg}, max_workers={mw})"')
                 runner_lines.append('  fi')
-                runner_lines.append('done')
-                runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
+            runner_lines.append('  _ec=$?')
+            runner_lines.append('  if [ $_ec -eq 0 ]; then break; fi')
+            runner_lines.append('  if [ $_attempt -lt $_max_retries ]; then')
+            runner_lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
+            runner_lines.append('    sleep 30')
+            runner_lines.append('  fi')
+            runner_lines.append('done')
+            runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
             runner_lines.append(f"rm -f {remote_runner}")
             runner_lines.append('exec "${SHELL:-/bin/bash}"')
             runner_path = TMUX_LOG_DIR / f"{session_id}_run.sh"
@@ -753,14 +673,9 @@ def setup_cookbook_routes() -> APIRouter:
             _port = req.ssh_port
             _pf = f"-P {_port} " if _port and _port != "22" else ""
             _spf = f"-p {_port} " if _port and _port != "22" else ""
-            _aria2c_scp = (
-                f' && ssh {_spf}{remote} "mkdir -p ~/.cookbook"'
-                f' && scp -r tooling {remote}:~/.cookbook/'
-            ) if req.use_aria2c else ''
             setup_cmd = (
-                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner}"
-                f"{_aria2c_scp} && "
-                f"ssh {_spf}{remote} 'chmod +x {remote_runner} && tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -x 220 -y 50 -d -s {session_id} \"./{remote_runner}\"'"
+                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner} && "
+                f"ssh {_spf}{remote} 'chmod +x {remote_runner} && tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} \"./{remote_runner}\"'"
             )
         else:
             # Local: run hf download in the background (tmux on POSIX, a detached
@@ -773,34 +688,26 @@ def setup_cookbook_routes() -> APIRouter:
             # "not authorized" failure apart from a missing token.
             if not is_ollama_download:
                 lines.append(_HF_TOKEN_STATUS_SNIPPET)
+            # Retry loop — same rationale as the remote-bash path. Issue #2722.
             _hf_invoke = 'eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null' if is_ollama_download else (hf_cmd if IS_WINDOWS else f"{hf_cmd} < /dev/null")
-            if req.use_aria2c:
-                # aria2c handles resume via .aria2 sidecar files — no outer retry loop needed.
-                # The retry loop is harmful: C-c (Pause) exits aria2c non-zero and the loop
-                # would restart the download 30s later instead of staying paused.
-                lines.append(f'{_hf_invoke}')
-                lines.append('_ec=$?')
-                lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec)"; fi')
-            else:
-                # Retry loop for standard HF/Ollama downloads. Issue #2722.
-                lines.append('_max_retries=10; _attempt=0; _ec=0')
-                lines.append('while [ $_attempt -lt $_max_retries ]; do')
-                lines.append('  _attempt=$((_attempt+1))')
-                lines.append(f'  {_hf_invoke}')
-                lines.append('  _ec=$?')
-                lines.append('  if [ $_ec -eq 0 ]; then break; fi')
-                lines.append('  if [ $_attempt -lt $_max_retries ]; then')
-                lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
-                lines.append('    sleep 30')
-                lines.append('  fi')
-                lines.append('done')
-                lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
+            lines.append('_max_retries=10; _attempt=0; _ec=0')
+            lines.append('while [ $_attempt -lt $_max_retries ]; do')
+            lines.append('  _attempt=$((_attempt+1))')
+            lines.append(f'  {_hf_invoke}')
+            lines.append('  _ec=$?')
+            lines.append('  if [ $_ec -eq 0 ]; then break; fi')
+            lines.append('  if [ $_attempt -lt $_max_retries ]; then')
+            lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
+            lines.append('    sleep 30')
+            lines.append('  fi')
+            lines.append('done')
+            lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
             if not IS_WINDOWS:
                 lines.append(f"rm -f '{wrapper_script}'")
                 lines.append('exec "${SHELL:-/bin/bash}"')
                 wrapper_script.write_text("\n".join(lines) + "\n", encoding="utf-8")
                 wrapper_script.chmod(0o755)
-            setup_cmd = None if IS_WINDOWS else f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -x 220 -y 50 -d -s {session_id} {shlex.quote(str(wrapper_script))}"
+            setup_cmd = None if IS_WINDOWS else f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} {shlex.quote(str(wrapper_script))}"
 
         logger.info(f"Model download: {req.repo_id} (backend={'ollama' if is_ollama_download else 'hf'}, include={req.include}, session={session_id}, remote={remote})")
         logger.info(f"Download setup_cmd: {setup_cmd}")
@@ -1424,6 +1331,8 @@ def setup_cookbook_routes() -> APIRouter:
             elif "vllm" in req.cmd:
                 ps_lines.append('Write-Host "ERROR: vLLM is not supported on Windows. Use Ollama or llama.cpp instead."')
                 ps_lines.append('exit 1')
+            if is_pip_install:
+                _append_realesrgan_basicsr_preflight(ps_lines, req.cmd, powershell=True)
             ps_lines.append(req.cmd)
             if is_pip_install:
                 ps_lines.append('if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" }')
@@ -1621,27 +1530,14 @@ def setup_cookbook_routes() -> APIRouter:
                 runner_lines.append('  while true; do sleep 3600; done')
                 runner_lines.append('fi')
                 runner_lines.append('exec bash -i')
-                if local_windows:
-                    # Detached background process — no interactive shell to keep open.
-                    # Print the exit marker the status poller looks for, then stop.
-                    _append_serve_exit_code_lines(
-                        runner_lines,
-                        keep_shell_open=False,
-                        is_pip_install=is_pip_install,
-                    )
-                else:
-                    # Keep shell open after exit so user can see errors
-                    _append_serve_exit_code_lines(
-                        runner_lines,
-                        keep_shell_open=True,
-                        is_pip_install=is_pip_install,
-                    )
 
             if not handled_ollama_serve and not handled_ollama_sidecar_probe:
                 _append_serve_preflight_exit_lines(
                     runner_lines,
                     keep_shell_open=not local_windows,
                 )
+                if is_pip_install:
+                    _append_realesrgan_basicsr_preflight(runner_lines, req.cmd)
                 runner_lines.append(req.cmd)
                 if local_windows:
                     # Detached background process — no interactive shell to keep open.
@@ -1689,10 +1585,10 @@ def setup_cookbook_routes() -> APIRouter:
                 setup_cmd = (
                     f"{scp_extras}"
                     f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner} && "
-                    f"ssh {_pf}{remote} 'chmod +x {remote_runner} && tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -x 220 -y 50 -d -s {session_id} \"./{remote_runner}\"'"
+                    f"ssh {_pf}{remote} 'chmod +x {remote_runner} && tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} \"./{remote_runner}\"'"
                 )
             else:
-                setup_cmd = f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -x 220 -y 50 -d -s {session_id} {shlex.quote(str(runner_path))}"
+                setup_cmd = f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} {shlex.quote(str(runner_path))}"
 
         if setup_cmd is None:
             # LOCAL Windows: launch the bash runner detached; no tmux setup_cmd.
