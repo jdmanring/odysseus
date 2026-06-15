@@ -46,10 +46,11 @@ icon SVG to `static/icons/` where the PWA manifest icons already live. Update `R
 `manifest.json`, `.gitignore`, and build script references accordingly.
 
 ```
-docs/odysseus.jpg  →  assets/landingpage.jpg  (renamed; see above)
-docs/odysseus.svg  →  static/icons/odysseus.svg  (co-located with PWA icons)
-docs/chat.gif      →  assets/chat.gif
-docs/bg.webm       →  assets/bg.webm
+docs/odysseus.jpg          →  assets/landingpage.jpg          (renamed; see above)
+docs/odysseus-wordmark.png →  assets/odysseus-wordmark.png
+docs/odysseus.svg          →  static/icons/odysseus.svg       (co-located with PWA icons)
+docs/chat.gif              →  assets/chat.gif
+docs/bg.webm               →  assets/bg.webm
 ... (all remaining demo media files)
 ```
 

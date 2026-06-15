@@ -26,10 +26,11 @@ Demo media files (screenshots, GIFs, WebM videos used in `README.md`) are stored
 Move all demo media files to a top-level `assets/` directory. Move the application icon SVG to `static/icons/` where the PWA manifest icons already live. Update `README.md`, `manifest.json`, `.gitignore`, and build script references accordingly.
 
 ```
-docs/odysseus.jpg  →  assets/landingpage.jpg  (renamed to remove icon ambiguity)
-docs/odysseus.svg  →  static/icons/odysseus.svg  (co-located with PWA icons)
-docs/chat.gif      →  assets/chat.gif
-docs/bg.webm       →  assets/bg.webm
+docs/odysseus.jpg          →  assets/landingpage.jpg          (renamed to remove icon ambiguity)
+docs/odysseus-wordmark.png →  assets/odysseus-wordmark.png
+docs/odysseus.svg          →  static/icons/odysseus.svg       (co-located with PWA icons)
+docs/chat.gif              →  assets/chat.gif
+docs/bg.webm               →  assets/bg.webm
 [all remaining demo media in docs/]
 ```
 
