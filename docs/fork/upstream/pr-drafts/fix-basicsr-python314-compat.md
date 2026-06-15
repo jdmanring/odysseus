@@ -62,14 +62,22 @@ approach as #3741 and extends it to cover both incompatibilities.
 
 ### Fix
 
-Adds `_append_realesrgan_basicsr_preflight()` to `cookbook_helpers.py`. This function
-is called automatically from `cookbook_routes.py` before any `pip install realesrgan`
-command runs — no manual step required.
+There are two paths in Odysseus that can trigger `pip install realesrgan`:
 
-The preflight:
-1. Detects whether basicsr is already installed; exits immediately if so.
-2. Downloads the `basicsr==1.4.2` source archive from PyPI (no binary, no deps).
-3. **Patch 1:** Rewrites `get_version()` in `setup.py` to use an explicit namespace dict
+1. **Cookbook Dependencies tab** (`/api/cookbook/packages/install` in `shell_routes.py`)
+   — the primary user-facing install button.
+2. **Serve panel** (`/api/model/serve` in `cookbook_routes.py`) — when a user pastes
+   a `pip install realesrgan` command manually.
+
+Both paths are covered.
+
+**Shared preflight (`cookbook_helpers.py`):**
+
+`_append_realesrgan_basicsr_preflight()` generates a self-contained Python script that:
+1. Exits immediately if basicsr is already importable.
+2. Exits immediately if Python < 3.10 (neither incompatibility applies).
+3. Downloads the `basicsr==1.4.2` source archive from PyPI (no binary, no deps).
+4. **Patch 1:** Rewrites `get_version()` in `setup.py` to use an explicit namespace dict
    instead of relying on `locals()`:
    ```python
    def get_version():
@@ -78,23 +86,28 @@ The preflight:
            exec(compile(f.read(), version_file, 'exec'), namespace)
        return namespace['__version__']
    ```
-4. **Patch 2:** Walks all `.py` files in the extracted tree and replaces bare
+5. **Patch 2:** Walks all `.py` files in the extracted tree and replaces bare
    `from collections import Mapping/MutableMapping/Sequence/MutableSequence` with the
    correct `from collections.abc import ...` form.
-5. Installs the patched source tree in-place.
-6. The original `pip install realesrgan` command then runs as normal and resolves
-   its remaining dependencies without re-pulling basicsr.
+6. Installs the patched source tree in-place.
+7. The original `pip install realesrgan` then proceeds and resolves its remaining
+   dependencies without re-pulling basicsr.
 
-Guards:
-- The preflight is a no-op when basicsr is already installed (`import basicsr` succeeds).
-- The preflight is a no-op on Python < 3.10 (neither incompatibility applies).
-- `tarfile.extractall` uses `filter="data"` on Python 3.12+ for security; omitted on
-  earlier versions where the parameter does not exist.
-- Patch 1 only writes `setup.py` if the original pattern is still present, so the
-  script fails loudly rather than silently producing a broken install if basicsr ever
-  releases a fix.
+`run_basicsr_preflight_async()` wraps the same script for use by direct Python
+callers that don't build a shell runner script.
 
-Both POSIX (heredoc) and PowerShell (`@'...'@`) runner paths are covered.
+**Wiring:**
+
+- `cookbook_routes.py` (Serve panel): preflight injected into both POSIX (heredoc
+  `<<'PY'`) and PowerShell (`@'...'@`) runner scripts before `req.cmd` is appended.
+- `shell_routes.py` (Dependencies tab): `install_package()` awaits
+  `run_basicsr_preflight_async()` before the normal `asyncio.create_subprocess_exec`
+  install when `pip_name == "realesrgan"`.
+
+**Other guards:**
+- `tarfile.extractall` uses `filter="data"` on Python 3.12+ for security.
+- Patch 1 only writes `setup.py` if the original pattern is still present — fails
+  loudly rather than silently producing a broken install if basicsr ever releases a fix.
 
 ## Target branch
 
@@ -118,7 +131,7 @@ Fixes # <!-- [file upstream issue first using issue-drafts/fix-basicsr-python314
 - [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate (see PR #3741 note above).
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
-- [x] I ran `python -m pytest` — 69 tests pass, 0 failures.
+- [x] I ran `python -m pytest` — 71 tests pass, 0 failures.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
@@ -135,22 +148,25 @@ Fixes # <!-- [file upstream issue first using issue-drafts/fix-basicsr-python314
 1. On a Python 3.10, 3.11, or 3.12 environment, confirm the import fails after a
    normal install: `pip install basicsr==1.4.2 && python -c "import basicsr"` →
    `ImportError: cannot import name 'Mapping' from 'collections'`
-2. Trigger the Real-ESRGAN Cookbook task. Preflight should patch and install cleanly.
-3. Confirm `import basicsr` succeeds.
+2. In the Odysseus UI, go to **Cookbook → Dependencies → Real-ESRGAN → Install**.
+   The Dependencies tab install button uses `/api/cookbook/packages/install`, which
+   is the path most users follow. Confirm the preflight runs and basicsr installs.
+3. Confirm `import basicsr` succeeds and an ESRGAN upscale works end-to-end.
 
 **Unit tests:**
 ```bash
 python -m pytest tests/test_cookbook_helpers.py -k "basicsr or realesrgan" -v
 ```
-9 tests cover: positive/negative detection, Python executable extraction, Python < 3.10
+11 tests cover: positive/negative detection, Python executable extraction, Python < 3.10
 no-op scope guard, exec/locals patch content, collections.abc patch content, PowerShell
-runner path, POSIX runner path, and already-installed no-op.
+runner path, POSIX runner path, already-installed no-op (subprocess exit 0), and
+`run_basicsr_preflight_async` is a coroutine.
 
 ---
 
 ## Filing Notes
 
-- One commit, no squash needed.
+- Three commits total (fix + shell_routes wiring + refactor to public async helper). Consider squashing before filing.
 - **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`.
   Add the upstream issue number to `Fixes #` above before opening the PR.
 - Acknowledge PR #3741 in the PR description if it is still open at filing time; the
