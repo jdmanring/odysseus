@@ -62,18 +62,18 @@ LAUNCHER
 chmod +x "$LAUNCHER_BIN"
 echo "Installed launcher: $LAUNCHER_BIN"
 
-# --- Icon (static/icons/odysseus.svg; PNG fallbacks in same directory) ---
-ICON_PATH="$ICON_DIR_SCALABLE/$APP_NAME.svg"
-if [ -f "$INSTALL_DIR/static/icons/$APP_NAME.svg" ]; then
-    cp "$INSTALL_DIR/static/icons/$APP_NAME.svg" "$ICON_PATH"
+# --- Icon (static/icons/ holds the scalable SVG and PNG sizes) ---
+ICON_PATH="$ICON_DIR_SCALABLE/odysseus.svg"
+if [ -f "$INSTALL_DIR/static/icons/odysseus.svg" ]; then
+    cp "$INSTALL_DIR/static/icons/odysseus.svg" "$ICON_PATH"
     echo "Installed SVG icon: $ICON_PATH"
 elif [ -f "$INSTALL_DIR/static/icons/icon-512.png" ]; then
     ICON_DIR_256="$HOME/.local/share/icons/hicolor/256x256/apps"
     mkdir -p "$ICON_DIR_256"
-    cp "$INSTALL_DIR/static/icons/icon-512.png" "$ICON_DIR_256/$APP_NAME.png"
-    echo "Installed PNG icon: $ICON_DIR_256/$APP_NAME.png"
+    cp "$INSTALL_DIR/static/icons/icon-512.png" "$ICON_DIR_256/odysseus.png"
+    echo "Installed PNG icon: $ICON_DIR_256/odysseus.png"
 else
-    echo "WARNING: No icon found in static/icons/. Skipping." >&2
+    echo "WARNING: No icon found in static/icons/ (odysseus.svg / icon-512.png). Skipping." >&2
 fi
 
 # --- .desktop file ---
