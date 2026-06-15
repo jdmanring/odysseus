@@ -18,7 +18,7 @@ Last updated: 2026-06-14. Fork is at milestone `v1.0.0-fork.1` — all CI passin
 | [#43 macOS native wrapper](https://github.com/jdmanring/odysseus/issues/43) | not started | PyQt6 wrapper for macOS. Minus D-Bus; port 7860 (AirPlay); QColorDialog; macOS log/data dirs. Plan at `docs/fork/plans/mac-wrapper-plan.md`. Needs macOS hardware. |
 | [#44 Windows native wrapper](https://github.com/jdmanring/odysseus/issues/44) | not started | PyQt6 wrapper for Windows. Minus D-Bus; ANGLE/D3D11 flags; Windows paths; taskkill zombie cleanup. Plan at `docs/fork/plans/windows-wrapper-plan.md`. Needs Windows hardware. |
 | [#45 FreeBSD (KDE Plasma) wrapper](https://github.com/jdmanring/odysseus/issues/45) | `feat/qt-native-freebsd-app` | build-freebsd-app.sh and install.sh done. qt_wrapper.py platform guard pending FreeBSD hardware. Plan at `docs/fork/plans/freebsd-wrapper-plan.md`. |
-| [#46 OpenBSD native wrapper](https://github.com/jdmanring/odysseus/issues/46) | not started | Extend qt_wrapper.py for OpenBSD; qt6-qtwebengine in ports (amd64/aarch64). pkill/pgrep FileNotFoundError guards. Plan at `docs/fork/plans/openbsd-wrapper-plan.md`. Needs OpenBSD hardware. |
+| [#46 OpenBSD native wrapper](https://github.com/jdmanring/odysseus/issues/46) | `feat/qt-native-openbsd-app` | build-openbsd-app.sh done. qt_wrapper.py pkill/pgrep guards pending OpenBSD hardware. Plan at `docs/fork/plans/openbsd-wrapper-plan.md`. |
 
 ---
 
