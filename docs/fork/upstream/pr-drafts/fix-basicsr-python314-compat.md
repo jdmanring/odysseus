@@ -8,7 +8,7 @@
 
 ## Title
 
-`fix(cookbook): pre-install patched basicsr 1.4.2 for Real-ESRGAN on Python 3.10+`
+`fix(cookbook): pre-install patched basicsr 1.4.2 for Real-ESRGAN on Python 3.13+`
 
 ---
 
@@ -16,10 +16,9 @@
 
 ### Problem
 
-`basicsr` 1.4.2 (a dependency of `realesrgan`) fails to install or import on Python 3.10+
-due to two separate incompatibilities that have never been patched upstream.
-
-**Incompatibility 1 — exec/locals scoping (Python 3.13+):**
+`basicsr` 1.4.2 (a dependency of `realesrgan`) fails to build on Python 3.13+.
+realesrgan 0.3.0 ships a universal wheel and installs without building; basicsr 1.4.2
+ships only a source distribution and must be compiled from source via `setup.py`.
 
 `setup.py`'s `get_version()` reads the version file via `exec()` then calls `locals()`:
 
@@ -31,53 +30,46 @@ def get_version():
 ```
 
 Python 3.13 changed how `exec()` interacts with local variable scopes in nested
-functions: assignments made inside `exec()` are no longer visible through `locals()` in
-the calling frame ([CPython issue #118888](https://github.com/python/cpython/issues/118888)).
-This raises `KeyError: '__version__'` and aborts the pip install before basicsr builds.
+functions per PEP 667: assignments made inside `exec()` are no longer visible through
+`locals()` in the calling frame. This raises `KeyError: '__version__'` and aborts the
+build before pip can install basicsr.
 
-**Incompatibility 2 — collections.abc removals (Python 3.10+):**
+The change is tracked in [CPython issue #118888](https://github.com/python/cpython/issues/118888),
+which was closed as expected behavior per PEP 667 — a permanent semantic change in
+Python 3.13, not a bug that will be reverted.
 
-Several basicsr source files import abstract base classes directly from `collections`:
+basicsr has not released a fix and the repository shows minimal maintenance activity.
 
-```python
-from collections import Mapping
-from collections import MutableMapping
-```
-
-These were moved to `collections.abc` in Python 3.3 and the old names were removed in
-Python 3.10. This causes an `ImportError` at import time on any Python 3.10–3.12
-environment (the exec/locals bug masks this on 3.13+, but it is present there too).
-
-**Impact:** basicsr is broken for installation on Python 3.13+ and broken at import on
-Python 3.10+. Python 3.10 is five years old and Python 3.13 is the current stable
-release. Every modern Linux distribution ships Python 3.13 as the default interpreter.
-The Real-ESRGAN upscaler is completely unavailable to users on any up-to-date system.
+**Impact:** Python 3.13 is the current stable release (released October 2024). Modern
+Linux distributions ship it as the default interpreter (Arch/Artix since late 2024,
+Fedora 41+, openSUSE Tumbleweed, Ubuntu 25.04). The Real-ESRGAN upscaler is
+completely unavailable to users on any up-to-date system.
 
 ### Relationship to PR #3741
 
-PR #3741 ("fix(cookbook): install realesrgan on Python 3.13") addresses incompatibility 1
-(exec/locals) only. It does not patch the collections.abc import breakage that affects
-Python 3.10–3.12. This PR adopts the same integrated `cookbook_helpers.py` preflight
-approach as #3741 and extends it to cover both incompatibilities.
+PR #3741 ("fix(cookbook): install realesrgan on Python 3.13") addresses the same
+exec/locals build failure. This PR adopts the same integrated `cookbook_helpers.py`
+preflight approach as #3741 and extends it to cover a second install path that
+#3741 misses.
 
 ### Fix
 
 There are two paths in Odysseus that can trigger `pip install realesrgan`:
 
 1. **Cookbook Dependencies tab** (`/api/cookbook/packages/install` in `shell_routes.py`)
-   — the primary user-facing install button.
+   — the primary user-facing install button. **Not covered by PR #3741.**
 2. **Serve panel** (`/api/model/serve` in `cookbook_routes.py`) — when a user pastes
-   a `pip install realesrgan` command manually.
+   a `pip install realesrgan` command manually. Covered by PR #3741.
 
-Both paths are covered.
+Both paths are covered by this PR.
 
 **Shared preflight (`cookbook_helpers.py`):**
 
 `_append_realesrgan_basicsr_preflight()` generates a self-contained Python script that:
-1. Exits immediately if basicsr is already importable.
-2. Exits immediately if Python < 3.10 (neither incompatibility applies).
+1. Exits immediately if Python < 3.13 (the scoping change is 3.13+ only).
+2. Exits immediately if basicsr is already importable.
 3. Downloads the `basicsr==1.4.2` source archive from PyPI (no binary, no deps).
-4. **Patch 1:** Rewrites `get_version()` in `setup.py` to use an explicit namespace dict
+4. Rewrites `get_version()` in `setup.py` to use an explicit namespace dict
    instead of relying on `locals()`:
    ```python
    def get_version():
@@ -86,11 +78,8 @@ Both paths are covered.
            exec(compile(f.read(), version_file, 'exec'), namespace)
        return namespace['__version__']
    ```
-5. **Patch 2:** Walks all `.py` files in the extracted tree and replaces bare
-   `from collections import Mapping/MutableMapping/Sequence/MutableSequence` with the
-   correct `from collections.abc import ...` form.
-6. Installs the patched source tree in-place.
-7. The original `pip install realesrgan` then proceeds and resolves its remaining
+5. Installs the patched source tree in-place.
+6. The original `pip install realesrgan` then proceeds and resolves its remaining
    dependencies without re-pulling basicsr.
 
 `run_basicsr_preflight_async()` wraps the same script for use by direct Python
@@ -108,8 +97,9 @@ callers that don't build a shell runner script.
   install when `pip_name == "realesrgan"`.
 
 **Other guards:**
-- `tarfile.extractall` uses `filter="data"` on Python 3.12+ for security.
-- Patch 1 only writes `setup.py` if the original pattern is still present — fails
+- `tarfile.extractall` uses `filter="data"` on Python 3.12+ for security (parameter
+  added in 3.12; becomes the default in 3.14).
+- The setup.py patch only writes if the original pattern is still present — fails
   loudly rather than silently producing a broken install if basicsr ever releases a fix.
 
 ## Target branch
@@ -139,54 +129,53 @@ Fixes # <!-- [file upstream issue first using issue-drafts/fix-basicsr-python314
 
 ### How to Test
 
-**Testing incompatibility 1 (Python 3.13+):**
-1. On a Python 3.13+ environment, confirm the raw install fails:
-   `python -m pip install basicsr==1.4.2` → `KeyError: '__version__'`
-2. Trigger the Real-ESRGAN Cookbook task in Odysseus. The preflight should run, patch,
-   and install basicsr before realesrgan installs cleanly.
-3. Confirm basicsr is importable: `python -c "import basicsr; print('ok')"`
-4. Run an ESRGAN upscale through the UI to confirm end-to-end.
+**Confirming the bug (Python 3.13+):**
+```bash
+python -m pip install basicsr==1.4.2
+# → KeyError: '__version__'
+```
 
-**Testing incompatibility 2 (Python 3.10–3.12):**
-1. On a Python 3.10, 3.11, or 3.12 environment, confirm the import fails after a
-   normal install: `pip install basicsr==1.4.2 && python -c "import basicsr"` →
-   `ImportError: cannot import name 'Mapping' from 'collections'`
-2. In the Odysseus UI, go to **Cookbook → Dependencies → Real-ESRGAN → Install**.
-   The Dependencies tab install button uses `/api/cookbook/packages/install`, which
-   is the path most users follow. Confirm the preflight runs and basicsr installs.
+**Testing the fix:**
+1. On a Python 3.13+ environment, trigger the Real-ESRGAN Cookbook task in Odysseus.
+   The preflight should print its banner, patch, and install basicsr before realesrgan
+   installs cleanly.
+2. Confirm basicsr is importable: `python -c "import basicsr; print('ok')"`
+3. Run an ESRGAN upscale through the UI to confirm end-to-end.
+
+**Testing the Dependencies tab path (shell_routes.py):**
+1. In the Odysseus UI, go to **Cookbook → Dependencies → Real-ESRGAN → Install**.
+2. Confirm the preflight runs and basicsr installs before the realesrgan install.
 3. Confirm `import basicsr` succeeds and an ESRGAN upscale works end-to-end.
 
 **Unit tests:**
 ```bash
 python -m pytest tests/test_cookbook_helpers.py -k "basicsr or realesrgan" -v
 ```
-11 tests cover: positive/negative detection, Python executable extraction, Python < 3.10
-no-op scope guard, exec/locals patch content, collections.abc patch content, PowerShell
-runner path, POSIX runner path, already-installed no-op (subprocess exit 0), and
+12 tests cover: positive/negative detection, Python executable extraction, Python < 3.13
+no-op scope guard, exec/locals patch content, PowerShell runner path, POSIX runner path
+(with inline abort), already-installed no-op (subprocess exit 0), and
 `run_basicsr_preflight_async` is a coroutine.
 
 ---
 
 ## Filing Notes
 
-- Single squashed commit as of 2026-06-15. Ready to file as-is.
+- Two commits on branch as of 2026-06-15 (fix + scope correction). Squash before filing.
 - **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`.
   Add the upstream issue number to `Fixes #` above before opening the PR.
 - Acknowledge PR #3741 in the PR description if it is still open at filing time; the
   body above already does this.
 
-**Verify before filing (items not confirmed at draft time):**
-- **CPython issue #118888** — cited in both the issue draft and this PR. Verify the
-  number against https://github.com/python/cpython/issues before filing; if wrong,
-  replace with the correct issue or cite the Python 3.13 changelog directly.
-- **PR #3741 scope** — we assert it covers exec/locals only. Read the actual diff of
-  PR #3741 before filing; if it already patches collections.abc, adjust the comparison.
-- **collections.abc coverage in basicsr 1.4.2** — we patch Mapping, MutableMapping,
-  Sequence, MutableSequence. Manually verify against the actual 1.4.2 source that no
-  other removed collections ABCs (Callable, Iterable, Iterator, etc.) are imported by
-  basicsr. Run: `pip download --no-binary :all: basicsr==1.4.2 -d /tmp/bsr && cd /tmp
-  && tar xf /tmp/bsr/basicsr-1.4.2.tar.gz && grep -r "from collections import"
-  basicsr-1.4.2/ | grep -v ".abc"` to find any misses.
+**Verify before filing:**
+- **CPython issue #118888** — verified: exists, describes the exec/locals scoping change,
+  closed as expected behavior per PEP 667. Cite confidently.
+- **PR #3741 scope** — verified: patches exec/locals in `cookbook_helpers.py` and
+  `cookbook_routes.py` only; does not touch `shell_routes.py`. Our PR's additional
+  coverage claim is accurate.
+- **basicsr 1.4.2 collections imports** — verified against the actual sdist
+  (SHA256: `b89b595a87ef964cda9913b4d99380ddb6554c965577c0c10cb7b78e31301e87`): every
+  `from collections import` uses only `OrderedDict` or `Counter`; no ABC names are
+  imported. No collections.abc fix is needed or included.
 
 ## Visual / UI changes
 

@@ -47,7 +47,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/longcat-tool-parsing` | [#38](https://github.com/jdmanring/odysseus/issues/38) | Single commit, ready. |
 | `fix/google-compat-toolcalls` | [#39](https://github.com/jdmanring/odysseus/issues/39) | Single commit, ready. |
 | `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. Infrastructure + timing callsites combined — callsites are untestable without infrastructure. Replaces feat/logging-core and feat/logging-timing. |
-| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready. Previously marked superseded in favor of upstream PR #3741; re-activated 2026-06-15. #3741 only patches exec/locals (Python 3.13+); ours additionally patches collections.abc imports (Python 3.10+). Adopted #3741's cookbook_helpers.py preflight pattern. Supersedes #3741. File upstream issue first. |
+| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Two commits (squash before filing). Previously marked superseded in favor of upstream PR #3741; re-activated 2026-06-15. #3741 covers only the Serve panel (`cookbook_routes.py`); ours also covers the Dependencies tab (`shell_routes.py`) and adds an inline POSIX abort. Adopted #3741's cookbook_helpers.py preflight pattern. File upstream issue first. |
 
 ---
 
