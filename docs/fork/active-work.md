@@ -47,6 +47,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/longcat-tool-parsing` | [#38](https://github.com/jdmanring/odysseus/issues/38) | Single commit, ready. |
 | `fix/google-compat-toolcalls` | [#39](https://github.com/jdmanring/odysseus/issues/39) | Single commit, ready. |
 | `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. Infrastructure + timing callsites combined — callsites are untestable without infrastructure. Replaces feat/logging-core and feat/logging-timing. |
+| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready. Previously marked superseded in favor of upstream PR #3741; re-activated 2026-06-15. #3741 only patches exec/locals (Python 3.13+); ours additionally patches collections.abc imports (Python 3.10+). Adopted #3741's cookbook_helpers.py preflight pattern. Supersedes #3741. File upstream issue first. |
 
 ---
 
@@ -57,7 +58,6 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | [#37 LongCat tool_call parsing](https://github.com/jdmanring/odysseus/issues/37) | — | Closed — investigation subsumed by #38 (`fix/longcat-tool-parsing`). Implementation handles all format variants. |
 | [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | Closed 2026-06-12 — superseded by upstream #3459 (`load_stored_hf_token()` in cookbook_helpers.py) |
 | [#34 HF token env fallback](https://github.com/jdmanring/odysseus/issues/34) | `fix/hf-token-env-fallback` | Closed 2026-06-12 — same upstream fix covers this |
-| [#9 basicsr Python 3.14 compat](https://github.com/jdmanring/odysseus/issues/9) | `fix/basicsr-python314-compat` | Superseded — upstream PR #3741 ("fix(cookbook): install realesrgan on Python 3.13") covers same basicsr build failure. Still open as of 2026-06-15; user comments indicate fix not yet working. Delete branch once #3741 merges into upstream-mirror. |
 | [#11 streamingTTS scope](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | Superseded — upstream PR #2418 ("fix(chat): render abort messages — hoist streamingTTS out of the try block") makes same hoist fix with broader scope and a test. Still open as of 2026-06-15, no comments. Delete branch once #2418 merges into upstream-mirror. |
 
 ---
