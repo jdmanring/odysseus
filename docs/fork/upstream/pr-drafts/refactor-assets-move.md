@@ -8,7 +8,7 @@
 
 ## Title
 
-`refactor: move media assets from docs/ to assets/`
+`refactor: move demo media to assets/, application icon to static/icons/`
 
 ---
 
@@ -41,17 +41,25 @@ Renaming to `landingpage.jpg` makes the file's purpose clear without inspecting 
 
 ### Change
 
-Move all 14 demo media files to a top-level `assets/` directory. Update `README.md`
-references and `.gitignore` paths accordingly.
+Move all 14 demo media files to a top-level `assets/` directory. Move the application
+icon SVG to `static/icons/` where the PWA manifest icons already live. Update `README.md`,
+`manifest.json`, `.gitignore`, and build script references accordingly.
 
 ```
 docs/odysseus.jpg  →  assets/landingpage.jpg  (renamed; see above)
+docs/odysseus.svg  →  static/icons/odysseus.svg  (co-located with PWA icons)
 docs/chat.gif      →  assets/chat.gif
 docs/bg.webm       →  assets/bg.webm
-... (all 14 demo media files)
+... (all remaining demo media files)
 ```
 
-No functional changes. Pure file reorganization with one rename.
+The SVG goes to `static/icons/` because it is the application icon, not a README
+screenshot. It belongs alongside the 192px and 512px PNG manifest icons, and
+`manifest.json` is updated to reference it as `"sizes": "any"` for browsers that
+support SVG icons. Build scripts (`build-linux-app.sh`, `build-freebsd-app.sh`,
+`build-openbsd-app.sh`, `build-mac-app.sh`) are updated to read from `static/icons/`.
+
+No functional changes to the running app. Pure file reorganization.
 
 ## Target branch
 
@@ -82,9 +90,11 @@ Fixes # <!-- [file upstream issue first] -->
 
 1. After merging, open `README.md`: verify all images render correctly (no broken image placeholders).
 2. Verify the `assets/` directory exists at repo root and contains the moved media files.
-3. Verify `docs/` no longer contains the media files (`odysseus.jpg`, `chat.gif`, `bg.webm`, etc.).
-4. Run `grep -r "docs/odysseus\|docs/chat\|docs/bg" README.md`: should return nothing (all references updated).
-5. No screenshots required; no visual change.
+3. Verify `static/icons/odysseus.svg` exists.
+4. Verify `docs/` no longer contains the media files (`odysseus.jpg`, `odysseus.svg`, `chat.gif`, `bg.webm`, etc.).
+5. Run `grep -r "docs/odysseus\|docs/chat\|docs/bg" README.md`: should return nothing (all references updated).
+6. Open Settings → install the PWA: the icon should appear correctly on the home screen.
+7. Run one of the platform build scripts (`build-linux-app.sh`): verify the icon installs without the `WARNING: No icon found` message.
 
 ---
 
@@ -92,11 +102,7 @@ Fixes # <!-- [file upstream issue first] -->
 
 - **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/refactor-assets-move.md`. Add the issue number to `Fixes #` above before opening the PR.
 - No dependencies. Can be filed in any order.
-- **Companion script breakage (maintainer note):** `build-macos-app.sh` line 46 references
-  `docs/odysseus.jpg` — the path that this PR renames to `assets/landingpage.jpg`. After
-  this PR merges, `build-macos-app.sh` must be updated: `docs/odysseus.jpg` →
-  `assets/landingpage.jpg`. File a follow-up issue or include the one-line fix in this PR
-  if the maintainer prefers atomic changes.
+- Build scripts are updated in this PR — no follow-up required for script breakage.
 
 ## Visual / UI changes
 

@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Repo] Move demo media assets from docs/ to assets/ — separate binary files from documentation prose`
+`[Repo] Move demo media to assets/, application icon to static/icons/ — separate binary files from documentation prose`
 
 ---
 
@@ -23,20 +23,20 @@ Demo media files (screenshots, GIFs, WebM videos used in `README.md`) are stored
 2. `docs/odysseus.jpg` shares a base name with the application icon (`odysseus.svg`), creating a naming ambiguity for contributors navigating the repository.
 
 **Proposed Solution:**
-Move all demo media files to a new top-level `assets/` directory and update `README.md` and `.gitignore` references accordingly:
+Move all demo media files to a top-level `assets/` directory. Move the application icon SVG to `static/icons/` where the PWA manifest icons already live. Update `README.md`, `manifest.json`, `.gitignore`, and build script references accordingly.
 
 ```
 docs/odysseus.jpg  →  assets/landingpage.jpg  (renamed to remove icon ambiguity)
-docs/odysseus.svg  →  assets/odysseus.svg
+docs/odysseus.svg  →  static/icons/odysseus.svg  (co-located with PWA icons)
 docs/chat.gif      →  assets/chat.gif
 docs/bg.webm       →  assets/bg.webm
 [all remaining demo media in docs/]
 ```
 
-`odysseus.jpg` is renamed to `landingpage.jpg` to prevent it from being confused with the application icon (`odysseus.svg` / `odysseus.jpg`).
+`odysseus.jpg` is renamed to `landingpage.jpg` to prevent it from being confused with the application icon. The SVG goes to `static/icons/` rather than `assets/` because it is an application icon, not a README screenshot — it belongs alongside the 192px and 512px PNG manifest icons that already live there, and can be referenced directly in `manifest.json` as `"sizes": "any"` for browsers that support SVG icons.
 
-No functional changes. Pure file reorganization — 17 files moved, `README.md` references updated.
+No functional changes to the app. Pure file reorganization — 17 files moved, references updated.
 
 **Alternatives Considered:**
-- `static/` or `media/`: `assets/` is the most conventional name for this purpose in open-source projects and is already used by similar projects.
+- All icons in `assets/`: `assets/` is the right home for README media, but not for web-served app icons. The XDG desktop entries and PWA manifest both reference icon files; co-locating them in `static/icons/` is cleaner.
 - Leave as-is: current state — binary files mixed into `docs/` alongside prose.
