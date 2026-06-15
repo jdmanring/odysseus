@@ -20,24 +20,36 @@ os.dup2(_log_file.fileno(), 2)   # redirect fd 2: Chromium renderer stderr → o
 sys.stdout = _log_file
 sys.stderr = _log_file
 
-# Qt 6.9+ regression: QTWEBENGINE_FORCE_USE_GBM can cause black windows on NVIDIA.
-# Set to "0" to disable. setdefault preserves any override from the environment.
-os.environ.setdefault("QTWEBENGINE_FORCE_USE_GBM", "0")
+# GPU vendor detection. /proc/driver/nvidia is created by the NVIDIA proprietary
+# kernel module (including nvidia-open); absent for Mesa drivers (AMD, Intel, Nouveau).
+_is_nvidia = os.path.exists("/proc/driver/nvidia")
 
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
-    "--no-sandbox "
-    "--ignore-gpu-blocklist "
-    "--enable-gpu-rasterization "
-    # DefaultANGLEVulkan: forces ANGLE to use a Vulkan backend. Explicitly disallowed
-    # on ozone/Wayland (Chromium bug 334275637) — causes blank windows on NVIDIA/Wayland.
-    # Qt WebEngine 6.6+ manages NVIDIA GPU interop via its own Vulkan path; this flag
-    # conflicts with that. Removed: ANGLE reverts to stable OpenGL (Mesa EGL) backend.
-    # --enable-zero-copy: requires GBM buffer allocation, which NVIDIA proprietary
-    # drivers do not support. No-op at best; removed to avoid texture sharing failures.
-    "--enable-features=WebGPU,SharedArrayBuffer "
-    "--enable-logging=stderr --log-level=1 "  # output captured via os.dup2 into wrapper_system.log
-    "--remote-debugging-port=9222"  # Chrome DevTools at http://localhost:9222
-)
+if _is_nvidia:
+    # Qt 6.9+ regression: forces GBM even on drivers without GBM support.
+    # NVIDIA proprietary does not implement GBM buffer allocation; the forced
+    # path causes black windows (qutebrowser #8535). setdefault preserves any
+    # user environment override.
+    os.environ.setdefault("QTWEBENGINE_FORCE_USE_GBM", "0")
+
+# DefaultANGLEVulkan omitted for all GPU types: forces ANGLE to a Vulkan
+# backend, which conflicts with Qt WebEngine 6.6+'s own Vulkan path on
+# ozone/Wayland and causes blank windows (Chromium bug 334275637).
+_gpu_flags = []
+if not _is_nvidia:
+    # Mesa (AMD, Intel, Nouveau): GBM buffer allocation is the native rendering
+    # path. Zero-copy avoids a CPU→GPU texture upload per rendered frame.
+    # Omitted on NVIDIA proprietary: no GBM support in that driver.
+    _gpu_flags.append("--enable-zero-copy")
+
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
+    "--no-sandbox",
+    "--ignore-gpu-blocklist",
+    "--enable-gpu-rasterization",
+    "--enable-features=WebGPU,SharedArrayBuffer",
+    "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
+    "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
+    *_gpu_flags,
+])
 
 import signal
 import subprocess
