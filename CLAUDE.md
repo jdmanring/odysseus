@@ -1,7 +1,8 @@
 # Odysseus Fork — Claude Code Instructions
 
 Read `docs/ai/CONTEXT.md` for the code mental model and fork context.
-Full hard rules: `docs/ai/RULES.md`. Active work: `docs/fork/active-work.md`.
+Fork workbench policy (hard rules, pipeline procedures): `docs/fork/ai-policy.md`.
+Upstream contribution standards: `docs/ai/RULES.md`. Active work: `docs/fork/active-work.md`.
 Branch and pipeline rules: `docs/dev/git-branch-workflow.md` — read before touching any branch.
 
 ---
