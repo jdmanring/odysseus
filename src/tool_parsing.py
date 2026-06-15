@@ -66,9 +66,9 @@ _TOOL_CODE_PYCALL_RE = re.compile(
 # inner format so neither MiniMax nor Gemma variants leak as raw text to the user.
 _TOOL_CODE_ANY_RE = re.compile(r"<tool_code>[\s\S]*?</tool_code>", re.IGNORECASE)
 
-# Pattern 6: <longcat_tool_call> blocks (Meituan LongCat style — two variants)
-# Variant A (JSON):  {"name": "fn_name", "arguments": {"key": "val"}}
-# Variant B (tags):  fn_name\n<longcat_arg_key>k</longcat_arg_key>\n<longcat_arg_value>v</longcat_arg_value>
+# Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — official JSON format)
+# {"name": "fn_name", "arguments": {"key": "val"}}
+# Non-JSON content (tag-pair format seen in partial captures) is stripped but not executed.
 _LONGCAT_TOOL_CALL_RE = re.compile(
     r"<longcat_tool_call>\s*([\s\S]*?)\s*</longcat_tool_call>",
     re.IGNORECASE,
@@ -495,59 +495,34 @@ def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
 
 
 def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
-    """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat style).
+    """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat).
 
-    Variant A — JSON object (HuggingFace model card format):
+    Official format (vLLM LongcatFlashToolParser, model card):
         {"name": "fn_name", "arguments": {"key": "value"}}
 
-    Variant B — plain-text name + arg tag pairs (vLLM/Vercel observed format):
-        fn_name
-        <longcat_arg_key>path</longcat_arg_key>
-        <longcat_arg_value>./index.vue</longcat_arg_value>
+    Non-JSON content is not executed — strip_tool_blocks removes it from display.
     """
     content = content.strip()
-
-    # Variant A: JSON object
-    if content.startswith('{'):
-        try:
-            obj = json.loads(content)
-            func_name = (obj.get("name") or "").lower()
-            raw_args = obj.get("arguments", {})
-            mapped = _TOOL_NAME_MAP.get(func_name)
-            tool_type = mapped or func_name
-            if tool_type:
-                args_str = json.dumps(raw_args) if isinstance(raw_args, dict) else str(raw_args)
-                from src.tool_schemas import function_call_to_tool_block
-                block = function_call_to_tool_block(tool_type, args_str)
-                if block:
-                    return block
-                if isinstance(raw_args, dict):
-                    first_val = next(iter(raw_args.values()), "")
-                    return ToolBlock(tool_type, str(first_val)) if first_val else None
-        except (json.JSONDecodeError, Exception):
-            pass
-
-    # Variant B: function name as first text line, then key/value tag pairs
-    name_m = re.search(r'\s*(\S[^\n<]*)', content)
-    func_name = name_m.group(1).strip() if name_m else ""
-    if not func_name:
+    if not content.startswith('{'):
         return None
-
-    mapped = _TOOL_NAME_MAP.get(func_name.lower())
-    tool_type = mapped or func_name.lower()
-
-    keys = re.findall(r'<longcat_arg_key>([\s\S]*?)</longcat_arg_key>', content, re.IGNORECASE)
-    vals = re.findall(r'<longcat_arg_value>([\s\S]*?)</longcat_arg_value>', content, re.IGNORECASE)
-    args = {k.strip(): v.strip() for k, v in zip(keys, vals)}
-
-    if args:
-        from src.tool_schemas import function_call_to_tool_block
-        block = function_call_to_tool_block(tool_type, json.dumps(args))
-        if block:
-            return block
-
-    first_val = next(iter(args.values()), "")
-    return ToolBlock(tool_type, first_val) if first_val else None
+    try:
+        obj = json.loads(content)
+        func_name = (obj.get("name") or "").lower()
+        raw_args = obj.get("arguments", {})
+        mapped = _TOOL_NAME_MAP.get(func_name)
+        tool_type = mapped or func_name
+        if tool_type:
+            args_str = json.dumps(raw_args) if isinstance(raw_args, dict) else str(raw_args)
+            from src.tool_schemas import function_call_to_tool_block
+            block = function_call_to_tool_block(tool_type, args_str)
+            if block:
+                return block
+            if isinstance(raw_args, dict):
+                first_val = next(iter(raw_args.values()), "")
+                return ToolBlock(tool_type, str(first_val)) if first_val else None
+    except (json.JSONDecodeError, Exception):
+        pass
+    return None
 
 
 def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
@@ -638,7 +613,7 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
             if block:
                 blocks.append(block)
 
-    # Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — JSON or tag-pair format)
+    # Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — JSON format only)
     if not blocks:
         for m in _LONGCAT_TOOL_CALL_RE.finditer(text):
             block = _parse_longcat_tool_call(m.group(1))
