@@ -127,7 +127,7 @@ Fixes # <!-- [file upstream issue first using issue-drafts/fix-basicsr-python314
 - [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate (see PR #3741 note above).
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
-- [x] I ran `python -m pytest` — 73 tests pass, 0 failures.
+- [x] I ran `python -m pytest` — 76 tests pass, 0 failures.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
@@ -154,12 +154,14 @@ python -m pip install basicsr==1.4.2
 ```bash
 python -m pytest tests/test_cookbook_helpers.py -k "basicsr or realesrgan" -v
 ```
-14 tests cover: positive/negative detection, Python executable extraction, Python < 3.13
+17 tests cover: positive/negative detection, Python executable extraction, Python < 3.13
 no-op scope guard, exec/locals patch content, PowerShell runner path, POSIX runner path
 (with inline abort), already-installed no-op (subprocess exit 0),
 `run_basicsr_preflight_async` is a coroutine, the namespace-dict patch eliminates the
-KeyError on Python 3.13+, and `install_package()` calls the preflight before pip for
-the `realesrgan` package (the Dependencies tab path).
+KeyError on Python 3.13+, `install_package()` calls the preflight before pip for the
+`realesrgan` package (the Dependencies tab path), preflight failure aborts the install,
+urllib.request is used (not `pip download`), and `run_basicsr_preflight_async` propagates
+the subprocess return code.
 
 ---
 
