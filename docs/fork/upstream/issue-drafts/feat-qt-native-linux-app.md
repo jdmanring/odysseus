@@ -26,7 +26,7 @@
 Odysseus runs in a browser tab on Linux. Users who want a standalone desktop experience — taskbar entry, desktop icon, Alt+Tab application, no browser chrome, no "close the wrong tab" accidents — have no supported path. Issue #3309 requests an Electron wrapper; discussion #3609 shows a working community Electron wrapper. However, Electron adds a full bundled Chromium binary (~200 MB) and a Node.js runtime to what is otherwise a pure Python application. On Linux, Qt WebEngine provides the same Chromium-based rendering engine via the distribution's existing Qt packages — no bundled browser binary required.
 
 **Proposed Solution:**
-An optional `linux_wrapper.py` entry point (PyQt6) and a `build-linux-app.sh` setup script. When launched via the script, Odysseus runs as a native desktop window:
+An optional `qt_wrapper.py` entry point (PyQt6) and a `build-linux-app.sh` setup script. When launched via the script, Odysseus runs as a native desktop window:
 
 - **Server lifecycle:** spawns `uvicorn app:app` as a subprocess, manages startup wait, kills it on window close
 - **Persistent profile:** `QWebEngineProfile("odysseus")` with explicit data/cache paths in `~/.local/share/odysseus/webengine/` — cookies, `localStorage`, and `IndexedDB` survive across restarts (the default QWebEngineView profile is in-memory and loses all state on exit)

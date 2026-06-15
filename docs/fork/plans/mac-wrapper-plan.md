@@ -10,7 +10,7 @@
 ## Overview
 
 Create `mac_wrapper.py` and `build-mac-app.sh` — a native macOS desktop wrapper using
-PyQt6, modeled directly on `linux_wrapper.py`. The architecture is identical; only the
+PyQt6, modeled directly on `qt_wrapper.py`. The architecture is identical; only the
 platform-specific blocks differ.
 
 Our approach is a direct alternative to upstream PR #3310 (Electron wrapper) and issue
@@ -20,7 +20,7 @@ runs the server. The PR description should reference #606/#3310 explicitly.
 
 ---
 
-## What Changes vs `linux_wrapper.py`
+## What Changes vs `qt_wrapper.py`
 
 **1. LOG_DIR** — macOS convention:
 ```python
@@ -92,7 +92,7 @@ CACHE_DIR = os.path.expanduser("~/Library/Caches/odysseus/webengine")
 
 ### `mac_wrapper.py`
 
-Apply the eleven changes above to `linux_wrapper.py`. Everything else — OdysseusPage,
+Apply the eleven changes above to `qt_wrapper.py`. Everything else — OdysseusPage,
 OdysseusWindow, QWebChannel, QWebEngineScript injection, crash recovery, window state,
 server lifecycle — is identical to the Linux version.
 

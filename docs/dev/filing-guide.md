@@ -260,7 +260,7 @@ Odysseus runs on Linux (primary), macOS, and Windows (via PowerShell). Docker is
 - State what you tested on: "Tested on Linux (Arch, Wayland, NVIDIA 3080). Not tested on macOS or Windows."
 - For Docker-specific changes: run `docker compose config` and `docker compose up -d --build` before filing.
 - For changes touching shell commands or scripts: note which shells you tested (bash, zsh, PowerShell).
-- For changes to `linux_wrapper.py` or `qt-bridge.js`: Linux-only by nature — state that clearly.
+- For changes to `qt_wrapper.py` or `qt-bridge.js`: Linux-only by nature — state that clearly.
 - For Windows-specific code paths you can't test: describe the change and note it needs Windows verification. This is acceptable — do not omit the code because you can't test it.
 
 ---

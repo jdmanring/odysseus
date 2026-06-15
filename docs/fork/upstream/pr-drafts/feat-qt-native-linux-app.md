@@ -25,7 +25,7 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
 
 ### New files
 
-**`linux_wrapper.py`**: PyQt6 application entry point:
+**`qt_wrapper.py`**: PyQt6 application entry point:
 
 - **Server lifecycle:** spawns `uvicorn app:app` as a subprocess on startup,
   kills it on window close. Waits up to 30 s for the server to become ready
@@ -46,26 +46,26 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   `runJavaScript` for diagnostics.
 - **Qt bridge:** `QWebChannel` exposes `window.qtBridge` to the page for
   features that require a native dialog.
-- **GPU flags:** sets `QTWEBENGINE_CHROMIUM_FLAGS` and
-  `QTWEBENGINE_FORCE_USE_GBM` before importing Qt. Flags enabled:
-  `--enable-gpu-rasterization` (GPU tile rasterisation; safe on NVIDIA Linux),
+- **GPU flags:** sets `QTWEBENGINE_CHROMIUM_FLAGS` before importing Qt, with
+  GPU vendor detection via `/proc/driver/nvidia`. Common flags: `--enable-gpu-rasterization`,
   `WebGPU`, `SharedArrayBuffer`, `--enable-logging=stderr`,
-  `--remote-debugging-port=9222` (Chrome DevTools at `http://localhost:9222`
-  for GPU compositor layer inspection). Flags explicitly absent: `DefaultANGLEVulkan`
-  (forces ANGLE to Vulkan; documented to cause blank/invisible windows on
-  ozone/Wayland, Chromium bug 334275637) and `--enable-zero-copy` (requires
-  GBM buffer allocation, which NVIDIA drivers on Linux generally don't support; Qt
-  WebEngine 6.6 release notes; was a no-op and a source of texture-sharing
-  failures). `QTWEBENGINE_FORCE_USE_GBM=0` guards against a Qt 6.9+ regression
-  (qutebrowser #8535) where Qt incorrectly forces GBM on drivers that don't
-  support it; `setdefault` preserves any user override.
+  `--remote-debugging-port=9222` (Chrome DevTools at `http://localhost:9222`).
+  `DefaultANGLEVulkan` is absent for all configurations (forces ANGLE to Vulkan;
+  causes blank/invisible windows on ozone/Wayland regardless of GPU vendor,
+  Chromium bug 334275637). Vendor-conditional: **NVIDIA** (proprietary,
+  `/proc/driver/nvidia` present) — `QTWEBENGINE_FORCE_USE_GBM=0` guards a Qt 6.9+
+  regression (qutebrowser #8535) where Qt forces GBM on drivers that lack it;
+  `--enable-zero-copy` is omitted (NVIDIA lacks GBM buffer allocation).
+  **Mesa/AMD/Intel/Nouveau** (`/proc/driver/nvidia` absent) — `--enable-zero-copy`
+  is enabled (native GBM buffer allocation path); no GBM guard needed.
+  `setdefault` preserves any user override of the GBM env var.
 - **Logging:** `os.dup2` redirects Chromium renderer fd 1/2 into
   `logs/wrapper_system.log` before Qt is imported so all renderer subprocess
   output is captured.
 
 **`build-linux-app.sh`**: dependency installation and launch script. Installs
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` into the project venv, then
-launches `linux_wrapper.py`.
+launches `qt_wrapper.py`.
 
 **`static/js/qt-bridge.js`**: injected into `QWebEngineView` at startup via
 `QWebEngineScript`. Initialises `QWebChannel` and makes `window.qtBridge`
@@ -87,15 +87,15 @@ remains the path in regular browsers.
 ### Desktop wrapper approach: Qt over Electron or Tauri
 
 This section documents the tradeoffs considered. Reviewers aware of upstream
-issue #3309 and discussion #3609 will want to understand why Qt was chosen.
+issue #606 and PR #3310 will want to understand why Qt was chosen.
 
 **The alternative landscape**
 
-Issue #3309 requests an Electron-based desktop wrapper. Discussion #3609 shows
-a community Electron wrapper that already works on Linux, Windows, and macOS.
-Architecture document #605 explicitly recommends **Tauri** (not Electron) and
-notes that a wrapper should follow the planned frontend migration to
-React/TypeScript.
+Issue #606 requests a standalone native application for Windows, Mac, and Linux.
+PR #3310 is a community Electron wrapper that already works on Linux, Windows,
+and macOS. Architecture document #605 (verify number before filing) explicitly
+recommends **Tauri** (not Electron) and notes that a wrapper should follow the
+planned frontend migration to React/TypeScript.
 
 **Why not Electron**
 
@@ -110,8 +110,8 @@ PyQt6-WebEngine also uses a Chromium-based rendering engine (Qt WebEngine), so
 there is no capability gap between the two approaches. The difference is that on
 Linux, PyQt6-WebEngine can use the Qt WebEngine packages available from the
 distribution's package manager; no bundled browser binary needed. The
-community wrapper in discussion #3609 works correctly but requires an
-`npm install electron` path that adds this runtime overhead.
+PR #3310 works correctly but requires an `npm install electron` path that adds
+this runtime overhead.
 
 **Why not Tauri**
 
@@ -134,7 +134,7 @@ Two reasons Tauri is not the right choice today:
    desktop wrapper. PyQt6 is a native Python binding; no new toolchain required.
 
 When the React migration described in #605 is complete, revisiting Tauri may be
-the right call. This PR does not conflict with that path; `linux_wrapper.py` is
+the right call. This PR does not conflict with that path; `qt_wrapper.py` is
 optional and the server is unchanged.
 
 **Why Qt is appropriate for Linux**
@@ -142,7 +142,7 @@ optional and the server is unchanged.
 Qt is the standard native application toolkit on Linux distributions that use
 KDE, and is a first-class citizen on GNOME via GTK interop. PyQt6 is available
 from the package manager on Arch, Debian, Ubuntu, and Fedora. The GPU
-acceleration flags in `linux_wrapper.py` are chosen specifically for
+acceleration flags in `qt_wrapper.py` are chosen specifically for
 NVIDIA/Wayland compatibility: `--enable-gpu-rasterization` is safe and
 effective; the Vulkan/GBM flags that are problematic on NVIDIA drivers on Linux
 are explicitly absent. None of this is novel: PyQt6-WebEngine wrappers
@@ -215,7 +215,7 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
 2. The screenshot in the description uses a repo-relative path. Attach the image directly in the GitHub PR text box via drag-and-drop; do not rely on the fork's file paths being visible to upstream reviewers.
 3. Upstream issue #3528 (Windows desktop wrapper) shows the maintainer is receptive to native desktop wrappers. Reference it as a parallel effort in the issue or PR if asked about motivation.
 4. Our fork issue #7 (HF token persistence) overlaps with upstream PR #3459. Monitor; if #3459 merges, verify after next sync whether the issue is fully resolved before filing separately.
-5. **Port:** `linux_wrapper.py` now reads `APP_PORT` from the environment (`.env` is
+5. **Port:** `qt_wrapper.py` now reads `APP_PORT` from the environment (`.env` is
    loaded automatically), defaulting to `7000` — the project's canonical upstream default
    (`docker-compose.yml`, `src/constants.py`, `launch-windows.ps1`). The previous
    hardcoded `8000` was a development artifact. No reviewer action needed; noted here for

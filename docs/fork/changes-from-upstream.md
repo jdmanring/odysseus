@@ -13,7 +13,7 @@ Last updated: 2026-06-10
 ### Native Linux Desktop App
 | File | Purpose |
 |------|---------|
-| `linux_wrapper.py` | PyQt6 app that wraps the Odysseus web UI in a native Qt window. Manages uvicorn server lifecycle, GPU acceleration flags (NVIDIA/Wayland), crash recovery via `renderProcessTerminated` signal, 60s memory monitor, persistent browser profile. |
+| `qt_wrapper.py` | PyQt6 app that wraps the Odysseus web UI in a native Qt window. Manages uvicorn server lifecycle, GPU acceleration flags (NVIDIA/Wayland), crash recovery via `renderProcessTerminated` signal, 60s memory monitor, persistent browser profile. |
 | `static/js/qt-bridge.js` | Non-module script injected by the Qt wrapper. Sets up `QWebChannel` and exposes `window.qtBridge` so web JS can call native OS APIs (e.g. color picker dialog). |
 | `static/js/platform.js` | Detects `window.__QT_WRAPPER__` to gate Qt-only features from browser-only code paths. |
 | `build-linux-app.sh` | Build script for the Linux native app packaging. |
@@ -71,7 +71,7 @@ Beyond being a new file, key hardening vs. any upstream version:
 - `--download-result=hide` — suppresses verbose result table at exit
 - `--disk-cache=64M` — write buffer reduces disk seeks
 
-### `linux_wrapper.py`
+### `qt_wrapper.py`
 Beyond being a new file, key additions over any upstream version:
 - `OdysseusPage(QWebEnginePage)` subclass: `acceptNavigationRequest` opens non-localhost URLs via `QDesktopServices.openUrl()` instead of navigating the app view away; `createWindow` handles `target="_blank"` and `window.open()` by routing to the system browser
 - `renderProcessTerminated` crash recovery: auto-reloads via `setUrl()` (clean navigation, not cached `Reload`) on OOM/hard crash; crash-loop guard (second crash within 10s aborts)

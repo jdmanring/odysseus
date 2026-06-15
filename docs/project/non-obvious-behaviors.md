@@ -39,10 +39,10 @@ bottom when messages are still arriving.
 
 ---
 
-## Native Linux App (`linux_wrapper.py`)
+## Native Linux App (`qt_wrapper.py`)
 
 **The wrapper owns the server lifecycle.**
-`linux_wrapper.py` spawns uvicorn. If you also run uvicorn separately, both compete
+`qt_wrapper.py` spawns uvicorn. If you also run uvicorn separately, both compete
 for port 8000. Running the native app and bare uvicorn simultaneously will cause one
 to fail at startup.
 
@@ -58,7 +58,7 @@ external URLs to `QDesktopServices.openUrl()` (system browser). Without this, li
 would navigate the entire app away.
 
 **Hardcoded profile path.**
-`linux_wrapper.py` passes `~/.local/share/odysseus/webengine` to `QWebEngineView` as
+`qt_wrapper.py` passes `~/.local/share/odysseus/webengine` to `QWebEngineView` as
 the profile storage path. This is not yet wired through `src/constants.py`. Before
 filing this as an upstream contribution, this needs to be reconciled with whatever
 constants the project defines for user data paths.

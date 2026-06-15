@@ -32,7 +32,7 @@ Open `http://127.0.0.1:8000` in a browser.
 
 **Linux native wrapper** (requires PyQt6 — see `docs/fork/linux-build-and-install.md`):
 ```bash
-python3 linux_wrapper.py
+python3 qt_wrapper.py
 ```
 Starts the server and opens a Qt window. Do not also run uvicorn manually — the
 wrapper owns the server lifecycle.

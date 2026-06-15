@@ -6,7 +6,7 @@ The Linux native app has two separate Python runtimes:
 
 | Layer | Python | Why |
 |-------|--------|-----|
-| Display (`linux_wrapper.py`) | `/usr/bin/python3` (system) | Uses system-built PyQt6/WebEngine with native Wayland support |
+| Display (`qt_wrapper.py`) | `/usr/bin/python3` (system) | Uses system-built PyQt6/WebEngine with native Wayland support |
 | Backend (`uvicorn app:app`) | `venv/bin/python` | All server dependencies (FastAPI, ML libs, etc.) live in the venv |
 
 The pip-distributed PyQt6 must not be used for the wrapper — use system packages only.
@@ -51,7 +51,7 @@ Log out and back in after the first install so KDE picks up the new icon.
 
 ## Runtime configuration
 
-### Chromium flags (`linux_wrapper.py`)
+### Chromium flags (`qt_wrapper.py`)
 ```
 --no-sandbox                              required on Artix (user namespaces may not be enabled)
 --ignore-gpu-blocklist                    override Chromium's NVIDIA GPU feature blocklist
@@ -69,7 +69,7 @@ subprocess context). Full GPU acceleration is still active via the RTX.
 
 ### Qt native bridge (QWebChannel)
 
-`linux_wrapper.py` exposes a `NativeBridge` QObject to JavaScript via `window.qtBridge`. It is
+`qt_wrapper.py` exposes a `NativeBridge` QObject to JavaScript via `window.qtBridge`. It is
 available in the page after the QWebChannel handshake completes (async, always done before any
 user interaction). The `window.__QT_WRAPPER__` flag is set synchronously at document creation so
 JS can detect the wrapper environment immediately.

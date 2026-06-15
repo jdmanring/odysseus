@@ -117,10 +117,10 @@ completed-file bytes across poll ticks. It is not reset between ticks by design.
 
 ## Native Linux App (Fork Addition)
 
-`linux_wrapper.py` wraps the web UI in `QWebEngineView` (PyQt6):
+`qt_wrapper.py` wraps the web UI in `QWebEngineView` (PyQt6):
 
 ```
-linux_wrapper.py starts → spawns uvicorn → loads http://127.0.0.1:8000 in QWebEngineView
+qt_wrapper.py starts → spawns uvicorn → loads http://127.0.0.1:8000 in QWebEngineView
 ```
 
 `OdysseusPage(QWebEnginePage)` subclass:
@@ -131,7 +131,7 @@ linux_wrapper.py starts → spawns uvicorn → loads http://127.0.0.1:8000 in QW
 `QWebEngineView` is Chromium but **not a browser** — the Web EyeDropper API is missing.
 `colorPicker.js` uses `qtBridge.openColorDialog()` instead when running in the wrapper.
 
-Do not run uvicorn separately when using the native app — `linux_wrapper.py` owns the server lifecycle.
+Do not run uvicorn separately when using the native app — `qt_wrapper.py` owns the server lifecycle.
 
 ---
 

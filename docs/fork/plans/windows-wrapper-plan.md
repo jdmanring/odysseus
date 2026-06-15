@@ -10,7 +10,7 @@
 ## Overview
 
 Create `windows_wrapper.py` and `build-windows-app.ps1` — a native Windows desktop
-wrapper using PyQt6, modeled on `linux_wrapper.py`. The core architecture is identical;
+wrapper using PyQt6, modeled on `qt_wrapper.py`. The core architecture is identical;
 Windows requires different subprocess management, signal handling, fd redirection, GPU
 flags, and path conventions.
 
@@ -20,7 +20,7 @@ flags, and path conventions.
 
 ### `windows_wrapper.py`
 
-Start from `linux_wrapper.py` and apply the following changes:
+Start from `qt_wrapper.py` and apply the following changes:
 
 **1. LOG_DIR** — change log location to Windows AppData convention:
 ```python
