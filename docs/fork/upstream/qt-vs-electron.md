@@ -108,3 +108,71 @@ This wrapper:
 Electron has equivalent cross-platform reach, but each of the above requires a Node.js
 runtime (30–80 MB) and a full Chromium binary (100–150 MB) bundled into the distributable.
 Qt WebEngine on Linux/FreeBSD reuses the system-installed Chromium engine.
+
+---
+
+## vs pywebview (System Webview Approach)
+
+pywebview (v6.2.1, April 2026, ~11k GitHub stars) is the closest Python-native
+alternative. It uses the OS-provided webview on each platform: WKWebView on macOS,
+WebView2 on Windows, and WebKitGTK on Linux. No bundled Chromium — structurally
+smaller process footprint.
+
+**Where pywebview is stronger:**
+
+- **JS↔Python bridge:** pywebview exposes a Python class directly to JS via
+  `window.pywebview.api.method()`, which returns a Promise. No QWebChannel
+  registration, no signal/slot wiring. Tighter and less boilerplate for
+  Python-from-JS calls.
+- **Memory:** No bundled Chromium renderer process. Estimated 60–100 MB less
+  at idle on macOS and Windows compared to Qt WebEngine.
+
+**Why Qt WebEngine is the right choice for Odysseus:**
+
+**1. Platform coverage.** pywebview has no FreeBSD or OpenBSD support. A
+multi-year open issue exists for OpenBSD (Qt backend only, nothing merged). Qt
+WebEngine is available as a system package on both platforms — `pkg install
+qt6-qtwebengine` on FreeBSD, `pkg_add qt6-qtwebengine` on OpenBSD amd64/aarch64.
+Supporting BSD platforms without maintaining pywebview ports ourselves is only
+possible with Qt WebEngine.
+
+**2. Rendering consistency.** pywebview on Linux uses WebKitGTK, which is
+independently versioned per distribution. Key features Odysseus relies on:
+
+| Feature | WebView2 (Win) | WKWebView (macOS) | WebKitGTK (Linux) |
+|---------|---------------|-------------------|-------------------|
+| CSS Grid | ✓ | ✓ | ✓ (2.36+) |
+| `backdrop-filter` | ✓ | ✓ | Not yet — expected 2026 |
+| Container queries | ✓ | ✓ (Safari 16+) | Partial, version-dependent |
+| WebGPU | ✓ (recent) | ✓ (Safari 18+) | Very limited |
+
+Ubuntu 22.04 LTS ships WebKitGTK 2.36 (2022-era WebKit); Ubuntu 24.04 ships 2.44.
+On LTS Linux, pywebview users get a materially older engine with missing features.
+Qt WebEngine bundles a current Chromium and renders identically across all platforms.
+
+**3. Threading.** pywebview's webview and uvicorn both want the main thread. This
+is solvable but requires careful threading and has a documented history of
+blank-window-on-Windows and connection-refused-on-Linux startup failures across
+pywebview minor version updates (NiceGUI issue #2751 and related). Qt WebEngine's
+event loop owns the main thread cleanly; the uvicorn subprocess runs separately.
+
+---
+
+## vs Other Approaches
+
+**cefpython3:** Python bindings for Chromium Embedded Framework. Last release
+v66.1 (circa 2020), targeting Chromium 66 (2018). No Python 3.10+ support.
+Not maintained; not viable.
+
+**Tauri v2:** Rust framework using OS-provided webviews (same rendering tradeoffs
+as pywebview). Python integration is subprocess IPC only — the Python server runs
+as a sidecar spawned by Tauri's Shell plugin, communicating via HTTP or stdin/stdout.
+There is no same-process Python integration. Adding a Rust toolchain to the build
+pipeline for a Python-primary application introduces significant maintenance cost
+with no functional benefit over Qt WebEngine. Tauri is the right choice when Rust
+is the primary runtime; it is the wrong choice here.
+
+**Summary:** For a Python-first application targeting Linux, macOS, Windows,
+FreeBSD, and OpenBSD with a Chromium-based frontend, Qt WebEngine is the correct
+choice. pywebview would be reasonable on macOS and Windows only, where BSD support
+and WebKitGTK rendering gaps are not a concern.
