@@ -57,8 +57,8 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | [#37 LongCat tool_call parsing](https://github.com/jdmanring/odysseus/issues/37) | — | Closed — investigation subsumed by #38 (`fix/longcat-tool-parsing`). Implementation handles all format variants. |
 | [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | Closed 2026-06-12 — superseded by upstream #3459 (`load_stored_hf_token()` in cookbook_helpers.py) |
 | [#34 HF token env fallback](https://github.com/jdmanring/odysseus/issues/34) | `fix/hf-token-env-fallback` | Closed 2026-06-12 — same upstream fix covers this |
-| [#9 basicsr Python 3.14 compat](https://github.com/jdmanring/odysseus/issues/9) | `fix/basicsr-python314-compat` | Superseded — upstream PR #3741 fixes same bug in `cookbook_helpers.py` with tests. Delete branch once #3741 merges into upstream-mirror. |
-| [#11 streamingTTS scope](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | Superseded — upstream PR #2418 makes same hoist fix with broader scope and a test. Delete branch once #2418 merges into upstream-mirror. |
+| [#9 basicsr Python 3.14 compat](https://github.com/jdmanring/odysseus/issues/9) | `fix/basicsr-python314-compat` | Superseded — upstream PR #3741 ("fix(cookbook): install realesrgan on Python 3.13") covers same basicsr build failure. Still open as of 2026-06-15; user comments indicate fix not yet working. Delete branch once #3741 merges into upstream-mirror. |
+| [#11 streamingTTS scope](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | Superseded — upstream PR #2418 ("fix(chat): render abort messages — hoist streamingTTS out of the try block") makes same hoist fix with broader scope and a test. Still open as of 2026-06-15, no comments. Delete branch once #2418 merges into upstream-mirror. |
 
 ---
 
