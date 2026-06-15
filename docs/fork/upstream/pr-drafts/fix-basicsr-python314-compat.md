@@ -68,7 +68,10 @@ Both paths are covered by this PR.
 `_append_realesrgan_basicsr_preflight()` generates a self-contained Python script that:
 1. Exits immediately if Python < 3.13 (the scoping change is 3.13+ only).
 2. Exits immediately if basicsr is already importable.
-3. Downloads the `basicsr==1.4.2` source archive from PyPI (no binary, no deps).
+3. Fetches the `basicsr==1.4.2` sdist URL from the PyPI JSON API and downloads
+   it with `urllib.request` — `pip download --no-binary :all:` would invoke
+   `get_requires_for_build_wheel`, running setup.py and hitting the same
+   `KeyError` the preflight is here to prevent.
 4. Rewrites `get_version()` in `setup.py` to use an explicit namespace dict
    instead of relying on `locals()`:
    ```python
@@ -124,7 +127,7 @@ Fixes # <!-- [file upstream issue first using issue-drafts/fix-basicsr-python314
 - [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate (see PR #3741 note above).
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
-- [x] I ran `python -m pytest` — 71 tests pass, 0 failures.
+- [x] I ran `python -m pytest` — 73 tests pass, 0 failures.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
@@ -151,16 +154,18 @@ python -m pip install basicsr==1.4.2
 ```bash
 python -m pytest tests/test_cookbook_helpers.py -k "basicsr or realesrgan" -v
 ```
-12 tests cover: positive/negative detection, Python executable extraction, Python < 3.13
+14 tests cover: positive/negative detection, Python executable extraction, Python < 3.13
 no-op scope guard, exec/locals patch content, PowerShell runner path, POSIX runner path
-(with inline abort), already-installed no-op (subprocess exit 0), and
-`run_basicsr_preflight_async` is a coroutine.
+(with inline abort), already-installed no-op (subprocess exit 0),
+`run_basicsr_preflight_async` is a coroutine, the namespace-dict patch eliminates the
+KeyError on Python 3.13+, and `install_package()` calls the preflight before pip for
+the `realesrgan` package (the Dependencies tab path).
 
 ---
 
 ## Filing Notes
 
-- Two commits on branch as of 2026-06-15 (fix + scope correction). Squash before filing.
+- Three commits on branch as of 2026-06-15 (fix + scope correction + urllib download fix). Squash before filing.
 - **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`.
   Add the upstream issue number to `Fixes #` above before opening the PR.
 - Acknowledge PR #3741 in the PR description if it is still open at filing time; the
