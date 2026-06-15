@@ -131,8 +131,8 @@ LAUNCHER
 chmod +x "$LAUNCHER"
 echo "Installed launcher: $LAUNCHER"
 
-if [ -f "$INSTALL_DIR/assets/odysseus.svg" ]; then
-    cp "$INSTALL_DIR/assets/odysseus.svg" "$ICON_DIR/odysseus.svg"
+if [ -f "$INSTALL_DIR/static/icons/odysseus.svg" ]; then
+    cp "$INSTALL_DIR/static/icons/odysseus.svg" "$ICON_DIR/odysseus.svg"
 fi
 
 cat > "$DESKTOP_DIR/odysseus.desktop" <<DESKTOP
