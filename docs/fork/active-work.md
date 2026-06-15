@@ -10,7 +10,7 @@ Last updated: 2026-06-14. Fork is at milestone `v1.0.0-fork.1` — all CI passin
 |-------|--------|--------|
 | [#36 hf_transfer removal](https://github.com/jdmanring/odysseus/issues/36) | not started | Strip all hf_transfer install/enable code. Blocked pending upstream acceptance of feat/aria2c-downloader. |
 | [#37 LongCat tool_call parsing](https://github.com/jdmanring/odysseus/issues/37) | not started | `<longcat_tool_call>` format not parsed or stripped. Needs full format capture before implementing. |
-| [#38 LongCat tool call support](https://github.com/jdmanring/odysseus/issues/38) | `fix/longcat-tool-parsing` | Parser for both Variant A (JSON) and Variant B (tag-pair) formats + "longcat" keyword in _model_supports_tools. Branch complete. |
+| [#38 LongCat tool call support](https://github.com/jdmanring/odysseus/issues/38) | `fix/longcat-tool-parsing` | JSON format only (official, per vLLM LongcatFlashToolParser + model card). Tag-pair format stripped but not executed — origin unverifiable. Branch complete. |
 | [#39 Google toolCalls camelCase](https://github.com/jdmanring/odysseus/issues/39) | `fix/google-compat-toolcalls` | Fix delta.get("tool_calls") to also check "toolCalls". Branch complete. |
 | [#40 Google native API path](https://github.com/jdmanring/odysseus/issues/40) | not started | Full GoogleProvider implementation in llm_core.py. Substantial feature, no existing SDK deps. |
 | [#41 Gemma 4 local serving format](https://github.com/jdmanring/odysseus/issues/41) | not started | Low priority. Raw `<\|tool_call>` tokens leak only through self-hosted Ollama/llama-cpp-python/mlx-lm when chat template is incomplete. Google's hosted API is unaffected (already translates to `<tool_code>` format). |
