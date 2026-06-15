@@ -100,6 +100,9 @@ callers that don't build a shell runner script.
 
 - `cookbook_routes.py` (Serve panel): preflight injected into both POSIX (heredoc
   `<<'PY'`) and PowerShell (`@'...'@`) runner scripts before `req.cmd` is appended.
+  Both paths include an inline abort: POSIX checks `ODYSSEUS_PREFLIGHT_EXIT` immediately
+  after the heredoc and exits before `req.cmd` on non-zero; PowerShell checks
+  `$LASTEXITCODE -ne 0` inline.
 - `shell_routes.py` (Dependencies tab): `install_package()` awaits
   `run_basicsr_preflight_async()` before the normal `asyncio.create_subprocess_exec`
   install when `pip_name == "realesrgan"`.
@@ -166,11 +169,24 @@ runner path, POSIX runner path, already-installed no-op (subprocess exit 0), and
 
 ## Filing Notes
 
-- Three commits total (fix + shell_routes wiring + refactor to public async helper). Consider squashing before filing.
+- Single squashed commit as of 2026-06-15. Ready to file as-is.
 - **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`.
   Add the upstream issue number to `Fixes #` above before opening the PR.
 - Acknowledge PR #3741 in the PR description if it is still open at filing time; the
   body above already does this.
+
+**Verify before filing (items not confirmed at draft time):**
+- **CPython issue #118888** — cited in both the issue draft and this PR. Verify the
+  number against https://github.com/python/cpython/issues before filing; if wrong,
+  replace with the correct issue or cite the Python 3.13 changelog directly.
+- **PR #3741 scope** — we assert it covers exec/locals only. Read the actual diff of
+  PR #3741 before filing; if it already patches collections.abc, adjust the comparison.
+- **collections.abc coverage in basicsr 1.4.2** — we patch Mapping, MutableMapping,
+  Sequence, MutableSequence. Manually verify against the actual 1.4.2 source that no
+  other removed collections ABCs (Callable, Iterable, Iterator, etc.) are imported by
+  basicsr. Run: `pip download --no-binary :all: basicsr==1.4.2 -d /tmp/bsr && cd /tmp
+  && tar xf /tmp/bsr/basicsr-1.4.2.tar.gz && grep -r "from collections import"
+  basicsr-1.4.2/ | grep -v ".abc"` to find any misses.
 
 ## Visual / UI changes
 
