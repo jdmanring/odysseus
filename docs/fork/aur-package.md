@@ -144,7 +144,7 @@ package() {
 
     # System-wide .desktop and icon for package manager awareness
     # (user still needs to run build-linux-app.sh for full integration)
-    install -Dm644 docs/odysseus.svg \
+    install -Dm644 static/icons/odysseus.svg \
         "$pkgdir/usr/share/icons/hicolor/scalable/apps/odysseus.svg"
 }
 ```

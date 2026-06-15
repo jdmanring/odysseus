@@ -44,7 +44,7 @@ bash build-linux-app.sh
 The script:
 1. Verifies system PyQt6 with WebEngine is available
 2. Installs the launcher at `~/.local/bin/odysseus` (uses `/usr/bin/python3`)
-3. Installs `assets/odysseus.svg` to the hicolor scalable icon directory
+3. Installs `static/icons/odysseus.svg` to the hicolor scalable icon directory
 4. Writes the `.desktop` entry and refreshes icon/desktop caches
 
 Log out and back in after the first install so KDE picks up the new icon.

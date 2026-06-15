@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-14. Fork is at milestone `v1.0.0-fork.1` — all CI passing on main.
+Last updated: 2026-06-15. Fork is at milestone `v1.0.0-fork.1` — all CI passing on main. All staged branches + platform wrappers rebased against upstream-mirror post-ingest.
 
 ---
 
@@ -9,7 +9,6 @@ Last updated: 2026-06-14. Fork is at milestone `v1.0.0-fork.1` — all CI passin
 | Issue | Branch | Status |
 |-------|--------|--------|
 | [#36 hf_transfer removal](https://github.com/jdmanring/odysseus/issues/36) | not started | Strip all hf_transfer install/enable code. Blocked pending upstream acceptance of feat/aria2c-downloader. |
-| [#37 LongCat tool_call parsing](https://github.com/jdmanring/odysseus/issues/37) | not started | `<longcat_tool_call>` format not parsed or stripped. Needs full format capture before implementing. |
 | [#38 LongCat tool call support](https://github.com/jdmanring/odysseus/issues/38) | `fix/longcat-tool-parsing` | JSON format only (official, per vLLM LongcatFlashToolParser + model card). Tag-pair format stripped but not executed — origin unverifiable. Branch complete. |
 | [#39 Google toolCalls camelCase](https://github.com/jdmanring/odysseus/issues/39) | `fix/google-compat-toolcalls` | Fix delta.get("tool_calls") to also check "toolCalls". Branch complete. |
 | [#40 Google native API path](https://github.com/jdmanring/odysseus/issues/40) | not started | Full GoogleProvider implementation in llm_core.py. Substantial feature, no existing SDK deps. |
@@ -33,7 +32,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/agent-tool-budget` | [#10](https://github.com/jdmanring/odysseus/issues/10) | Single commit, ready |
 | `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Single commit, ready |
 | `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Single commit, ready |
-| `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Single commit, ready |
+| `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Single commit, ready. Rework complete: SVG → `static/icons/`, manifest SVG entry added, build-macos-app.sh updated. |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Single commit, ready |
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Single commit, ready. File upstream issue first. |
 | `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Single commit, ready. Verified 2026-06-12: pause/resume, split-file, zombie detection, clear-finished, resume spinner, cancel. Windows buffering fix in — untested. |
@@ -55,6 +54,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 
 | Issue | Branch | Notes |
 |-------|--------|-------|
+| [#37 LongCat tool_call parsing](https://github.com/jdmanring/odysseus/issues/37) | — | Closed — investigation subsumed by #38 (`fix/longcat-tool-parsing`). Implementation handles all format variants. |
 | [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | Closed 2026-06-12 — superseded by upstream #3459 (`load_stored_hf_token()` in cookbook_helpers.py) |
 | [#34 HF token env fallback](https://github.com/jdmanring/odysseus/issues/34) | `fix/hf-token-env-fallback` | Closed 2026-06-12 — same upstream fix covers this |
 | [#9 basicsr Python 3.14 compat](https://github.com/jdmanring/odysseus/issues/9) | `fix/basicsr-python314-compat` | Superseded — upstream PR #3741 fixes same bug in `cookbook_helpers.py` with tests. Delete branch once #3741 merges into upstream-mirror. |
