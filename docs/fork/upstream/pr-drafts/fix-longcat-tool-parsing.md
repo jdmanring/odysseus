@@ -27,7 +27,7 @@ Two distinct variants appear in the wild:
 <longcat_tool_call>{"name": "fn_name", "arguments": {"key": "value"}}</longcat_tool_call>
 ```
 
-**Variant B (tag pairs)** (observed in vLLM and Vercel AI SDK output):
+**Variant B (tag pairs)** (reported in vLLM and Vercel AI SDK output — no specific issue link available):
 ```xml
 <longcat_tool_call>fn_name
 <longcat_arg_key>path</longcat_arg_key>
@@ -89,7 +89,10 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/fix-longcat-tool-parsi
    file tool enabled).
 3. Confirm the tool executes and the result is returned to the model; the raw
    `<longcat_tool_call>` block should not appear in the chat response.
-4. Repeat with a Variant A (JSON) and Variant B (tag-pair) model if available.
+4. Variant B (tag-pair format) is stripped from display but not executed —
+   `strip_tool_blocks()` removes the raw tags. No behavioral test is possible without
+   a model that emits this format; it is stripped silently regardless of whether the
+   tool name is recognized.
 5. Confirm `strip_tool_blocks()` removes the block when the tool is not executed
    (i.e. send a prompt that produces a `<longcat_tool_call>` block but do not execute it;
    confirm the raw XML does not appear in the displayed response).

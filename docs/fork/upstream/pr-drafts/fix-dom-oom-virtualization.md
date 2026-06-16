@@ -63,7 +63,7 @@ agent session or losing context.
 
 ### Solution
 
-This PR introduces `static/js/chatHistory.js`, a ~600-line DOM virtualization
+This PR introduces `static/js/chatHistory.js`, a ~730-line DOM virtualization
 module that keeps the number of live DOM nodes bounded at all times, and
 integrates it as a drop-in replacement for the existing `addMessage` for-loop
 in `sessions.js`.
@@ -113,7 +113,7 @@ automatically.
 
 ### Files changed
 
-**`static/js/chatHistory.js`** (new, ~600 lines)  
+**`static/js/chatHistory.js`** (new, ~730 lines)  
 The virtualization module. Runs as a plain (non-module) `<script>` tag so
 `window.chatHistory` is available before any ES module import runs. The module
 is entirely self-contained; it has one external dependency (`window.chatModule

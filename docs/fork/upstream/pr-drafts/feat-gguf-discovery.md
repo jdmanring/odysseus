@@ -44,7 +44,7 @@ source configured" have no path forward except asking in community forums.
 
 **Scale of the inaccessible ecosystem**
 
-[TheBloke](https://huggingface.co/TheBloke) has 3,863 HuggingFace repositories
+[TheBloke](https://huggingface.co/TheBloke) has thousands of HuggingFace repositories
 covering GGUF and GPTQ quantizations across a wide range of models.
 [Bartowski](https://huggingface.co/bartowski) has over 2,300 repositories,
 most of them imatrix-calibrated GGUF models actively updated to cover new
@@ -248,6 +248,7 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/feat-gguf-discovery.md
 
 1. **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-gguf-discovery.md`. Add the issue number to `Fixes #` above before opening the PR.
 2. In the PR Summary body, reference #2342 as the original symptom report this addresses.
+3. Note: the branch is named `fix/gguf-quality-scored` (historical) but the PR type is `feat`. This is intentional — the change adds new discovery logic rather than correcting a regression; the `fix/` prefix predates the current scope.
 3. Target branch: `dev` (not `main`).
 4. Can be filed independently of `feat/aria2c-downloader`: auto-discovery works with the standard `hf download` fallback too.
 5. The `_REPUTED_AUTHORS` list is a starting point; upstream maintainers may want to add or remove names.

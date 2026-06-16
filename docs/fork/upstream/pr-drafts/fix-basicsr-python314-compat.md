@@ -167,7 +167,6 @@ the subprocess return code.
 
 ## Filing Notes
 
-- Three commits on branch as of 2026-06-15 (fix + scope correction + urllib download fix). Squash before filing.
 - **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`.
   Add the upstream issue number to `Fixes #` above before opening the PR.
 - Acknowledge PR #3741 in the PR description if it is still open at filing time; the

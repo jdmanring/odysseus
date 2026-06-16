@@ -23,8 +23,9 @@ appeared verbatim in the chat as if it were plain text.
 ### Who is affected
 
 **Every user running a Google Gemma model via Odysseus** who tries to use tools. Gemma
-is Google's openly-available model family with tens of millions of HuggingFace downloads,
-making it one of the most commonly self-hosted models. Users trying agentic tasks with
+is one of the most-downloaded model families on HuggingFace
+([huggingface.co/google](https://huggingface.co/google)), making it one of the most
+commonly self-hosted models. Users trying agentic tasks with
 Gemma see what appears to be a broken model; the model
 "knows" to call a tool (the `<tool_code>` block appears), but nothing happens. The raw
 XML is then visible in the chat as response text, making it look like an error or a
