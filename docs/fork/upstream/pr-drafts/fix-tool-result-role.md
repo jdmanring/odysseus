@@ -45,9 +45,11 @@ The model adds a hedging acknowledgement turn rather than immediately acting on 
 result. This is a direct consequence of training data format: models trained on
 OpenAI-format conversations see `role=user` as user input — this is what the
 [Chat Completions API specification](https://platform.openai.com/docs/api-reference/chat/create)
-defines. The specification added `role=tool` (June 2023) precisely to distinguish
-tool results from user input; injecting them as `role=user` mismatches the format the
-model was trained on. One wasted round per tool call accumulates in multi-step tasks;
+defines. The specification added `role=tool` in November 2023 (OpenAI DevDay; `functions`
+deprecated in favour of `tools` per the
+[OpenAI changelog](https://developers.openai.com/api/docs/changelog)) precisely to
+distinguish tool results from user input; injecting them as `role=user` mismatches the
+format the model was trained on. One wasted round per tool call accumulates in multi-step tasks;
 five tool calls in a session means five acknowledgement turns before any productive
 work begins.
 

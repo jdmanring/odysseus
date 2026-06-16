@@ -121,7 +121,8 @@ integration and native webview usage are appropriate.
 Two reasons Tauri is not the right choice today:
 
 1. **Rendering engine**: Tauri uses WebKitGTK on Linux. WebKitGTK feature availability depends on the
-   version packaged by each distribution: Ubuntu 22.04 LTS ships WebKitGTK 2.36,
+   version packaged by each distribution: Ubuntu 22.04 LTS ships WebKitGTK
+   [2.36](https://launchpad.net/ubuntu/jammy/+source/webkit2gtk),
    which lacks `container queries`. Odysseus uses `backdrop-filter`,
    `grid`, `container queries`, and features whose behavior across the full
    range of distribution-packaged WebKitGTK versions is untested. Qt WebEngine
