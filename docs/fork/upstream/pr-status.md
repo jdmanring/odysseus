@@ -33,6 +33,7 @@ per-action authorization. Agents stage; you file.**
 | `fix/longcat-tool-parsing` | [#38](https://github.com/jdmanring/odysseus/issues/38) | Bug | Ready to file — added `tests/test_longcat_tool_parsing.py` (13 tests, covers both Variant A/B, unknown-name pass-through behavior documented). See pr-drafts/fix-longcat-tool-parsing.md |
 | `fix/google-compat-toolcalls` | [#39](https://github.com/jdmanring/odysseus/issues/39) | Bug | Ready to file — 4 tests: 3 presence checks + 1 ordering test (verifies `tool_calls` checked before `toolCalls` in fallback chain). See pr-drafts/fix-google-compat-toolcalls.md |
 | `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Feature | Ready to file — infrastructure and callsites combined in one PR. See pr-drafts/feat-logging.md |
+| `fix/workspace-shell-access` | [#47](https://github.com/jdmanring/odysseus/issues/47) | Bug | Ready to file — single clean commit, verified 2026-06-16. File upstream issue first (draft in issue-drafts/). Companion to upstream PR #4398. See pr-drafts/fix-workspace-shell-access.md |
 
 ## PR Drafts and Issue Drafts
 

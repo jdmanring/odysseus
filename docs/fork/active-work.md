@@ -48,6 +48,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/google-compat-toolcalls` | [#39](https://github.com/jdmanring/odysseus/issues/39) | Single commit, ready. |
 | `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. Infrastructure + timing callsites combined — callsites are untestable without infrastructure. Replaces feat/logging-core and feat/logging-timing. |
 | `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready. Previously marked superseded; re-activated 2026-06-15. #3741 covers only the Serve panel; ours also covers the Dependencies tab and adds an inline POSIX abort. File upstream issue first. |
+| `fix/workspace-shell-access` | [#47](https://github.com/jdmanring/odysseus/issues/47) | Single commit, ready. Verified 2026-06-16. File upstream issue first. |
 
 ---
 
