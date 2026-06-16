@@ -123,7 +123,7 @@ Fixes # <!-- [file upstream issue first] -->
 - [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
-- [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
+- [x] Opened key documentation files on GitHub and verified they render correctly; links to CONTEXT.md and RULES.md resolve; no runtime behavior changed.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test

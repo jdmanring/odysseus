@@ -52,11 +52,11 @@ Fixes # <!-- [file upstream issue first] -->
 
 - `src/integrations.py`: `get_github_cli_prompt()`: runs `gh auth status --hostname github.com` (5 s timeout, no-op if absent/unauthed); extracts token via `gh auth token` and sets `GH_TOKEN` in process env for subprocess inheritance; returns a `## GitHub CLI` context block listing common commands
 - `src/agent_loop.py`: calls `get_github_cli_prompt()` and appends result to agent system prompt
-- `tests/test_gh_cli_detection.py` (new); 11 behavioral tests using `monkeypatch` on `shutil.which` and `subprocess.run`
+- `tests/test_gh_cli_detection.py` (new); 12 behavioral tests using `monkeypatch` on `shutil.which` and `subprocess.run`
 
 ## Tests
 
-**`tests/test_gh_cli_detection.py`**: 11 tests covering all guarded paths:
+**`tests/test_gh_cli_detection.py`**: 12 tests covering all guarded paths:
 
 - **Not installed** (2 tests): `shutil.which` returns `None` → returns `""` and returns a `str`
 - **Auth failure** (2 tests): `gh auth status` exits non-zero → returns `""`;
@@ -72,8 +72,7 @@ functions). No network access required.
 
 ## How it works
 
-On every prompt build, `get_github_cli_prompt()` runs `gh auth status`. If `gh` is
-absent or not authenticated it returns empty string and nothing changes.
+On the first prompt build after server start, `get_github_cli_prompt()` runs `gh auth status` and caches the result. Subsequent calls return the cached value without spawning subprocesses. If `gh` is absent or not authenticated it returns empty string and nothing changes.
 
 When authenticated, the function also runs `gh auth token --hostname github.com` and
 sets `os.environ["GH_TOKEN"]` so that subprocesses spawned by the bash tool inherit

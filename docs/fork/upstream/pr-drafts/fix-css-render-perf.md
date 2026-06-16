@@ -21,7 +21,7 @@ No visual changes for desktop users who don't have reduce-motion enabled.
 
 ### Changes
 
-**`will-change` cleanup (3 removals)**
+**`will-change`: 3 removals, 6 additions on mobile layout (net +3)**
 
 Removed `will-change` from three elements where it was permanently allocated rather
 than applied at the point of an animation:
@@ -38,6 +38,14 @@ than applied at the point of an animation:
 `will-change` on always-visible elements consumes GPU VRAM and (on tablets and phones)
 shared system RAM. The three removals reduce memory pressure and lower the compositor
 layer count without changing any visual behavior.
+
+Added `will-change: transform` to 6 elements inside `@media (max-width: 768px)` and
+responsive layout rules (`.chat-container`, `.chat-input-bar`, `.sidebar`, and three
+scroll-bearing containers). These target elements that scroll continuously on mobile
+and benefit from early compositor layer promotion to eliminate scroll jank. Mobile
+devices have higher latency between CPU and GPU; promoting these containers before
+they scroll avoids the frame-miss that causes stuttering. The net diff is +3
+`will-change` declarations overall, all new ones constrained to mobile media queries.
 
 **CSS containment (3 additions)**
 
