@@ -44,7 +44,7 @@ source configured" have no path forward except asking in community forums.
 
 **Scale of the inaccessible ecosystem**
 
-[TheBloke](https://huggingface.co/TheBloke) has thousands of HuggingFace repositories
+[TheBloke](https://huggingface.co/TheBloke) has over 3,800 HuggingFace repositories
 covering GGUF and GPTQ quantizations across a wide range of models.
 [Bartowski](https://huggingface.co/bartowski) has over 2,300 repositories,
 most of them imatrix-calibrated GGUF models actively updated to cover new
