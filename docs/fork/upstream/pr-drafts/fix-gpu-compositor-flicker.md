@@ -60,10 +60,12 @@ The cost is measurable on every platform:
   tap, not just on mouse movement. Combined with the persistent layer allocation,
   this is the dominant source of GPU overhead during sidebar navigation on mobile.
 - **On Linux / NVIDIA + Wayland + QtWebEngine**: GPU layer invalidation can stall
-  the Vulkan command queue (compounded by a now-fixed `DefaultANGLEVulkan` flag
-  issue; see related PR). The stall produces black-screen flicker lasting one to
+  the Vulkan command queue. The stall produces black-screen flicker lasting one to
   several seconds on sidebar hover, dropdown open, and modal open. The
   backdrop-filter declarations on `.sidebar` and `.dropdown` were the direct trigger.
+  This is the same compositor-layer promotion issue tracked in [Chromium bug 334275637](https://issues.chromium.org/issues/334275637);
+  a companion PR (`feat/qt-native-linux-app`) removes the `DefaultANGLEVulkan` flag
+  that compounded it on NVIDIA/Wayland.
 
 ### Elements cleaned up
 
@@ -72,7 +74,7 @@ The cost is measurable on every platform:
 | `.sidebar` | `blur(10px)` | `background: var(--panel)`: fully opaque |
 | `.dropdown` | `blur(12px)` | Solid panel background |
 | Import notification banner | `blur(12px)` | Solid panel background |
-| `#styled-confirm-overlay` | `blur(4px)` | `rgba(0,0,0,0.5)`: 4 px blur at 50% opacity contributes minimal perceived sharpness; the overlay's decorative dimming is the visual intent |
+| `#styled-confirm-overlay` | `blur(4px)` | `rgba(0,0,0,0.5)`: 50% opacity black — the blur adds GPU compositor cost without contributing meaningfully to the visual design; the decorative dimming is the intent |
 | `#styled-prompt-overlay` | `blur(4px)` | Same |
 | Recording indicator (×2) | `blur(10px)` | `rgba(0,0,0,0.8)`: blur effectively invisible at 80% fill opacity; 20% transparency leaves insufficient contrast for the effect to be detectable |
 | `.search-overlay` | `blur(6px)` | `rgba(0,0,0,0.6)` |

@@ -37,8 +37,9 @@ The typical debugging path for a user hitting this:
 4. Search for "odysseus searxng 404"; either find nothing, or find a GitHub issue
 5. Eventually discover the JSON format requirement by reading SearXNG's API docs
 
-This is a multi-hour debugging experience for a problem that a single comment in
-`.env.example` would have prevented entirely.
+Without the comment, users hit HTTP 404 from a working SearXNG install with no
+indication that JSON output must be explicitly enabled — it is an Odysseus-specific
+prerequisite that SearXNG's own installation guide does not mention.
 
 There is currently **no documentation anywhere in the repository** about this
 requirement. It is not in the README, not in `.env.example`, not in any guide. The only

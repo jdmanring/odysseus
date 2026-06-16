@@ -42,15 +42,14 @@ contents: ...` as if the user typed it. The next model turn starts with phrases 
 - "Thank you for sharing this output. Let me analyse..."
 
 The model adds a hedging acknowledgement turn rather than immediately acting on the
-result. In a multi-round agent session, this wastes one round per tool call; a session
-doing 5 tool calls loses 5 rounds to acknowledgements before any productive work begins.
-Against `agent_max_rounds=20`, that is 25% of the session's round budget consumed by
-role-confusion overhead rather than task execution.
-
-As the conversation history grows, tool results injected as `role=user` messages also
-accumulate as apparent user turns. Models that weight recent user turns heavily begin
-to treat tool output as the user's preference or intent, compounding confusion across
-later rounds.
+result. This is a direct consequence of training data format: models trained on
+OpenAI-format conversations see `role=user` as user input — this is what the
+[Chat Completions API specification](https://platform.openai.com/docs/api-reference/chat/create)
+defines. The specification added `role=tool` (June 2023) precisely to distinguish
+tool results from user input; injecting them as `role=user` mismatches the format the
+model was trained on. One wasted round per tool call accumulates in multi-step tasks;
+five tool calls in a session means five acknowledgement turns before any productive
+work begins.
 
 ### Providers affected
 

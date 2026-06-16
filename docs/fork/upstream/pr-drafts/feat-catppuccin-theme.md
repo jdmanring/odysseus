@@ -101,8 +101,7 @@ refracts differently through the periphery of an irregularly-curved cornea, and 
 larger the pupil aperture, the worse this aberration. The result is that high-brightness
 text bleeds perceptibly into the surrounding dark field.
 
-Astigmatism is a very common refractive condition
-(American Academy of Ophthalmology). Piepenbrock et al. (2013, *Ergonomics*, DOI:
+Astigmatism is a very common refractive condition. Piepenbrock et al. (2013, *Ergonomics*, DOI:
 [10.1080/00140139.2013.790485](https://doi.org/10.1080/00140139.2013.790485)) confirmed
 the pupil-mediated mechanism: positive-polarity displays (dark text on light) avoid
 halation by keeping pupils constricted, producing smaller pupil apertures and sharper
@@ -110,11 +109,10 @@ retinal images. Buchner & Baumgartner (2007, *Ergonomics*, DOI:
 [10.1080/00140130701306413](https://doi.org/10.1080/00140130701306413)) independently
 found consistent proofreading performance advantages for positive-polarity displays
 across ambient lighting conditions and colour contrasts, providing converging evidence
-from the same journal. In dark themes, reducing foreground luminance directly reduces the halation load: a
-less-bright foreground produces less retinal illuminance through a dilated pupil, which
-means a smaller aberration footprint in astigmatic eyes. The direction is a direct
-consequence of the pupil-mediated mechanism Piepenbrock established; the specific
-magnitude depends on the individual's degree of astigmatism and pupil aperture.
+from the same journal. In dark themes, reducing foreground luminance reduces the halation load: dimmer text
+sends less light through a dilated pupil, shrinking the aberration footprint for
+astigmatic users. Piepenbrock et al. 2013 quantified the pupil-mediated mechanism;
+the magnitude varies with each individual's degree of astigmatism and pupil aperture.
 
 Six existing Odysseus dark themes sit at 12:1 or above; organs (15.76:1), terminal
 (15.38:1), cyberpunk (14:1), claude (13.78:1), gpt (13.63:1), midnight (12.26:1); and
@@ -182,8 +180,8 @@ measurable.
 
 ### Adoption
 
-456 official ports ([catppuccin.com/ports](https://catppuccin.com/ports/)) spanning 40+
-code editors and IDEs, 50+ developer tools, 30+ terminal emulators, and 20+ browsers
+Hundreds of official ports ([catppuccin.com/ports](https://catppuccin.com/ports/)) spanning
+code editors, developer tools, terminal emulators, and browsers
 ([github.com/catppuccin/catppuccin](https://github.com/catppuccin/catppuccin)).
 VS Code alone: [1.27M installs](https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc).
 The palette is versioned at [v1.1.0](https://github.com/catppuccin/palette) and
@@ -214,11 +212,11 @@ Add a `catppuccin` theme using the Catppuccin Mocha palette with a mauve accent:
 
 | Property | Color | Rationale |
 |----------|-------|-----------|
-| Background | `#1e1e2e` | Mocha base surface |
-| Foreground | `#cdd6f4` | Mocha text; soft, readable lavender-white |
-| Panel | `#181825` | Mocha surface0 |
-| Border | `#5b6078` | Mocha overlay0 |
-| Accent/Red | `#8565d1` | Mauve; distinctive accent that differentiates from other themes |
+| Background | `#1e1e2e` | Mocha Base |
+| Foreground | `#cdd6f4` | Mocha Text; soft lavender-white; 11.34:1 on bg (WCAG AAA) |
+| Panel | `#181825` | Mocha Mantle |
+| Border | `#585b70` | Mocha Surface2 |
+| Accent/Red | `#cba6f7` | Mocha Mauve; soft purple; ~7.5:1 on bg (WCAG AAA) |
 
 The default theme remains `dark`: catppuccin is an opt-in choice.
 
@@ -262,7 +260,7 @@ Fixes # <!-- [file upstream issue first] -->
 1. Start the server (`docker compose up -d --build` or `uvicorn app:app`).
 2. Open the app; go to Settings → Appearance → Theme.
 3. Select "Catppuccin" from the theme list. Verify the theme name appears in the dropdown.
-4. Confirm the background shifts to `#1e1e2e`, text to a soft lavender-white, and the accent color is a purple-mauve (not the default red).
+4. Confirm the background shifts to `#1e1e2e`, text to a soft lavender-white (`#cdd6f4`), and the accent color is Mocha Mauve (`#cba6f7`) — a soft purple, not the default red.
 5. Open a conversation and send a message; verify syntax highlighting in code blocks renders correctly with the new palette.
 6. Switch to another theme (e.g. "dark") and back; confirm no bleed-through or broken state.
 7. Reload the page; confirm the selected Catppuccin theme persists.

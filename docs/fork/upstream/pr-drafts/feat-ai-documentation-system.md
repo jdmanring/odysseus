@@ -21,13 +21,13 @@ anyone working on the codebase.
 
 ### Why the absence of documentation is a compounding problem
 
-**AI coding assistants are actively degraded.** Claude Code, GitHub Copilot, Cursor,
-and similar tools derive their understanding of a project from what they can read in the
-repository. When no documentation exists, these tools reverse-engineer the codebase from
-source on every session. They get architectural decisions wrong, misidentify which file
-owns which responsibility, and produce suggestions that conflict with established
-patterns. The result is that AI-assisted contributions to Odysseus introduce more bugs
-than they would in a well-documented project.
+**AI coding assistants are actively degraded.** AI coding tools that read repository
+context before generating suggestions derive their understanding of a project from what
+they can read in the repository. When no documentation exists, these tools
+reverse-engineer the codebase from source on every session — getting architectural
+decisions wrong, misidentifying which file owns which responsibility, and producing
+suggestions that conflict with established patterns. The result is that AI-assisted
+contributions introduce more bugs than they would in a well-documented project.
 
 **`docs/ai/non-obvious-behaviors.md` is particularly valuable.** This file documents
 the sharp edges that cause incorrect contributions even from experienced developers who
@@ -45,18 +45,18 @@ secrets live, how settings are structured; exists only in the heads of people wh
 read the full codebase. The `docs/project/architecture.md` and feature reference files
 in this PR capture that context permanently.
 
-**The hub-and-spoke model is designed for AI agent precision.** `AI.md` at the repo
-root is a single entrypoint that any AI tool reads first. It points to `CONTEXT.md`
-(architecture) and `RULES.md` (contribution constraints). From those two files, an AI
-agent has a complete mental model without reading 200+ source files. This structure
-works identically for Claude Code, Copilot Chat, Cursor, and any future tool; it is
-not platform-specific.
+**Hub-and-spoke entry point for context efficiency.** `AI.md` at the repo root is a
+single entry point that any AI coding tool reads first. It links to `CONTEXT.md`
+(architecture) and `RULES.md` (contribution constraints). From those two files, a tool
+has a complete mental model without scanning 200+ source files. The structure is not
+platform-specific and works across any AI coding assistant.
 
 ### Solution
 
-A complete documentation layer covering AI agent context, system architecture,
-per-feature technical references, and contributor guides, utilizing a universal
-hub-and-spoke model for maximum agent precision.
+A complete documentation layer covering AI context, system architecture,
+per-feature technical references, and contributor guides. `AI.md` at the repo root
+links to specialized context files so any tool reads what it needs without scanning
+the full codebase.
 
 ### Root level
 

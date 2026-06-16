@@ -21,12 +21,12 @@ documentation prose with binary assets. This causes several practical problems.
 ### Why the current layout is harmful
 
 **`docs/` is becoming a documentation directory, and binary media files pollute it.**
-A companion PR in the same batch (`feat/ai-documentation-system`) adds 36 markdown files
-to `docs/ai/`, `docs/project/`, `docs/user/`, and `docs/dev/`. Once those land, a
-contributor navigating to `docs/` to find architecture documentation or contributor guides
-will see 14 GIF, WebM, and JPEG files at the root — the same demo media that currently
-live there. The binary files have nothing to do with the documentation content; they are
-README embed assets. This refactor separates them before the documentation tree grows.
+Once documentation prose lands in `docs/` — architecture notes, contributor guides,
+API references — developers navigating there will encounter 14 GIF, WebM, and JPEG
+files at the root. Those files are README embed assets and have nothing to do with
+documentation content. This refactor separates them before the documentation tree grows.
+A separate PR adding markdown documentation to `docs/ai/`, `docs/dev/`, and `docs/user/`
+uses `assets/` paths; either PR can land independently.
 
 **Git history and diff quality.** Binary files in `docs/` appear in every
 `git log --stat` and `git diff --stat` that touches documentation. A change to a GIF

@@ -93,9 +93,8 @@ issue #606 and PR #3310 will want to understand why Qt was chosen.
 
 Issue #606 requests a standalone native application for Windows, Mac, and Linux.
 PR #3310 is a community Electron wrapper that already works on Linux, Windows,
-and macOS. Architecture document #605 (verify number before filing) explicitly
-recommends **Tauri** (not Electron) and notes that a wrapper should follow the
-planned frontend migration to React/TypeScript.
+and macOS. Architecture document #605 explicitly recommends **Tauri** (not Electron)
+and notes that a wrapper should follow the planned frontend migration to React/TypeScript.
 
 **Why not Electron**
 
