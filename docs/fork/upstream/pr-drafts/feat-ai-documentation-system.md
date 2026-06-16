@@ -72,7 +72,7 @@ contribution policy, and issue tracking.
 architecture, subsystem map, key files, and common task patterns.
 
 **`arch/AI_ARCH_CORE_FLOW.md`**: core request/response flow
-**`features/`** (20 files): per-feature technical reference covering Cookbook,
+**`features/`** (17 files): per-feature technical reference covering Cookbook,
   Brain/orchestration, Calendar, Codex, Compare, Contacts, Deep Research,
   Email, Gallery, Notes, Skills/MCP, STT/TTS, Tasks, Theme, Tools, Vault,
   and YouTube
@@ -99,7 +99,7 @@ and more.
 
 ### Files Added
 
-36 new files. No existing files modified.
+33 new files. No existing files modified.
 
 ## Target branch
 

@@ -63,9 +63,11 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   `logs/wrapper_system.log` before Qt is imported so all renderer subprocess
   output is captured.
 
-**`build-linux-app.sh`**: dependency installation and launch script. Installs
-`PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` into the project venv, then
-launches `qt_wrapper.py`.
+**`build-linux-app.sh`**: preflight check and launch script. Verifies that
+`PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
+hint if any are missing, then launches `qt_wrapper.py`. Dependencies must be
+installed via the system package manager or `pip` before running the script
+(distro packages vary; no cross-distro install path is guaranteed safe).
 
 **`static/js/qt-bridge.js`**: injected into `QWebEngineView` at startup via
 `QWebEngineScript`. Initialises `QWebChannel` and makes `window.qtBridge`
