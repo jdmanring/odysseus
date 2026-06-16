@@ -76,15 +76,16 @@ and caches it in `~/.odysseus/bin`. No system package manager required.
   the UI has the exact model total before any files download
 - Writes an aria2c input file (tab-indented options, Bearer auth header)
 - Spawns aria2c with 4 parallel files × 3 connections per file (12 total
-  connections). aria2c defaults to 1 connection per server; the man-page
-  maximum is 16. A single TCP stream cannot saturate a high-bandwidth path
+  connections). aria2c defaults to 1 connection per server; the ceiling of
+  16 is compiled in ([aria2/aria2 #580](https://github.com/aria2/aria2/issues/580)).
+  A single TCP stream cannot saturate a high-bandwidth path
   when the bandwidth-delay product (bandwidth × RTT) exceeds the TCP receive
   window; the congestion window grows too slowly to fill available capacity on
   fast, high-latency links. Multiple parallel connections each maintain an
   independent congestion window, collectively utilizing available bandwidth
   and isolating per-connection stalls: a dropped connection does not stop the
   others. 12 saturates typical home and datacenter links without overloading
-  HF's CDN and stays within aria2c's documented 16-connection ceiling —
+  HF's CDN and stays within aria2c's hard-coded 16-connection ceiling —
   empirically tuned to match what `hf_transfer` achieves in practice. Users
   on constrained networks can reduce
   `--max-concurrent-downloads` and `--max-connection-per-server` in the

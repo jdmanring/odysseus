@@ -101,7 +101,9 @@ refracts differently through the periphery of an irregularly-curved cornea, and 
 larger the pupil aperture, the worse this aberration. The result is that high-brightness
 text bleeds perceptibly into the surrounding dark field.
 
-Astigmatism is a very common refractive condition. Piepenbrock et al. (2013, *Ergonomics*, DOI:
+Astigmatism is common (8–62% prevalence across populations; Zhang et al. 2023,
+*Optometry & Vision Science*, [PMID 36749017](https://pubmed.ncbi.nlm.nih.gov/36749017/)).
+Piepenbrock et al. (2013, *Ergonomics*, DOI:
 [10.1080/00140139.2013.790485](https://doi.org/10.1080/00140139.2013.790485)) confirmed
 the pupil-mediated mechanism: positive-polarity displays (dark text on light) avoid
 halation by keeping pupils constricted, producing smaller pupil apertures and sharper

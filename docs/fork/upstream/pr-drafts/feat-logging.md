@@ -25,7 +25,7 @@ The timing callsites added throughout the codebase (`timed_operation()`, `struct
 
 ### Problem
 
-Odysseus uses stdlib `logging` throughout (~1038 calls across 138 files) but lacks production-grade logging capabilities. The upstream hardening audit (#3803) explicitly identified:
+Odysseus uses stdlib `logging` throughout (~1410 calls across 115 files, per `grep -rn "logger\." --include="*.py"` on current source) but lacks production-grade logging capabilities. The upstream hardening audit (#3803) explicitly identified:
 - "PII (emails, usernames, message bodies) logged at INFO level in several paths"
 - "No audit trail for sensitive operations (auth events, vault unlock, admin wipes)"
 
