@@ -542,7 +542,7 @@ function _parseDownloadState(text, sessionId) {
   // and matching the full output inflates the file/size count as downloads progress.
   const lastSummaryIdx = out.lastIndexOf('Download Progress Summary');
   const progressWindow = lastSummaryIdx >= 0 ? out.slice(lastSummaryIdx) : out.slice(-2000);
-  const progressRe = /\[#[0-9a-f]+ ([^\s/]+)\/([^(]+)\((\d+)%\)\s+CN:(\d+)\s+DL:([^\s]+)\s+ETA:([^\]]+)\]/g;
+  const progressRe = /\[#[0-9a-f]+ ([^\s/]+)\/([^(]+)\((\d+)%\)\s+CN:(\d+)\s+DL:([^\s]+)(?:\s+ETA:([^\]]+))?\]/g;
   const progMatches = [...progressWindow.matchAll(progressRe)];
 
   let pct = 0, dlSize = '', totalSize = '', speed = '', eta = '', connections = 0, activeDownloads = 0, totalSpeedBytes = 0;
