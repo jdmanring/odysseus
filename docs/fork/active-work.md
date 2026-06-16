@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-15. Fork is at milestone `v1.0.0-fork.1` — all CI passing on main. All staged branches + platform wrappers rebased against upstream-mirror post-ingest.
+Last updated: 2026-06-15. Fork is at milestone `v1.0.0-fork.1` — all CI passing on main. All staged branches + platform wrappers rebased against upstream-mirror post-ingest. All 19 staged branches professionalized: code audits resolved (PII hashing, deprecated API, inline regex, subprocess cache), PR drafts cleaned of AI language and unverifiable claims.
 
 ---
 
@@ -41,13 +41,13 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Single commit, ready |
 | `fix/gpu-compositor-flicker` | [#32](https://github.com/jdmanring/odysseus/issues/32) | Single commit, ready |
 | `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Single commit, ready |
-| `feat/gh-cli-detection` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Two commits, ready. Detects gh CLI and injects GitHub context into agent system prompt; exports GH_TOKEN so bash tool subprocesses can use gh on keyring-auth systems. Force-push needed (branch was amended and renamed). |
+| `feat/gh-cli-detection` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Single commit, ready. Detects gh CLI and injects GitHub context into agent system prompt; module-level cache ensures subprocess is called once per server lifetime; exports GH_TOKEN for keyring-auth systems. |
 | `fix/tool-code-pycall-parsing` | [#35](https://github.com/jdmanring/odysseus/issues/35) | Single commit, ready. Parses and strips `<tool_code>` Python-call format (Google Gemma style) in tool_parsing.py. |
 | `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Single commit, ready. File after `feat/aria2c-downloader` (extends HfUrlResolver with GGUF discovery). |
 | `fix/longcat-tool-parsing` | [#38](https://github.com/jdmanring/odysseus/issues/38) | Single commit, ready. |
 | `fix/google-compat-toolcalls` | [#39](https://github.com/jdmanring/odysseus/issues/39) | Single commit, ready. |
 | `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. Infrastructure + timing callsites combined — callsites are untestable without infrastructure. Replaces feat/logging-core and feat/logging-timing. |
-| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Two commits (squash before filing). Previously marked superseded in favor of upstream PR #3741; re-activated 2026-06-15. #3741 covers only the Serve panel (`cookbook_routes.py`); ours also covers the Dependencies tab (`shell_routes.py`) and adds an inline POSIX abort. Adopted #3741's cookbook_helpers.py preflight pattern. File upstream issue first. |
+| `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready. Previously marked superseded; re-activated 2026-06-15. #3741 covers only the Serve panel; ours also covers the Dependencies tab and adds an inline POSIX abort. File upstream issue first. |
 
 ---
 
