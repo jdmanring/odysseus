@@ -1906,8 +1906,8 @@ async def stream_agent_loop(
             # An active workspace IS the file-work signal: a vague "look at the
             # project" means explore this folder. Include read-only file tools
             # unconditionally; also include bash/python if Shell Access is on
-            # (not in disabled_tools) — the user explicitly enabled them and a
-            # workspace context is where they're expected to work.
+            # and web_search/web_fetch if Web Search is on — the user explicitly
+            # enabled them and a workspace context is where they're expected to work.
             _relevant_tools = set(ALWAYS_AVAILABLE)
             from src.tool_security import PLAN_MODE_READONLY_TOOLS
             _relevant_tools |= (_DOMAIN_TOOL_MAP["files"] & PLAN_MODE_READONLY_TOOLS)
@@ -1915,7 +1915,10 @@ async def stream_agent_loop(
                 _relevant_tools.add("bash")
             if "python" not in disabled_tools:
                 _relevant_tools.add("python")
-            logger.info("[tool-rag] Low-signal but workspace active; including read-only file tools + shell if enabled")
+            if "web_search" not in disabled_tools:
+                _relevant_tools.add("web_search")
+                _relevant_tools.add("web_fetch")
+            logger.info("[tool-rag] Low-signal but workspace active; including read-only file tools + shell/web if enabled")
         else:
             # Don't short-circuit: fall through to RAG retrieval below.
             # Non-English queries are flagged low_signal by the English-only
