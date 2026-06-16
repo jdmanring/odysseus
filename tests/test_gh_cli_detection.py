@@ -153,4 +153,4 @@ class TestGhCliCache:
         result2 = get_github_cli_prompt()
 
         assert result1 == result2
-        assert call_count["n"] <= 2  # auth status + token on first call; zero on second
+        assert call_count["n"] == 2  # auth status + token on first call; zero on second

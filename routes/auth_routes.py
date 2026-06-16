@@ -674,7 +674,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             current[key] = val
         _save_settings(current)
         if changes:
-            logger.info("settings_changed", admin=user, changes=changes)
+            logger.info("settings_changed", admin=_log_uid(user), changes=changes)
         return current
 
     # ---- Integrations CRUD ----
