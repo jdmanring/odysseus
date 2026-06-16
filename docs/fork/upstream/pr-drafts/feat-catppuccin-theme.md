@@ -186,7 +186,7 @@ Hundreds of official ports ([catppuccin.com/ports](https://catppuccin.com/ports/
 code editors, developer tools, terminal emulators, and browsers
 ([github.com/catppuccin/catppuccin](https://github.com/catppuccin/catppuccin)).
 VS Code alone: [1.27M installs](https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc).
-The palette is versioned at [v1.1.0](https://github.com/catppuccin/palette) and
+The palette is versioned (current: [v1.8.0](https://github.com/catppuccin/palette)) and
 mathematically defined; 26 named colors per flavor; so the colors in this PR will
 not change without a clearly communicated major version bump.
 
