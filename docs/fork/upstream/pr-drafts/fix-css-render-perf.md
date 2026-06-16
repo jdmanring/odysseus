@@ -21,7 +21,7 @@ No visual changes for desktop users who don't have reduce-motion enabled.
 
 ### Changes
 
-**`will-change`: 3 removals, 6 additions on mobile layout (net +3)**
+**`will-change`: 3 removals, 6 additions (net +3)**
 
 Removed `will-change` from three elements where it was permanently allocated rather
 than applied at the point of an animation:
@@ -39,13 +39,13 @@ than applied at the point of an animation:
 shared system RAM. The three removals reduce memory pressure and lower the compositor
 layer count without changing any visual behavior.
 
-Added `will-change: transform` to 6 elements inside `@media (max-width: 768px)` and
-responsive layout rules (`.chat-container`, `.chat-input-bar`, `.sidebar`, and three
-scroll-bearing containers). These target elements that scroll continuously on mobile
-and benefit from early compositor layer promotion to eliminate scroll jank. Mobile
-devices have higher latency between CPU and GPU; promoting these containers before
-they scroll avoids the frame-miss that causes stuttering. The net diff is +3
-`will-change` declarations overall, all new ones constrained to mobile media queries.
+Added `will-change: transform` and `transform: translateZ(0)` to 6 elements:
+
+- `.chat-container` (base rule, all viewports): the primary scroll container. GPU layer promotion eliminates jank on all devices, not just mobile.
+- `.chat-input-bar`, `.chat-input-bar textarea#message`, `.chat-input-bar` container-size rule (inside `@media (max-width: 768px)`): input bar and its children, mobile only.
+- `.chat-container`, `.chat-input-bar` (inside `@media (max-width: 768px)`): additional mobile-specific declarations matching the narrower layout.
+
+Net diff: +3 `will-change` declarations. Mobile devices have higher CPU-GPU latency; promoting scroll containers before they animate avoids the frame-miss that causes stuttering.
 
 **CSS containment (3 additions)**
 

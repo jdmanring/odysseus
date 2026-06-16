@@ -280,7 +280,7 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Visual / UI changes; REQUIRED if you touched anything that renders
 
-- [x] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
+- [ ] Screenshot or short clip of the change in the running app, attached below. Mobile screenshot too if the change affects mobile layout.
 - [x] Style match: the change uses Odysseus's existing visual language (existing CSS variables, button/card classes, no Unicode emoji, Fira Code font, dark-mode-first).
 - [x] No new component patterns; extended an existing widget rather than adding a parallel one.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
