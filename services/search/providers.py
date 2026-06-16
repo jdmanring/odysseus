@@ -196,9 +196,9 @@ def searxng_search_api(query: str, count: Optional[int] = None, categories: str 
             data = response.json()
             _elapsed_ms = (time.monotonic() - _t0) * 1000
             if _elapsed_ms > 500:
-                logger.info("searxng_http", query=query[:80],
-                            elapsed_ms=round(_elapsed_ms, 1),
+                logger.info("searxng_http", elapsed_ms=round(_elapsed_ms, 1),
                             status=response.status_code)
+                logger.debug("searxng_http_query", query=query[:80])
             return _parse_results(data.get("results", [])), data
 
         active_params = params
