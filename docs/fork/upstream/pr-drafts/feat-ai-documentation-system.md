@@ -8,7 +8,7 @@
 
 ## Title
 
-`docs: AI-first documentation system; universal hub-and-spoke onboarding and reference guides`
+`docs: AI-first documentation system; onboarding and reference guides`
 
 ---
 
@@ -45,11 +45,10 @@ secrets live, how settings are structured; exists only in the heads of people wh
 read the full codebase. The `docs/project/architecture.md` and feature reference files
 in this PR capture that context permanently.
 
-**Hub-and-spoke entry point for context efficiency.** `AI.md` at the repo root is a
-single entry point that any AI coding tool reads first. It links to `CONTEXT.md`
-(architecture) and `RULES.md` (contribution constraints). From those two files, a tool
-has a complete mental model without scanning 200+ source files. The structure is not
-platform-specific and works across any AI coding assistant.
+**Single entry point for context efficiency.** `AI.md` at the repo root links to
+`CONTEXT.md` (architecture) and `RULES.md` (contribution constraints). Any tool reads
+what it needs without scanning 200+ source files. The structure is not platform-specific
+and works across any AI coding assistant.
 
 ### Solution
 

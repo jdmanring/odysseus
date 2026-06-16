@@ -21,7 +21,7 @@ a `QWebEngineView` window. Users get a launcher/taskbar entry, desktop icon
 integration, and a standalone app experience without needing a separate browser
 tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle.
 
-![Odysseus running as a native Linux desktop app with the theme/color picker open](docs/fork/screenshots/qt-native-linux-app.png)
+<!-- Screenshot: drag `docs/fork/screenshots/qt-native-linux-app.png` into this text box when filing — the repo-relative path will not resolve upstream. -->
 
 ### New files
 
@@ -172,7 +172,7 @@ for server installs or Docker).
 
 ## Linked Issue
 
-Fixes # <!-- [file upstream issue first] -->
+Fixes #___
 
 ## Type of Change
 

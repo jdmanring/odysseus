@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-15. Fork is at milestone `v1.0.0-fork.1` — all CI passing on main. All staged branches + platform wrappers rebased against upstream-mirror post-ingest. All 19 staged branches professionalized: code audits resolved (PII hashing, deprecated API, inline regex, subprocess cache), PR drafts cleaned of AI language and unverifiable claims.
+Last updated: 2026-06-15. Fork is at milestone `v1.0.0-fork.1` — all CI passing on main. All 19 staged branches professionalized: code audits resolved (PII hashing, deprecated API, inline regex, subprocess cache), PR drafts cleaned of AI language and unverifiable claims. All 19 branches cherry-picked to `develop`. Upstream ingest run 2026-06-15 (LKG-20260615-1958, 12 new upstream commits). **Staging branches need rebase against new upstream-mirror before filing.**
 
 ---
 
