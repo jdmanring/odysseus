@@ -2482,6 +2482,7 @@ export function _renderRunningTab() {
       }
       if (!await window.styledConfirm(`Clear ${toRemove.length} finished task${toRemove.length === 1 ? '' : 's'} on ${_serverName(host)}?`, { confirmText: 'Clear' })) return;
       const remaining = allTasks.filter(t => (t.remoteHost || '') !== host || !_canClearTask(t));
+      toRemove.forEach(t => _tombstoneTask(t.sessionId));
       _saveTasks(remaining);
       // Fade/slide each finished card out (same exit as the per-card clear)
       // instead of yanking them instantly.
