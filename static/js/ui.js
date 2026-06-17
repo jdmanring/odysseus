@@ -469,7 +469,9 @@ function _smoothScrollStep() {
   const diff = target - current;
 
   // If user scrolled up significantly, don't force them down
-  if (diff > 300) {
+  const viewportHeight = box.clientHeight;
+  const maxAllowedDiff = viewportHeight * 1.5;
+  if (diff > maxAllowedDiff) {
     _scrollRafId = null;
     return;
   }
