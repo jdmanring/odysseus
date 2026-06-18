@@ -40,8 +40,7 @@ import asyncio
 import logging
 import secrets
 import time
-import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 from contextlib import asynccontextmanager
@@ -893,7 +892,7 @@ async def get_version():
 
 @app.get("/api/health")
 async def health_check() -> Dict[str, str]:
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/api/ready")
 async def readiness_check() -> JSONResponse:
