@@ -574,8 +574,8 @@ def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
 def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
     """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat).
 
-    Official format per the LongCat-2.0-Preview model card
-    (huggingface.co/meituan-longcat/LongCat-2.0-Preview):
+    JSON content within the tag is parsed and executed. Tag-pair format
+    (community.vercel.com/t/33601) is stripped but not executed:
         {"name": "fn_name", "arguments": {"key": "value"}}
 
     Non-JSON content is not executed — strip_tool_blocks removes it from display.
