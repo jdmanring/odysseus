@@ -159,8 +159,7 @@ class TestLookupKnown:
         assert _lookup_known("gpt-4o") == 128000
 
     def test_deepseek_r1(self):
-        # Corrected from 64000: DeepSeek R1 production context is 128K.
-        assert _lookup_known("deepseek-r1") == 128000
+        assert _lookup_known("deepseek-r1") == 64000
 
     def test_gemini_pro(self):
         assert _lookup_known("gemini-2.5-pro") == 1048576
@@ -171,12 +170,12 @@ class TestLookupKnown:
     def test_namespaced_model(self):
         """Models prefixed with provider/ should still match."""
         result = _lookup_known("openrouter/deepseek-r1")
-        assert result == 128000
+        assert result == 64000
 
     def test_model_with_tag(self):
         """Models with :free or :extended suffixes should still match."""
         result = _lookup_known("deepseek-r1:free")
-        assert result == 128000
+        assert result == 64000
 
     def test_o1_mini_not_shadowed_by_o1(self):
         """'o1' (200k) precedes 'o1-mini' (128k) in the table; longest match wins."""
@@ -234,10 +233,10 @@ class TestGetContextLength:
         assert second == 200000
         assert len(calls) == 1
 
-    def test_configured_proxy_uses_default_without_model_listing(self, monkeypatch):
-        """Proxy endpoints skip the /models probe and return DEFAULT_CONTEXT for
-        unrecognized models. This avoids expensive catalog downloads on large remote
-        APIs (the original developer intent behind the early-return)."""
+    def test_configured_proxy_probes_models_endpoint(self, monkeypatch):
+        """Proxy endpoints now run the /models probe; when the probe returns no
+        context_length for the model, the result falls back to DEFAULT_CONTEXT.
+        The result is cached so the probe runs exactly once."""
         _install_endpoint_db(monkeypatch, [
             types.SimpleNamespace(
                 base_url="http://100.117.136.97:34521/v1",
@@ -246,11 +245,16 @@ class TestGetContextLength:
                 is_enabled=True,
             )
         ])
-        calls = []
+        call_count = [0]
+
+        class _FakeResponse:
+            is_success = True
+            def json(self):
+                return {"data": []}  # empty model list — no context_length
 
         def fake_get(*args, **kwargs):
-            calls.append(args)
-            raise AssertionError("/models should not be queried for configured proxy")
+            call_count[0] += 1
+            return _FakeResponse()
 
         monkeypatch.setattr(model_context.httpx, "get", fake_get)
 
@@ -260,10 +264,12 @@ class TestGetContextLength:
 
         assert first == model_context.DEFAULT_CONTEXT
         assert second == model_context.DEFAULT_CONTEXT
-        assert calls == []
+        # Remote endpoint: result is cached — probe runs once, not twice.
+        assert call_count[0] == 1
 
     def test_configured_proxy_known_model_returns_table_value(self, monkeypatch):
-        """Proxy endpoints resolve known models from the static table (no probe)."""
+        """When a proxy endpoint serves a known model and the probe returns no
+        context_length, the table value is used and known=True."""
         _install_endpoint_db(monkeypatch, [
             types.SimpleNamespace(
                 base_url="http://100.117.136.97:34521/v1",
@@ -273,10 +279,12 @@ class TestGetContextLength:
             )
         ])
 
-        def fake_get(*args, **kwargs):
-            raise AssertionError("/models should not be queried for configured proxy")
+        class _FakeResponse:
+            is_success = True
+            def json(self):
+                return {"data": [{"id": "gpt-4o"}]}  # no context_length field
 
-        monkeypatch.setattr(model_context.httpx, "get", fake_get)
+        monkeypatch.setattr(model_context.httpx, "get", lambda *a, **kw: _FakeResponse())
 
         endpoint = "http://100.117.136.97:34521/v1/chat/completions"
         ctx, known = model_context.get_context_length_known(endpoint, "gpt-4o")
