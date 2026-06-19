@@ -469,11 +469,8 @@ function _smoothScrollStep() {
   const current = box.scrollTop;
   const diff = target - current;
 
-  // If user scrolled up significantly, don't force them down.
-  // Use an adaptive threshold: large content (code blocks, images, rich markdown)
-  // can shift scrollHeight by hundreds of pixels in one frame, which would
-  // incorrectly trigger the drift guard. Scale the threshold to viewport height
-  // so it distinguishes genuine user scrolling from content-driven layout shifts.
+  // Scale drift guard to viewport: large content can shift scrollHeight by
+  // hundreds of px in one frame and falsely trigger a fixed threshold.
   const viewportHeight = box.clientHeight;
   const maxAllowedDiff = Math.max(300, viewportHeight * 1.5);
   if (diff > maxAllowedDiff) {

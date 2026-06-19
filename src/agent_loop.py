@@ -10,8 +10,8 @@ import asyncio
 import collections
 import json
 import re
-import structlog
 import time
+import logging
 from typing import AsyncGenerator, List, Dict, Optional, Set
 from urllib.parse import urlparse
 
@@ -36,7 +36,7 @@ from src.agent_tools import (
     MAX_AGENT_ROUNDS,
 )
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _load_mcp_disabled_map() -> Dict[str, set]:
@@ -814,7 +814,7 @@ def _classify_agent_request(messages: List[Dict], last_user: str) -> Dict[str, o
         domains.add("ui")
     if has(r"\b(session|chat history|rename chat|delete chat|archive chat|fork chat|list chats)\b"):
         domains.add("sessions")
-    if has(r"\b(files?|folders?|director(?:y|ies)|repo(?:s|sitory|sitories)?|git|grep|find in files|read file|edit file|shell|terminal|bash|python|filesystem|codebase|source code|browse)\b|/home/|/usr/|/etc/|~/|\.(py|js|ts|json|yaml|yml|toml|sh|cfg|ini|md|txt)\b"):
+    if has(r"\b(file|folder|directory|repo|git|grep|find in files|read file|edit file|shell|terminal|bash|python)\b"):
         domains.add("files")
     if has(r"\b(endpoint|api token|mcp|webhook|preference|configure|config|setting)\b"):
         domains.add("settings")
@@ -1450,10 +1450,7 @@ def _build_base_prompt(
 
     # Inject integration descriptions
     if not suppress_local_context:
-        from src.integrations import get_integrations_prompt, get_github_cli_prompt
-        gh_prompt = get_github_cli_prompt()
-        if gh_prompt:
-            agent_prompt += gh_prompt
+        from src.integrations import get_integrations_prompt
         integ_prompt = get_integrations_prompt()
         if integ_prompt:
             agent_prompt += "\n\n" + integ_prompt
@@ -1917,11 +1914,8 @@ async def stream_agent_loop(
     if not guide_only and not _relevant_tools and bool(_intent.get("low_signal")):
         from src.tool_index import ALWAYS_AVAILABLE
         if workspace:
-            # An active workspace IS the file-work signal: a vague "look at the
-            # project" means explore this folder. Include read-only file tools
-            # unconditionally; also include bash/python if Shell Access is on
-            # and web_search/web_fetch if Web Search is on — the user explicitly
-            # enabled them and a workspace context is where they're expected to work.
+            # Workspace is an explicit file-work signal. Include file tools
+            # unconditionally; respect the shell/web toggles for the rest.
             _relevant_tools = set(ALWAYS_AVAILABLE)
             from src.tool_security import PLAN_MODE_READONLY_TOOLS
             _relevant_tools |= (_DOMAIN_TOOL_MAP["files"] & PLAN_MODE_READONLY_TOOLS)
@@ -2093,8 +2087,6 @@ async def stream_agent_loop(
         # deepseek-v2/v3/chat support tools via the cloud API; deepseek-r1
         # (reasoning model) does not — handled by the blocklist below.
         "deepseek-v", "deepseek-chat",
-        # LongCat (Meituan) is OpenAI-compatible and supports tool schemas.
-        "longcat",
     ))
     # Models known to reject tool schemas at the Ollama/local level even when
     # the endpoint URL would otherwise enable native function calling.
@@ -2292,7 +2284,6 @@ async def stream_agent_loop(
     _exhausted_rounds = False
 
     for round_num in range(1, max_rounds + 1):
-        _round_start = time.monotonic()
         round_response = ""
         round_reasoning = ""  # reasoning_content deltas (DeepSeek-thinking, vLLM --reasoning-parser)
         native_tool_calls = []  # populated if model uses function calling
@@ -3146,13 +3137,6 @@ async def stream_agent_loop(
         # paths, including a verifier `continue` on the final round (the old
         # bottom-of-loop flag missed those).
         _exhausted_rounds = True
-
-    total_elapsed = time.time() - total_start
-    logger.info("agent_loop_complete",
-                rounds=round_num,
-                messages=len(messages),
-                tool_events=len(tool_events),
-                total_duration_ms=round(total_elapsed * 1000, 1))
 
     # If the loop hit the round cap while still working, tell the client so it
     # can show a "Continue" affordance instead of the turn just stopping.
