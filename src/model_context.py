@@ -390,6 +390,15 @@ def _query_context_length(endpoint_url: str, model: str) -> Tuple[int, bool]:
     api_ctx = None
     configured_kind = _configured_endpoint_kind(endpoint_url)
 
+    # Large OpenAI-compatible proxies can make /models expensive. If the
+    # endpoint is explicitly configured as API/proxy, prefer known context
+    # metadata (or the default) over downloading the full catalog.
+    if configured_kind in ("api", "proxy"):
+        if known:
+            logger.info(f"Using known context window for {model}: {known}")
+            return known, True
+        return DEFAULT_CONTEXT, False
+
     # Try llama.cpp /slots endpoint first — reports actual serving context
     if is_local_endpoint(endpoint_url):
         try:
