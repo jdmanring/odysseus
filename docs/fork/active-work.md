@@ -50,6 +50,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready. Previously marked superseded; re-activated 2026-06-15. #3741 covers only the Serve panel; ours also covers the Dependencies tab and adds an inline POSIX abort. File upstream issue first. |
 | `fix/workspace-shell-access` | [#47](https://github.com/jdmanring/odysseus/issues/47) | Single commit, ready. Verified 2026-06-16. Covers bash/python (Shell Access) and web_search/web_fetch (Web Search). File upstream issue first. |
 | `fix/untrusted-tool-result-header` | [#48](https://github.com/jdmanring/odysseus/issues/48) | Single commit, ready. Fixes over-application of untrusted-result header introduced by upstream #1629 (2026-06-16). File upstream issue first. |
+| `fix/api-token-utcnow-deprecated` | [#51](https://github.com/jdmanring/odysseus/issues/51) | Single commit, ready. Follow-up to upstream 790ef81b — missed instance of deprecated datetime.utcnow() in api-token last_used_at update. File upstream issue first. |
 
 ---
 
