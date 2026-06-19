@@ -97,6 +97,21 @@ No behavior change for the wrapping mechanism itself. No schema changes.
 9. **Expected:** the agent reads the file as data and does NOT call `manage_memory`.
    The injection attempt must remain ineffective.
 
+### Tests
+
+`tests/test_untrusted_header_content.py` (6 tests):
+
+- **Header wording** (5 tests): verify `UNTRUSTED_CONTEXT_HEADER` contains
+  the required phrases — "remain in full effect", "inside this block",
+  "reference material", named source types — and does not contain the
+  unscoped "Do not call tools" from the pre-fix version.
+
+- **Guard-close marker injection** (1 test): passes tool output containing
+  a raw `<<<END_UNTRUSTED_SOURCE_DATA>>>` marker through
+  `untrusted_context_message()` and asserts the marker is neutralized
+  by `_escape_guard_markers`. The injected text must be trapped inside
+  the sandbox, not positioned after it as trusted content.
+
 ---
 
 ## Filing Notes
