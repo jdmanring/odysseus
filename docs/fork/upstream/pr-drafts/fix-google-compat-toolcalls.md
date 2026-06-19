@@ -24,9 +24,13 @@ snake_case `"tool_calls"`. The streaming parser in `llm_core.py` only reads
 are silently dropped; the model responds as if no tools are available even when schemas
 were sent.
 
-Confirmed in Google's own developer forum: [Gemini OpenAI compatibility issue with
-tool_call + streaming](https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886).
-The deviation from the OpenAI spec is a known issue on their side and has not been corrected.
+Google's OpenAI-compat streaming format has multiple known deviations from the OpenAI spec.
+A related thread in Google's developer forum ([Gemini OpenAI compatibility issue with
+tool_call + streaming](https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886),
+January 2025, unresolved as of November 2025) documents a missing `index` field in streaming
+tool call objects — a different structural deviation, same endpoint. The camelCase `toolCalls`
+key divergence documented here was observed directly in streaming response inspection and is
+not currently tracked in a public upstream issue.
 
 ### Solution
 
@@ -107,7 +111,7 @@ that emit tool calls.
 - This is a pure OpenAI-compat path fix and does not affect native Google API usage
   (which is a separate provider path not yet implemented in Odysseus).
 - ROADMAP alignment: "Provider setup/probing audit for Anthropic, Gemini, Groq, xAI, OpenRouter, OpenAI, and DeepSeek"; mention this in the PR body.
-- The Google developer forum link in the PR body (`https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886`) should be verified in a browser before filing. If the thread has been removed or the URL no longer resolves, drop the citation rather than filing with a dead link.
+- The Google developer forum link (`https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886`) resolves and is active (verified 2026-06-18). The thread covers a different deviation (missing `index` field) — it is cited as context for Google's pattern of compat endpoint spec divergence, not as a direct source for the camelCase key bug.
 
 ## Visual / UI changes
 
