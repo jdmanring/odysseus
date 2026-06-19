@@ -964,13 +964,7 @@ def _build_anthropic_payload(model, messages, temperature, max_tokens, stream=Fa
     system_parts = []
     chat_messages = []
     for m in messages:
-        if m.get("role") == "system" and (m.get("content") or "").startswith("[Tool execution results]"):
-            # Text-based tool results must stay inline at their temporal position.
-            # Extracting them to the top-level system prompt (with other system messages)
-            # would collapse all rounds' results into a single block before the first
-            # message, losing ordering and breaking multi-round tool execution.
-            chat_messages.append({"role": "user", "content": m["content"]})
-        elif m.get("role") == "system":
+        if m.get("role") == "system":
             system_parts.append(m.get("content") or "")
         elif m.get("role") == "tool":
             # Convert OpenAI tool result to Anthropic format
