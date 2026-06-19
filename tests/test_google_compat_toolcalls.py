@@ -4,7 +4,13 @@ Google's OpenAI-compatible endpoint sends camelCase "toolCalls" instead of
 snake_case "tool_calls" in streaming deltas. Without the fallback, every
 native tool call from Google's endpoint is silently dropped.
 
-These checks verify both fallback sites in llm_core.py are present.
+These are structural source-level tests rather than behavioral mocks. The
+streaming accumulator in stream_llm() operates on raw SSE chunk dicts inside
+a deeply-nested generator — extracting it for unit testing would require
+either replicating the entire streaming transport layer or exposing internal
+state that has no business being public. Source-level assertions give the same
+regression protection (both fallback sites exist and are ordered correctly)
+without that coupling, and they run in milliseconds with no network or API key.
 """
 from pathlib import Path
 

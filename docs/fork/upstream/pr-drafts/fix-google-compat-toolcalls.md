@@ -107,7 +107,7 @@ that emit tool calls.
 - This is a pure OpenAI-compat path fix and does not affect native Google API usage
   (which is a separate provider path not yet implemented in Odysseus).
 - ROADMAP alignment: "Provider setup/probing audit for Anthropic, Gemini, Groq, xAI, OpenRouter, OpenAI, and DeepSeek"; mention this in the PR body.
-- Related discussion: #829 (user reports HTTP 400 from Gemini on tool calls via the compat path; different failure mode but same provider/path).
+- The Google developer forum link in the PR body (`https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886`) should be verified in a browser before filing. If the thread has been removed or the URL no longer resolves, drop the citation rather than filing with a dead link.
 
 ## Visual / UI changes
 
