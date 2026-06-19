@@ -22,12 +22,12 @@ ignored and the raw XML is displayed to the user as response text.
 
 Two distinct variants appear in the wild:
 
-**Variant A (JSON object)** (documented in HuggingFace model card):
+**Variant A (JSON object)** ([LongCat-Flash-Chat model card](https://huggingface.co/meituan-longcat/LongCat-Flash-Chat)):
 ```xml
 <longcat_tool_call>{"name": "fn_name", "arguments": {"key": "value"}}</longcat_tool_call>
 ```
 
-**Variant B (tag pairs)** (reported in vLLM and Vercel AI SDK output — no specific issue link available):
+**Variant B (tag pairs)** (observed in session; Vercel community also reports this variant — verify link before filing: `community.vercel.com/t/parsing-custom-xml-tool-calls-from-longcat-flash-models-in-vercel-ai-sdk/33601`):
 ```xml
 <longcat_tool_call>fn_name
 <longcat_arg_key>path</longcat_arg_key>
@@ -50,9 +50,6 @@ Adds `_LONGCAT_TOOL_CALL_RE` (Pattern 6 in `tool_parsing.py`) and
 
 `strip_tool_blocks()` gains the corresponding cleanup regex so both variants are removed
 from displayed text regardless of whether they were executed.
-
-`_model_supports_tools()` in `agent_loop.py` gains "longcat" as a known keyword so the
-agent loop sends tool schemas to LongCat models.
 
 `_model_supports_tools()` in `agent_loop.py` gains "longcat" as a known keyword so the
 agent loop sends tool schemas to LongCat models.
@@ -86,9 +83,9 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/fix-longcat-tool-parsi
 
 ## How to Test
 
-1. Configure a Meituan LongCat model endpoint via vLLM or a compatible inference server
-   (LongCat is Meituan's model family; MiniCPM is a separate Shanghai AI Lab model and
-   does not use this format).
+1. Configure a LongCat endpoint as an OpenAI-compatible provider in Settings → Providers:
+   - **OpenRouter:** model ID `meituan/longcat-flash-chat`
+   - **Direct API:** base URL `https://api.longcat.chat/openai/v1/` with a Meituan API key
 2. Send a prompt that triggers a tool call (e.g. "read the file ./index.vue" with the
    file tool enabled).
 3. Confirm the tool executes and the result is returned to the model; the raw
