@@ -38,17 +38,21 @@ Two distinct variants appear in the wild:
 ### Solution
 
 Adds `_LONGCAT_TOOL_CALL_RE` (Pattern 6 in `tool_parsing.py`) and
-`_parse_longcat_tool_call()`, which handles both variants:
+`_parse_longcat_tool_call()`:
 
-- Variant A: JSON-parsed; `name` → tool type, `arguments` → JSON args string.
-- Variant B: first text line → tool name; `<longcat_arg_key>`/`<longcat_arg_value>` tag
-  pairs → argument dict.
+- Variant A (JSON): parsed via `_parse_longcat_tool_call()`; `name` → tool type,
+  `arguments` → JSON args string; goes through `function_call_to_tool_block()` for
+  normalisation and tool name mapping, with a single-value fallback identical to the
+  other parsers.
+- Variant B (tag pairs): not executed. `_parse_longcat_tool_call()` returns `None`
+  immediately for non-JSON content; the tag-pair format is stripped from display by
+  `strip_tool_blocks()` but produces no tool invocation.
 
-Both variants go through `function_call_to_tool_block()` for normalisation and tool name
-mapping, with a single-value fallback identical to the other parsers.
+`strip_tool_blocks()` gains the corresponding cleanup regex so both variants are removed
+from displayed text regardless of whether they were executed.
 
-`strip_tool_blocks()` gains the corresponding cleanup regex so unexecuted
-`<longcat_tool_call>` blocks do not leak into displayed text.
+`_model_supports_tools()` in `agent_loop.py` gains "longcat" as a known keyword so the
+agent loop sends tool schemas to LongCat models.
 
 `_model_supports_tools()` in `agent_loop.py` gains "longcat" as a known keyword so the
 agent loop sends tool schemas to LongCat models.
