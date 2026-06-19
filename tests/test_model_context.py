@@ -233,7 +233,10 @@ class TestGetContextLength:
         assert second == 200000
         assert len(calls) == 1
 
-    def test_configured_proxy_uses_default_without_model_listing(self, monkeypatch):
+    def test_configured_proxy_probes_models_endpoint(self, monkeypatch):
+        """Proxy endpoints now run the /models probe; when the probe returns no
+        context_length for the model, the result falls back to DEFAULT_CONTEXT.
+        The result is cached so the probe runs exactly once."""
         _install_endpoint_db(monkeypatch, [
             types.SimpleNamespace(
                 base_url="http://100.117.136.97:34521/v1",
@@ -242,11 +245,16 @@ class TestGetContextLength:
                 is_enabled=True,
             )
         ])
-        calls = []
+        call_count = [0]
+
+        class _FakeResponse:
+            is_success = True
+            def json(self):
+                return {"data": []}  # empty model list — no context_length
 
         def fake_get(*args, **kwargs):
-            calls.append(args)
-            raise AssertionError("/models should not be queried for configured proxy context")
+            call_count[0] += 1
+            return _FakeResponse()
 
         monkeypatch.setattr(model_context.httpx, "get", fake_get)
 
@@ -256,4 +264,30 @@ class TestGetContextLength:
 
         assert first == model_context.DEFAULT_CONTEXT
         assert second == model_context.DEFAULT_CONTEXT
-        assert calls == []
+        # Remote endpoint: result is cached — probe runs once, not twice.
+        assert call_count[0] == 1
+
+    def test_configured_proxy_known_model_returns_table_value(self, monkeypatch):
+        """When a proxy endpoint serves a known model and the probe returns no
+        context_length, the table value is used and known=True."""
+        _install_endpoint_db(monkeypatch, [
+            types.SimpleNamespace(
+                base_url="http://100.117.136.97:34521/v1",
+                endpoint_kind="proxy",
+                api_key="fake-key",
+                is_enabled=True,
+            )
+        ])
+
+        class _FakeResponse:
+            is_success = True
+            def json(self):
+                return {"data": [{"id": "gpt-4o"}]}  # no context_length field
+
+        monkeypatch.setattr(model_context.httpx, "get", lambda *a, **kw: _FakeResponse())
+
+        endpoint = "http://100.117.136.97:34521/v1/chat/completions"
+        ctx, known = model_context.get_context_length_known(endpoint, "gpt-4o")
+
+        assert ctx == 128_000
+        assert known is True
