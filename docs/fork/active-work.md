@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-19. `fix/google-compat-toolcalls` (#39) closed — premise disproved by live API test; Google's compat endpoint sends snake_case `tool_calls` per spec. `fix/tool-result-role` (#4) closed — superseded by upstream #1629. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366. Temporary fork fix for #4366 on develop (commit `d8c7fa21`) — remove when #4366 merges through ingest pipeline. Three new upstream-candidate issues filed 2026-06-19 (#54, #55, #56): agent context budget bug, 429 rate-limit handling, NVIDIA NIM support gaps. Issue bodies fully audited and corrected against NVIDIA NIM documentation — all 30 unrecognized models and 6 stale-value bugs verified. #56 implementation complete: `feat/nvidia-nim-support` committed and pushed (d620c5b3, 87 tests pass). #54 and #55 implementation in progress.
+Last updated: 2026-06-19. `fix/google-compat-toolcalls` (#39) closed — premise disproved by live API test. `fix/tool-result-role` (#4) closed — superseded by upstream #1629. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366. Temporary fork fix for #4366 on develop (commit `d8c7fa21`) — remove when #4366 merges through ingest pipeline. Three upstream-candidate issues filed 2026-06-19 (#54, #55, #56); all three branches now committed and pushed. #54 (api/proxy early-return) is upstream-authored; practical fix is the table expansion in #56. #55 (429 backoff): `_parse_retry_after`, Retry-After in `llm_call_async`, delay before fallback advance, 15 tests pass. #56 (NIM context windows + curated list): 87 tests pass.
 
 ---
 
@@ -9,7 +9,7 @@ Last updated: 2026-06-19. `fix/google-compat-toolcalls` (#39) closed — premise
 | Issue | Branch | Status |
 |-------|--------|--------|
 | [#54 agent context budget locked at 6K](https://github.com/jdmanring/odysseus/issues/54) | `fix/agent-context-budget-discovery` | **Practical impact addressed by #56.** The `api`/`proxy` early-return is upstream-authored (commit `a2e691da`) to avoid catalog downloads from large proxies — deliberately kept. Branch adds one test documenting the proxy+known-model path. Early-return removal remains an upstream discussion point, not a fork contribution. |
-| [#55 429 treated as hard failure, no backoff](https://github.com/jdmanring/odysseus/issues/55) | `fix/stream-429-backoff` | **Implementation in progress.** Fix: `_parse_retry_after` helper; one-retry loop in `stream_llm`; header-driven delay in `llm_call_async`; 1s gap in `stream_llm_with_fallback`. Draft: `docs/fork/upstream/pr-drafts/fix-stream-429-backoff.md`. |
+| [#55 429 treated as hard failure, no backoff](https://github.com/jdmanring/odysseus/issues/55) | `fix/stream-429-backoff` | **Complete.** Branch committed (75f1f01e) and pushed. 15 tests pass. PR draft: `docs/fork/upstream/pr-drafts/fix-stream-429-backoff.md`. |
 | [#56 NVIDIA NIM gaps (no curated list, wrong/missing context windows)](https://github.com/jdmanring/odysseus/issues/56) | `feat/nvidia-nim-support` | **Complete.** Branch committed (d620c5b3) and pushed. 87 tests pass. PR draft: `docs/fork/upstream/pr-drafts/feat-nvidia-nim-support.md`. |
 | [#36 hf_transfer removal](https://github.com/jdmanring/odysseus/issues/36) | not started | Strip all hf_transfer install/enable code. Blocked pending upstream acceptance of feat/aria2c-downloader. |
 | [#40 Google compat layer hardening](https://github.com/jdmanring/odysseus/issues/40) | not started | `_is_google_compat()`, `_build_google_compat_payload()`, extract streaming quirk helpers, add tests for all four known quirks. Native API path explicitly out of scope. |
@@ -31,6 +31,8 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | Branch | Issue(s) | Notes |
 |--------|----------|-------|
 | `feat/nvidia-nim-support` | [#56](https://github.com/jdmanring/odysseus/issues/56) | Single commit, ready. File upstream issue first. |
+| `fix/stream-429-backoff` | [#55](https://github.com/jdmanring/odysseus/issues/55) | Single commit, ready. File upstream issue first. |
+| `fix/agent-context-budget-discovery` | [#54](https://github.com/jdmanring/odysseus/issues/54) | Test-coverage only (early-return preserved). File upstream issue first; note early-return removal is upstream-author decision. |
 | `fix/agent-tool-budget` | [#10](https://github.com/jdmanring/odysseus/issues/10) | Single commit, ready |
 | `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Single commit, ready |
 | `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Single commit, ready |
