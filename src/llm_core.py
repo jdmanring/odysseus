@@ -33,6 +33,33 @@ class LLMConfig:
     CONNECT_TIMEOUT = float(os.getenv('LLM_CONNECT_TIMEOUT', '10') or '10')
 
 
+def _parse_retry_after(value: Optional[str], *, default: float, cap: float = 60.0) -> float:
+    """Parse a Retry-After header value into a float number of seconds.
+
+    Handles the two forms specified in RFC 7231 §7.1.3:
+    - delta-seconds: an integer or decimal string (most APIs, including NIM)
+    - HTTP-date: a full date string (e.g. OpenAI)
+
+    Clamps the result to [0, cap]. Returns ``default`` on a missing or
+    unrecognisable value so callers always get a safe fallback.
+    """
+    if not value:
+        return default
+    try:
+        return max(0.0, min(float(value.strip()), cap))
+    except ValueError:
+        pass
+    try:
+        from email.utils import parsedate_to_datetime
+        from datetime import datetime, timezone
+        parsed = parsedate_to_datetime(value)
+        delta = (parsed - datetime.now(timezone.utc)).total_seconds()
+        return max(0.0, min(delta, cap))
+    except Exception:
+        pass
+    return default
+
+
 def _call_timeout(read_timeout) -> httpx.Timeout:
     """Per-request timeout for non-streaming LLM calls (connect from config)."""
     return httpx.Timeout(connect=LLMConfig.CONNECT_TIMEOUT, read=float(read_timeout), write=10.0, pool=5.0)
@@ -1657,7 +1684,14 @@ async def llm_call_async(
                     f"(attempt {attempt}): HTTP {r.status_code} {friendly}"
                 )
                 if r.status_code in (429, 502, 503, 504) and attempt < max_retries:
-                    await asyncio.sleep(LLMConfig.RETRY_DELAY)
+                    if r.status_code == 429:
+                        _delay = _parse_retry_after(
+                            r.headers.get("Retry-After"),
+                            default=LLMConfig.RETRY_DELAY,
+                        )
+                    else:
+                        _delay = LLMConfig.RETRY_DELAY
+                    await asyncio.sleep(_delay)
                     continue
                 raise HTTPException(r.status_code, friendly)
             logger.info(f"LLM async call to {target_url} succeeded in {duration:.2f}s (attempt {attempt})")
@@ -2053,7 +2087,12 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
             if r.status_code != 200:
                 raw = (await r.aread()).decode(errors="replace")
                 friendly = _format_upstream_error(r.status_code, raw, target_url)
-                yield f'event: error\ndata: {json.dumps({"status": r.status_code, "text": friendly, "raw": raw[:500]})}\n\n'
+                error_data: Dict = {"status": r.status_code, "text": friendly, "raw": raw[:500]}
+                if r.status_code == 429:
+                    _ra = r.headers.get("Retry-After")
+                    if _ra:
+                        error_data["retry_after"] = _ra
+                yield f'event: error\ndata: {json.dumps(error_data)}\n\n'
                 return
 
             async for line in r.aiter_lines():
@@ -2328,6 +2367,21 @@ async def stream_llm_with_fallback(candidates, messages, **kwargs):
                         logger.warning(f"[fallback] primary {model} failed before output; trying fallback")
                     else:
                         logger.warning(f"[fallback] candidate {model} failed; trying next")
+                    # On 429, wait before advancing — fallback candidates usually
+                    # share the same endpoint and would hit the same rate limit
+                    # immediately without a delay.
+                    try:
+                        for _err_line in chunk.split("\n"):
+                            if _err_line.startswith("data: "):
+                                _err = json.loads(_err_line[6:])
+                                if _err.get("status") == 429:
+                                    _ra = _err.get("retry_after")
+                                    await asyncio.sleep(
+                                        _parse_retry_after(_ra, default=1.0) if _ra else 1.0
+                                    )
+                                break
+                    except Exception:
+                        pass
                     break
                 yield chunk
                 continue
