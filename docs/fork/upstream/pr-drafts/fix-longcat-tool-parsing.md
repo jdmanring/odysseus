@@ -22,12 +22,12 @@ ignored and the raw XML is displayed to the user as response text.
 
 Two distinct variants appear in the wild:
 
-**Variant A (JSON object)** ([LongCat-2.0-Preview model card](https://huggingface.co/meituan-longcat/LongCat-2.0-Preview)):
+**Variant A (JSON object)** (observed alongside Variant B from the same model):
 ```xml
 <longcat_tool_call>{"name": "fn_name", "arguments": {"key": "value"}}</longcat_tool_call>
 ```
 
-**Variant B (tag pairs)** (observed in session; Vercel community also reports this variant — verify link before filing: `community.vercel.com/t/parsing-custom-xml-tool-calls-from-longcat-flash-models-in-vercel-ai-sdk/33601`):
+**Variant B (tag pairs)** (observed in session; independently documented in a [Vercel community thread](https://community.vercel.com/t/parsing-custom-xml-tool-calls-from-longcat-flash-models-in-vercel-ai-sdk/33601) on LongCat Flash models, which also notes vLLM maintains a dedicated parser for this format):
 ```xml
 <longcat_tool_call>fn_name
 <longcat_arg_key>path</longcat_arg_key>
@@ -83,9 +83,7 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/fix-longcat-tool-parsi
 
 ## How to Test
 
-1. Configure a LongCat endpoint as an OpenAI-compatible provider in Settings → Providers:
-   - **OpenRouter:** model ID `meituan/longcat-flash-chat`
-   - **Direct API:** base URL `https://api.longcat.chat/openai/v1/` with a Meituan API key
+1. Configure a Meituan LongCat model as an OpenAI-compatible provider in Settings → Providers using credentials from Meituan's API platform.
 2. Send a prompt that triggers a tool call (e.g. "read the file ./index.vue" with the
    file tool enabled).
 3. Confirm the tool executes and the result is returned to the model; the raw
