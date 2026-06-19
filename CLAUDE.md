@@ -45,7 +45,7 @@ Everything else defaults to upstream-candidate: bug fixes, features, `qt_wrapper
 
 **Issue first, branch second.** No branch exists without a corresponding issue on `jdmanring/odysseus`. Create the issue before creating any branch.
 
-**Never close issues without verification.** An issue is closed only when the fix is confirmed working — not when you believe you've applied a fix. Incorrect closings disrupt workflow tracking and will not be tolerated.
+**Never close issues without verification.** An issue is closed only when the fix is confirmed working — not when you believe you've applied a fix. What "confirmed working" means depends on type: fork-only issues close when the fix lands on `develop`; upstream-candidate issues stay open until the upstream PR is filed (the filed PR is the only active tracker until then). Incorrect closings disrupt workflow tracking and will not be tolerated.
 
 **Never write a person's name into a document.** Instructions and workflows apply to whoever is following them. Use second person ("you file", "open the PR") or imperative ("file the issue", "create a branch") — never "James files" or "James creates". URLs containing `jdmanring` (GitHub links, AUR package names, branch references) are factual resource identifiers and are correct — this rule applies to prose instructions only.
 
@@ -58,7 +58,7 @@ There are two kinds of work branches and they have different origins:
 | Work type | Branch origin | Merge destination |
 |-----------|--------------|-------------------|
 | **Upstream-candidate** (default — almost everything) | `upstream-mirror` | cherry-pick to `develop`; branch stays for upstream PR |
-| **Fork-only** (sync pipeline, fork management docs, fork CI) | `develop` | merge to `develop`; close issue |
+| **Fork-only** (sync pipeline, fork management docs, fork CI) | `develop` | merge to `develop`; close issue when fix is verified on develop |
 
 Getting this wrong contaminates upstream-candidate branches with fork-specific history and makes them unusable as PRs.
 
