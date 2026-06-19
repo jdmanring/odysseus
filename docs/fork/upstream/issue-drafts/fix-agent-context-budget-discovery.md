@@ -1,5 +1,11 @@
 # Issue Draft: Agent context silently trimmed to ~5K tokens when model is not in KNOWN_CONTEXT_WINDOWS
 
+## Filed as
+
+[jdmanring/odysseus #54](https://github.com/jdmanring/odysseus/issues/54)
+
+---
+
 ## Summary
 
 The agent input-token budget locks at 6,000 tokens for any model not in the `KNOWN_CONTEXT_WINDOWS`
@@ -15,8 +21,8 @@ of anything that happened more than a handful of exchanges ago.
 ## Reproduction
 
 Use any model **not** listed in `src/model_context.py :: KNOWN_CONTEXT_WINDOWS` (e.g.
-`deepseek-ai/deepseek-v4-pro`, `z-ai/glm-5.1`, `bytedance-seed/seed-oss-36b-instruct`,
-`stepfun/step-3.5-flash`) via an endpoint configured as `endpoint_kind = "api"` or `"proxy"`.
+`deepseek-ai/deepseek-v4-pro`, `z-ai/glm-5.1`, `bytedance/seed-oss-36b-instruct`,
+`stepfun-ai/step-3.5-flash`) via an endpoint configured as `endpoint_kind = "api"` or `"proxy"`.
 Leave `agent_input_token_budget` at its default (6000). After 2–3 agent exchanges the session
 will have accumulated enough history to trigger trimming. The agent will thereafter behave as if
 it has no memory of earlier turns.
@@ -106,22 +112,30 @@ Average session size at trim time: **57,325 tokens**. Average drop per call: **4
 
 ## Affected Models (incomplete — any model not in KNOWN_CONTEXT_WINDOWS)
 
-Models confirmed to be missing from the table while being in common use:
+Models confirmed to be missing from the table while being in common use (context windows
+verified against NVIDIA NIM documentation):
 
-| Model ID | Family | Actual context |
+| Model ID | Family | Actual context on NIM |
 |---|---|---|
-| `deepseek-ai/deepseek-v4-pro` | DeepSeek | 128,000 |
-| `deepseek-ai/deepseek-v4-flash` | DeepSeek | 128,000 |
-| `z-ai/glm-5.1` | GLM | 128,000 |
-| `bytedance-seed/seed-oss-36b-instruct` | Seed | 131,072 |
-| `stepfun/step-3.5-flash` | Step | 131,072 |
+| `deepseek-ai/deepseek-v4-pro` | DeepSeek V4 | 1,000,000 |
+| `deepseek-ai/deepseek-v4-flash` | DeepSeek V4 | 1,000,000 |
+| `z-ai/glm-5.1` | GLM | 131,072 |
+| `bytedance/seed-oss-36b-instruct` | Seed | 512,000 |
+| `stepfun-ai/step-3.5-flash` | Step | 256,000 |
+| `openai/gpt-oss-120b` | GPT OSS | 131,072 |
+| `ibm/granite-3.0-8b-instruct` | Granite 3.0 | 4,096 |
+| `meta/codellama-70b` | CodeLlama | 16,384 |
 
-Models already in the table but with stale/wrong values:
+Models already in the table but with stale or wrong values:
 
-| Key | Table value | Actual value | Model |
+| Key | Table value | Actual | Impact |
 |---|---|---|---|
-| `kimi` | 128,000 | 1,048,576 | Kimi K2 series |
-| `deepseek-v3` | 64,000 | 128,000 | DeepSeek V3 (production context) |
+| `deepseek-v3` | 64,000 | 128,000 | 50% context underuse |
+| `deepseek-coder` | 64,000 | 4,096 (NIM) | Overcount — sends 54K tokens to 4K model, causes 400 errors |
+| `mixtral` | 32,000 | 65,536 (8×22B) | 50% context underuse |
+| `mistral-small` | 32,000 | 256,000 (small-4 on NIM) | 8× undercount |
+| `mistral-medium` | 32,000 | 256,000 (medium-3.5 on NIM) | 8× undercount |
+| `kimi` / `moonshot` | 128,000 | 256,000 (kimi-k2.6 on NIM) | 2× undercount; original model is 1M but NIM caps at 256K |
 
 Any user running a frontier model released after the table was last updated will silently receive
 the 6,000-token cap. The table requires manual maintenance with no mechanism to detect when it
@@ -154,6 +168,8 @@ hasn't been updated. A model that the operator has explicitly configured via Set
 - **Compounds with rate-limit failures**: If the primary model is rate-limited and a fallback
   answers, the user receives a response with no memory of the session — the worst possible
   failure mode for agent work.
+- **Stale `deepseek-coder` entry causes API errors**: Overcount sends up to 54K tokens to a
+  model with 4K actual context; NIM returns 400 on any call after the first few exchanges.
 
 ---
 
@@ -161,32 +177,35 @@ hasn't been updated. A model that the operator has explicitly configured via Set
 
 ### Immediate (low risk): Expand KNOWN_CONTEXT_WINDOWS
 
-Add missing entries to `src/model_context.py`:
+Add missing entries to `src/model_context.py`. See #56 for the full list of additions needed for
+NVIDIA NIM specifically. General additions for common frontier families:
 
 ```python
 # --- DeepSeek (extended) ---
-'deepseek-v4': 128000,
+'deepseek-v4': 1000000,  # V4 series: 1M context on NIM
+'deepseek-v3': 128000,   # update from 64000
+'deepseek-r1': 128000,   # update from 64000
+'deepseek-coder': 4096,  # update from 64000; NIM serves coder-6.7b at 4K
 
 # --- GLM ---
-'glm-5': 128000,
+'glm-5': 131072,
 'glm-4': 128000,
 
 # --- ByteDance Seed ---
-'seed-oss': 131072,
-'seed-1.6': 131072,
+'seed-oss': 512000,      # 512K on NIM
 
 # --- StepFun ---
-'step-3': 131072,
-'step-2': 131072,
+'step-3': 256000,        # 256K on NIM
 
 # --- Kimi (corrected) ---
-'kimi-k2': 1048576,    # K2 series: 1M context
+'kimi-k2': 256000,       # K2 on NIM: 256K (original model is 1M; NIM caps at 256K)
 ```
 
 Update stale entries:
 ```python
-'deepseek-v3': 128000,   # was 64000
-'kimi': 131072,          # base entry; K2-specific entry above overrides via longest-match
+'mistral-small-4': 256000,     # was 32K via mistral-small; NIM small-4 is 256K
+'mistral-medium-3.5': 256000,  # was 32K via mistral-medium; NIM medium-3.5 is 256K
+'mixtral-8x22b': 65536,        # was 32K via mixtral; 8x22B has 64K context
 ```
 
 ### Structural (medium risk): Probe api endpoints for context fields
