@@ -234,6 +234,9 @@ class TestGetContextLength:
         assert len(calls) == 1
 
     def test_configured_proxy_uses_default_without_model_listing(self, monkeypatch):
+        """Proxy endpoints skip the /models probe and return DEFAULT_CONTEXT for
+        unrecognized models. This avoids expensive catalog downloads on large remote
+        APIs (the original developer intent behind the early-return)."""
         _install_endpoint_db(monkeypatch, [
             types.SimpleNamespace(
                 base_url="http://100.117.136.97:34521/v1",
@@ -246,7 +249,7 @@ class TestGetContextLength:
 
         def fake_get(*args, **kwargs):
             calls.append(args)
-            raise AssertionError("/models should not be queried for configured proxy context")
+            raise AssertionError("/models should not be queried for configured proxy")
 
         monkeypatch.setattr(model_context.httpx, "get", fake_get)
 
@@ -257,3 +260,25 @@ class TestGetContextLength:
         assert first == model_context.DEFAULT_CONTEXT
         assert second == model_context.DEFAULT_CONTEXT
         assert calls == []
+
+    def test_configured_proxy_known_model_returns_table_value(self, monkeypatch):
+        """Proxy endpoints resolve known models from the static table (no probe)."""
+        _install_endpoint_db(monkeypatch, [
+            types.SimpleNamespace(
+                base_url="http://100.117.136.97:34521/v1",
+                endpoint_kind="proxy",
+                api_key="fake-key",
+                is_enabled=True,
+            )
+        ])
+
+        def fake_get(*args, **kwargs):
+            raise AssertionError("/models should not be queried for configured proxy")
+
+        monkeypatch.setattr(model_context.httpx, "get", fake_get)
+
+        endpoint = "http://100.117.136.97:34521/v1/chat/completions"
+        ctx, known = model_context.get_context_length_known(endpoint, "gpt-4o")
+
+        assert ctx == 128_000
+        assert known is True
