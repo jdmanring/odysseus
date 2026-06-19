@@ -56,7 +56,7 @@ from core.constants import (
     BASE_DIR, STATIC_DIR, SESSIONS_FILE,
     REQUEST_TIMEOUT, OPENAI_API_KEY, AUTH_FILE,
 )
-from core.database import SessionLocal, ApiToken
+from core.database import SessionLocal, ApiToken, utcnow_naive
 from core.middleware import SecurityHeadersMiddleware, is_cors_preflight
 from core.auth import AuthManager, normalize_known_username
 from core.exceptions import (
@@ -409,7 +409,7 @@ if AUTH_ENABLED:
                                 _db = SessionLocal()
                                 try:
                                     _db.query(ApiToken).filter(ApiToken.id == tid).update(
-                                        {"last_used_at": datetime.utcnow()}
+                                        {"last_used_at": utcnow_naive()}
                                     )
                                     _db.commit()
                                 finally:
