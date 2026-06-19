@@ -342,10 +342,10 @@ class TestAppendToolResultsNativeContent:
         )
         assert messages[0]["content"] == "Let me check that page."
 
-    def test_non_native_path_uses_system_role(self):
-        # The text-block fallback wraps results in a role=system message so they
-        # don't appear as user turns in the UI or in retrieval context queries.
-        # _build_anthropic_payload routes these inline for Anthropic providers.
+    def test_non_native_path_produces_untrusted_user_message(self):
+        # Text-block fallback wraps results via untrusted_context_message:
+        # role=user with metadata.trusted=False. Keeps the model from treating
+        # shell/file output as user intent while applying prompt-injection guards.
         messages = []
         _append_tool_results(
             messages, "thinking...", [], ["tool output"], [],
@@ -353,8 +353,8 @@ class TestAppendToolResultsNativeContent:
         )
         assert messages[0]["role"] == "assistant"
         assert messages[0]["content"] == "thinking..."
-        assert messages[1]["role"] == "system"
-        assert messages[1]["content"].startswith("[Tool execution results]")
+        assert messages[1]["role"] == "user"
+        assert messages[1].get("metadata", {}).get("trusted") is False
         assert "tool output" in messages[1]["content"]
 
 
@@ -479,9 +479,9 @@ class TestWebSearchSourcesKeyLookup:
 
 class TestRecentContextForRetrieval:
     """_recent_context_for_retrieval must exclude tool result envelopes from
-    both pre-fix databases (role=user, [Tool execution results] prefix) and
-    post-fix records (role=system, excluded by the role guard).  Only genuine
-    user turns should surface as retrieval context."""
+    both legacy databases (role=user, [Tool execution results] prefix) and
+    current records (role=user, metadata.trusted=False via untrusted_context_message).
+    Only genuine human-authored user turns should surface as retrieval context."""
 
     def test_includes_user_turns(self):
         msgs = [{"role": "user", "content": "What files are in /tmp?"}]
@@ -501,15 +501,21 @@ class TestRecentContextForRetrieval:
         assert "[Tool execution results]" not in result
 
     def test_excludes_new_format_tool_results(self):
-        # Post-fix records: role=system, excluded by the role != 'user' guard.
+        # Current records from untrusted_context_message: role=user, metadata.trusted=False.
+        # Excluded by the metadata.trusted check, not a role guard.
         msgs = [
             {"role": "user", "content": "List files"},
-            {"role": "system", "content": "[Tool execution results]\n\nfoo.txt"},
+            {
+                "role": "user",
+                "content": "UNTRUSTED SOURCE DATA\ntool output: foo.txt",
+                "metadata": {"trusted": False, "source": "tool execution results"},
+            },
             {"role": "user", "content": "Sort them"},
         ]
         result = _recent_context_for_retrieval(msgs)
         assert "Sort them" in result
-        assert "[Tool execution results]" not in result
+        assert "List files" in result
+        assert "UNTRUSTED SOURCE DATA" not in result
 
     def test_assistant_turns_not_included(self):
         msgs = [
