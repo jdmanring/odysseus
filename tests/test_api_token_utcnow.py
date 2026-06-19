@@ -1,14 +1,4 @@
-"""Regression tests for ApiToken.last_used_at utcnow deprecation fix.
-
-app.py's _touch_last_used() previously called datetime.utcnow(), which is
-deprecated since Python 3.12. The fix imports and uses utcnow_naive() from
-core.database instead — consistent with every other timestamp in the codebase.
-
-These tests verify:
-1. app.py imports utcnow_naive from core.database
-2. app.py does not call datetime.utcnow() anywhere
-3. The utcnow_naive() function returns a naive UTC datetime (no tzinfo)
-"""
+"""Regression guard: app.py must use utcnow_naive(), not deprecated datetime.utcnow()."""
 
 import ast
 import inspect

@@ -1,12 +1,4 @@
-// Regression test for the adaptive auto-scroll drift guard threshold.
-//
-// _smoothScrollStep() in ui.js uses Math.max(300, viewportHeight * 1.5) to
-// distinguish genuine user scrolling from content-driven layout shifts (code
-// blocks, images, rich markdown). The rigid 300px threshold it replaced would
-// falsely trigger when large content arrived, stopping auto-scroll prematurely.
-//
-// This test verifies the threshold formula directly and checks that the source
-// contains the Math.max guard — without requiring a browser DOM.
+// Regression guard for _smoothScrollStep() adaptive threshold (Math.max(300, viewportHeight * 1.5)).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -32,9 +24,6 @@ test('rigid "if (diff > 300)" is no longer present in _smoothScrollStep', () => 
     'The rigid "if (diff > 300)" guard must be replaced by the adaptive threshold'
   );
 });
-
-// --- Formula correctness checks ---
-// maxAllowedDiff = Math.max(300, viewportHeight * 1.5)
 
 function maxAllowedDiff(viewportHeight) {
   return Math.max(300, viewportHeight * 1.5);
