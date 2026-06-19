@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-15. Fork is at milestone `v1.0.0-fork.1` — all CI passing on main. All 19 staged branches professionalized: code audits resolved (PII hashing, deprecated API, inline regex, subprocess cache), PR drafts cleaned of AI language and unverifiable claims. All 19 branches cherry-picked to `develop`. Upstream ingest run 2026-06-15 (LKG-20260615-1958, 12 new upstream commits). **Staging branches need rebase against new upstream-mirror before filing.**
+Last updated: 2026-06-18. Upstream ingest run 2026-06-18 (LKG-20260618-0805, 17 new upstream commits). All staging branches rebased. Three new branches added this session: `fix/workspace-shell-access` (extended to cover web_search/web_fetch), `fix/untrusted-tool-result-header`, `fix/api-token-utcnow-deprecated`. Auto-scroll branch rebuilt clean as `fix/chat-auto-scroll-threshold` (replaced contaminated `fix/chat-auto-scroll-bottom`). All four new branches cherry-picked to develop. **None of the four new branches are user-verified yet.**
 
 ---
 
@@ -51,6 +51,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/workspace-shell-access` | [#47](https://github.com/jdmanring/odysseus/issues/47) | Single commit, ready. Verified 2026-06-16. Covers bash/python (Shell Access) and web_search/web_fetch (Web Search). File upstream issue first. |
 | `fix/untrusted-tool-result-header` | [#48](https://github.com/jdmanring/odysseus/issues/48) | Single commit, ready. Fixes over-application of untrusted-result header introduced by upstream #1629 (2026-06-16). File upstream issue first. |
 | `fix/api-token-utcnow-deprecated` | [#51](https://github.com/jdmanring/odysseus/issues/51) | Single commit, ready. Follow-up to upstream 790ef81b — missed instance of deprecated datetime.utcnow() in api-token last_used_at update. File upstream issue first. |
+| `fix/chat-auto-scroll-threshold` | [#49](https://github.com/jdmanring/odysseus/issues/49) | Single commit, ready. Adaptive viewport-based threshold replaces rigid 300px guard in _smoothScrollStep(). File upstream issue first. Rebuilt clean from contaminated `fix/chat-auto-scroll-bottom`. |
 
 ---
 
