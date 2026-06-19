@@ -121,7 +121,7 @@ verified against NVIDIA NIM documentation):
 | `deepseek-ai/deepseek-v4-flash` | DeepSeek V4 | 1,000,000 |
 | `z-ai/glm-5.1` | GLM | 131,072 |
 | `bytedance/seed-oss-36b-instruct` | Seed | 512,000 |
-| `stepfun-ai/step-3.5-flash` | Step | 256,000 |
+| `stepfun-ai/step-3.5-flash` | Step | 262,144 |
 | `openai/gpt-oss-120b` | GPT OSS | 131,072 |
 | `ibm/granite-3.0-8b-instruct` | Granite 3.0 | 4,096 |
 | `meta/codellama-70b` | CodeLlama | 16,384 |
@@ -133,9 +133,9 @@ Models already in the table but with stale or wrong values:
 | `deepseek-v3` | 64,000 | 128,000 | 50% context underuse |
 | `deepseek-coder` | 64,000 | 4,096 (NIM) | Overcount — sends 54K tokens to 4K model, causes 400 errors |
 | `mixtral` | 32,000 | 65,536 (8×22B) | 50% context underuse |
-| `mistral-small` | 32,000 | 256,000 (small-4 on NIM) | 8× undercount |
-| `mistral-medium` | 32,000 | 256,000 (medium-3.5 on NIM) | 8× undercount |
-| `kimi` / `moonshot` | 128,000 | 256,000 (kimi-k2.6 on NIM) | 2× undercount; original model is 1M but NIM caps at 256K |
+| `mistral-small` | 32,000 | 262,144 (small-4 on NIM) | 8× undercount (source: docs.api.nvidia.com) |
+| `mistral-medium` | 32,000 | 262,144 (medium-3.5 on NIM) | 8× undercount (source: docs.api.nvidia.com) |
+| `kimi` / `moonshot` | 128,000 | 262,144 (kimi-k2.6 on NIM) | 2× undercount (source: docs.api.nvidia.com) |
 
 Any user running a frontier model released after the table was last updated will silently receive
 the 6,000-token cap. The table requires manual maintenance with no mechanism to detect when it
@@ -195,16 +195,16 @@ NVIDIA NIM specifically. General additions for common frontier families:
 'seed-oss': 512000,      # 512K on NIM
 
 # --- StepFun ---
-'step-3': 256000,        # 256K on NIM
+'step-3': 262144,        # 262,144 (ISL 256k = 2^18) on NIM (docs.api.nvidia.com confirmed)
 
 # --- Kimi (corrected) ---
-'kimi-k2': 256000,       # K2 on NIM: 256K (original model is 1M; NIM caps at 256K)
+'kimi-k2': 262144,       # K2.6 on NIM: 262,144 (docs.api.nvidia.com: "Context Length: 256K" = 2^18)
 ```
 
 Update stale entries:
 ```python
-'mistral-small-4': 256000,     # was 32K via mistral-small; NIM small-4 is 256K
-'mistral-medium-3.5': 256000,  # was 32K via mistral-medium; NIM medium-3.5 is 256K
+'mistral-small-4': 262144,     # was 32K via mistral-small; NIM small-4 ISL is 262,144 (docs.api.nvidia.com)
+'mistral-medium-3.5': 262144,  # was 32K via mistral-medium; NIM medium-3.5 ISL is 262,144 (docs.api.nvidia.com)
 'mixtral-8x22b': 65536,        # was 32K via mixtral; 8x22B has 64K context
 ```
 
