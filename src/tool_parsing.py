@@ -574,7 +574,8 @@ def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
 def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
     """Parse a <longcat_tool_call>...</longcat_tool_call> block (Meituan LongCat).
 
-    Official format (vLLM LongcatFlashToolParser, model card):
+    Official format per the LongCat-Flash-Chat model card
+    (huggingface.co/meituan-longcat/LongCat-Flash-Chat):
         {"name": "fn_name", "arguments": {"key": "value"}}
 
     Non-JSON content is not executed — strip_tool_blocks removes it from display.

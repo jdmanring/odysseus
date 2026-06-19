@@ -20,7 +20,9 @@
 **OS / device:** Any
 
 **Steps to Reproduce:**
-1. Configure a Meituan LongCat model endpoint (e.g. MiniCPM3-4B-FC via vLLM or Vercel AI SDK) as an OpenAI-compatible provider in Settings → Providers.
+1. Configure a LongCat endpoint as an OpenAI-compatible provider in Settings → Providers:
+   - **OpenRouter:** model ID `meituan/longcat-flash-chat`
+   - **Direct API:** base URL `https://api.longcat.chat/openai/v1/` with a Meituan API key
 2. Enable at least one tool (e.g. web search or file read).
 3. Send a prompt that should trigger a tool call (e.g. "search for recent news about X").
 4. Observe the response.
@@ -40,4 +42,4 @@ LongCat models emit two variants:
 
 Neither variant is matched, so tool calls from LongCat models never execute. Additionally, `strip_tool_blocks()` does not strip unexecuted `<longcat_tool_call>` blocks, so the raw XML leaks into displayed responses.
 
-**PR:** Adds `_LONGCAT_TOOL_CALL_RE` and `_parse_longcat_tool_call()` for both variants, integrates them into `parse_tool_blocks()` and `strip_tool_blocks()`, and adds "longcat" to `_model_supports_tools()` so the agent loop sends schemas to LongCat endpoints.
+**PR:** Adds `_LONGCAT_TOOL_CALL_RE` and `_parse_longcat_tool_call()` to `parse_tool_blocks()`, integrates cleanup into `strip_tool_blocks()`, and adds "longcat" to `_model_supports_tools()` so the agent loop sends schemas to LongCat endpoints. Variant A (JSON) is parsed and executed; Variant B (tag-pairs) is stripped from display but not executed.

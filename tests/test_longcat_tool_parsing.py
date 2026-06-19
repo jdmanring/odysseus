@@ -15,7 +15,8 @@ from src.tool_parsing import parse_tool_blocks, strip_tool_blocks
 
 
 # ---------------------------------------------------------------------------
-# JSON format (official — vLLM LongcatFlashToolParser, model card)
+# JSON format (official — LongCat-Flash-Chat model card,
+# huggingface.co/meituan-longcat/LongCat-Flash-Chat)
 # ---------------------------------------------------------------------------
 
 def test_longcat_json_bash_command_parsed():
