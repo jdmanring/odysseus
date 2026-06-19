@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-18. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366, which pins core tools to ALWAYS_AVAILABLE system-wide. Temporary fork fix applied to develop (commit d8c7fa21) pending #4366 merging through the ingest pipeline — remove that commit when it lands. `test/upstream-pr-4366` local branch exists for evaluation only; do not push.
+Last updated: 2026-06-18. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366. `fix/tool-result-role` (#4) closed — superseded by upstream #1629 (commit `4e477741`); dead code removed from develop in `eda573e1`. Temporary fork fix for #4366 on develop (commit `d8c7fa21`) — remove when #4366 merges through ingest pipeline.
 
 ---
 
@@ -31,7 +31,6 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Single commit, ready |
 | `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Single commit, ready |
 | `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Single commit, ready. Rework complete: SVG → `static/icons/`, manifest SVG entry added, build-macos-app.sh updated. |
-| `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Single commit, ready |
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Single commit, ready. File upstream issue first. |
 | `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Single commit, ready. Verified 2026-06-12: pause/resume, split-file, zombie detection, clear-finished, resume spinner, cancel. Windows buffering fix in — untested. |
 | `feat/catppuccin-theme` | [#30](https://github.com/jdmanring/odysseus/issues/30) | Single commit, ready |
@@ -61,6 +60,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | [#34 HF token env fallback](https://github.com/jdmanring/odysseus/issues/34) | `fix/hf-token-env-fallback` | Closed 2026-06-12 — same upstream fix covers this |
 | [#11 streamingTTS scope](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | Superseded — upstream PR #2418 ("fix(chat): render abort messages — hoist streamingTTS out of the try block") makes same hoist fix with broader scope and a test. Still open as of 2026-06-15, no comments. Delete branch once #2418 merges into upstream-mirror. |
 | [#47 workspace shell access](https://github.com/jdmanring/odysseus/issues/47) | `fix/workspace-shell-access` | Closed 2026-06-18 — superseded by upstream PR #4366, which pins bash/python/web_search/web_fetch/read_file/write_file/edit_file to ALWAYS_AVAILABLE system-wide. Temporary fork fix on develop (commit d8c7fa21) until #4366 merges. |
+| [#4 tool result role confusion](https://github.com/jdmanring/odysseus/issues/4) | `fix/tool-result-role` | Closed 2026-06-18 — superseded by upstream #1629 (commit `4e477741`), which wraps non-native tool results via `untrusted_context_message()`. Dead code removed from develop in `eda573e1`. |
 
 ---
 
