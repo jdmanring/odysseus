@@ -46,7 +46,12 @@ not `develop`. Fork-only branches start from `develop`. Getting this wrong conta
 upstream PRs with fork history. Full rules: `docs/dev/git-branch-workflow.md`.
 
 **Never close issues without verification.** An issue is closed only when the fix is
-confirmed working — not when you believe you have applied a fix.
+confirmed working — not when you believe you have applied a fix. What "confirmed working"
+means depends on issue type:
+
+- **Fork-only issues** — close when the fix is verified on `develop`.
+- **Upstream-candidate issues** — stay open until the upstream PR is filed. The filed PR
+  is what closes the loop; until then the issue is the only active tracker for that work.
 
 **Never classify work as fork-only without a specific reason it cannot go upstream.**
 "It touches new files" or "it's a big feature" are not reasons. The Qt wrapper, the
@@ -310,7 +315,7 @@ to reset, then re-cherry-pick.
 | `git rebase develop` on a staging branch | Contaminates it with fork history — unusable as a PR |
 | `git merge develop` on a staging branch | Same problem |
 | Cherry-pick from `upstream/dev` to `develop` directly | Bypasses all pipeline gates |
-| Close an issue before the fix is confirmed working | Disrupts workflow tracking |
+| Close an upstream-candidate issue before filing the upstream PR | Issue is the only active tracker until the PR exists |
 | Creating a branch without an issue | Untraceable work |
 | Editing `develop` directly for upstream-candidate work | Creates untracked work with no branch/issue/PR |
 | Forgetting to update fork tracking docs | Future contributors lack context |
