@@ -219,6 +219,7 @@ Add a `catppuccin` theme using the Catppuccin Mocha palette with a mauve accent:
 | Panel | `#181825` | Mocha Mantle |
 | Border | `#585b70` | Mocha Surface2 |
 | Accent/Red | `#cba6f7` | Mocha Mauve; soft purple; ~7.5:1 on bg (WCAG AAA) |
+| Brand | `#c56682` | Odysseus application brand color (logo); not part of the Mocha palette |
 
 The default theme remains `dark`: catppuccin is an opt-in choice.
 
@@ -229,7 +230,7 @@ The default theme remains `dark`: catppuccin is an opt-in choice.
 ### Notes
 
 - Single-line addition; no default theme change, no breaking changes
-- Colors from the official Catppuccin Mocha palette (https://catppuccin.com)
+- Five named colors from the official Catppuccin Mocha palette (catppuccin.com); `brandColor` uses the Odysseus application brand color (`#c56682`) and is not part of the palette
 - Compatible with the existing custom theme engine, color picker, and background effects
 - No changes to theme scheduling, persistence, or UI
 
