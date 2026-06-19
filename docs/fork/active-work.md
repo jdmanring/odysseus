@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-18. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366. `fix/tool-result-role` (#4) closed — superseded by upstream #1629 (commit `4e477741`); dead code removed from develop in `eda573e1`. Temporary fork fix for #4366 on develop (commit `d8c7fa21`) — remove when #4366 merges through ingest pipeline.
+Last updated: 2026-06-18. `fix/google-compat-toolcalls` (#39) closed — premise disproved by live API test; Google's compat endpoint sends snake_case `tool_calls` per spec. `fix/tool-result-role` (#4) closed — superseded by upstream #1629. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366. Temporary fork fix for #4366 on develop (commit `d8c7fa21`) — remove when #4366 merges through ingest pipeline.
 
 ---
 
@@ -42,7 +42,6 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/tool-code-pycall-parsing` | [#35](https://github.com/jdmanring/odysseus/issues/35) | Single commit, ready. Parses and strips `<tool_code>` Python-call format (Google Gemma style) in tool_parsing.py. |
 | `fix/gguf-quality-scored` | [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29) | Single commit, ready. File after `feat/aria2c-downloader` (extends HfUrlResolver with GGUF discovery). |
 | `fix/longcat-tool-parsing` | [#38](https://github.com/jdmanring/odysseus/issues/38) | Single commit, ready. |
-| `fix/google-compat-toolcalls` | [#39](https://github.com/jdmanring/odysseus/issues/39) | Single commit, ready. |
 | `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. Infrastructure + timing callsites combined — callsites are untestable without infrastructure. Replaces feat/logging-core and feat/logging-timing. |
 | `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready. Previously marked superseded; re-activated 2026-06-15. #3741 covers only the Serve panel; ours also covers the Dependencies tab and adds an inline POSIX abort. File upstream issue first. |
 | `fix/untrusted-tool-result-header` | [#48](https://github.com/jdmanring/odysseus/issues/48) | Single commit, ready. Fixes over-application of untrusted-result header introduced by upstream #1629 (2026-06-16). File upstream issue first. |
@@ -61,6 +60,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | [#11 streamingTTS scope](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | Superseded — upstream PR #2418 ("fix(chat): render abort messages — hoist streamingTTS out of the try block") makes same hoist fix with broader scope and a test. Still open as of 2026-06-15, no comments. Delete branch once #2418 merges into upstream-mirror. |
 | [#47 workspace shell access](https://github.com/jdmanring/odysseus/issues/47) | `fix/workspace-shell-access` | Closed 2026-06-18 — superseded by upstream PR #4366, which pins bash/python/web_search/web_fetch/read_file/write_file/edit_file to ALWAYS_AVAILABLE system-wide. Temporary fork fix on develop (commit d8c7fa21) until #4366 merges. |
 | [#4 tool result role confusion](https://github.com/jdmanring/odysseus/issues/4) | `fix/tool-result-role` | Closed 2026-06-18 — superseded by upstream #1629 (commit `4e477741`), which wraps non-native tool results via `untrusted_context_message()`. Dead code removed from develop in `eda573e1`. |
+| [#39 Google compat camelCase toolCalls](https://github.com/jdmanring/odysseus/issues/39) | `fix/google-compat-toolcalls` | Closed 2026-06-18 — premise disproved by live API test. Google's compat endpoint sends snake_case `tool_calls` per spec. Branch and test file deleted. A related real deviation (`finish_reason: "stop"` instead of `"tool_calls"`) does not affect Odysseus; tracked in #52. |
 
 ---
 
