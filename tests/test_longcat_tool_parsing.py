@@ -15,8 +15,8 @@ from src.tool_parsing import parse_tool_blocks, strip_tool_blocks
 
 
 # ---------------------------------------------------------------------------
-# JSON format (official — LongCat-Flash-Chat model card,
-# huggingface.co/meituan-longcat/LongCat-Flash-Chat)
+# JSON format (official — LongCat-2.0-Preview model card,
+# huggingface.co/meituan-longcat/LongCat-2.0-Preview)
 # ---------------------------------------------------------------------------
 
 def test_longcat_json_bash_command_parsed():

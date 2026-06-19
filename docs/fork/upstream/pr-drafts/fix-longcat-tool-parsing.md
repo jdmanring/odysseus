@@ -22,7 +22,7 @@ ignored and the raw XML is displayed to the user as response text.
 
 Two distinct variants appear in the wild:
 
-**Variant A (JSON object)** ([LongCat-Flash-Chat model card](https://huggingface.co/meituan-longcat/LongCat-Flash-Chat)):
+**Variant A (JSON object)** ([LongCat-2.0-Preview model card](https://huggingface.co/meituan-longcat/LongCat-2.0-Preview)):
 ```xml
 <longcat_tool_call>{"name": "fn_name", "arguments": {"key": "value"}}</longcat_tool_call>
 ```
