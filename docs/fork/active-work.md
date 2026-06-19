@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-18. Upstream ingest run 2026-06-18 (LKG-20260618-0805, 17 new upstream commits). All staging branches rebased. Three new branches added this session: `fix/workspace-shell-access` (extended to cover web_search/web_fetch), `fix/untrusted-tool-result-header`, `fix/api-token-utcnow-deprecated`. Auto-scroll branch rebuilt clean as `fix/chat-auto-scroll-threshold` (replaced contaminated `fix/chat-auto-scroll-bottom`). All four new branches cherry-picked to develop. **None of the four new branches are user-verified yet.**
+Last updated: 2026-06-18. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366, which pins core tools to ALWAYS_AVAILABLE system-wide. Temporary fork fix applied to develop (commit d8c7fa21) pending #4366 merging through the ingest pipeline — remove that commit when it lands. `test/upstream-pr-4366` local branch exists for evaluation only; do not push.
 
 ---
 
@@ -46,7 +46,6 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/google-compat-toolcalls` | [#39](https://github.com/jdmanring/odysseus/issues/39) | Single commit, ready. |
 | `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Single commit, ready. Infrastructure + timing callsites combined — callsites are untestable without infrastructure. Replaces feat/logging-core and feat/logging-timing. |
 | `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Single commit, ready. Previously marked superseded; re-activated 2026-06-15. #3741 covers only the Serve panel; ours also covers the Dependencies tab and adds an inline POSIX abort. File upstream issue first. |
-| `fix/workspace-shell-access` | [#47](https://github.com/jdmanring/odysseus/issues/47) | Single commit, ready. bash/python verified 2026-06-16. web_search/web_fetch unverified — #47 reopened. File upstream issue first. |
 | `fix/untrusted-tool-result-header` | [#48](https://github.com/jdmanring/odysseus/issues/48) | Single commit, ready. Fixes over-application of untrusted-result header introduced by upstream #1629 (2026-06-16). File upstream issue first. |
 | `fix/api-token-utcnow-deprecated` | [#51](https://github.com/jdmanring/odysseus/issues/51) | Single commit, ready. Follow-up to upstream 790ef81b — missed instance of deprecated datetime.utcnow() in api-token last_used_at update. File upstream issue first. |
 | `fix/chat-auto-scroll-threshold` | [#49](https://github.com/jdmanring/odysseus/issues/49) | Single commit, ready. Adaptive viewport-based threshold replaces rigid 300px guard in _smoothScrollStep(). File upstream issue first. Rebuilt clean from contaminated `fix/chat-auto-scroll-bottom`. |
@@ -61,6 +60,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | [#7 HF token not saved outside Cookbook tab](https://github.com/jdmanring/odysseus/issues/7) | `fix/hf-token-persistence` | Closed 2026-06-12 — superseded by upstream #3459 (`load_stored_hf_token()` in cookbook_helpers.py) |
 | [#34 HF token env fallback](https://github.com/jdmanring/odysseus/issues/34) | `fix/hf-token-env-fallback` | Closed 2026-06-12 — same upstream fix covers this |
 | [#11 streamingTTS scope](https://github.com/jdmanring/odysseus/issues/11) | `fix/streamingtts-scope` | Superseded — upstream PR #2418 ("fix(chat): render abort messages — hoist streamingTTS out of the try block") makes same hoist fix with broader scope and a test. Still open as of 2026-06-15, no comments. Delete branch once #2418 merges into upstream-mirror. |
+| [#47 workspace shell access](https://github.com/jdmanring/odysseus/issues/47) | `fix/workspace-shell-access` | Closed 2026-06-18 — superseded by upstream PR #4366, which pins bash/python/web_search/web_fetch/read_file/write_file/edit_file to ALWAYS_AVAILABLE system-wide. Temporary fork fix on develop (commit d8c7fa21) until #4366 merges. |
 
 ---
 
