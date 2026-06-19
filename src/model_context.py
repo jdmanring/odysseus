@@ -157,6 +157,7 @@ KNOWN_CONTEXT_WINDOWS = {
     'gemma-4': 262144,
     'gemma-3': 128000,
     'gemma-2': 8192,
+    'codegemma': 8192,  # Google CodeGemma (NIM catalog); not matched by gemma-N keys
 
     # --- Mistral ---
     'mistral-large': 128000,
@@ -200,6 +201,7 @@ KNOWN_CONTEXT_WINDOWS = {
 
     # --- Moonshot / Kimi ---
     'moonshot': 128000,
+    'kimi-k2': 262144,   # K2.x on NIM: ISL 256K = 2^18; longer key beats 'kimi'/'moonshot'
     'kimi': 128000,
 
     # --- Microsoft ---
@@ -208,6 +210,66 @@ KNOWN_CONTEXT_WINDOWS = {
 
     # --- Nvidia ---
     'nemotron': 131072,
+    # mistral-nemo-minitron-8b-8k-instruct has an 8K ISL despite sharing the
+    # 'mistral-nemo' prefix (which maps to 128K). The longer key wins via
+    # _lookup_known's longest-substring rule.
+    'mistral-nemo-minitron-8b-8k': 8192,
+
+    # --- DeepSeek (extended) ---
+    # V4 adds 1M context; V3/R1 shipped at 128K (table had stale 64K from V2
+    # era). Coder key corrected: NIM serves deepseek-coder-6.7b at 4K, and the
+    # old 64K value caused the agent to over-send and receive 400 errors.
+    'deepseek-v4': 1000000,
+    'deepseek-v3': 128000,   # update: was 64000
+    'deepseek-r1': 128000,   # update: was 64000
+    'deepseek-coder': 4096,  # update: NIM serves 6.7b at 4K; was 64000
+
+    # --- GLM (Z.ai / ZhipuAI) ---
+    'glm-5': 131072,
+    'glm-4': 128000,
+
+    # --- ByteDance Seed ---
+    'seed-oss': 512000,
+
+    # --- StepFun ---
+    # NIM ISL is 262,144 ("256K" in NIM docs = 2^18, confirmed via cross-reference
+    # with models where the page shows "ISL: 262,144 (256k)" explicitly).
+    'step-3': 262144,
+
+    # --- Mistral (stale-value overrides) ---
+    # More specific keys beat the shorter 'mistral-small'/'mistral-medium' entries.
+    'mistral-small-4': 262144,    # NIM ISL 262,144; was 32K via 'mistral-small'
+    'mistral-medium-3.5': 262144, # NIM ISL 262,144; was 32K via 'mistral-medium'
+    'mixtral-8x22b': 65536,       # 8x22B has 64K; was 32K via 'mixtral' (sized for 8x7B)
+
+    # --- NVIDIA NIM catalog additions ---
+    # Models present in the NIM endpoint catalog that have no existing key.
+    # Context windows from docs.api.nvidia.com; secondary source llmreference.com
+    # where the primary page is disabled or returns 404.
+    'ministral': 262144,          # ministral-14b-instruct-2512 (NIM ISL 256K = 2^18)
+    'codellama': 16384,
+    'llama2': 4096,
+    'palmyra-creative': 131072,   # longer key beats 'palmyra' for creative-122b
+    'palmyra': 32768,             # fin/med domain models
+    'starcoder2': 8192,
+    'dbrx': 32768,
+    'jamba': 256000,
+    'zamba2': 16384,
+    # sarvam-m: NIM ISL is 8,192 (NIM caps input at 8K even though the model
+    # architecture supports 32K). Value from docs.api.nvidia.com/nim/reference/sarvamai-sarvam-m.
+    'sarvam': 8192,
+    'chatqa': 8192,
+    'sea-lion': 4096,
+    'stockmark': 128000,
+    'gpt-oss': 131072,            # OpenAI OSS models hosted on NIM
+    # granite-3.0 series (4K) vs granite-3.1+ (128K): the more specific key wins.
+    'granite-3.0': 4096,
+    'granite-3': 128000,
+    'granite-8b-code': 8192,      # NIM serves base 8K model, not the 128K variant
+    'granite-34b-code': 8192,
+    # embed-qa-4 is an embedding model; agents should not be pointed at it, but
+    # its context cap is 512 so over-sending would immediately fail.
+    'embed-qa': 512,
 
     # --- Yi ---
     'yi-large': 32768,
@@ -300,19 +362,25 @@ def budget_context_for_model(endpoint_url: str, model: str, *, fallback: int = 0
 def _lookup_known(model: str) -> Optional[int]:
     """Check known context windows by substring match.
 
-    Picks the LONGEST matching key so a short key never shadows a more specific
-    one. Without this, 'o1' (200k) precedes 'o1-mini' (128k) in the table and a
-    first-match return would report o1-mini's window as 200k.
+    Scoring: basename matches score len(key)*2; full-name-only matches score
+    len(key). The double weight prevents org-prefix false positives — e.g.
+    'moonshot' (len 8) would otherwise beat 'kimi-k2' (len 7) by matching
+    'moonshotai' in the org portion of 'moonshotai/kimi-k2.6', even though
+    'kimi-k2' is the more specific and correct key.
     """
     name = model.lower()
     basename = name.split("/")[-1] if "/" in name else name
     basename = basename.split(":")[0]  # strip :free, :extended etc.
     best_key: Optional[str] = None
     best_ctx: Optional[int] = None
+    best_score: int = -1
     for key, ctx in KNOWN_CONTEXT_WINDOWS.items():
-        if key in basename or key in name:
-            if best_key is None or len(key) > len(best_key):
-                best_key, best_ctx = key, ctx
+        in_basename = key in basename
+        if not in_basename and key not in name:
+            continue
+        score = len(key) * 2 if in_basename else len(key)
+        if score > best_score:
+            best_key, best_ctx, best_score = key, ctx, score
     return best_ctx
 
 
