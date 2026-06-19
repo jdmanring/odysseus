@@ -17,8 +17,8 @@ and the source:
    are unrecognized** and silently receive the 6K agent budget (see #54 for the root cause). This
    includes the primary frontier models users will actually configure.
 3. Several recognized models have wrong context windows: `nvidia/mistral-nemo-minitron-8b-8k-instruct`
-   (8K actual, assigned 128K), `moonshotai/kimi-k2.6` (256K on NIM, assigned 128K),
-   `mistralai/mistral-medium-3.5-128b` (256K actual, assigned 32K),
+   (8K actual, assigned 128K), `moonshotai/kimi-k2.6` (262,144 on NIM, assigned 128K),
+   `mistralai/mistral-medium-3.5-128b` (262,144 actual, assigned 32K),
    `deepseek-ai/deepseek-coder-6.7b-instruct` (4K on NIM, assigned 64K — causes API errors), and
    others. All values verified against NVIDIA NIM documentation.
 
@@ -109,7 +109,7 @@ google/codegemma-7b                        — 8,192
 ibm/granite-3.0-3b-a800m-instruct         — 4,096
 ibm/granite-3.0-8b-instruct               — 4,096
 ibm/granite-34b-code-instruct             — 8,192
-ibm/granite-8b-code-instruct              — 128,000
+ibm/granite-8b-code-instruct              — 8,192
 meta/codellama-70b                         — 16,384
 meta/llama2-70b                            — 4,096
 mistralai/ministral-14b-instruct-2512      — 262,144
@@ -117,9 +117,9 @@ nvidia/embed-qa-4                          — 512 (embedding model)
 nvidia/llama3-chatqa-1.5-70b              — 8,192
 openai/gpt-oss-120b                        — 131,072
 openai/gpt-oss-20b                         — 131,072
-sarvamai/sarvam-m                          — 32,768
-stepfun-ai/step-3.5-flash                  — 256,000
-stepfun-ai/step-3.7-flash                  — 256,000
+sarvamai/sarvam-m                          — 8,192 (NIM ISL)
+stepfun-ai/step-3.5-flash                  — 262,144
+stepfun-ai/step-3.7-flash                  — 262,144
 stockmark/stockmark-2-100b-instruct        — 128,000
 writer/palmyra-creative-122b               — 131,072
 writer/palmyra-fin-70b-32k                 — 32,768
@@ -161,11 +161,11 @@ basename = "mistral-nemo-minitron-8b-8k-instruct"
 With 85% headroom the agent will send up to ~108K tokens to a model that accepts 8,192, resulting
 in a 400 error from NIM or server-side truncation.
 
-**`moonshotai/kimi-k2.6`** — 256,000 actual context on NIM, assigned 128K via the `moonshot` key.
-The full Kimi K2 model supports 1M context, but NVIDIA NIM limits it to 256K. Either way, 128K
+**`moonshotai/kimi-k2.6`** — 262,144 actual context on NIM (ISL 256K = 2^18), assigned 128K via the `moonshot` key.
+The full Kimi K2 model supports 1M context, but NVIDIA NIM limits it to 262,144. Either way, 128K
 is wrong.
 
-**`mistralai/mistral-medium-3.5-128b`** — 256,000 actual context on NIM (model name describes
+**`mistralai/mistral-medium-3.5-128b`** — 262,144 actual context on NIM (ISL 256K = 2^18; model name describes
 parameter count, not context), assigned 32K via `mistral-medium: 32000`. Stale by 8×.
 
 **`deepseek-ai/deepseek-coder-6.7b-instruct`** — 4,096 actual context on NIM, assigned 64K via
@@ -176,7 +176,7 @@ NIM to return 400 errors on any call after the first exchange.
 The `mixtral` key was sized for Mixtral 8×7B; 8×22B has a 64K context window. The same key
 matches both.
 
-**`mistralai/mistral-small-4-119b-2603`** — 256,000 actual context on NIM, assigned 32K via
+**`mistralai/mistral-small-4-119b-2603`** — 262,144 actual context on NIM (ISL 256K = 2^18), assigned 32K via
 `mistral-small: 32000`. Stale by 8×.
 
 ---
@@ -275,14 +275,14 @@ Context windows verified against NVIDIA NIM documentation:
 # --- IBM Granite: 3.0 series is 4K; 3.1+ and code models are 128K ---
 'granite-3.0': 4096,       # len=10; wins over 'granite-3' for 3.0 models
 'granite-3': 128000,       # len=9; matches 3.1, 3.2, 3.3
-'granite-8b-code': 128000,
+'granite-8b-code': 8192,
 'granite-34b-code': 8192,
 
 # --- ByteDance Seed: 512K on NIM ---
 'seed-oss': 512000,
 
 # --- StepFun: 256K on NIM ---
-'step-3': 256000,
+'step-3': 262144,
 
 # --- OpenAI OSS models on NIM ---
 'gpt-oss': 131072,
@@ -309,7 +309,7 @@ Context windows verified against NVIDIA NIM documentation:
 
 # --- Other NIM models ---
 'zamba2': 16384,
-'sarvam': 32768,
+'sarvam': 8192,
 'chatqa': 8192,
 'sea-lion': 4096,
 'stockmark': 128000,
@@ -319,16 +319,16 @@ Fix stale values (more specific keys win via longest-match):
 
 ```python
 # Kimi K2 on NIM: 256K (moonshot/kimi keys currently return 128K)
-'kimi-k2': 256000,             # wins over 'kimi' and 'moonshot'
+'kimi-k2': 262144,             # wins over 'kimi' and 'moonshot'
 
 # Mixtral 8×22B: 64K (mixtral key sized for 8×7B at 32K)
 'mixtral-8x22b': 65536,        # wins over 'mixtral' for 8×22B models
 
 # Mistral Small 4 on NIM: 256K (mistral-small key returns 32K)
-'mistral-small-4': 256000,     # wins over 'mistral-small'
+'mistral-small-4': 262144,     # wins over 'mistral-small'
 
 # Mistral Medium 3.5 on NIM: 256K (mistral-medium key returns 32K)
-'mistral-medium-3.5': 256000,  # wins over 'mistral-medium'
+'mistral-medium-3.5': 262144,  # wins over 'mistral-medium'
 ```
 
 ### 3. Fix mistral-nemo-minitron-8k wrong match
@@ -348,6 +348,63 @@ Add a more specific key that matches before `mistral-nemo: 128000`:
 - The `_lookup_known` substring algorithm — it correctly handles the longest-match disambiguation
   needed for the minitron and other specificity fixes.
 - The NVIDIA endpoint's `endpoint_kind = "api"` classification in the database — correct.
+
+---
+
+## Verification Sources
+
+All context window values in this issue are verified against the following sources. Primary source
+is always the NVIDIA NIM docs page for that model; secondary source is the NIM aggregator at
+`https://www.llmreference.com/provider/nvidia-nim/models` (secondary used when the NIM docs page
+returns 404 or is disabled). "ISL 256K = 2^18" notation: NVIDIA NIM consistently uses "256K" to
+mean 262,144 (2^18), confirmed by cross-referencing models where both forms appear together in docs
+(e.g., mistral-medium-3.5 says "ISL: 262,144 (256k)").
+
+### Unrecognized models (30)
+
+| Model | Value | Source |
+|---|---|---|
+| `ai21labs/jamba-1.5-large-instruct` | 256,000 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `aisingapore/sea-lion-7b-instruct` | 4,096 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `bigcode/starcoder2-15b` | 8,192 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `bytedance/seed-oss-36b-instruct` | 512,000 | https://docs.api.nvidia.com/nim/reference/bytedance-seed-oss-36b-instruct |
+| `databricks/dbrx-instruct` | 32,768 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `deepseek-ai/deepseek-v4-flash` | 1,000,000 | https://docs.api.nvidia.com/nim/reference/deepseek-ai-deepseek-v4-flash |
+| `deepseek-ai/deepseek-v4-pro` | 1,000,000 | https://docs.api.nvidia.com/nim/reference/deepseek-ai-deepseek-v4-pro |
+| `google/codegemma-1.1-7b` | 8,192 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `google/codegemma-7b` | 8,192 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `ibm/granite-3.0-3b-a800m-instruct` | 4,096 | IBM Granite 3.0 architecture: 4K context; 128K introduced in Granite 3.1 |
+| `ibm/granite-3.0-8b-instruct` | 4,096 | IBM Granite 3.0 architecture: 4K context; 128K introduced in Granite 3.1 |
+| `ibm/granite-34b-code-instruct` | 8,192 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `ibm/granite-8b-code-instruct` | 8,192 | https://www.llmreference.com/provider/nvidia-nim/models (NIM serves base 8K model, not the 128K `granite-8b-code-instruct-128k` variant) |
+| `meta/codellama-70b` | 16,384 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `meta/llama2-70b` | 4,096 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `mistralai/ministral-14b-instruct-2512` | 262,144 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `nvidia/embed-qa-4` | 512 | https://www.llmreference.com/provider/nvidia-nim/models (embedding model — not for agent use) |
+| `nvidia/llama3-chatqa-1.5-70b` | 8,192 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `openai/gpt-oss-120b` | 131,072 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `openai/gpt-oss-20b` | 131,072 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `sarvamai/sarvam-m` | 8,192 | https://docs.api.nvidia.com/nim/reference/sarvamai-sarvam-m (NIM ISL limit; architectural window is 32K but NIM caps at 8K) |
+| `stepfun-ai/step-3.5-flash` | 262,144 | https://docs.api.nvidia.com/nim/reference/stepfun-ai-step-3-5-flash ("ISL: 256k" = 2^18) |
+| `stepfun-ai/step-3.7-flash` | 262,144 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `stockmark/stockmark-2-100b-instruct` | 128,000 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `writer/palmyra-creative-122b` | 131,072 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated — docs.api.nvidia.com page disabled) |
+| `writer/palmyra-fin-70b-32k` | 32,768 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated) |
+| `writer/palmyra-med-70b` | 32,768 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated) |
+| `writer/palmyra-med-70b-32k` | 32,768 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated) |
+| `z-ai/glm-5.1` | 131,072 | https://docs.api.nvidia.com/nim/reference/z-ai-glm5.1 |
+| `zyphra/zamba2-7b-instruct` | 16,384 | https://www.llmreference.com/provider/nvidia-nim/models |
+
+### Wrong-value models (6)
+
+| Model | Correct value | Source |
+|---|---|---|
+| `nvidia/mistral-nemo-minitron-8b-8k-instruct` | 8,192 | Model name contains "8k"; https://www.llmreference.com/provider/nvidia-nim/models confirms |
+| `moonshotai/kimi-k2.6` | 262,144 | https://docs.api.nvidia.com/nim/reference/moonshotai-kimi-k2-6 ("Context Length: 256K" = 2^18; llmreference also shows 262K) |
+| `mistralai/mistral-medium-3.5-128b` | 262,144 | https://docs.api.nvidia.com/nim/reference/mistralai-mistral-medium-3-5-128b ("ISL: 262,144 (256k)") |
+| `deepseek-ai/deepseek-coder-6.7b-instruct` | 4,096 | https://www.llmreference.com/provider/nvidia-nim/models |
+| `mistralai/mixtral-8x22b-v0.1` | 65,536 | https://docs.api.nvidia.com/nim/reference/mistralai-mixtral-8x22b-instruct-infer |
+| `mistralai/mistral-small-4-119b-2603` | 262,144 | https://docs.api.nvidia.com/nim/reference/mistralai-mistral-small-4-119b-2603 ("ISL: 262,144 (256k)") |
 
 ---
 
