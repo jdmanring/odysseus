@@ -885,6 +885,12 @@ _API_HOSTS = frozenset([
     "api.perplexity.ai", "api.x.ai",
     "ollama.com", "api.venice.ai", "api.kimi.com",
     "api.githubcopilot.com",
+    "integrate.api.nvidia.com",   # NIM — OpenAI-compatible function calling
+    # Local OpenAI-compatible endpoints (llama.cpp, vLLM, LM Studio, etc.).
+    # Without these, `_is_api_model` falls back to keyword sniffing on the
+    # model name, so well-behaved local servers don't get native tool
+    # schemas and the agent silently degrades to fenced-block parsing.
+    "localhost", "127.0.0.1", "host.docker.internal",
 ])
 _MCP_KEYWORDS = frozenset(["mcp", "browse", "browser", "website", "calendar", "event", "email",
                            "gmail", "screenshot", "navigate", "click", "miniflux", "rss", "feed"])
@@ -3637,6 +3643,10 @@ async def stream_agent_loop(
         # deepseek-v2/v3/chat support tools via the cloud API; deepseek-r1
         # (reasoning model) does not — handled by the blocklist below.
         "deepseek-v", "deepseek-chat",
+        # NVIDIA NIM — Nemotron-native model names contain no other listed
+        # keyword. Belt-and-suspenders with the integrate.api.nvidia.com host
+        # entry above for non-NIM deployments of Nemotron weights.
+        "nemotron",
     ))
     # Models known to reject tool schemas at the Ollama/local level even when
     # the endpoint URL would otherwise enable native function calling.
