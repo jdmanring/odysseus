@@ -311,6 +311,7 @@ function _initModelPickerDropdown() {
     'minimax': 'MiniMax', 'minimaxai': 'MiniMax', 'mistralai': 'Mistral',
     'moonshotai': 'Moonshot', 'morph': 'Morph', 'nex-agi': 'Nex AGI',
     'nousresearch': 'Nous Research', 'nv-mistralai': 'NVIDIA x Mistral',
+    'longcat': 'LongCat',
     'nvidia': 'NVIDIA', 'openai': 'OpenAI', 'openrouter': 'OpenRouter',
     'perceptron': 'Perceptron', 'perplexity': 'Perplexity', 'poolside': 'Poolside',
     'prime-intellect': 'Prime Intellect', 'qwen': 'Qwen', 'rekaai': 'Reka',
