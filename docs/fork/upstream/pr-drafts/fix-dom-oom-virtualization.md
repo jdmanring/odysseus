@@ -2,7 +2,9 @@
 
 **Branch:** `jdmanring/odysseus:fix/dom-oom-virtualization`
 **Issue:** [#2](https://github.com/jdmanring/odysseus/issues/2) (fork tracking)
-**Status:** Staging branch is a single clean commit (8db240a). File upstream issue first, then open PR.
+**Status:** Two commits. File upstream issue first, then open PR.
+- `31d0bbb5` — initial virtualization module
+- `c1f399f5` — Phase 3 fix: message-count BIDI cap in `_loadOlder` (scroll-jump bug for agent sessions)
 
 ---
 
@@ -91,12 +93,20 @@ it off through the initial render (a 50-message agent session produces ~250
 nodes, far above `PRUNE_AT`).
 
 **Phase 3: Bidirectional pruning.**  
-When the user scrolls up and `_loadOlder()` pushes historical DOM children past
-`BIDI_CAP` (120), `_pruneBottom()` removes the newest historical nodes from just
-above the `_histSep` boundary and inserts a "↓ N earlier messages" bottom
-sentinel. Scrolling down to the bottom sentinel (or clicking it) calls
-`_loadNewer()` to restore the content, chaining until the full historical window
-is reloaded or the live section is reached.
+When the user scrolls up and `_loadOlder()` pushes historical *messages* past
+`BIDI_MSG_CAP` (80), the oldest loaded messages (just above `_histSep`) are
+removed and a "↓ N earlier messages" bottom sentinel is inserted. Scrolling
+down to the bottom sentinel (or clicking it) calls `_loadNewer()` to restore
+the content, chaining until the full historical window is reloaded or the live
+section is reached.
+
+The cap is deliberately message-count based (`_endIdx - _startIdx`), not DOM-
+node-count based. Multi-round agent messages produce 5–20 top-level DOM children
+each; the WINDOW_SIZE=50 initial load can produce 500+ nodes before the first
+`_loadOlder()` call. A DOM-node cap of 120 would prune 400+ nodes on the very
+first upward scroll, collapsing `scrollHeight` by far more than the prepend added
+and clamping `scrollTop` toward the bottom — the "scroll up, land at bottom"
+failure mode reported for long agent sessions.
 
 **Session boundary.**  
 An invisible `div.chat-history-sep` divides historical messages (those loaded
@@ -239,11 +249,14 @@ snap, the settling loop). All scenarios below were exercised directly.
 
 **Phase 3: Bidirectional pruning**
 - Session with 200 messages; scroll to first message; scroll back down →
-  historical nodes cap at BIDI\_CAP; bottom sentinel appears;
+  historical messages cap at BIDI\_MSG\_CAP (80); bottom sentinel appears;
   "↓ N earlier messages" count is accurate
 - Click bottom sentinel → batch loads; chaining continues to live section
 - Scroll back down without clicking → scroll listener triggers load at
   BIDI\_MARGIN (200 px) ahead of sentinel
+- Agent session with 200+ messages (many tool rounds): scroll up → no visible
+  jump to bottom on the first or subsequent batches (this was the scroll-jump
+  regression caused by the DOM-node cap; use a heavy agent session to verify)
 
 **Session switching**
 - Rapid switch across 5 sessions → each session loads correctly; no content
