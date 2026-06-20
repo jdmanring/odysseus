@@ -16,9 +16,9 @@ const _PROVIDERS = [
     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2L5 13H12L9 22 20 11H13z"/></svg>'],
 
   // Together AI — must precede OpenAI: endpoint path may contain /openai/v1
-  // Three overlapping blobs (no holes) — solid fill matches brand mark
+  // Three Venn-diagram circles — evenodd punches slots at pairwise intersections
   [/together/i,
-    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 8.5a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0ZM8.5 8.5a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0ZM5.5 14.5a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/></svg>'],
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M1 8a7 7 0 1 0 14 0a7 7 0 0 0-14 0ZM9 8a7 7 0 1 0 14 0a7 7 0 0 0-14 0ZM5 15a7 7 0 1 0 14 0a7 7 0 0 0-14 0Z"/></svg>'],
 
   // Fireworks AI — must precede OpenAI: endpoint path may contain /openai/v1
   [/fireworks/i,
@@ -27,6 +27,10 @@ const _PROVIDERS = [
   // Pollinations AI — must precede OpenAI: endpoint path contains /openai
   [/pollinations/i,
     '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6.5" r="3.5"/><circle cx="17.23" cy="10.3" r="3.5"/><circle cx="15.23" cy="16.45" r="3.5"/><circle cx="8.77" cy="16.45" r="3.5"/><circle cx="6.77" cy="10.3" r="3.5"/><circle cx="12" cy="12" r="2.5"/></svg>'],
+
+  // Google Gemini — must precede OpenAI: endpoint path /v1beta/openai contains "openai"
+  [/google|gemini|gemma/i,
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/></svg>'],
 
   // OpenAI — GPT, o1, o3, dall-e, chatgpt
   [/openai|gpt-|^o[13]-|chatgpt|dall-e/i,
@@ -47,10 +51,6 @@ const _PROVIDERS = [
   // Anthropic — Claude (official Simple Icons)
   [/anthropic|claude/i,
     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z"/></svg>'],
-
-  // Google Gemini (official Simple Icons)
-  [/google|gemini|gemma/i,
-    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/></svg>'],
 
   // Meta — Llama models (official Simple Icons). Exclude the llama.cpp / llama-cpp
   // / llamacpp inference engine — that's an independent project (ggml), not Meta.
