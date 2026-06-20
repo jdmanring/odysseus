@@ -87,6 +87,15 @@ Added `"nvidia"` entry with 15 ranked models so the NIM catalog is presented wit
 flagship models first rather than raw alphabetically. All model IDs verified against
 NVIDIA NIM documentation before filing.
 
+**`routes/model_routes.py` — endpoint auto-name fallback:**
+
+When an endpoint is added without an explicit name (e.g. by typing the URL manually),
+the backend previously extracted the raw hostname: `integrate.api.nvidia.com` for NIM,
+which displayed in Added Models and AI Defaults instead of "NVIDIA". The fallback now
+calls `_provider_label()` for recognised providers and uses the friendly name ("NVIDIA",
+"OpenAI", "Anthropic", etc.). Local and unrecognised endpoints continue using the
+hostname, where it remains more informative than a generic label.
+
 Curated list with documentation citations:
 
 | Model ID | Docs |
@@ -163,7 +172,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Filing Notes
 
-- Two commits. No squash needed.
+- Three commits. No squash needed.
 - Branch: `feat/nvidia-nim-support` — built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - All curated list model IDs verified against NVIDIA NIM documentation
