@@ -617,6 +617,7 @@ _API_HOSTS = frozenset([
     "api.perplexity.ai", "api.x.ai",
     "ollama.com", "api.venice.ai", "api.kimi.com",
     "api.githubcopilot.com",
+    "api.longcat.chat",   # LongCat — belt-and-suspenders with "longcat" keyword
     # Local OpenAI-compatible endpoints (llama.cpp, vLLM, LM Studio, etc.).
     # Without these, `_is_api_model` falls back to keyword sniffing on the
     # model name, so well-behaved local servers don't get native tool
