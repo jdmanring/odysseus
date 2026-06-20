@@ -1,8 +1,8 @@
 # PR Draft: feat/longcat-provider → pewdiepie-archdaemon/odysseus:dev
 
 **Branch:** `jdmanring/odysseus:feat/longcat-provider`
-**Issue:** [#58](https://github.com/jdmanring/odysseus/issues/58) (fork tracking)
-**Status:** Ready to file
+**Issues:** [#58](https://github.com/jdmanring/odysseus/issues/58) (provider integration), [#61](https://github.com/jdmanring/odysseus/issues/61) (max_tokens + stream_options gaps)
+**Status:** 3 commits — ready to file. File upstream issue first.
 
 ---
 
@@ -59,10 +59,54 @@ Users who type `https://api.longcat.chat/openai/v1` into the endpoint form get:
 - `SETUP_PROVIDER_URLS`: `longcat: { name: 'LongCat', url: 'https://api.longcat.chat/openai/v1' }`
 - `SETUP_PROVIDER_NAMES`: `'longcat'` appended
 
+**`src/agent_loop.py` — `_API_HOSTS`:**
+
+```python
+"api.longcat.chat",  # belt-and-suspenders: ensures native schemas even for
+                     # future LongCat model names that may not contain "longcat"
+```
+
+**`src/llm_core.py` — `_PROVIDER_DEFAULT_MAX_OUTPUT` (new table):**
+
+```python
+_PROVIDER_DEFAULT_MAX_OUTPUT: dict[str, int] = {
+    "longcat": 131072,  # API default 32 768; documented max 131 072
+}
+```
+
+Applied at all three payload-building sites in `llm_core.py` via:
+
+```python
+_effective_max_tokens = max_tokens if max_tokens and max_tokens > 0 \
+    else _PROVIDER_DEFAULT_MAX_OUTPUT.get(provider, 0)
+if _effective_max_tokens > 0:
+    tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) \
+        else "max_tokens"
+    payload[tok_key] = _effective_max_tokens
+```
+
+This replaces the previous unconditional `if max_tokens and max_tokens > 0` guard,
+which meant Odysseus sent no `max_tokens` when the caller passed `0` (the "let API
+decide" sentinel) — causing the LongCat API to apply its 32 768-token default and
+truncate long responses mid-output.
+
+**`src/llm_core.py` — `stream_options` exclusion:**
+
+```python
+if provider not in {"openrouter", "groq", "longcat"}:
+    payload["stream_options"] = {"include_usage": True}
+```
+
+LongCat's documented parameter list (`max_tokens`, `temperature`, `top_p`, `stream`,
+`tools`, `tool_choice`) does not include `stream_options`. Sending it caused HTTP
+400/422 or a malformed streaming response. LongCat added to the existing exclusion set.
+
 ### API compatibility notes
 
-LongCat exposes a standard OpenAI-compatible chat completions endpoint.
-No protocol quirks requiring special handling were found in the documentation.
+LongCat exposes a standard OpenAI-compatible chat completions endpoint with two
+documented quirks: a 32 768-token API default for `max_tokens` (ceiling 131 072), and
+no support for `stream_options`. Both are handled by the additions above.
+
 The model name `LongCat-2.0-Preview` is mixed-case and must be sent exactly
 as documented — the curated list entry preserves this casing.
 
@@ -94,6 +138,10 @@ https://longcat.chat/platform/docs/APIDocs.html
 | `TestLongCatContextWindow` | Direct lookup returns 1048576; namespaced form resolves |
 
 All 11 tests pass.
+
+The `_PROVIDER_DEFAULT_MAX_OUTPUT` table and stream_options exclusion are in `llm_core.py`
+payload-building code that requires a live API response to exercise end-to-end. Manual
+testing procedure in "How to Test" below covers both gaps.
 
 ---
 
@@ -134,11 +182,23 @@ Fixes # <!-- [add upstream issue number before filing] -->
 5. Type `/setup longcat` in the chat input. Confirm autocomplete offers the alias.
 6. Run `pytest tests/test_longcat_provider.py -v`.
 
+**Verifying the max_tokens fix (#61):**
+
+7. Request a long output (e.g. "Write a 5000-word essay on..."). Confirm the response
+   is not truncated at ~4000 words (the approximate 32 768-token output boundary).
+8. In the raw request log, confirm `max_tokens: 131072` appears in the payload.
+
+**Verifying the stream_options fix (#61):**
+
+9. Enable streaming. Confirm no HTTP 400/422 error occurs.
+10. In the raw request log, confirm `stream_options` does **not** appear in the payload
+    for LongCat (it should appear for OpenAI, Anthropic, and other supported providers).
+
 ---
 
 ## Filing Notes
 
-- Single commit (`71deb0e4`). No squash needed.
+- Three commits (`212b5099` logo, `1b7f04b3` ordering fix, `fae6ae6d` max_tokens + stream_options + _API_HOSTS). Squash to one before filing if preferred; all are logically part of the same provider integration.
 - Branch: `feat/longcat-provider` — built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - LongCat is Meituan's API service. API reference: https://longcat.chat/platform/docs/APIDocs.html
