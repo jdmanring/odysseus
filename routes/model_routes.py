@@ -1686,9 +1686,16 @@ def setup_model_routes(model_discovery):
         # keep those container-local when the frontend marks them as such.
         base_url = _rewrite_loopback_for_docker(base_url, container_local=_truthy(container_local))
 
-        # Auto-generate name from URL if not provided
+        # Auto-generate name from URL if not provided.
+        # Prefer the friendly provider label (e.g. "NVIDIA") over the raw
+        # hostname (e.g. "integrate.api.nvidia.com") for recognised endpoints.
         if not name.strip():
-            name = base_url.replace("http://", "").replace("https://", "").split("/")[0]
+            from src.llm_core import _provider_label
+            label = _provider_label(base_url)
+            if label not in ("provider", "local endpoint"):
+                name = label
+            else:
+                name = base_url.replace("http://", "").replace("https://", "").split("/")[0]
 
         requested_kind = _normalize_endpoint_kind(endpoint_kind)
         refresh_mode = _normalize_refresh_mode(model_refresh_mode, requested_kind)
