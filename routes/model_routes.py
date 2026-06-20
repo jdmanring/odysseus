@@ -284,6 +284,11 @@ _PROVIDER_CURATED = {
     "xai": [
         "grok-4.3", "grok-4", "grok-4-fast", "grok-3", "grok-3-fast",
     ],
+    # LongCat (Meituan). Single model as of 2026-06-19.
+    # Docs: https://longcat.chat/platform/docs/APIDocs.html
+    "longcat": [
+        "LongCat-2.0-Preview",
+    ],
 }
 
 # Map hostnames → curated-list keys for providers whose _detect_provider()
@@ -303,6 +308,7 @@ _HOST_TO_CURATED = (
     ("googleapis.com", "google"),
     ("x.ai", "xai"),
     ("nvidia.com", "nvidia"),
+    ("longcat.chat", "longcat"),
     ("openrouter.ai", "openrouter"),
     ("ollama.com", "ollama"),
 )
