@@ -617,6 +617,8 @@ _API_HOSTS = frozenset([
     "api.perplexity.ai", "api.x.ai",
     "ollama.com", "api.venice.ai", "api.kimi.com",
     "api.githubcopilot.com",
+    "integrate.api.nvidia.com",
+    "api.longcat.chat",
     # Local OpenAI-compatible endpoints (llama.cpp, vLLM, LM Studio, etc.).
     # Without these, `_is_api_model` falls back to keyword sniffing on the
     # model name, so well-behaved local servers don't get native tool
@@ -2098,6 +2100,9 @@ async def stream_agent_loop(
         "deepseek-v", "deepseek-chat",
         # LongCat (Meituan) is OpenAI-compatible and supports tool schemas.
         "longcat",
+        # NVIDIA NIM — Nemotron-native model names contain no existing keyword.
+        # All NIM models support OpenAI-compatible function calling.
+        "nemotron",
     ))
     # Models known to reject tool schemas at the Ollama/local level even when
     # the endpoint URL would otherwise enable native function calling.
