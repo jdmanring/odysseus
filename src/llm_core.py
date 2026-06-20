@@ -910,6 +910,15 @@ def _restricts_temperature(model: str) -> bool:
 # control, so omit temperature and let Moonshot use its default thinking mode.
 # Keep the gate provider-specific: self-hosted Kimi deployments may accept
 # custom sampling values, and older Moonshot models have different defaults.
+# Providers whose API default max_tokens is too low for agentic sessions.
+# When the caller passes max_tokens=0 ("let the API decide"), Odysseus applies
+# the provider's own default — which may cause premature output truncation.
+# Values here are the provider-documented safe maximum.
+_PROVIDER_DEFAULT_MAX_OUTPUT: dict[str, int] = {
+    "longcat": 131072,  # API default 32 768; documented max 131 072
+}
+
+
 def _moonshot_rejects_custom_temperature(provider: str, model: str) -> bool:
     """Check if the official Moonshot API fixes temperature for this model."""
     if provider != "moonshot" or not isinstance(model, str):
