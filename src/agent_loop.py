@@ -619,6 +619,14 @@ _API_HOSTS = frozenset([
     "api.githubcopilot.com",
     "api.longcat.chat",          # LongCat — belt-and-suspenders with "longcat" keyword
     "integrate.api.nvidia.com",   # NIM — OpenAI-compatible function calling
+    # Provider secondary domains and endpoints whose model names do not
+    # contain a keyword in _model_supports_tools — without explicit host
+    # coverage they silently degrade to fenced-block tool calling.
+    "generativelanguage.googleapis.com",  # Google Gemini OpenAI-compat
+    "pollinations.ai",                    # text.pollinations.ai proxy
+    "moonshot.cn",                        # api.moonshot.cn (Kimi/Moonshot CN)
+    "together.ai",                        # api.together.ai (Together secondary)
+    "bigmodel.cn",                        # open.bigmodel.cn (Zhipu GLM)
     # Local OpenAI-compatible endpoints (llama.cpp, vLLM, LM Studio, etc.).
     # Without these, `_is_api_model` falls back to keyword sniffing on the
     # model name, so well-behaved local servers don't get native tool
