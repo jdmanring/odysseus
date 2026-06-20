@@ -16,8 +16,9 @@ const _PROVIDERS = [
     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2L5 13H12L9 22 20 11H13z"/></svg>'],
 
   // Together AI — must precede OpenAI: endpoint path may contain /openai/v1
+  // Three overlapping blobs (no holes) — solid fill matches brand mark
   [/together/i,
-    '<svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M4 9a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0ZM9 9a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0ZM6.5 14a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z"/></svg>'],
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 8.5a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0ZM8.5 8.5a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0ZM5.5 14.5a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/></svg>'],
 
   // Fireworks AI — must precede OpenAI: endpoint path may contain /openai/v1
   [/fireworks/i,
