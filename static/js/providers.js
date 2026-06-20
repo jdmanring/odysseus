@@ -84,9 +84,9 @@ const _PROVIDERS = [
   [/kimi|moonshot/i,
     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 0-20zm0 2a8 8 0 0 1 0 16A6.5 6.5 0 0 0 12 4z"/></svg>'],
 
-  // LongCat (Meituan) — cat silhouette with pointed ears
+  // LongCat (Meituan) — M with cat ears and face, based on official brand mark
   [/longcat/i,
-    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3L2 0v7c0 5.5 4.5 10 10 10s10-4.5 10-10V0l-3 3C17.2 1.7 14.7 1 12 1S6.8 1.7 5 3zm4 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'],
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M2,22 L2,12 Q3,5 6,2 L8,1 L10,3 Q11,7 12,11 Q13,7 14,3 L16,1 L18,2 Q21,5 22,12 L22,22 Z M15.5,16 a3.5,3.5 0 1,0-7,0 a3.5,3.5 0 1,0 7,0 Z M11.5,15 a1,1 0 1,0-2,0 a1,1 0 1,0 2,0 Z M14.5,15 a1,1 0 1,0-2,0 a1,1 0 1,0 2,0 Z M12.5,17.5 a.5,.5 0 1,0-1,0 a.5,.5 0 1,0 1,0 Z"/></svg>'],
 
   // NVIDIA / Nemotron (official Simple Icons)
   [/nvidia|nemotron/i,
