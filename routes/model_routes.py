@@ -371,11 +371,6 @@ _PROVIDER_CURATED = {
     "xai": [
         "grok-4.3", "grok-4", "grok-4-fast", "grok-3", "grok-3-fast",
     ],
-    # LongCat (Meituan). Single model as of 2026-06-19.
-    # Docs: https://longcat.chat/platform/docs/APIDocs.html
-    "longcat": [
-        "LongCat-2.0-Preview",
-    ],
     # NVIDIA NIM: 91+ models in alphabetical API order; surface current flagship
     # families first. The full catalog is still accessible via "Show all models".
     "nvidia": [
