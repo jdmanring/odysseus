@@ -289,16 +289,16 @@ _PROVIDER_CURATED = {
     "nvidia": [
         # Nemotron flagship
         "nvidia/llama-3.1-nemotron-ultra-253b-v1",
-        "nvidia/nemotron-3-ultra-550b-a55b",
-        "nvidia/nemotron-3-super-120b-a12b",
-        "nvidia/llama-3.3-nemotron-super-49b-v1",
+        "nvidia/nemotron-3-ultra",
+        "nvidia/nemotron-3-super",
+        "nvidia/llama-3.3-nemotron-super-49b-v1.5",
         # Current-generation frontier models on NIM
         "deepseek-ai/deepseek-v4-pro",
         "deepseek-ai/deepseek-v4-flash",
         "meta/llama-4-maverick-17b-128e-instruct",
         "meta/llama-3.3-70b-instruct",
         "qwen/qwen3.5-397b-a17b",
-        "mistralai/mistral-large-3-675b-instruct-2512",
+        "mistralai/Mistral-Large-3-675B-Instruct-2512",
         "openai/gpt-oss-120b",
         # Vision
         "meta/llama-3.2-90b-vision-instruct",
