@@ -873,6 +873,15 @@ def _restricts_temperature(model: str) -> bool:
 # control, so omit temperature and let Moonshot use its default thinking mode.
 # Keep the gate provider-specific: self-hosted Kimi deployments may accept
 # custom sampling values, and older Moonshot models have different defaults.
+# Providers whose API default max_tokens is too low for agentic sessions.
+# When the caller passes max_tokens=0 ("let the API decide"), Odysseus applies
+# the provider's own default — which may cause premature output truncation.
+# Values here are the provider-documented safe maximum.
+_PROVIDER_DEFAULT_MAX_OUTPUT: dict[str, int] = {
+    "longcat": 131072,  # API default 32 768; documented max 131 072
+}
+
+
 def _moonshot_rejects_custom_temperature(provider: str, model: str) -> bool:
     """Check if the official Moonshot API fixes temperature for this model."""
     if provider != "moonshot" or not isinstance(model, str):
@@ -1438,9 +1447,10 @@ def llm_call(url: str, model: str, messages: List[Dict], temperature: float = LL
         }
         if _omit_temperature(provider, model):
             payload.pop("temperature", None)
-        if max_tokens and max_tokens > 0:
+        _effective_max_tokens = max_tokens if max_tokens and max_tokens > 0 else _PROVIDER_DEFAULT_MAX_OUTPUT.get(provider, 0)
+        if _effective_max_tokens > 0:
             tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
-            payload[tok_key] = max_tokens
+            payload[tok_key] = _effective_max_tokens
     try:
         note_model_activity(target_url, model)
         r = httpx_post_kimi_aware(target_url, h, json=payload, timeout=timeout)
@@ -1632,9 +1642,10 @@ async def llm_call_async(
         }
         if _omit_temperature(provider, model):
             payload.pop("temperature", None)
-        if max_tokens and max_tokens > 0:
+        _effective_max_tokens = max_tokens if max_tokens and max_tokens > 0 else _PROVIDER_DEFAULT_MAX_OUTPUT.get(provider, 0)
+        if _effective_max_tokens > 0:
             tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
-            payload[tok_key] = max_tokens
+            payload[tok_key] = _effective_max_tokens
         # Suppress thinking for qwen3/gemma4 on Ollama /v1 — same as stream_llm.
         if _is_ollama_openai_compat_url(url) and _supports_thinking(model):
             payload["think"] = False
@@ -1749,11 +1760,12 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
         }
         if _omit_temperature(provider, model):
             payload.pop("temperature", None)
-        if provider not in {"openrouter", "groq"}:
+        if provider not in {"openrouter", "groq", "longcat"}:
             payload["stream_options"] = {"include_usage": True}
-        if max_tokens and max_tokens > 0:
+        _effective_max_tokens = max_tokens if max_tokens and max_tokens > 0 else _PROVIDER_DEFAULT_MAX_OUTPUT.get(provider, 0)
+        if _effective_max_tokens > 0:
             tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
-            payload[tok_key] = max_tokens
+            payload[tok_key] = _effective_max_tokens
         if tools:
             payload["tools"] = tools
         # For Ollama's OpenAI-compat /v1 endpoint with thinking models (qwen3,
