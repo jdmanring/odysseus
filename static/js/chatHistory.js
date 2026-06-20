@@ -23,7 +23,12 @@
   var BATCH_SIZE   = 25;    // messages loaded per upward/downward scroll step
   var PRUNE_AT     = 80;    // live DOM child count that triggers Phase 2 pruning
   var PRUNE_COUNT  = 20;    // nodes removed per Phase 2 prune event
-  var BIDI_CAP     = 120;   // historical DOM child count that triggers bottom prune
+  var BIDI_CAP     = 120;   // historical DOM child count that triggers top prune (in _loadNewer)
+  // Phase 3 cap for _loadOlder is message-based, not DOM-node-based.
+  // Multi-round agent messages produce many top-level DOM children each, so a
+  // DOM-node cap is unreliable: the WINDOW_SIZE=50 initial load can already
+  // exceed BIDI_CAP and cause a massive prune on the first _loadOlder() call.
+  var BIDI_MSG_CAP = 80;    // max historical *messages* in DOM during upward scroll
   // Pixels ahead of the bottom sentinel at which downward scroll pre-loads the batch.
   var BIDI_MARGIN  = 200;
 
@@ -319,11 +324,57 @@
     this._c.scrollTop += this._c.scrollHeight - before;
 
     // Phase 3: cap historical DOM size; pruned content reloads on scroll-down.
-    // Removed nodes are at the bottom of the historical section (below viewport)
-    // so no scroll compensation is needed here.
-    var hist = this._histChildCount();
-    if (hist > BIDI_CAP) {
-      this._pruneBottom(hist - BIDI_CAP);
+    // Guard is message count (_endIdx - _startIdx), not DOM node count — agent
+    // messages span many top-level nodes, making _histChildCount() unreliable here.
+    var histMsgCount = this._endIdx - this._startIdx;
+    if (histMsgCount > BIDI_MSG_CAP) {
+      var _pruneTarget = this._endIdx - (histMsgCount - BIDI_MSG_CAP);
+      var _beforePruneTop = this._c.scrollTop;
+      var _pruneRemoved = 0;
+      var _pruneLowest = this._endIdx;
+      var _pRef = this._histSep
+        ? this._histSep.previousSibling
+        : this._c.lastElementChild;
+      while (_pRef) {
+        var _pPrev = _pRef.previousSibling;
+        var _pIsCtl = (_pRef === this._sentinel || _pRef === this._bSentinel ||
+                       _pRef === this._histSep ||
+                       _pRef.classList.contains('chat-history-spacer'));
+        if (!_pIsCtl) {
+          var _pIdx = (_pRef.dataset && _pRef.dataset.chIdx !== undefined)
+            ? parseInt(_pRef.dataset.chIdx, 10) : null;
+          if (_pIdx === null || _pIdx < _pruneTarget) break;
+          _pRef.remove();
+          _pruneRemoved++;
+          if (_pIdx < _pruneLowest) _pruneLowest = _pIdx;
+        }
+        _pRef = _pPrev;
+      }
+      if (_pruneRemoved > 0) {
+        // Boundary: remove remaining siblings at the same chIdx so the first node
+        // left in DOM always begins a complete message.
+        var _pPeek = this._histSep
+          ? this._histSep.previousElementSibling
+          : this._c.lastElementChild;
+        while (_pPeek && _pPeek !== this._sentinel && _pPeek !== this._bSentinel &&
+               !_pPeek.classList.contains('chat-history-spacer')) {
+          if (_pPeek.dataset && parseInt(_pPeek.dataset.chIdx, 10) === _pruneLowest) {
+            var _pPeekNext = _pPeek.previousElementSibling;
+            _pPeek.remove();
+            _pPeek = _pPeekNext;
+          } else { break; }
+        }
+        this._endIdx = _pruneLowest;
+        this._attachBottomSentinel();
+        // The prune reduced scrollHeight. Re-assert the pre-prune scrollTop so
+        // the browser's implicit clamp does not silently move the user toward
+        // the bottom. If the clamp is unavoidable (prune > content_below_viewport),
+        // this pins to the highest achievable position.
+        this._c.scrollTop = Math.min(
+          _beforePruneTop,
+          Math.max(0, this._c.scrollHeight - this._c.clientHeight)
+        );
+      }
     }
     var self = this;
     var _ogen = this._gen;
