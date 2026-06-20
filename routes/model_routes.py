@@ -1417,7 +1417,7 @@ def setup_model_routes(model_discovery):
             cached_count = len(_cached_model_ids(ep))
             entry = {
                 "id": ep.id,
-                "name": ep.name,
+                "name": _ep_display_name(ep.name, base),
                 "base_url": base,
                 "provider": provider,
                 "category": _classify_endpoint(base, kind),
@@ -1575,6 +1575,21 @@ def setup_model_routes(model_discovery):
 
     # ---- Admin: model endpoints CRUD ----
 
+    def _ep_display_name(name: str, base_url: str) -> str:
+        """Return a friendly display name, upgrading raw hostnames to provider labels.
+
+        Endpoints added by typing a URL directly get their hostname as the stored
+        name (e.g. "integrate.api.nvidia.com"). When the name looks like a hostname
+        (has dots, no spaces), try _provider_label; if it resolves to a known
+        provider, return that instead so the UI shows "NVIDIA" not the subdomain.
+        """
+        if name and "." in name and " " not in name:
+            from src.llm_core import _provider_label
+            label = _provider_label(base_url)
+            if label not in ("provider", "local endpoint"):
+                return label
+        return name
+
     @router.get("/model-endpoints")
     def list_model_endpoints(request: Request) -> List[Dict[str, Any]]:
         require_admin(request)
@@ -1624,7 +1639,7 @@ def setup_model_routes(model_discovery):
                 kind = _effective_endpoint_kind(r, base)
                 results.append({
                     "id": r.id,
-                    "name": r.name,
+                    "name": _ep_display_name(r.name, r.base_url),
                     "base_url": r.base_url,
                     "has_key": bool(r.api_key),
                     "api_key_fingerprint": _api_key_fingerprint(r.api_key),
