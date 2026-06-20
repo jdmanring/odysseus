@@ -84,17 +84,44 @@ in the org prefix of `'moonshotai/kimi-k2.6'`, returning 128K instead of the cor
 **`routes/model_routes.py` — `_PROVIDER_CURATED`:**
 
 Added `"nvidia"` entry with 15 ranked models so the NIM catalog is presented with
-flagship models first rather than raw alphabetically.
+flagship models first rather than raw alphabetically. All model IDs verified against
+NVIDIA NIM documentation before filing.
+
+Curated list with documentation citations:
+
+| Model ID | Docs |
+|----------|------|
+| `nvidia/llama-3.1-nemotron-ultra-253b-v1` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/nvidia-llama-3_1-nemotron-ultra-253b-v1) |
+| `nvidia/nemotron-3-ultra` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3-ultra-550b-a55b) |
+| `nvidia/nemotron-3-super` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3-super-120b-a12b) |
+| `nvidia/llama-3.3-nemotron-super-49b-v1.5` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/nvidia-llama-3_3-nemotron-super-49b-v1_5) |
+| `deepseek-ai/deepseek-v4-pro` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/deepseek-ai-deepseek-v4-pro) |
+| `deepseek-ai/deepseek-v4-flash` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/deepseek-ai-deepseek-v4-flash) |
+| `meta/llama-4-maverick-17b-128e-instruct` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/meta-llama-4-maverick-17b-128e-instruct) |
+| `meta/llama-3.3-70b-instruct` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/meta-llama-3_3-70b-instruct) |
+| `qwen/qwen3.5-397b-a17b` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/qwen-qwen3-5-397b-a17b) |
+| `mistralai/Mistral-Large-3-675B-Instruct-2512` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/mistralai-mistral-large-3-675b-instruct-2512) |
+| `openai/gpt-oss-120b` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/openai-gpt-oss-120b) |
+| `meta/llama-3.2-90b-vision-instruct` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/meta-llama-3_2-90b-vision-instruct) |
+| `nvidia/nemotron-nano-12b-v2-vl` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-nano-12b-v2-vl) |
+| `nvidia/llama-3.1-nemotron-nano-8b-v1` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/nvidia-llama-3_1-nemotron-nano-8b-v1) |
+| `meta/llama-3.2-3b-instruct` | [docs.api.nvidia.com](https://docs.api.nvidia.com/nim/reference/meta-llama-3_2-3b-instruct) |
+
+Notes on short names: `nvidia/nemotron-3-ultra` and `nvidia/nemotron-3-super` are the
+served model IDs used in NIM API calls; the full parameter-count identifiers
+(e.g. `nvidia/nemotron-3-ultra-550b-a55b`) appear in docs and checkpoint names only.
+`nvidia/llama-3.3-nemotron-super-49b-v1.5` (released 2025-07-25) is the current
+recommended version, superseding v1 with additional RL/DPO training stages.
 
 ### Testing
 
-- `tests/test_nvidia_nim_context.py` — 51 new tests covering all 30 previously-
-  unrecognized families, all 12 stale-value corrections, longest-key invariants, and
+- `tests/test_nvidia_nim_context.py` — 54 tests covering all 30 previously-
+  unrecognized families, all stale-value corrections, longest-key invariants, and
   the nvidia curated list.
 - `tests/test_model_context.py` — updated 3 existing assertions for corrected deepseek
   values.
 
-All 87 tests pass (`tests/test_nvidia_nim_context.py` + `tests/test_model_context.py`).
+All tests pass.
 
 ## Target branch
 
@@ -136,11 +163,11 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Filing Notes
 
-- One commit. No squash needed.
+- Two commits. No squash needed.
 - Branch: `feat/nvidia-nim-support` — built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
-- Context window values verified against NVIDIA NIM documentation
-  (docs.api.nvidia.com/nim/reference/) and llmreference.com/provider/nvidia-nim.
+- All curated list model IDs verified against NVIDIA NIM documentation
+  (docs.api.nvidia.com/nim/reference/). Citations in table above.
 
 ## Visual / UI changes
 
