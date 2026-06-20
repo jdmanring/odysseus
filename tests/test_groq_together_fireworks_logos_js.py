@@ -1,13 +1,19 @@
-"""Logo detection for Groq, Together.ai, and Fireworks AI provider entries.
+"""Logo detection for Groq, Together.ai, Fireworks AI, and Pollinations AI.
 
-All three providers already have backend detection (_detect_provider,
-_provider_label, _PROVIDER_CURATED) but lacked entries in the _PROVIDERS
-logo catalog in static/js/providers.js.  This file verifies:
+These providers were added to _PROVIDERS in static/js/providers.js and must
+appear BEFORE the OpenAI entry — all four route through URL paths that contain
+the word "openai" (e.g. /openai/v1, /openai), which would match the OpenAI
+regex (/openai|gpt-/i) if the ordering is wrong.
+
+Google Gemini is also tested here because its OpenAI-compatible endpoint
+(https://generativelanguage.googleapis.com/v1beta/openai) contains "openai"
+in the path, causing the same ordering regression if Google is placed after
+OpenAI in the _PROVIDERS array.
+
+Checks:
   - providerLogo() matches known model-ID strings
   - providerLogoFromUrl() matches the real API endpoint hosts
   - providerLogoFromUrl() does NOT return the OpenAI logo for these endpoints
-    (all three route through /openai/v1, which would match the OpenAI regex
-     if these entries were not placed before OpenAI in _PROVIDERS)
 """
 import json
 import shutil
@@ -94,7 +100,9 @@ class TestTogetherLogo:
 
     def test_svg_has_evenodd_fill_rule(self):
         svg = _logo_for_model("together/mistral-7b-instruct")
-        assert svg is not None and "evenodd" in svg, "Together AI logo must use evenodd fill-rule for Venn diagram slots"
+        assert svg is not None and "evenodd" in svg, (
+            "Together AI logo must use evenodd fill-rule for Venn diagram slots"
+        )
 
 
 # ── Fireworks AI ─────────────────────────────────────────────────────────────
@@ -109,6 +117,26 @@ class TestFireworksLogo:
     def test_url_does_not_return_openai_logo(self):
         fw_svg = _logo_for_url("https://api.fireworks.ai/inference/v1")
         assert fw_svg != _openai_svg()
+
+
+# ── Pollinations AI ───────────────────────────────────────────────────────────
+# text.pollinations.ai/openai — path contains "openai", so ordering vs OpenAI matters
+
+class TestPollinationsLogo:
+    _POLLINATIONS_URL = "https://text.pollinations.ai/openai"
+
+    def test_model_id_gets_logo(self):
+        assert _logo_for_model("pollinations/openai-large") is not None
+
+    def test_url_host_gets_logo(self):
+        assert _logo_for_url(self._POLLINATIONS_URL) is not None
+
+    def test_url_does_not_return_openai_logo(self):
+        poll_svg = _logo_for_url(self._POLLINATIONS_URL)
+        assert poll_svg != _openai_svg(), (
+            "Pollinations endpoint returned OpenAI logo — "
+            "Pollinations entry must precede OpenAI in _PROVIDERS"
+        )
 
 
 # ── Google Gemini ─────────────────────────────────────────────────────────────
