@@ -220,6 +220,9 @@ KNOWN_CONTEXT_WINDOWS = {
     'hermes': 131072,
     'nous-hermes': 131072,
 
+    # --- LongCat (Meituan) ---
+    'longcat': 1048576,  # LongCat-2.0-Preview: 1M token context window
+
     # --- Open community ---
     'dolphin': 32768,
     'mythomax': 4096,
