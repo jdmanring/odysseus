@@ -284,29 +284,6 @@ _PROVIDER_CURATED = {
     "xai": [
         "grok-4.3", "grok-4", "grok-4-fast", "grok-3", "grok-3-fast",
     ],
-    # NVIDIA NIM: 91+ models in alphabetical API order; surface current flagship
-    # families first. The full catalog is still accessible via "Show all models".
-    "nvidia": [
-        # Nemotron flagship
-        "nvidia/llama-3.1-nemotron-ultra-253b-v1",
-        "nvidia/nemotron-3-ultra",
-        "nvidia/nemotron-3-super",
-        "nvidia/llama-3.3-nemotron-super-49b-v1.5",
-        # Current-generation frontier models on NIM
-        "deepseek-ai/deepseek-v4-pro",
-        "deepseek-ai/deepseek-v4-flash",
-        "meta/llama-4-maverick-17b-128e-instruct",
-        "meta/llama-3.3-70b-instruct",
-        "qwen/qwen3.5-397b-a17b",
-        "mistralai/Mistral-Large-3-675B-Instruct-2512",
-        "openai/gpt-oss-120b",
-        # Vision
-        "meta/llama-3.2-90b-vision-instruct",
-        "nvidia/nemotron-nano-12b-v2-vl",
-        # Efficient / edge
-        "nvidia/llama-3.1-nemotron-nano-8b-v1",
-        "meta/llama-3.2-3b-instruct",
-    ],
     # LongCat (Meituan). Single model as of 2026-06-19.
     # Docs: https://longcat.chat/platform/docs/APIDocs.html
     "longcat": [
@@ -1686,16 +1663,9 @@ def setup_model_routes(model_discovery):
         # keep those container-local when the frontend marks them as such.
         base_url = _rewrite_loopback_for_docker(base_url, container_local=_truthy(container_local))
 
-        # Auto-generate name from URL if not provided.
-        # Prefer the friendly provider label (e.g. "NVIDIA") over the raw
-        # hostname (e.g. "integrate.api.nvidia.com") for recognised endpoints.
+        # Auto-generate name from URL if not provided
         if not name.strip():
-            from src.llm_core import _provider_label
-            label = _provider_label(base_url)
-            if label not in ("provider", "local endpoint"):
-                name = label
-            else:
-                name = base_url.replace("http://", "").replace("https://", "").split("/")[0]
+            name = base_url.replace("http://", "").replace("https://", "").split("/")[0]
 
         requested_kind = _normalize_endpoint_kind(endpoint_kind)
         refresh_mode = _normalize_refresh_mode(model_refresh_mode, requested_kind)
