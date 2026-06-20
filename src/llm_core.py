@@ -870,6 +870,13 @@ def _format_upstream_error(status: int, body: bytes | str, url: str) -> str:
 # Models that require max_completion_tokens instead of max_tokens
 _MAX_COMPLETION_TOKENS_MODELS = {"o1", "o3", "o4", "gpt-4.5", "gpt-5"}
 
+# Providers whose API default max_output_tokens is low enough to cause surprising
+# mid-output stops. When the caller sends max_tokens=0 (no preference), use these
+# values instead of letting the provider silently truncate long agentic turns.
+_PROVIDER_DEFAULT_MAX_OUTPUT = {
+    "longcat": 131072,  # API default is 32K; documented max is 131072
+}
+
 def _uses_max_completion_tokens(model: str) -> bool:
     """Check if a model requires max_completion_tokens instead of max_tokens."""
     if not model:
@@ -1465,9 +1472,10 @@ def llm_call(url: str, model: str, messages: List[Dict], temperature: float = LL
         }
         if _omit_temperature(provider, model):
             payload.pop("temperature", None)
-        if max_tokens and max_tokens > 0:
+        _effective_max_tokens = max_tokens if max_tokens and max_tokens > 0 else _PROVIDER_DEFAULT_MAX_OUTPUT.get(provider, 0)
+        if _effective_max_tokens > 0:
             tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
-            payload[tok_key] = max_tokens
+            payload[tok_key] = _effective_max_tokens
     try:
         note_model_activity(target_url, model)
         r = httpx_post_kimi_aware(target_url, h, json=payload, timeout=timeout)
@@ -1659,9 +1667,10 @@ async def llm_call_async(
         }
         if _omit_temperature(provider, model):
             payload.pop("temperature", None)
-        if max_tokens and max_tokens > 0:
+        _effective_max_tokens = max_tokens if max_tokens and max_tokens > 0 else _PROVIDER_DEFAULT_MAX_OUTPUT.get(provider, 0)
+        if _effective_max_tokens > 0:
             tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
-            payload[tok_key] = max_tokens
+            payload[tok_key] = _effective_max_tokens
         # Suppress thinking for qwen3/gemma4 on Ollama /v1 — same as stream_llm.
         if _is_ollama_openai_compat_url(url) and _supports_thinking(model):
             payload["think"] = False
@@ -1785,9 +1794,10 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
             payload.pop("temperature", None)
         if provider not in {"openrouter", "groq"}:
             payload["stream_options"] = {"include_usage": True}
-        if max_tokens and max_tokens > 0:
+        _effective_max_tokens = max_tokens if max_tokens and max_tokens > 0 else _PROVIDER_DEFAULT_MAX_OUTPUT.get(provider, 0)
+        if _effective_max_tokens > 0:
             tok_key = "max_completion_tokens" if _uses_max_completion_tokens(model) else "max_tokens"
-            payload[tok_key] = max_tokens
+            payload[tok_key] = _effective_max_tokens
         if tools:
             payload["tools"] = tools
         # For Ollama's OpenAI-compat /v1 endpoint with thinking models (qwen3,
