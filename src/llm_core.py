@@ -635,6 +635,8 @@ def _detect_provider(url: str) -> str:
         return "openrouter"
     if _host_match(url, "groq.com"):
         return "groq"
+    if _host_match(url, "longcat.chat"):
+        return "longcat"
     if _host_match(url, "nvidia.com"):
         return "nvidia"
     if _host_match(url, "longcat.chat"):
@@ -733,6 +735,7 @@ def _provider_label(url: str) -> str:
     if is_copilot_base(url): return "GitHub Copilot"
     if _host_match(url, "mistral.ai"): return "Mistral"
     if _host_match(url, "deepseek.com"): return "DeepSeek"
+    if _host_match(url, "longcat.chat"): return "LongCat"
     if _host_match(url, "nvidia.com"): return "NVIDIA"
     if _host_match(url, "longcat.chat"): return "LongCat"
     if _host_match(url, "googleapis.com"): return "Google"

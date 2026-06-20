@@ -307,6 +307,11 @@ _PROVIDER_CURATED = {
         "nvidia/llama-3.1-nemotron-nano-8b-v1",
         "meta/llama-3.2-3b-instruct",
     ],
+    # LongCat (Meituan). Single model as of 2026-06-19.
+    # Docs: https://longcat.chat/platform/docs/APIDocs.html
+    "longcat": [
+        "LongCat-2.0-Preview",
+    ],
 }
 
 # Map hostnames → curated-list keys for providers whose _detect_provider()

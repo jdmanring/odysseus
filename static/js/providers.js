@@ -101,6 +101,12 @@ const _PROVIDERS = [
   [/kimi|moonshot/i,
     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 0-20zm0 2a8 8 0 0 1 0 16A6.5 6.5 0 0 0 12 4z"/></svg>'],
 
+  // LongCat (Meituan) — official brand image, cat face filled white
+  // viewBox crops to 75x75 square around the M content (x=2..77, y=1..76)
+  // so the M fills width and is centered vertically at small render sizes
+  [/longcat/i,
+    '<svg viewBox="2 1 75 75"><image href="data:image/png;base64,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" width="80" height="80"/></svg>'],
+
   // NVIDIA / Nemotron (official Simple Icons)
   [/nvidia|nemotron/i,
     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.948 8.798v-1.43a6.7 6.7 0 0 1 .424-.018c3.922-.124 6.493 3.374 6.493 3.374s-2.774 3.851-5.75 3.851c-.398 0-.787-.062-1.158-.185v-4.346c1.528.185 1.837.857 2.747 2.385l2.04-1.714s-1.492-1.952-4-1.952a6.016 6.016 0 0 0-.796.035m0-4.735v2.138l.424-.027c5.45-.185 9.01 4.47 9.01 4.47s-4.08 4.964-8.33 4.964c-.37 0-.733-.035-1.095-.097v1.325c.3.035.61.062.91.062 3.957 0 6.82-2.023 9.593-4.408.459.371 2.34 1.263 2.73 1.652-2.633 2.208-8.772 3.984-12.253 3.984-.335 0-.653-.018-.971-.053v1.864H24V4.063zm0 10.326v1.131c-3.657-.654-4.673-4.46-4.673-4.46s1.758-1.944 4.673-2.262v1.237H8.94c-1.528-.186-2.73 1.245-2.73 1.245s.68 2.412 2.739 3.11M2.456 10.9s2.164-3.197 6.5-3.533V6.201C4.153 6.59 0 10.653 0 10.653s2.35 6.802 8.948 7.42v-1.237c-4.84-.6-6.492-5.936-6.492-5.936z"/></svg>'],
@@ -135,6 +141,7 @@ const _ENDPOINT_LABELS = [
   [/(^|\.)together\.(ai|xyz)$/i, "Together"],
   [/(^|\.)fireworks\.ai$/i, "Fireworks"],
   [/(^|\.)perplexity\.ai$/i, "Perplexity"],
+  [/(^|\.)longcat\.chat$/i, "LongCat"],
   [/(^|\.)nvidia\.com$/i, "NVIDIA"],
   [/(^|\.)longcat\.chat$/i, "LongCat"],
   [/(^|\.)x\.ai$/i, "xAI"],
