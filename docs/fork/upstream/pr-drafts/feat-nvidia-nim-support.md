@@ -89,12 +89,13 @@ NVIDIA NIM documentation before filing.
 
 **`routes/model_routes.py` — endpoint auto-name fallback:**
 
-When an endpoint is added without an explicit name (e.g. by typing the URL manually),
-the backend previously extracted the raw hostname: `integrate.api.nvidia.com` for NIM,
-which displayed in Added Models and AI Defaults instead of "NVIDIA". The fallback now
-calls `_provider_label()` for recognised providers and uses the friendly name ("NVIDIA",
-"OpenAI", "Anthropic", etc.). Local and unrecognised endpoints continue using the
-hostname, where it remains more informative than a generic label.
+When an endpoint is added without an explicit name (e.g. by typing the URL directly
+rather than using the provider picker), the backend previously extracted the raw
+hostname — `integrate.api.nvidia.com` for NIM — which then appeared verbatim in
+Added Models and AI Defaults. The fallback now calls `_provider_label()` first; for
+recognised providers it uses the friendly name ("NVIDIA", "OpenAI", "Anthropic", etc.).
+Local and unrecognised endpoints continue using the hostname, where it remains more
+informative.
 
 Curated list with documentation citations:
 
@@ -172,7 +173,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Filing Notes
 
-- Three commits. No squash needed.
+- Four commits (includes a revert). Squash to three before filing if preferred.
 - Branch: `feat/nvidia-nim-support` — built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - All curated list model IDs verified against NVIDIA NIM documentation
