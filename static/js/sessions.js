@@ -1590,7 +1590,9 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
     const isOC = meta && (meta.is_openclaw || id === 'openclaw');
     let msgHistory = [], modelName = null;
     if (!isOC) {
-      const res = await fetch(`${API_BASE}/api/history/${id}`);
+      // Request at most 400 most-recent messages to keep the JSON payload
+      // and DOM render bounded for long-running agent sessions.
+      const res = await fetch(`${API_BASE}/api/history/${id}?limit=400`);
       const data = await res.json();
       if (navToken !== _sessionNavToken || currentSessionId !== id) return;
       msgHistory = data.history || [];
@@ -1682,6 +1684,13 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
     // opacity='1' (our previous order) let Chrome initialise the compositor with
     // scrollTop=0 (left by innerHTML='') and defer the correction.
     uiModule.scrollHistoryInstant();
+
+    // Trim DOM after bulk history render — long sessions can have hundreds
+    // of messages that would otherwise never trigger the streaming-only guard.
+    if (window.chatModule && window.chatModule.trimChatHistoryDOM) {
+      window.chatModule.trimChatHistoryDOM();
+    }
+
     // Fade in and re-enable message animations
     if (chatHistory) {
       chatHistory.style.transition = 'opacity 0.15s ease-in';
@@ -2371,7 +2380,7 @@ async function _arcPeekOpen(sid) {
     _peekingSessionId = sid;
     closeArchive();
     // Load history directly without unarchiving
-    const res = await fetch(`${API_BASE}/api/history/${sid}`);
+    const res = await fetch(`${API_BASE}/api/history/${sid}?limit=400`);
     const data = await res.json();
     const history = data.history || [];
 
@@ -2399,6 +2408,9 @@ async function _arcPeekOpen(sid) {
       }
     }
     if (window.uiModule) window.uiModule.scrollHistory();
+    if (window.chatModule && window.chatModule.trimChatHistoryDOM) {
+      window.chatModule.trimChatHistoryDOM();
+    }
   } catch (e) {
     console.error('Peek open failed:', e);
     uiModule.showError('Failed to open archived session');
