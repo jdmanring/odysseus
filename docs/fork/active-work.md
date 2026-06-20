@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-19. `fix/google-compat-toolcalls` (#39) closed — premise disproved by live API test. `fix/tool-result-role` (#4) closed — superseded by upstream #1629. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366. Temporary fork fix for #4366 on develop (commit `d8c7fa21`) — remove when #4366 merges through ingest pipeline. Three upstream-candidate issues filed 2026-06-19 (#54, #55, #56); all three branches now committed and pushed. #54 (api/proxy early-return) is upstream-authored; practical fix is the table expansion in #56. #55 (429 backoff): `_parse_retry_after`, Retry-After in `llm_call_async`, delay before fallback advance, 15 tests pass. #56 (NIM context windows + curated list): 87 tests pass.
+Last updated: 2026-06-19. `fix/google-compat-toolcalls` (#39) closed — premise disproved by live API test. `fix/tool-result-role` (#4) closed — superseded by upstream #1629. `fix/workspace-shell-access` (#47) closed — superseded by upstream PR #4366. Temporary fork fix for #4366 on develop (commit `d8c7fa21`) — remove when #4366 merges through ingest pipeline. Three upstream-candidate issues filed 2026-06-19 (#54, #55, #56); all three branches now committed and pushed. #54 (api/proxy early-return) is upstream-authored; practical fix is the table expansion in #56. #55 (429 backoff): `_parse_retry_after`, Retry-After in `llm_call_async`, delay before fallback advance, 15 tests pass. #56 (NIM context windows + curated list): 87 tests pass. #58 (LongCat provider): `feat/longcat-provider` committed (71deb0e4) and pushed — 11 tests pass.
 
 ---
 
@@ -31,6 +31,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 
 | Branch | Issue(s) | Notes |
 |--------|----------|-------|
+| `feat/longcat-provider` | [#58](https://github.com/jdmanring/odysseus/issues/58) | Single commit, ready. File upstream issue first. Source: https://longcat.chat/platform/docs/APIDocs.html |
 | `feat/nvidia-nim-support` | [#56](https://github.com/jdmanring/odysseus/issues/56) | Single commit, ready. File upstream issue first. |
 | `fix/stream-429-backoff` | [#55](https://github.com/jdmanring/odysseus/issues/55) | Single commit, ready. File upstream issue first. |
 | `fix/agent-context-budget-discovery` | [#54](https://github.com/jdmanring/odysseus/issues/54) | Test-coverage only (early-return preserved). File upstream issue first; note early-return removal is upstream-author decision. |
