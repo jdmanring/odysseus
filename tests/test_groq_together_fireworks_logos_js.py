@@ -92,6 +92,10 @@ class TestTogetherLogo:
         together_svg = _logo_for_url("https://api.together.xyz/v1")
         assert together_svg != _openai_svg()
 
+    def test_svg_has_evenodd_fill_rule(self):
+        svg = _logo_for_model("together/mistral-7b-instruct")
+        assert svg is not None and "evenodd" in svg, "Together AI logo must use evenodd fill-rule for Venn diagram slots"
+
 
 # ── Fireworks AI ─────────────────────────────────────────────────────────────
 
@@ -105,3 +109,24 @@ class TestFireworksLogo:
     def test_url_does_not_return_openai_logo(self):
         fw_svg = _logo_for_url("https://api.fireworks.ai/inference/v1")
         assert fw_svg != _openai_svg()
+
+
+# ── Google Gemini ─────────────────────────────────────────────────────────────
+# The Google OpenAI-compat URL has /v1beta/openai in the path, which triggers
+# the OpenAI regex if Google is not placed before OpenAI in _PROVIDERS.
+
+class TestGoogleGeminiLogo:
+    _GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+
+    def test_model_id_gets_logo(self):
+        assert _logo_for_model("gemini-2.0-flash") is not None
+
+    def test_url_googleapis_host_gets_logo(self):
+        assert _logo_for_url(self._GOOGLE_URL) is not None
+
+    def test_url_does_not_return_openai_logo(self):
+        google_svg = _logo_for_url(self._GOOGLE_URL)
+        assert google_svg != _openai_svg(), (
+            "Google Gemini endpoint returned OpenAI logo — "
+            "Google entry must precede OpenAI in _PROVIDERS"
+        )
