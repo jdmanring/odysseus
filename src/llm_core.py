@@ -1792,7 +1792,7 @@ async def stream_llm(url: str, model: str, messages: List[Dict], temperature: fl
         }
         if _omit_temperature(provider, model):
             payload.pop("temperature", None)
-        if provider not in {"openrouter", "groq"}:
+        if provider not in {"openrouter", "groq", "longcat"}:
             payload["stream_options"] = {"include_usage": True}
         _effective_max_tokens = max_tokens if max_tokens and max_tokens > 0 else _PROVIDER_DEFAULT_MAX_OUTPUT.get(provider, 0)
         if _effective_max_tokens > 0:
