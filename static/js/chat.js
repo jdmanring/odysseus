@@ -1278,6 +1278,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
       let _nextIsError = false;
       let _streamSawDone = false;
+      let _renderRafId = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -1325,7 +1326,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               var bgDone = _backgroundStreams.get(streamSessionId);
               if (bgDone) {
                 bgDone.status = 'completed';
-                bgDone.accumulated = accumulated;
+                // Clear large string fields — text is persisted to DB, no need to hold in RAM
+                bgDone.accumulated = '';
+                bgDone.sourcesHtml = '';
+                bgDone.findingsData = null;
                 if (_isBg) {
                   try {
                     _notifyStreamComplete(streamSessionId, streamQuery);
@@ -1577,7 +1581,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                       .replace(/<\|channel>response\s*\n?/gi, '')
                       .replace(/<channel\|>/gi, '');
                     thinkText = thinkText.replace(/^\s*Thinking(?:\s+Process)?:\s*/i, '');
-                    _liveThinkInner.innerHTML = markdownModule.mdToHtml(thinkText);
+                    // Use textContent during streaming — avoids O(n²) mdToHtml allocation
+                    // per token. Final rich render happens when the thinking block closes.
+                    _liveThinkInner.textContent = thinkText;
+                    _liveThinkInner.style.whiteSpace = 'pre-wrap';
                     // Keep thinking box scrolled to bottom, but let user scroll up
                     var thinkBox = _liveThinkInner.closest('.thinking-content');
                     if (thinkBox) {
@@ -1608,6 +1615,13 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                     _renderStream();
                     _scheduleThinkingSpinner();
                     continue;
+                  }
+
+                  // Convert raw textContent to rich HTML now that thinking is complete
+                  if (_liveThinkInner) {
+                    var _rawThinkText = _liveThinkInner.textContent;
+                    _liveThinkInner.style.whiteSpace = '';
+                    _liveThinkInner.innerHTML = markdownModule.mdToHtml(_rawThinkText);
                   }
 
                   // Thinking ended — smooth transition: update header, pause, then collapse
@@ -1655,9 +1669,11 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   // Render any reply text that arrived with the closing </think> token
                   _renderStream();
                 } else {
-                  // Normal streaming
+                  // Normal streaming — throttle to one render per animation frame
                   if (spinner && spinner.element) spinner.destroy();
-                  _renderStream();
+                  if (!_renderRafId) {
+                    _renderRafId = requestAnimationFrame(() => { _renderRafId = 0; _renderStream(); });
+                  }
                   _scheduleThinkingSpinner();
                   // Feed streaming TTS with accumulated text
                   if (streamingTTS) window.aiTTSManager.streamingUpdate(roundText);
@@ -2705,6 +2721,11 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               + markdownModule.processWithThinking(markdownModule.squashOutsideCode(finalDisplay))
               + (_findingsData ? chatRenderer.buildFindingsBox(_findingsData) : '');
           }
+          // Release StreamRenderer closures — they hold lastText + tailMarker in old-gen
+          // indefinitely; null them out now that the final innerHTML re-render is done.
+          const _scEl = roundHolder.querySelector('.stream-content');
+          if (_scEl && _scEl._streamRenderer) _scEl._streamRenderer = null;
+          if (_liveReplyEl && _liveReplyEl._streamRenderer) _liveReplyEl._streamRenderer = null;
         } else if (_sourcesHtml) {
           var _body4b = roundHolder.querySelector('.body');
           var _wasExpanded2 = _sourcesExpanded || !!(_body4b && _body4b.querySelector('.sources-content.expanded'));
@@ -3019,6 +3040,14 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } finally {
       clearResponseTimeout();
       clearProcessingProbe();
+      // Cancel any pending rAF render — stream is done, final render already ran
+      if (_renderRafId) { cancelAnimationFrame(_renderRafId); _renderRafId = 0; }
+      // Yield to idle so V8 can compact old-gen after the streaming allocation burst
+      if (typeof scheduler !== 'undefined' && scheduler.postTask) {
+        scheduler.postTask(() => {}, { priority: 'background' }).catch(() => {});
+      } else if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(() => {}, { timeout: 2000 });
+      }
       // Streaming done — let screen readers announce the settled response.
       const _chatLogDone = document.getElementById('chat-history');
       if (_chatLogDone) _chatLogDone.setAttribute('aria-busy', 'false');
