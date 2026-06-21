@@ -2735,8 +2735,22 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               _body4.insertBefore(_srcEl.firstChild || _srcEl, _body4.firstChild);
             }
             if (_findingsData) _body4.insertAdjacentHTML('beforeend', chatRenderer.buildFindingsBox(_findingsData));
+          } else if (!_liveReplyEl && !_sourcesData && !_findingsData && !_sourcesHtml) {
+            // Fast path: plain response with no thinking block and no sources.
+            // The streaming renderer already holds the correct final content — freeze
+            // the remaining tail in-place and unwrap the stream-content div so the
+            // body structure matches a full-render result, without creating a second DOM tree.
+            var _sc = _body4 && _body4.querySelector('.stream-content');
+            if (_sc && _sc._streamRenderer) {
+              _sc._streamRenderer.finalize();
+              _sc._streamRenderer = null;
+              while (_sc.firstChild) _body4.insertBefore(_sc.firstChild, _sc);
+              _sc.remove();
+            } else {
+              _body4.innerHTML = markdownModule.processWithThinking(markdownModule.squashOutsideCode(finalDisplay));
+            }
           } else {
-            // Full re-render (reply empty or no live-reply container)
+            // Full re-render: thinking with no extractable reply, or has sources/findings
             _body4.innerHTML = (_sourcesData ? _buildSourcesBox(_sourcesData, _sourcesType, _wasExpanded) : '')
               + markdownModule.processWithThinking(markdownModule.squashOutsideCode(finalDisplay))
               + (_findingsData ? chatRenderer.buildFindingsBox(_findingsData) : '');
