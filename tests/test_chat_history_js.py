@@ -757,44 +757,51 @@ def _load_newer_body() -> str:
     return _SRC[start:end]
 
 
-def test_load_logs_debug():
-    assert "console.debug" in _load_body(), (
-        "load() must log session size and render window on load"
+def test_load_logs_console_log():
+    # Session load is a significant event — visible by default (console.log).
+    assert "console.log" in _load_body(), (
+        "load() must use console.log (visible by default) to log session size"
     )
 
 
 def test_prune_top_logs_debug():
+    # Phase 2 prune fires frequently during streaming — kept at console.debug (opt-in).
     assert "console.debug" in _prune_top_body(), (
         "_pruneTop must log the prune count and new startIdx"
     )
 
 
-def test_evict_live_logs_debug():
-    assert "console.debug" in _evict_live_body(), (
-        "_evictLive must log eviction count and running total"
+def test_evict_live_logs_console_log():
+    # Live eviction is a significant event (live messages lost from view) — console.log.
+    assert "console.log" in _evict_live_body(), (
+        "_evictLive must use console.log (visible by default) to log eviction count"
     )
 
 
 def test_load_older_logs_debug():
+    # Batch load fires on every scroll-up step — kept at console.debug (opt-in).
     assert "console.debug" in _load_older_body(), (
         "_loadOlder must log the batch range and node count"
     )
 
 
 def test_load_newer_logs_debug():
+    # Batch load fires on every scroll-down step — kept at console.debug (opt-in).
     assert "console.debug" in _load_newer_body(), (
         "_loadNewer must log the batch range and node count"
     )
 
 
-def test_debug_logs_use_consistent_prefix():
-    # All debug calls must use '[chatHistory]' so they can be filtered as a
-    # group in DevTools (Console → Filter → '[chatHistory]').
+def test_all_logs_use_consistent_prefix():
+    # All console.log and console.debug calls must use '[chatHistory]' so they
+    # can be filtered as a group in DevTools (Console → Filter → '[chatHistory]').
+    # Significant events (session load, eviction, Phase 3 prune) use console.log
+    # (visible by default); routine batch loads and Phase 2 prunes use console.debug
+    # (opt-in via Verbose) to avoid noise during normal scroll.
     import re
-    calls = re.findall(r"console\.debug\(['\"]([^'\"]+)", _SRC)
-    assert calls, "Expected at least one console.debug call in chatHistory.js"
+    calls = re.findall(r"console\.(?:log|debug)\(['\"]([^'\"]+)", _SRC)
+    assert calls, "Expected at least one console.log/debug call in chatHistory.js"
     bad = [c for c in calls if not c.startswith('[chatHistory]')]
     assert not bad, (
-        "These console.debug calls are missing the '[chatHistory]' prefix: "
-        + str(bad)
+        "These console calls are missing the '[chatHistory]' prefix: " + str(bad)
     )
