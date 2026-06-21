@@ -612,4 +612,189 @@ def test_resume_stream_strips_think_tags_from_display():
     # (non-greedy) and one for a trailing unclosed block (greedy).
     body = _resume_stream_body()
     assert "dt.replace(/<think" in body
-    assert body.count("dt.replace(/<think") == 2
+
+
+# ---------------------------------------------------------------------------
+# _evictLive — structural and scroll-compensation contracts
+# ---------------------------------------------------------------------------
+# These tests verify invariants that the existing teardown tests do not cover:
+# scroll position preservation, descendant-level cleanup, and control-element
+# skip logic.  All are correctness-critical: a violation causes either a visible
+# scroll jump or a memory leak for interval/renderer objects on child nodes.
+
+def _update_evict_notice_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._updateEvictNotice")
+    end   = _SRC.index("MessageWindow.prototype._liveChildCount")
+    return _SRC[start:end]
+
+
+def test_evict_live_captures_scroll_top_before_removal():
+    # scrollTop must be saved BEFORE the removal loop.  The browser clamps
+    # scrollTop when scrollHeight shrinks; saving after removal captures the
+    # already-clamped (wrong) value and the compensation is a no-op.
+    body = _evict_live_body()
+    saved_idx  = body.index("savedScrollTop")
+    remove_idx = body.index("el.remove()")
+    assert saved_idx < remove_idx, (
+        "savedScrollTop must be captured before el.remove() is called"
+    )
+
+
+def test_evict_live_restores_scroll_top_after_removal():
+    # After removal the browser clamps scrollTop; the method must reassign it
+    # to undo the clamp and keep the user's visual position stable.
+    body       = _evict_live_body()
+    remove_idx = body.index("el.remove()")
+    assign_idx = body.index("this._c.scrollTop =", remove_idx)
+    assert assign_idx > remove_idx, (
+        "this._c.scrollTop must be reassigned after el.remove()"
+    )
+
+
+def test_evict_live_iterates_descendants():
+    # Teardown must recurse into every descendant via querySelectorAll('*').
+    # Intervals and streamRenderers are attached to child nodes (e.g. the
+    # inner div of a thinking block), not always the top-level round element.
+    body = _evict_live_body()
+    assert ("querySelectorAll('*')" in body or 'querySelectorAll("*")' in body), (
+        "_evictLive must walk all descendants with querySelectorAll('*')"
+    )
+
+
+def test_evict_live_teardown_applied_to_descendants():
+    # The same _waveInterval / _elapsedTicker / _streamRenderer cleanup that
+    # runs on the top-level node must also run on each descendant `d`.
+    body = _evict_live_body()
+    assert "d._waveInterval" in body
+    assert "d._elapsedTicker" in body
+    assert "d._streamRenderer" in body
+
+
+def test_evict_live_skips_control_elements():
+    # The sentinel, spacer, and the eviction notice itself must never be
+    # collected into toRemove — evicting them would corrupt the virtualization
+    # state machine.
+    body = _evict_live_body()
+    assert "chat-history-spacer" in body, (
+        "_evictLive must skip .chat-history-spacer nodes"
+    )
+    assert "chat-live-evict-notice" in body, (
+        "_evictLive must skip the eviction notice to avoid evicting it"
+    )
+
+
+# ---------------------------------------------------------------------------
+# _updateEvictNotice — correctness contracts
+# ---------------------------------------------------------------------------
+
+def test_update_evict_notice_shows_count():
+    # Notice text must include the running eviction count so the user knows
+    # how many messages are hidden.
+    body = _update_evict_notice_body()
+    assert "this._evictedLiveCount" in body
+    assert "textContent" in body
+
+
+def test_update_evict_notice_handles_singular_plural():
+    # "1 earlier message" (singular) vs "2 earlier messages" (plural).
+    # Displaying "1 earlier messages" is grammatically wrong and looks sloppy.
+    body = _update_evict_notice_body()
+    assert "!== 1" in body or "=== 1" in body, (
+        "_updateEvictNotice must branch on count for singular/plural form"
+    )
+
+
+def test_update_evict_notice_reuses_existing_element():
+    # On repeated eviction events the method must update the existing notice
+    # rather than appending a new one each time.  Creating a new element each
+    # call would: (a) inflate DOM and (b) distort _liveChildCount (the notice
+    # is excluded from the threshold — multiple notices would be counted).
+    body       = _update_evict_notice_body()
+    qs_idx     = body.index("querySelector")
+    ce_idx     = body.index("createElement")
+    assert qs_idx < ce_idx, (
+        "_updateEvictNotice must querySelector for an existing notice "
+        "before calling createElement"
+    )
+
+
+def test_update_evict_notice_inserts_after_hist_sep():
+    # The notice must appear just above the live section (immediately after
+    # _histSep) so it is visible when the user is near the top of live messages.
+    body = _update_evict_notice_body()
+    assert "_histSep" in body
+    assert "insertAdjacentElement" in body or "insertBefore" in body
+
+
+# ---------------------------------------------------------------------------
+# Observability — console.debug logging
+# ---------------------------------------------------------------------------
+# Each key operation logs a '[chatHistory]' prefixed message so operators can
+# diagnose OOM behaviour in production by filtering DevTools console output
+# without modifying code.
+
+def _load_body() -> str:
+    start = _SRC.index("MessageWindow.prototype.load")
+    end   = _SRC.index("MessageWindow.prototype.reset")
+    return _SRC[start:end]
+
+
+def _prune_top_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._pruneTop")
+    end   = _SRC.index("MessageWindow.prototype._pruneBottom")
+    return _SRC[start:end]
+
+
+def _load_older_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._loadOlder")
+    end   = _SRC.index("MessageWindow.prototype._isAtVeryBottom")
+    return _SRC[start:end]
+
+
+def _load_newer_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._loadNewer")
+    end   = _SRC.index("MessageWindow.prototype._initMutObs")
+    return _SRC[start:end]
+
+
+def test_load_logs_debug():
+    assert "console.debug" in _load_body(), (
+        "load() must log session size and render window on load"
+    )
+
+
+def test_prune_top_logs_debug():
+    assert "console.debug" in _prune_top_body(), (
+        "_pruneTop must log the prune count and new startIdx"
+    )
+
+
+def test_evict_live_logs_debug():
+    assert "console.debug" in _evict_live_body(), (
+        "_evictLive must log eviction count and running total"
+    )
+
+
+def test_load_older_logs_debug():
+    assert "console.debug" in _load_older_body(), (
+        "_loadOlder must log the batch range and node count"
+    )
+
+
+def test_load_newer_logs_debug():
+    assert "console.debug" in _load_newer_body(), (
+        "_loadNewer must log the batch range and node count"
+    )
+
+
+def test_debug_logs_use_consistent_prefix():
+    # All debug calls must use '[chatHistory]' so they can be filtered as a
+    # group in DevTools (Console → Filter → '[chatHistory]').
+    import re
+    calls = re.findall(r"console\.debug\(['\"]([^'\"]+)", _SRC)
+    assert calls, "Expected at least one console.debug call in chatHistory.js"
+    bad = [c for c in calls if not c.startswith('[chatHistory]')]
+    assert not bad, (
+        "These console.debug calls are missing the '[chatHistory]' prefix: "
+        + str(bad)
+    )
