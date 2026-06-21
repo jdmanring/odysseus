@@ -9,17 +9,23 @@ the source text to lock in the structural contracts that matter:
                                    loads older batches via IntersectionObserver
   Phase 2  live pruning          — caps DOM children with MutationObserver,
                                    injects a height-matched spacer
-  Phase 3  bidirectional pruning — caps historical DOM during scroll-up via
-                                   BIDI_CAP; restores via scroll event listener
-                                   (NOT IntersectionObserver — IO fires immediately
-                                   after prune, defeating the pruning)
+  Phase 3  bidirectional pruning — caps historical *messages* in DOM during
+                                   scroll-up via BIDI_MSG_CAP (message count,
+                                   not DOM node count — agent messages inflate
+                                   node count unpredictably); restores via
+                                   scroll event listener (NOT IntersectionObserver
+                                   — IO fires immediately after prune, defeating
+                                   the pruning). _loadNewer still uses BIDI_CAP
+                                   (DOM nodes) for the symmetric top prune.
 
 Manual verification required before the upstream PR:
   1. Load a session with 60+ messages — only the last 50 should be in the DOM.
   2. Scroll to the top — sentinel "↑ N earlier messages" should load next batch.
   3. Scroll position must not jump when older messages are prepended.
   4. Run a long agent session (30+ rounds) — DOM child count must stay ≤ 80.
-  5. Scroll all the way up through a 200+ message session — DOM must stay ≤ 120+25.
+  5. Scroll all the way up through a 200+ message session (ideally an agent session
+     with many tool rounds) — historical messages in DOM must stay ≤ 80+25; scroll
+     position must NOT jump to the bottom on each batch load.
   6. Scroll back down — pruned historical messages must reload as you scroll.
 """
 
@@ -75,7 +81,14 @@ def test_prune_count_constant_defined():
 
 
 def test_bidi_cap_constant_defined():
+    # BIDI_CAP (DOM node count) is still used by _loadNewer for the top prune.
     assert "BIDI_CAP" in _SRC
+
+
+def test_bidi_msg_cap_constant_defined():
+    # BIDI_MSG_CAP (message count) guards Phase 3 in _loadOlder.
+    # Message-count cap is immune to per-message DOM child inflation in agent sessions.
+    assert "BIDI_MSG_CAP" in _SRC
 
 
 def test_window_size_is_50():
@@ -301,12 +314,28 @@ def test_prune_top_calls_attach_sentinel():
 # Phase 3 — bidirectional pruning
 # ---------------------------------------------------------------------------
 
-def test_load_older_triggers_prune_bottom():
+def test_load_older_phase3_uses_msg_count():
+    # Phase 3 in _loadOlder is guarded by message count, NOT DOM node count.
+    # A DOM-node cap (BIDI_CAP) is unsafe for agent sessions: WINDOW_SIZE=50
+    # messages can produce 500+ DOM nodes, causing a massive prune on the first
+    # _loadOlder() call that collapses scrollHeight and clamps scrollTop to the
+    # bottom.  The fix uses (_endIdx - _startIdx) vs BIDI_MSG_CAP instead.
     lo = _SRC[_SRC.index("MessageWindow.prototype._loadOlder"):]
     lo = lo[:lo.index("MessageWindow.prototype._loadNewer")]
-    assert "_pruneBottom" in lo, "_loadOlder must call _pruneBottom when over BIDI_CAP"
-    assert "BIDI_CAP" in lo, "_loadOlder must compare against BIDI_CAP"
-    assert "_histChildCount" in lo
+    assert "BIDI_MSG_CAP" in lo, (
+        "_loadOlder Phase 3 must use BIDI_MSG_CAP (message count) not BIDI_CAP (DOM nodes)"
+    )
+    assert "_endIdx" in lo and "_startIdx" in lo, (
+        "_loadOlder Phase 3 must compute message count as _endIdx - _startIdx"
+    )
+    assert "_attachBottomSentinel" in lo, (
+        "_loadOlder Phase 3 must attach the bottom sentinel after pruning"
+    )
+    # _histChildCount (DOM node walk) must NOT be used here — it is the wrong
+    # unit and was the root cause of the scroll-jump bug.
+    assert "_histChildCount" not in lo, (
+        "_loadOlder must not use _histChildCount for Phase 3; that was the bug"
+    )
 
 
 def test_prune_bottom_tracks_end_idx():
