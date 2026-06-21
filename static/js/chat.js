@@ -3046,11 +3046,13 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } finally {
       clearResponseTimeout();
       clearProcessingProbe();
-      // Yield to idle so V8 can compact old-gen after the streaming allocation burst
+      // Force Oilpan + V8 GC to collect detached DOM nodes from the stream render.
+      // Each completed stream leaves ~1000+ detached nodes from the final innerHTML
+      // rerender; without explicit gc() they accumulate until Oilpan's lazy sweep.
       if (typeof scheduler !== 'undefined' && scheduler.postTask) {
-        scheduler.postTask(() => {}, { priority: 'background' }).catch(() => {});
+        scheduler.postTask(() => { if (typeof gc !== 'undefined') gc(); }, { priority: 'background' }).catch(() => {});
       } else if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => {}, { timeout: 2000 });
+        requestIdleCallback(() => { if (typeof gc !== 'undefined') gc(); }, { timeout: 2000 });
       }
       // Streaming done — let screen readers announce the settled response.
       const _chatLogDone = document.getElementById('chat-history');

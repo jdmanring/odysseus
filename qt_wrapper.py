@@ -48,6 +48,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--enable-features=WebGPU,SharedArrayBuffer",
     "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
     "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
+    "--js-flags=--expose-gc",                  # exposes gc() for explicit Oilpan collection
     *_gpu_flags,
 ])
 
