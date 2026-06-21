@@ -325,7 +325,7 @@
 
     // Phase 3: cap historical DOM size; pruned content reloads on scroll-down.
     // Guard is message count (_endIdx - _startIdx), not DOM node count — agent
-    // messages span many top-level nodes, making _histChildCount() unreliable here.
+    // messages span many top-level nodes so DOM-node counting is unreliable here.
     var histMsgCount = this._endIdx - this._startIdx;
     if (histMsgCount > BIDI_MSG_CAP) {
       var _pruneTarget = this._endIdx - (histMsgCount - BIDI_MSG_CAP);
