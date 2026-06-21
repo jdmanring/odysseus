@@ -793,6 +793,12 @@
     // savedScrollTop is still a valid position. Restoring it undoes the browser
     // clamp that occurred during node removal.
     this._c.scrollTop = savedScrollTop;
+
+    // Prune leaves large detached DOM subtrees in Oilpan. Force GC on idle so
+    // they're collected before the next prune rather than accumulating.
+    if (typeof gc !== 'undefined') {
+      requestIdleCallback(function () { gc(); }, { timeout: 3000 });
+    }
   };
 
   // Remove `count` historical DOM nodes from just above _histSep.
