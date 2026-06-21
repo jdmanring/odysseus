@@ -112,22 +112,50 @@ When a stream switches to background (`_backgroundStreams.set(streamSessionId, {
 
 **Issue #4644** ("fix(ui): browser tab OOM and freeze during long agent interactions") filed 2026-06-20. Matches exactly.
 
-**PR #4661** ("fix(ui): prevent browser OOM during long agent interactions") filed 2026-06-20. Open, not yet merged. Changes:
+**PR #4661** ("fix(ui): prevent browser OOM during long agent interactions") filed 2026-06-20. Open, not yet merged. No comments yet.
 
-| What upstream PR does | Root cause addressed |
-|---|---|
-| `_liveThinkInner.textContent = thinkText` during streaming (single rich render at close) | Root Cause 1 (thinking blocks) |
-| `_trimChatHistoryDOM()` cap at 150 nodes; "Show N older messages" bar that re-fetches from server | Root Cause 2 (live DOM cap) |
-| `_purgeStaleBackgroundStreams()` clearing `accumulated` on completed entries | Root Cause 3 |
-| `streamDocDelta()` throttled to one DOM update per `requestAnimationFrame` | Document editor equivalent |
-| History load capped at 400 messages on session select | Initial load safety |
+Test branches: `test/upstream-pr-4661` (on upstream-mirror), `test/pr-4661` (on develop, one conflict resolved in `sessions.js`).
 
-**What upstream PR does NOT fix**:
-- The Phase 2 `hist === 0` hard-stop bug in `chatHistory.js` (their `_trimChatHistoryDOM()` in `chat.js` is a parallel approach that bypasses chatHistory.js entirely — both should coexist)
-- Per-token `_renderStream()` allocation for non-thinking regular streaming (tail re-renders still happen per-token via StreamRenderer)
-- The Phase 3 scroll-jump-to-bottom bug (our `fix/dom-oom-virtualization` branch — message-count based BIDI cap)
+### What the PR gets right
 
-**This PR will enter develop via the ingest pipeline when it merges upstream.** Until then, our fork needs its own versions of these fixes.
+| Change | Root cause | Assessment |
+|---|---|---|
+| `_liveThinkInner.textContent` during streaming; single `mdToHtml` on close | Root Cause 1 (primary) | Clean and correct. Take as-is. |
+| `_purgeStaleBackgroundStreams()` + clear `accumulated`/`abortCtrl` on done | Root Cause 3 | Correct but incomplete — `sourcesHtml` and `findingsData` not cleared. Adapt. |
+| `streamDocDelta()` rAF throttle | Document editor thrash | Clean and correct. Take as-is. |
+| Pagination (`?limit=400`, `?offset=`) in history route | Initial load safety | Well-designed. Take as-is. |
+| `content-visibility: auto` on `.msg`, `.agent-thread`, `.thinking-content` | Paint/layout overhead | Valid CSS optimization. Take as-is. |
+
+### What the PR gets wrong — incompatibility with our virtualization system
+
+**`_trimChatHistoryDOM()` destroys chatHistory.js control elements.**
+
+The function iterates `#chat-history.children` from index 0 and calls `el.remove()` unconditionally until `children.length <= 150`. It only skips incrementing `_unloadedMsgCount` for non-message nodes — it does not skip *removing* them. Nodes destroyed:
+- `.chat-history-sentinel` — kills Phase 1 IntersectionObserver permanently
+- `.chat-history-spacer` — breaks scroll-position restoration after top prune
+- `.chat-history-sep` (`_histSep`) — destroys the historical/live boundary; Phase 2 and Phase 3 stop working
+
+There is zero coordination with chatHistory.js state (`_all[]`, `_startIdx`, `_endIdx`, `_sentinel` reference). After `_trimChatHistoryDOM()` runs once in a session with history, the entire Phase 1/2/3 virtualization system is broken.
+
+**`_loadOlderMessages()` breaks multi-round agent messages.**
+
+`addMessage()` creates multiple top-level DOM nodes for a multi-round agent response (one bubble per round + tool thread per round) but returns only `lastWrap` (the final round's text bubble). `_loadOlderMessages()` does `box.insertBefore(el, bar)` which moves only `lastWrap` to the correct position near the top; all earlier rounds were appended by `addMessage()` to the *bottom* of the chat and are not moved. A saved agent session with 3 rounds renders as: [round3-text near top] ... [round1-text, tool-thread, round2-text at bottom].
+
+**`_loadOlderMessages()` bypasses `_all[]` entirely.**
+
+Loaded messages are not registered with chatHistory.js. If Phase 1's sentinel is still present (not yet destroyed by `_trimChatHistoryDOM()`), scrolling past the sentinel would re-render the same messages from `_all[]`, causing duplicates.
+
+### What the PR does not address
+
+- Phase 2 `hist === 0` hard-stop — our confirmed bug, not fixed
+- Regular streaming tail per-token allocations — StreamRenderer still runs markdown pipeline per-token for non-thinking text
+- Phase 3 scroll-jump-to-bottom — fixed in our `fix/dom-oom-virtualization` branch
+
+### Verdict
+
+**Take the safe parts directly; replace `_trimChatHistoryDOM()` and `_loadOlderMessages()` with a proper Phase 2 live-message cap.**
+
+The upstream PR cannot be ingested as-is once it merges. We must adapt the DOM-cap piece to coordinate with chatHistory.js before applying it to our fork. The safe parts (thinking-block fix, background cleanup, doc streaming throttle, pagination, CSS) can be cherry-picked without modification.
 
 ---
 
@@ -163,27 +191,86 @@ _streamRenderRaf = requestAnimationFrame(() => {
 
 ---
 
-### Fix B — Phase 2 `hist === 0` Guard Removal + Live Cap (Root Cause 2)
+### Fix B — Extend Phase 2 to Cap Live Messages (Root Cause 2)
 
-**Two sub-approaches — both needed, in layers:**
+Upstream PR #4661's `_trimChatHistoryDOM()` is the right concept but the wrong implementation for our codebase — it destroys chatHistory.js control elements and bypasses `_all[]`. The correct fix is to extend Phase 2 inside `chatHistory.js` so it handles live overflow using the same infrastructure that already handles historical overflow.
 
-#### Fix B1 — Remove the `hist === 0` early return
+#### The architecture
 
-The immediate bug in `chatHistory.js:592`. When historical nodes are exhausted, Phase 2 must still enforce a cap on live nodes. But `_pruneTop()` only removes historical nodes (hard boundary at `_histSep`). So removing the early return alone doesn't help — `_pruneTop()` would find nothing to remove.
+Phase 2 already:
+- Knows about sentinels, spacers, and histSep (skips them during prune)
+- Tracks `_startIdx`/`_endIdx` for Phase 1 reload
+- Has `_pruneTop()` with proper scroll-position compensation via spacer
 
-#### Fix B2 — Extend `_pruneTop()` to handle live message overflow
+What it lacks: a way to prune live messages (nodes after `_histSep`) and register them for later reload.
 
-When `hist === 0` and `total > PRUNE_AT`, we need to remove the oldest live messages. These messages ARE in the DB (saved during streaming), so they can be restored. But they are NOT in `_all[]`. Options:
+#### How live messages get into `_all[]`
 
-**Option B2a**: When Phase 2 detects `hist === 0` and overflow, add the oldest live messages to `_all[]` before removing them from DOM. This integrates with the existing scroll-up restoration mechanism. Requires that `addMessage()` returns element references so we can extract content from the DOM before removal.
+When a stream finishes, `chat.js` finalizes the message and it is saved to the DB. That message is *already* available via `/api/history/:id`. But it is not in `_all[]` — `_all[]` was populated at session load and never updated during the session.
 
-**Option B2b**: Replace the `hist === 0` path with a server-refetch approach (matching upstream PR #4661's `_trimChatHistoryDOM()` approach). Keep a counter of pruned live messages and insert a "load older" bar. This is exactly what upstream PR #4661 does in `chat.js`, but applied to chatHistory.js's Phase 2.
+The fix: when Phase 2 detects `hist === 0` and `total > PRUNE_AT`, it evacuates the oldest live messages from the DOM back into `_all[]`. Because live messages are saved to DB, `_all[]` can be extended and Phase 1 can reload them exactly as it reloads any other historical message.
 
-**Option B2c**: Accept the chatHistory.js limitation for now and rely on upstream PR #4661's `_trimChatHistoryDOM()` (which we will ingest when it merges). Their `_trimChatHistoryDOM()` is called in `chat.js` independently of the chatHistory.js Phase 2 system, so both can coexist. The Phase 2 `hist === 0` bug becomes irrelevant once `_trimChatHistoryDOM()` is active.
+#### Implementation
 
-**Recommendation**: Fix B1 (remove the guard) as a minimal correctness fix so Phase 2 never silently stops. Then rely on upstream PR #4661's approach for the actual live-cap implementation. Do not implement a parallel "load older" mechanism that duplicates upstream's work.
+**Step 1 — Remove the `hist === 0` early return** (`chatHistory.js:592`):
 
-**Effect of B1**: Phase 2 will call `_pruneTop()` even when `hist === 0`, but `_pruneTop()` will remove zero nodes (since there are no historical nodes). The `if (removed === 0) return;` guard in `_pruneTop()` handles this safely. Net effect: Phase 2 no longer silently dies, but doesn't fix the live overflow problem alone. Combined with upstream's `_trimChatHistoryDOM()`, the live overflow is fully handled.
+```js
+// Before (bug):
+if (hist === 0) return;
+this._pruneTop(Math.min(hist, total - PRUNE_AT + PRUNE_COUNT));
+
+// After:
+if (hist > 0) {
+  this._pruneTop(Math.min(hist, total - PRUNE_AT + PRUNE_COUNT));
+} else {
+  this._evictLive(total - PRUNE_AT + PRUNE_COUNT);
+}
+```
+
+**Step 2 — Add `_evictLive(count)`** to chatHistory.js:
+
+```js
+MessageWindow.prototype._evictLive = function (count) {
+  // Identify the oldest 'count' live message elements (immediately after histSep).
+  // Extract their rendered data so _all[] can restore them later.
+  // Remove from DOM.  Update _all[], _endIdx, and move _histSep forward.
+};
+```
+
+The function walks DOM children after `_histSep`, finds the oldest `count` message elements, captures `{ role, innerHTML, modelName, meta }` from each (using `data-ch-role`, `data-ch-model`, `dataset.raw`, and existing data attributes), prepends them to `_all[]` with adjusted indices, removes them from DOM (with the same resource cleanup upstream PR does: timer teardown, data-URI clear), and moves `_histSep` forward to just before the first remaining live message.
+
+**Step 3 — Extend `_pruneTop()` spacer logic** to cover the new evicted-live case (already works — the spacer insertion after pruning top is structural, not historical-specific).
+
+**Step 4 — Handle `_loadOlderMessages()` correctly**: upstream PR's `_loadOlderMessages()` bypasses `_all[]` and breaks multi-round agent messages. Our Phase 1 IntersectionObserver already handles loading older messages from `_all[]` on scroll-up — by routing evicted live messages through `_all[]`, Phase 1 handles the reload automatically with no special "load older" bar needed.
+
+#### What to take from upstream PR's DOM cap approach
+
+The cleanup code in upstream's `_trimChatHistoryDOM()` before removing each element is correct and reusable:
+```js
+if (el._waveInterval) { clearInterval(el._waveInterval); el._waveInterval = null; }
+if (el._elapsedTicker) { clearInterval(el._elapsedTicker); el._elapsedTicker = null; }
+if (el._spinner) { try { el._spinner.destroy(); } catch (_) {} }
+el.querySelectorAll('.agent-thread-node').forEach(function(n) {
+  if (n._waveInterval) { clearInterval(n._waveInterval); n._waveInterval = null; }
+  if (n._elapsedTicker) { clearInterval(n._elapsedTicker); n._elapsedTicker = null; }
+});
+el.querySelectorAll('img[src^="data:"]').forEach(function(img) { img.src = ''; });
+```
+
+This teardown should be extracted into a shared `_teardownNode(el)` helper and called both in `_pruneTop()` and `_evictLive()`.
+
+#### Data attributes needed on live message elements
+
+For `_evictLive()` to capture message metadata without re-fetching from the server, live message elements need data attributes set during `addMessage()`. Currently `data-ch-idx` is set only for historical messages. We need:
+- `data-ch-role` — already set via element class (`msg-user`, `msg-ai`)
+- `data-ch-model` — not currently set; needs to be added to the role label element
+- `dataset.raw` — already set on all finalized messages for copy/regenerate; contains the markdown source
+
+For tool-event metadata (`meta.tool_events`, `meta.round_texts`): the fully-rendered HTML in the DOM element's innerHTML is sufficient for re-display. We do not need to reconstruct tool_events for scroll-up reload — we just need to re-render the stored HTML. This is exactly what `addMessage(role, storedHtml, modelName, null)` does for historical messages.
+
+#### Effect
+
+After this fix, Phase 2 enforces a unified cap on the total DOM (historical + live). Live messages overflow gracefully into `_all[]`. Phase 1 reloads them on scroll-up via the existing IntersectionObserver mechanism. No second DOM manager. No control-element destruction. No multi-round-agent rendering bug.
 
 ---
 
@@ -285,27 +372,31 @@ QTWEBENGINE_CHROMIUM_FLAGS="--remote-debugging-port=9222" python3 app.py
 
 ## Priority Order
 
-1. **Fix A** (thinking block per-token render) — highest impact, lowest risk. This is the primary driver of 200–300 MB/message growth in agent sessions with thinking. Already in upstream PR #4661.
+1. **Add instrumentation** (heap size + DOM count logging) before implementing any fix, to establish a baseline and validate each fix's impact.
 
-2. **Ingest upstream PR #4661** via the pipeline once it merges — gets us Fix A, Fix C2–C5, DOM cap with server reload, and document streaming throttle.
+2. **Fix A** — thinking block per-token render. Highest impact, lowest risk. Primary driver of 200–300 MB/message growth in agent sessions with thinking.
 
-3. **Fix B1** (remove `hist === 0` guard in chatHistory.js) — correctness fix, makes Phase 2 never silently die. Low risk, independent of upstream PR.
+3. **Fix C2 + background stream cleanup** — clear `accumulated`, `sourcesHtml`, `findingsData`, `abortCtrl` from completed background stream entries. Fast win, independent of all other work.
 
-4. **Fix C1** (StreamRenderer teardown) — minor per-message cleanup. Fork-specific improvement not in upstream PR.
+4. **Fix B** — Phase 2 live-message eviction. Fixes unbounded live DOM accumulation for all session types. More complex but architecturally complete — no second DOM manager, no sentinel destruction, no multi-round rendering bug.
 
-5. **Fix A2** (rAF throttle for regular streaming) — secondary improvement, investigate whether needed after Fix A reduces the primary load.
+5. **Fix A2** — rAF throttle for regular streaming tail. Investigate whether needed after Fix A reduces the primary load. May be redundant.
 
-6. **Add instrumentation first** to measure heap before/after Fix A so we have before/after numbers to include in the upstream PR draft.
+6. **Fix C1 + C3** — StreamRenderer teardown, idle scheduler. Polish after the main fixes.
+
+7. **Ingest upstream PR #4661 when it merges** — take the safe parts (thinking-block fix, doc streaming throttle, pagination, background cleanup, CSS) via the pipeline. **Do not take `_trimChatHistoryDOM()` or `_loadOlderMessages()` as-is** — replace with our Phase 2 live-eviction fix (Fix B). File a comment on the upstream PR noting the chatHistory.js incompatibility and proposing the `_evictLive()` approach as an improvement.
 
 ---
 
 ## Branch Plan
 
-All fixes are upstream-candidates (they fix Odysseus itself, not fork tooling).
+All fixes are upstream-candidates.
 
-| Branch | Origin | Fix | Status |
+| Branch | Origin | Scope | Status |
 |---|---|---|---|
-| `fix/dom-oom-virtualization` | `upstream-mirror` | Phase 3 scroll-jump-to-bottom (BIDI_MSG_CAP) | On develop, needs in-app verification |
-| `fix/dom-oom-phase2-guard` | `upstream-mirror` | Fix B1: remove `hist === 0` early return | Not started |
-| `fix/dom-oom-streaming-throttle` | `upstream-mirror` | Fix A + A2 + C1–C3 (streaming allocation reduction) | Not started |
-| _(pending ingest)_ | upstream PR #4661 | Upstream thinking-block fix + DOM cap + purge | Waiting for upstream merge |
+| `fix/dom-oom-virtualization` | `upstream-mirror` | Phase 3 scroll-jump-to-bottom (BIDI_MSG_CAP) | On develop; needs in-app verification |
+| `fix/dom-oom-streaming-throttle` | `upstream-mirror` | Fix A (thinking-block textContent) + Fix A2 (rAF throttle) + Fix C1–C3 | Not started |
+| `fix/dom-oom-live-eviction` | `upstream-mirror` | Fix B: Phase 2 `_evictLive()`, `_teardownNode()`, data attribute additions, remove `hist===0` guard | Not started |
+| `test/upstream-pr-4661` | `upstream-mirror` | Upstream PR #4661 cherry-picked on upstream-mirror | Created, pushed |
+| `test/pr-4661` | `develop` | Upstream PR #4661 cherry-picked on develop (one conflict resolved) | Created, pushed |
+| _(pending ingest)_ | upstream PR #4661 | Safe parts only — see "Ingest" note above | Waiting for upstream merge |
