@@ -653,6 +653,7 @@
         if (d._elapsedTicker)  { clearInterval(d._elapsedTicker);  d._elapsedTicker  = null; }
         if (d._streamRenderer) { d._streamRenderer = null; }
       }
+      if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(el);
       el.remove();
       this._evictedLiveCount++;
     }
@@ -744,6 +745,7 @@
           ch.classList.contains('chat-history-spacer')) { ch = next; continue; }
       var cidx = (ch.dataset && ch.dataset.chIdx !== undefined)
         ? parseInt(ch.dataset.chIdx, 10) : -1;
+      if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(ch);
       ch.remove();
       removed++;
       if (cidx > highIdx) highIdx = cidx;
@@ -763,6 +765,7 @@
         if (isPeekCtl) { peek = peek.nextElementSibling; continue; }
         if (peek.dataset && parseInt(peek.dataset.chIdx, 10) === highIdx) {
           var peekNext = peek.nextElementSibling;
+          if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(peek);
           peek.remove();
           removed++;
           peek = peekNext;
