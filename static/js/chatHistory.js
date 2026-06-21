@@ -797,7 +797,9 @@
     // Prune leaves large detached DOM subtrees in Oilpan. Force GC on idle so
     // they're collected before the next prune rather than accumulating.
     if (typeof gc !== 'undefined') {
-      requestIdleCallback(function () { gc(); }, { timeout: 3000 });
+      requestIdleCallback(function () {
+        try { gc({ type: 'major', execution: 'async' }); } catch (_) { gc(); }
+      }, { timeout: 3000 });
     }
   };
 
