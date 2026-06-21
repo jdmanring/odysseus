@@ -34,8 +34,10 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
   let tailShownLen = 0; // rendered-text length of the live tail (drives token fade)
   let appendMode = null; // { codeText: Text, appendedLen } while an open fence streams
   let degraded = !ENABLED; // true once we fall back to full re-render
+  let _tailNodes = []; // live tail DOM nodes currently in contentEl (after tailMarker)
 
   function start() {
+    _tailNodes = [];
     contentEl.textContent = '';
     tailMarker = document.createComment('tail');
     contentEl.appendChild(tailMarker);
@@ -47,6 +49,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
   }
 
   function clearTail() {
+    _tailNodes = [];
     while (tailMarker.nextSibling) tailMarker.nextSibling.remove();
   }
 
@@ -67,16 +70,42 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
       return;
     }
     appendMode = null;
-    clearTail();
     if (!tailText) {
+      clearTail();
       tailShownLen = 0;
       return;
     }
     const holder = document.createElement('div');
     holder.innerHTML = render(tailText);
+    const newNodes = Array.from(holder.childNodes);
+
+    // Fast path: patch existing tail nodes in-place when the block structure
+    // matches. Avoids the clearTail + re-insert cycle that generates Oilpan
+    // DOM node create/remove pressure on every SSE token.
+    if (
+      _tailNodes.length > 0 &&
+      _tailNodes.length === newNodes.length &&
+      _tailNodes.every((n, i) => n.nodeName === newNodes[i].nodeName)
+    ) {
+      for (let i = 0; i < _tailNodes.length; i++) {
+        if (_tailNodes[i].nodeType === Node.TEXT_NODE) {
+          _tailNodes[i].data = newNodes[i].data;
+        } else {
+          _tailNodes[i].innerHTML = newNodes[i].innerHTML;
+        }
+      }
+      tailShownLen = holder.textContent.length;
+      return;
+    }
+
+    // Structure changed (new block, heading, etc.): full clear + rebuild.
+    clearTail();
     fadeNewText(holder, tailShownLen);
     tailShownLen = holder.textContent.length;
-    while (holder.firstChild) contentEl.appendChild(holder.firstChild);
+    while (holder.firstChild) {
+      _tailNodes.push(holder.firstChild);
+      contentEl.appendChild(holder.firstChild);
+    }
   }
 
   // Stream the body of an unterminated code fence by appending only the new
