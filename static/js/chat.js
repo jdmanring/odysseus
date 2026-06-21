@@ -23,7 +23,7 @@ import codeRunnerModule from './codeRunner.js';
 import slashCommands, { initSlashCommands, isCommand, handleSlashCommand, handleSetupInput, handleSetupWizard, typewriterInto } from './slashCommands.js';
 import createResearchSynapse from './researchSynapse.js';
 import { createStreamRenderer } from './streamingRenderer.js';
-import { deferHighlightAll } from './hljsDefer.js';
+import { deferHighlightAll, forgetNode as hljsForgetNode } from './hljsDefer.js';
 import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composerArrowUpRecall.js';
 
   const RESEARCH_TIMEOUT_MS = 360000;
@@ -5139,3 +5139,4 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
   window.chatModule = chatModule;
   // Expose for non-module scripts (chatHistory.js)
   window.hljsDeferHighlightAll = deferHighlightAll;
+  window.hljsDeferForgetNode   = hljsForgetNode;
