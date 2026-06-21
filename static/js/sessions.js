@@ -1590,7 +1590,7 @@ export async function selectSession(id, { keepSidebar = false } = {}) {
     const isOC = meta && (meta.is_openclaw || id === 'openclaw');
     let msgHistory = [], modelName = null;
     if (!isOC) {
-      const res = await fetch(`${API_BASE}/api/history/${id}`);
+      const res = await fetch(`${API_BASE}/api/history/${id}?limit=400`);
       const data = await res.json();
       if (navToken !== _sessionNavToken || currentSessionId !== id) return;
       msgHistory = data.history || [];

@@ -114,8 +114,21 @@ def setup_history_routes(session_manager) -> APIRouter:
             finally:
                 db.close()
 
+        total_count = len(history_dict)
+        limit = request.query_params.get("limit")
+        offset = request.query_params.get("offset")
+        try:
+            limit  = int(limit)  if limit  and int(limit)  > 0  else None
+            offset = int(offset) if offset and int(offset) >= 0 else 0
+        except (ValueError, TypeError):
+            limit  = None
+            offset = 0
+        if limit is not None:
+            history_dict = history_dict[offset:offset + limit]
+
         return {
             "history": history_dict,
+            "total": total_count,
             "model": session.model,
             "endpoint_url": session.endpoint_url,
             "name": session.name,
