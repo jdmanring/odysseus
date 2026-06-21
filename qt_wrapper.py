@@ -46,10 +46,10 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--no-sandbox",
     "--ignore-gpu-blocklist",
     "--enable-gpu-rasterization",
-    "--enable-features=WebGPU,SharedArrayBuffer",
+    "--enable-features=WebGPU,SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction",
     "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
     "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
-    "--js-flags=--expose-gc",                  # exposes gc() for post-response Oilpan collection
+    "--js-flags=--expose-gc --max-old-space-size=512",  # expose gc() + backstop heap cap
     *_gpu_flags,
 ])
 
@@ -61,7 +61,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
-from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -352,6 +352,16 @@ class OdysseusWindow(QMainWindow):
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.WindowDeactivate:
+            # Window lost focus — safe to run a synchronous major GC here because
+            # the compositor is not painting our surface while another app has focus,
+            # so the GC pause does not produce visible gray frames.
+            self.browser.page().runJavaScript(
+                "if (typeof gc === 'function') gc({ type: 'major', execution: 'sync' });"
+            )
+        super().changeEvent(event)
 
     def closeEvent(self, event):
         s = QSettings("odysseus", "odysseus")
