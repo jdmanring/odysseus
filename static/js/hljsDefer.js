@@ -41,3 +41,11 @@ export function deferHighlightAll(root) {
   var blocks = root.querySelectorAll('pre code:not(.hljs)');
   for (var i = 0; i < blocks.length; i++) deferHighlight(blocks[i]);
 }
+
+// Cancel pending observations for all code blocks inside a container that is
+// about to be removed from the DOM. Without this, the shared observer retains
+// references to detached elements and prevents their GC.
+export function forgetNode(container) {
+  var blocks = container.querySelectorAll('pre code');
+  for (var i = 0; i < blocks.length; i++) _obs.unobserve(blocks[i]);
+}
