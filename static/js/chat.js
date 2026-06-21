@@ -1276,7 +1276,6 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
       let _nextIsError = false;
       let _streamSawDone = false;
-      var _renderRafId = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -1667,11 +1666,9 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   // Render any reply text that arrived with the closing </think> token
                   _renderStream();
                 } else {
-                  // Normal streaming — throttle to one render per animation frame
+                  // Normal streaming
                   if (spinner && spinner.element) spinner.destroy();
-                  if (!_renderRafId) {
-                    _renderRafId = requestAnimationFrame(() => { _renderRafId = 0; _renderStream(); });
-                  }
+                  _renderStream();
                   _scheduleThinkingSpinner();
                   // Feed streaming TTS with accumulated text
                   if (streamingTTS) window.aiTTSManager.streamingUpdate(roundText);
@@ -3038,8 +3035,6 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } finally {
       clearResponseTimeout();
       clearProcessingProbe();
-      // Cancel any pending rAF render — stream is done, final render already ran
-      if (_renderRafId) { cancelAnimationFrame(_renderRafId); _renderRafId = 0; }
       // Yield to idle so V8 can compact old-gen after the streaming allocation burst
       if (typeof scheduler !== 'undefined' && scheduler.postTask) {
         scheduler.postTask(() => {}, { priority: 'background' }).catch(() => {});
