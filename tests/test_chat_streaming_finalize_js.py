@@ -1,21 +1,4 @@
-"""Static validation of the streaming final-render fast path in chat.js.
-
-chat.js is browser-coupled and cannot be imported in pytest. These checks
-analyse the source text to lock in the structural contracts for the [DONE]
-handler optimisation:
-
-  For plain responses (no thinking block, no sources, no findings), the
-  streaming renderer already holds the correct final content. The fast path
-  calls finalize() to freeze the remaining tail in-place and unwraps the
-  stream-content div, eliminating the detached DOM subtree that a full
-  innerHTML re-render would create.
-
-  The existing full re-render path (thinking responses, sources, findings)
-  must be preserved unchanged.
-
-Root: docs/fork/memory-explosion-research.md
-"""
-
+# Source-text contract tests for the [DONE] handler fast path in chat.js.
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parent.parent
@@ -23,25 +6,20 @@ _SRC  = (_REPO / "static/js/chat.js").read_text(encoding="utf-8")
 
 
 def _done_finalize_block() -> str:
-    """The else-if / else section of the [DONE] body4 finalisation."""
     marker = "} else if (!_liveReplyEl && !_sourcesData && !_findingsData && !_sourcesHtml) {"
     start  = _SRC.index(marker)
-    # End just after the closing brace of the subsequent full-rerender else block.
     end    = _SRC.index("} else if (_sourcesHtml) {", start)
     return _SRC[start:end]
 
 
 def _fast_path_body() -> str:
-    """The inner body of the fast-path else-if (including the degraded fallback else)."""
     block  = _done_finalize_block()
     start  = block.index("{", block.index("!_sourcesHtml) {")) + 1
-    # The outer full-rerender else is identified by its distinctive comment.
     end    = block.index("} else {\n            // Full re-render")
     return block[start:end]
 
 
 def _full_rerender_body() -> str:
-    """The inner body of the existing full-rerender else block."""
     block  = _done_finalize_block()
     marker = "} else {\n            // Full re-render"
     start  = block.index(marker) + len(marker)
