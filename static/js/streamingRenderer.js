@@ -21,6 +21,7 @@
 // fallback so a bug can never produce broken output — only today's behavior.
 
 import { splitFinalized, describeOpenFence } from './streamingSegmenter.js';
+import { deferHighlight } from './hljsDefer.js';
 
 // Compile-time escape hatch: set to false to force the plain full-re-render path.
 // (The per-instance try/catch `degraded` fallback below is the runtime safety net.)
@@ -44,22 +45,20 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
     started = true;
   }
 
-  function highlight(root) {
-    if (hljs) root.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
-  }
-
   function clearTail() {
     _tailNodes = [];
     while (tailMarker.nextSibling) tailMarker.nextSibling.remove();
   }
 
-  // Render `src` and freeze the nodes before the tail marker. Highlighting happens
-  // here, once, on the detached fragment before the nodes are ever shown.
+  // Render `src` and freeze the nodes before the tail marker. Code blocks are
+  // collected before moving (same node refs) then deferred-highlighted after
+  // insertion so IntersectionObserver can measure viewport distance.
   function freeze(src) {
     const holder = document.createElement('div');
     holder.innerHTML = render(src);
-    highlight(holder);
+    const codeBlocks = Array.from(holder.querySelectorAll('pre code'));
     while (holder.firstChild) contentEl.insertBefore(holder.firstChild, tailMarker);
+    codeBlocks.forEach(deferHighlight);
   }
 
   // Re-render the live tail. An open trailing fence streams in append-mode.
@@ -163,7 +162,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
 
   function fullRender(fullText) {
     contentEl.innerHTML = render(fullText);
-    highlight(contentEl);
+    if (hljs) contentEl.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
   }
 
   // Render the latest full source text.

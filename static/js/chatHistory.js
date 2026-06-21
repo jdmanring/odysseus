@@ -311,9 +311,13 @@
       this._c.appendChild(frag);
     }
 
-    if (window.hljs) {
-      for (var hi = 0; hi < nodes.length; hi++) {
-        var _bs = nodes[hi].querySelectorAll ? nodes[hi].querySelectorAll('pre code:not(.hljs)') : [];
+    var _deferAll = window.hljsDeferHighlightAll;
+    for (var hi = 0; hi < nodes.length; hi++) {
+      if (!nodes[hi].querySelectorAll) continue;
+      if (_deferAll) {
+        _deferAll(nodes[hi]);
+      } else if (window.hljs) {
+        var _bs = nodes[hi].querySelectorAll('pre code:not(.hljs)');
         for (var bi = 0; bi < _bs.length; bi++) window.hljs.highlightElement(_bs[bi]);
       }
     }
@@ -438,10 +442,14 @@
       this._c.appendChild(frag);
     }
 
-    if (window.hljs) {
-      for (var hi = 0; hi < nodes.length; hi++) {
-        var _bs = nodes[hi].querySelectorAll ? nodes[hi].querySelectorAll('pre code:not(.hljs)') : [];
-        for (var bi = 0; bi < _bs.length; bi++) window.hljs.highlightElement(_bs[bi]);
+    var _deferAll2 = window.hljsDeferHighlightAll;
+    for (var hi = 0; hi < nodes.length; hi++) {
+      if (!nodes[hi].querySelectorAll) continue;
+      if (_deferAll2) {
+        _deferAll2(nodes[hi]);
+      } else if (window.hljs) {
+        var _bs2 = nodes[hi].querySelectorAll('pre code:not(.hljs)');
+        for (var bi = 0; bi < _bs2.length; bi++) window.hljs.highlightElement(_bs2[bi]);
       }
     }
 

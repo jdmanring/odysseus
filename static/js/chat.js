@@ -23,6 +23,7 @@ import codeRunnerModule from './codeRunner.js';
 import slashCommands, { initSlashCommands, isCommand, handleSlashCommand, handleSetupInput, handleSetupWizard, typewriterInto } from './slashCommands.js';
 import createResearchSynapse from './researchSynapse.js';
 import { createStreamRenderer } from './streamingRenderer.js';
+import { deferHighlightAll } from './hljsDefer.js';
 import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composerArrowUpRecall.js';
 
   const RESEARCH_TIMEOUT_MS = 360000;
@@ -2766,11 +2767,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
         }
 
 
-        if (window.hljs) {
-          roundHolder.querySelectorAll('pre code').forEach((block) => {
-            window.hljs.highlightElement(block);
-          });
-        }
+        deferHighlightAll(roundHolder);
         if (markdownModule.renderMermaid) markdownModule.renderMermaid(roundHolder);
 
         uiModule.scrollHistory();
@@ -3058,13 +3055,17 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } finally {
       clearResponseTimeout();
       clearProcessingProbe();
-      // Yield to idle — creates the low-priority window V8 uses for incremental
-      // GC steps after the streaming allocation burst.
-      if (typeof scheduler !== 'undefined' && scheduler.postTask) {
-        scheduler.postTask(() => {}, { priority: 'background' }).catch(() => {});
-      } else if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => {}, { timeout: 2000 });
-      }
+      // Deferred major GC after streaming finishes. Oilpan accumulates detached
+      // nodes from the final render; async mode runs incrementally during idle
+      // slices to minimise visible frame gaps. 2.5 s delay lets the UI settle
+      // before GC begins. Falls back to a no-op idle hint when gc() is absent.
+      setTimeout(function () {
+        if (typeof gc === 'function') {
+          gc({ type: 'major', execution: 'async' });
+        } else if (typeof requestIdleCallback !== 'undefined') {
+          requestIdleCallback(function () {}, { timeout: 2000 });
+        }
+      }, 2500);
       // Streaming done — let screen readers announce the settled response.
       const _chatLogDone = document.getElementById('chat-history');
       if (_chatLogDone) _chatLogDone.setAttribute('aria-busy', 'false');
@@ -5085,3 +5086,5 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
   export default chatModule;
   window.chatModule = chatModule;
+  // Expose for non-module scripts (chatHistory.js)
+  window.hljsDeferHighlightAll = deferHighlightAll;
