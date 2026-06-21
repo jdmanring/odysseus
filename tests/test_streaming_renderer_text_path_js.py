@@ -112,3 +112,24 @@ def test_empty_tail_clears_last_tail_text():
     brace_end = if_empty.index("\n    }") + 6
     empty_block = if_empty[:brace_end]
     assert "_lastTailText = null" in empty_block
+
+
+# ---------------------------------------------------------------------------
+# clearTail() reset — prevents stale baseline after explicit tail clear
+# ---------------------------------------------------------------------------
+
+def test_last_tail_text_reset_in_clear_tail():
+    # clearTail() resets _lastTailText so the next renderTail() can't compute
+    # a bogus suffix against a stale baseline.
+    marker = "function clearTail() {"
+    start  = _SRC.index(marker)
+    end    = _SRC.index("\n  }", start) + 4
+    clear_body = _SRC[start:end]
+    assert "_lastTailText = null" in clear_body
+
+
+def test_text_path_increments_rt_fast():
+    # _rtFast++ in the text-only path is required so finalize()'s log line
+    # reports the combined fast-path hit rate accurately.
+    block = _text_path_block()
+    assert "_rtFast++" in block
