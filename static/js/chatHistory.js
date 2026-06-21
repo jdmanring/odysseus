@@ -282,14 +282,21 @@
     var upTo = this._startIdx;
     if (from >= upTo) { this._attachSentinel(); return; }
 
-    // Measure before any DOM mutation. The spacer contributes to scrollHeight;
-    // removing it first would undercount the baseline and then overcorrect
-    // scrollTop by the full content height instead of the net change.
-    var before    = this._c.scrollHeight;
-    var insertRef = this._sentinel ? this._sentinel.nextSibling : this._c.firstChild;
+    // Measure before any DOM mutation so the spacer height is included in the
+    // baseline. The scroll adjustment at the end is scrollHeight_after - before,
+    // which gives the net change (content_height - spacer_height). Computing
+    // before after spacer removal drops the spacer from the baseline and then
+    // overcorrects scrollTop by the full content height regardless of spacer size.
+    var before = this._c.scrollHeight;
 
+    // Remove spacers before computing insertRef: after _pruneTop the sentinel is
+    // immediately followed by a spacer, so insertRef = sentinel.nextSibling = spacer.
+    // Removing the spacer after capturing insertRef leaves it pointing to a detached
+    // node, and insertBefore(frag, detachedNode) throws NotFoundError.
     var _spcs = this._c.querySelectorAll('.chat-history-spacer');
     for (var _si = 0; _si < _spcs.length; _si++) _spcs[_si].remove();
+
+    var insertRef = this._sentinel ? this._sentinel.nextSibling : this._c.firstChild;
 
     this._loading = true;
     var nodes = [];
