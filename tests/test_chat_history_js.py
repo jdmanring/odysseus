@@ -361,6 +361,30 @@ def test_prune_bottom_attaches_bottom_sentinel():
     assert "_attachBottomSentinel" in pb
 
 
+def _prune_bottom_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._pruneBottom")
+    end   = _SRC.index("window.chatHistory = new MessageWindow", start)
+    return _SRC[start:end]
+
+
+def test_prune_bottom_calls_forget_node_before_remove():
+    body = _prune_bottom_body()
+    forget_pos = body.index("hljsDeferForgetNode")
+    remove_pos = body.index("ref.remove()", forget_pos - 200)
+    assert forget_pos < remove_pos, (
+        "_pruneBottom must call hljsDeferForgetNode before ref.remove()"
+    )
+
+
+def test_prune_bottom_boundary_pass_calls_forget_node():
+    body = _prune_bottom_body()
+    first  = body.index("hljsDeferForgetNode")
+    second = body.index("hljsDeferForgetNode", first + 1)
+    assert second > first, (
+        "_pruneBottom boundary-cleanup pass must also call hljsDeferForgetNode"
+    )
+
+
 def test_load_newer_updates_end_idx():
     ln = _SRC[_SRC.index("MessageWindow.prototype._loadNewer"):]
     ln = ln[:ln.index("MessageWindow.prototype._initMutObs")]
