@@ -764,9 +764,9 @@ def test_load_logs_console_log():
     )
 
 
-def test_prune_top_logs_debug():
-    # Phase 2 prune fires frequently during streaming — kept at console.debug (opt-in).
-    assert "console.debug" in _prune_top_body(), (
+def test_prune_top_logs_console_log():
+    # Temporarily promoted to console.log for active OOM debugging.
+    assert "console.log" in _prune_top_body(), (
         "_pruneTop must log the prune count and new startIdx"
     )
 
@@ -778,16 +778,16 @@ def test_evict_live_logs_console_log():
     )
 
 
-def test_load_older_logs_debug():
-    # Batch load fires on every scroll-up step — kept at console.debug (opt-in).
-    assert "console.debug" in _load_older_body(), (
+def test_load_older_logs_console_log():
+    # Temporarily promoted to console.log for active OOM debugging.
+    assert "console.log" in _load_older_body(), (
         "_loadOlder must log the batch range and node count"
     )
 
 
-def test_load_newer_logs_debug():
-    # Batch load fires on every scroll-down step — kept at console.debug (opt-in).
-    assert "console.debug" in _load_newer_body(), (
+def test_load_newer_logs_console_log():
+    # Temporarily promoted to console.log for active OOM debugging.
+    assert "console.log" in _load_newer_body(), (
         "_loadNewer must log the batch range and node count"
     )
 
