@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-21. OOM investigation complete (Phase 1). CDP confirmed: Oilpan is the growth source (215K detached nodes vs ~9K live). Five upstream-candidate branches built for issues #68–72. All changes on develop. OS integration round complete: Linux CDP+PSI monitor (`feat/qt-native-linux-app`), macOS vm_stat monitor + `mac_wrapper.py` (`feat/qt-native-macos-app`), Windows kernel notification + `windows_wrapper.py` (`feat/qt-native-windows-app`). Verify GC cadence + reduced node counts in logs after restart. Research doc: docs/fork/memory-explosion-research.md.
+Last updated: 2026-06-21. OOM investigation complete (Phase 1). CDP confirmed: Oilpan is the growth source (215K detached nodes vs ~9K live). Five upstream-candidate branches built for issues #68–72. OS integration round complete: Linux CDP+PSI monitor, macOS vm_stat, Windows kernel notification. Senior review pass complete: chatHistory.js `_pruneTop`/`_loadOlder`/rename fixes landed on `fix/dom-oom-virtualization` and develop. CDP log now emits `listeners/node` ratio as leak indicator. **Pending**: tool bubble timer leak (need issue #TBD + branch `fix/tool-bubble-timer-leak`). Verify GC cadence + listener/node ratio in logs after restart. Research doc: docs/fork/memory-explosion-research.md.
 
 ---
 
