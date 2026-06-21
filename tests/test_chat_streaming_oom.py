@@ -132,10 +132,11 @@ def test_stream_renderer_nulled_after_final_render():
 # Fix C3 — idle scheduler in finally block
 # ---------------------------------------------------------------------------
 
-def test_finally_has_idle_scheduler():
+def test_finally_has_gc_dispatch():
     body = _finally_body()
-    # Prefer scheduler.postTask (stronger idle signal than rIC in QtWebEngine)
-    assert "scheduler" in body and "postTask" in body
+    # GC hint fires asynchronously after response completion via setTimeout delay.
+    # requestIdleCallback is a fallback for non-gc() environments (tested separately).
+    assert "gc(" in body and "_gcPending" in body
 
 
 def test_finally_has_idle_callback_fallback():
