@@ -1,17 +1,4 @@
-"""Static validation of the tool bubble in-place patch in chat.js.
-
-chat.js is browser-coupled and cannot be imported in pytest. These checks
-analyse the source text to lock in the structural contracts for the tool
-bubble in-place completion:
-
-  At tool_start, element refs are cached on the node immediately after
-  innerHTML is set, so tool_output can patch only the changed elements
-  instead of replacing the entire subtree via innerHTML. This eliminates
-  one complete detached DOM subtree per tool call.
-
-Root: docs/fork/memory-explosion-research.md
-"""
-
+# Source-text contract tests for tool bubble in-place completion in chat.js.
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parent.parent
@@ -19,7 +6,6 @@ _SRC  = (_REPO / "static/js/chat.js").read_text(encoding="utf-8")
 
 
 def _tool_start_body() -> str:
-    """Source from the tool bubble innerHTML assignment to threadWrap.appendChild."""
     marker = 'node.innerHTML = `<div class="agent-thread-dot">'
     start  = _SRC.index(marker)
     end    = _SRC.index("threadWrap.appendChild(node)", start)
@@ -27,7 +13,6 @@ def _tool_start_body() -> str:
 
 
 def _tool_complete_body() -> str:
-    """Source of the tool_output in-place patch block."""
     marker = "const _wasOpen = currentToolBubble.classList.contains('open')"
     start  = _SRC.index(marker)
     end    = _SRC.index("_lastToolName = ''", start)
@@ -92,8 +77,9 @@ def test_tool_complete_nulls_wave_after_removal():
 
 def test_tool_complete_removes_elapsed_span():
     body = _tool_complete_body()
-    assert "agent-thread-elapsed" in body
-    assert ".remove()" in body
+    qs_pos = body.index("agent-thread-elapsed")
+    rm_pos = body.index(".remove()", qs_pos)
+    assert rm_pos > qs_pos
 
 
 def test_tool_complete_updates_content_inner_html():
