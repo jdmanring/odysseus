@@ -126,7 +126,7 @@ Test branches: `test/upstream-pr-4661` (on upstream-mirror), `test/pr-4661` (on 
 | Pagination (`?limit=400`, `?offset=`) in history route | Initial load safety | Well-designed. Take as-is. |
 | `content-visibility: auto` on `.msg`, `.agent-thread`, `.thinking-content` | Paint/layout overhead | Valid CSS optimization. Take as-is. |
 
-### What the PR gets wrong — incompatibility with our virtualization system
+### What the PR gets wrong — incompatibility with the chatHistory.js virtualization system
 
 **`_trimChatHistoryDOM()` destroys chatHistory.js control elements.**
 
@@ -147,15 +147,15 @@ Loaded messages are not registered with chatHistory.js. If Phase 1's sentinel is
 
 ### What the PR does not address
 
-- Phase 2 `hist === 0` hard-stop — our confirmed bug, not fixed
+- Phase 2 `hist === 0` hard-stop — confirmed bug in this fork, not fixed
 - Regular streaming tail per-token allocations — StreamRenderer still runs markdown pipeline per-token for non-thinking text
-- Phase 3 scroll-jump-to-bottom — fixed in our `fix/dom-oom-virtualization` branch
+- Phase 3 scroll-jump-to-bottom — fixed in `fix/dom-oom-virtualization`
 
 ### Verdict
 
 **Take the safe parts directly; replace `_trimChatHistoryDOM()` and `_loadOlderMessages()` with a proper Phase 2 live-message cap.**
 
-The upstream PR cannot be ingested as-is once it merges. We must adapt the DOM-cap piece to coordinate with chatHistory.js before applying it to our fork. The safe parts (thinking-block fix, background cleanup, doc streaming throttle, pagination, CSS) can be cherry-picked without modification.
+The upstream PR cannot be ingested as-is once it merges. The DOM-cap piece must be adapted to coordinate with chatHistory.js. The safe parts (thinking-block fix, background cleanup, doc streaming throttle, pagination, CSS) can be cherry-picked without modification.
 
 ---
 
@@ -163,7 +163,7 @@ The upstream PR cannot be ingested as-is once it merges. We must adapt the DOM-c
 
 ### Fix A — Thinking Block Plain-Text Streaming (Root Cause 1, primary)
 
-**Source**: Upstream PR #4661 identified this fix. We independently confirmed the root cause from the `/proc/PID/maps` analysis and code trace. Our implementation matches PR #4661's approach: `textContent` during streaming, single `mdToHtml` render on block close.
+**Source**: Upstream PR #4661 identified this fix. The root cause was independently confirmed here from the `/proc/PID/maps` analysis and code trace. The implementation matches PR #4661's approach: `textContent` during streaming, single `mdToHtml` render on block close.
 
 **Effect**: Eliminates O(n²) markdown pipeline allocations for thinking blocks. Estimated reduction: 500× fewer `mdToHtml` invocations per thinking response. Direct attack on the primary source of V8 old-gen pollution.
 
@@ -173,7 +173,7 @@ The upstream PR cannot be ingested as-is once it merges. We must adapt the DOM-c
 
 **Open questions**:
 - Does the transition look jarring? Upstream's PR had a screenshot — appears smooth.
-- Should we also apply this to regular streaming tail renders? (see Fix A2 below)
+- Consider also applying this to regular streaming tail renders. (see Fix A2 below)
 
 **Fix A2 — Regular Streaming rAF Throttle**:
 Wrap `_renderStream()` in a `requestAnimationFrame` debounce. Instead of calling on every SSE delta, batch to max once per frame (~16ms). For a 50 token/second stream, this reduces renders from 50/sec to 60/sec max (no gain) — but for a fast model at 200 tok/sec, it reduces from 200/sec to 60/sec (3.3× reduction). More importantly: within a single `rAF`, the previous call's intermediate objects go out of scope before promotion from new-gen to old-gen.
@@ -193,7 +193,7 @@ _streamRenderRaf = requestAnimationFrame(() => {
 
 ### Fix B — Extend Phase 2 to Cap Live Messages (Root Cause 2)
 
-Upstream PR #4661's `_trimChatHistoryDOM()` is the right concept but the wrong implementation for our codebase — it destroys chatHistory.js control elements and bypasses `_all[]`. The correct fix is to extend Phase 2 inside `chatHistory.js` so it handles live overflow using the same infrastructure that already handles historical overflow.
+Upstream PR #4661's `_trimChatHistoryDOM()` is the right concept but the wrong implementation for this codebase — it destroys chatHistory.js control elements and bypasses `_all[]`. The correct fix is to extend Phase 2 inside `chatHistory.js` so it handles live overflow using the same infrastructure that already handles historical overflow.
 
 #### The architecture
 
@@ -241,11 +241,11 @@ The function walks DOM children after `_histSep`, finds the oldest `count` messa
 
 **Step 3 — Extend `_pruneTop()` spacer logic** to cover the new evicted-live case (already works — the spacer insertion after pruning top is structural, not historical-specific).
 
-**Step 4 — Handle `_loadOlderMessages()` correctly**: upstream PR's `_loadOlderMessages()` bypasses `_all[]` and breaks multi-round agent messages. Our Phase 1 IntersectionObserver already handles loading older messages from `_all[]` on scroll-up — by routing evicted live messages through `_all[]`, Phase 1 handles the reload automatically with no special "load older" bar needed.
+**Step 4 — Handle `_loadOlderMessages()` correctly**: upstream PR's `_loadOlderMessages()` bypasses `_all[]` and breaks multi-round agent messages. Phase 1's IntersectionObserver already handles loading older messages from `_all[]` on scroll-up — by routing evicted live messages through `_all[]`, Phase 1 handles the reload automatically with no special "load older" bar needed.
 
 #### What to take from upstream PR #4661's DOM cap approach
 
-The cleanup code in upstream PR #4661's `_trimChatHistoryDOM()` before removing each element is correct and reusable. We adapted this pattern into `_evictLive()`:
+The cleanup code in upstream PR #4661's `_trimChatHistoryDOM()` before removing each element is correct and reusable. This pattern was adapted into `_evictLive()`:
 ```js
 if (el._waveInterval) { clearInterval(el._waveInterval); el._waveInterval = null; }
 if (el._elapsedTicker) { clearInterval(el._elapsedTicker); el._elapsedTicker = null; }
@@ -261,12 +261,12 @@ This teardown should be extracted into a shared `_teardownNode(el)` helper and c
 
 #### Data attributes needed on live message elements
 
-For `_evictLive()` to capture message metadata without re-fetching from the server, live message elements need data attributes set during `addMessage()`. Currently `data-ch-idx` is set only for historical messages. We need:
+For `_evictLive()` to capture message metadata without re-fetching from the server, live message elements need data attributes set during `addMessage()`. Currently `data-ch-idx` is set only for historical messages. Required:
 - `data-ch-role` — already set via element class (`msg-user`, `msg-ai`)
 - `data-ch-model` — not currently set; needs to be added to the role label element
 - `dataset.raw` — already set on all finalized messages for copy/regenerate; contains the markdown source
 
-For tool-event metadata (`meta.tool_events`, `meta.round_texts`): the fully-rendered HTML in the DOM element's innerHTML is sufficient for re-display. We do not need to reconstruct tool_events for scroll-up reload — we just need to re-render the stored HTML. This is exactly what `addMessage(role, storedHtml, modelName, null)` does for historical messages.
+For tool-event metadata (`meta.tool_events`, `meta.round_texts`): the fully-rendered HTML in the DOM element's innerHTML is sufficient for re-display. Reconstructing tool_events for scroll-up reload is not necessary — re-rendering the stored HTML is enough. This is exactly what `addMessage(role, storedHtml, modelName, null)` does for historical messages.
 
 #### Effect
 
@@ -384,7 +384,7 @@ QTWEBENGINE_CHROMIUM_FLAGS="--remote-debugging-port=9222" python3 app.py
 
 6. **Fix C1 + C3** — StreamRenderer teardown, idle scheduler. Polish after the main fixes.
 
-7. **Ingest upstream PR #4661 when it merges** — take the safe parts (thinking-block fix, doc streaming throttle, pagination, background cleanup, CSS) via the pipeline. **Do not take `_trimChatHistoryDOM()` or `_loadOlderMessages()` as-is** — replace with our Phase 2 live-eviction fix (Fix B). File a comment on the upstream PR noting the chatHistory.js incompatibility and proposing the `_evictLive()` approach as an improvement.
+7. **Ingest upstream PR #4661 when it merges** — take the safe parts (thinking-block fix, doc streaming throttle, pagination, background cleanup, CSS) via the pipeline. **Do not take `_trimChatHistoryDOM()` or `_loadOlderMessages()` as-is** — replace with the Phase 2 live-eviction fix (Fix B). File a comment on the upstream PR noting the chatHistory.js incompatibility and proposing the `_evictLive()` approach as an improvement.
 
 ---
 
@@ -403,15 +403,15 @@ All fixes are upstream-candidates.
 
 ### Attribution
 
-The following elements of our implementation were adapted from upstream PR #4661 ("fix(ui): prevent browser OOM during long agent interactions") by holden093:
+The following elements were adapted from upstream PR #4661 ("fix(ui): prevent browser OOM during long agent interactions") by holden093:
 
-- **Fix A thinking-block approach** (`fix/dom-oom-streaming-throttle`): The `textContent` substitution for `_liveThinkInner` during streaming and the deferred single rich render on block close. We independently confirmed the root cause from `/proc/PID/maps` analysis, but the specific fix approach matches PR #4661's implementation.
-- **Background stream cleanup** (`fix/dom-oom-streaming-throttle`): Clearing `accumulated`, `sourcesHtml`, `findingsData` on `[DONE]`. PR #4661 cleared only `accumulated` and `abortCtrl`; we extended to include `sourcesHtml` and `findingsData`.
-- **`_evictLive()` teardown pattern** (`fix/dom-oom-phase2-guard`): The per-node cleanup (clear `_waveInterval`, `_elapsedTicker`, `_streamRenderer`, recurse into descendants) mirrors the teardown block inside PR #4661's `_trimChatHistoryDOM()`. We could not use that function directly because it destroys chatHistory.js control elements.
+- **Fix A thinking-block approach** (`fix/dom-oom-streaming-throttle`): The `textContent` substitution for `_liveThinkInner` during streaming and the deferred single rich render on block close. The root cause was independently confirmed from `/proc/PID/maps` analysis, but the specific fix approach matches PR #4661's implementation.
+- **Background stream cleanup** (`fix/dom-oom-streaming-throttle`): Clearing `accumulated`, `sourcesHtml`, `findingsData` on `[DONE]`. PR #4661 cleared only `accumulated` and `abortCtrl`; `sourcesHtml` and `findingsData` were added here.
+- **`_evictLive()` teardown pattern** (`fix/dom-oom-phase2-guard`): The per-node cleanup (clear `_waveInterval`, `_elapsedTicker`, `_streamRenderer`, recurse into descendants) mirrors the teardown block inside PR #4661's `_trimChatHistoryDOM()`. That function could not be used directly because it destroys chatHistory.js control elements.
 
-What we did NOT take from PR #4661:
+What was NOT taken from PR #4661:
 - `_trimChatHistoryDOM()` — incompatible with chatHistory.js virtualization system
 - `_loadOlderMessages()` — breaks multi-round agent message rendering
-- History pagination (`routes/history_routes.py` `?limit=`/`?offset=`) — separate concern, would be taken during ingest after PR merges
+- History pagination (`routes/history_routes.py` `?limit=`/`?offset=`) — separate concern, taken during ingest after PR merges
 - Document editor rAF throttle — separate concern, same as above
 - `content-visibility: auto` CSS — separate concern, same as above
