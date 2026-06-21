@@ -3566,9 +3566,17 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
             }
           }
           if (_liveReplyEl && _finalReply) {
-            // Render reply into the live-reply container (thinking bar already showing)
-            var _replyHtml = markdownModule.mdToHtml(markdownModule.squashOutsideCode(_finalReply));
-            _liveReplyEl.innerHTML = _replyHtml;
+            if (_liveReplyEl._streamRenderer) {
+              // Sync to final post-processed text and freeze in-place — avoids
+              // discarding the incremental streaming DOM tree and creating a new one.
+              _liveReplyEl._streamRenderer.update(_finalReply);
+              _liveReplyEl._streamRenderer.finalize();
+              _liveReplyEl._streamRenderer = null;
+            } else {
+              // No streaming renderer (e.g. fast non-streaming path): full render.
+              var _replyHtml = markdownModule.mdToHtml(markdownModule.squashOutsideCode(_finalReply));
+              _liveReplyEl.innerHTML = _replyHtml;
+            }
             _liveReplyEl.classList.remove('live-reply-content');
             if (_sourcesData) {
               var _srcEl = document.createElement('div');
