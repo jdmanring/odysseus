@@ -163,11 +163,11 @@ The upstream PR cannot be ingested as-is once it merges. We must adapt the DOM-c
 
 ### Fix A — Thinking Block Plain-Text Streaming (Root Cause 1, primary)
 
-**What upstream PR does**: Replace `_liveThinkInner.innerHTML = markdownModule.mdToHtml(thinkText)` with `_liveThinkInner.textContent = thinkText` during streaming. One rich render when the block closes.
+**Source**: Upstream PR #4661 identified this fix. We independently confirmed the root cause from the `/proc/PID/maps` analysis and code trace. Our implementation matches PR #4661's approach: `textContent` during streaming, single `mdToHtml` render on block close.
 
 **Effect**: Eliminates O(n²) markdown pipeline allocations for thinking blocks. Estimated reduction: 500× fewer `mdToHtml` invocations per thinking response. Direct attack on the primary source of V8 old-gen pollution.
 
-**Implementation**: Straightforward substitution in `chat.js`. Already done in upstream PR #4661.
+**Implementation**: Substitution in `chat.js` at line 1580. Adapted from upstream PR #4661.
 
 **Risk**: Thinking block displays as plain text during streaming. On close, a single full render replaces it. User sees: plain text → (collapse transition) → rendered markdown. This is acceptable — the block is collapsed by default anyway.
 
@@ -243,9 +243,9 @@ The function walks DOM children after `_histSep`, finds the oldest `count` messa
 
 **Step 4 — Handle `_loadOlderMessages()` correctly**: upstream PR's `_loadOlderMessages()` bypasses `_all[]` and breaks multi-round agent messages. Our Phase 1 IntersectionObserver already handles loading older messages from `_all[]` on scroll-up — by routing evicted live messages through `_all[]`, Phase 1 handles the reload automatically with no special "load older" bar needed.
 
-#### What to take from upstream PR's DOM cap approach
+#### What to take from upstream PR #4661's DOM cap approach
 
-The cleanup code in upstream's `_trimChatHistoryDOM()` before removing each element is correct and reusable:
+The cleanup code in upstream PR #4661's `_trimChatHistoryDOM()` before removing each element is correct and reusable. We adapted this pattern into `_evictLive()`:
 ```js
 if (el._waveInterval) { clearInterval(el._waveInterval); el._waveInterval = null; }
 if (el._elapsedTicker) { clearInterval(el._elapsedTicker); el._elapsedTicker = null; }
@@ -395,8 +395,23 @@ All fixes are upstream-candidates.
 | Branch | Origin | Scope | Status |
 |---|---|---|---|
 | `fix/dom-oom-virtualization` | `upstream-mirror` | Phase 3 scroll-jump-to-bottom (BIDI_MSG_CAP) | On develop; needs in-app verification |
-| `fix/dom-oom-streaming-throttle` | `upstream-mirror` | Fix A (thinking-block textContent) + Fix A2 (rAF throttle) + Fix C1–C3 | Not started |
-| `fix/dom-oom-live-eviction` | `upstream-mirror` | Fix B: Phase 2 `_evictLive()`, `_teardownNode()`, data attribute additions, remove `hist===0` guard | Not started |
-| `test/upstream-pr-4661` | `upstream-mirror` | Upstream PR #4661 cherry-picked on upstream-mirror | Created, pushed |
-| `test/pr-4661` | `develop` | Upstream PR #4661 cherry-picked on develop (one conflict resolved) | Created, pushed |
+| `fix/dom-oom-streaming-throttle` | `upstream-mirror` | Fix A (thinking-block textContent, adapted from upstream PR #4661) + Fix A2 (rAF throttle) + Fix C1–C3 (C4 partial — teardown pattern adapted from PR #4661) | Built and pushed (commit `d35f3819`) |
+| `fix/dom-oom-phase2-guard` | `fix/dom-oom-virtualization` | Fix B: Phase 2 `_evictLive()` replaces `hist===0` hard-stop; teardown cleanup adapted from upstream PR #4661's `_trimChatHistoryDOM()` teardown | Built and pushed (commit `d1222f42`) |
+| `test/upstream-pr-4661` | `upstream-mirror` | Upstream PR #4661 cherry-picked on upstream-mirror — for comparison only | Created, pushed |
+| `test/pr-4661` | `develop` | Upstream PR #4661 cherry-picked on develop (one conflict resolved in sessions.js) — for comparison only | Created, pushed |
 | _(pending ingest)_ | upstream PR #4661 | Safe parts only — see "Ingest" note above | Waiting for upstream merge |
+
+### Attribution
+
+The following elements of our implementation were adapted from upstream PR #4661 ("fix(ui): prevent browser OOM during long agent interactions") by holden093:
+
+- **Fix A thinking-block approach** (`fix/dom-oom-streaming-throttle`): The `textContent` substitution for `_liveThinkInner` during streaming and the deferred single rich render on block close. We independently confirmed the root cause from `/proc/PID/maps` analysis, but the specific fix approach matches PR #4661's implementation.
+- **Background stream cleanup** (`fix/dom-oom-streaming-throttle`): Clearing `accumulated`, `sourcesHtml`, `findingsData` on `[DONE]`. PR #4661 cleared only `accumulated` and `abortCtrl`; we extended to include `sourcesHtml` and `findingsData`.
+- **`_evictLive()` teardown pattern** (`fix/dom-oom-phase2-guard`): The per-node cleanup (clear `_waveInterval`, `_elapsedTicker`, `_streamRenderer`, recurse into descendants) mirrors the teardown block inside PR #4661's `_trimChatHistoryDOM()`. We could not use that function directly because it destroys chatHistory.js control elements.
+
+What we did NOT take from PR #4661:
+- `_trimChatHistoryDOM()` — incompatible with chatHistory.js virtualization system
+- `_loadOlderMessages()` — breaks multi-round agent message rendering
+- History pagination (`routes/history_routes.py` `?limit=`/`?offset=`) — separate concern, would be taken during ingest after PR merges
+- Document editor rAF throttle — separate concern, same as above
+- `content-visibility: auto` CSS — separate concern, same as above
