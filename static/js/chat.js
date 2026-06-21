@@ -1277,11 +1277,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
       let _nextIsError = false;
       let _streamSawDone = false;
-      // Throttle live DOM renders — the streaming renderer rebuilds the tail on
-      // every call (clearTail + full DOM re-create), generating thousands of
-      // Oilpan DOM node create/remove cycles. Cap at 20 renders/sec.
+      // Throttle live DOM renders. With in-place tail patching in streamingRenderer
+      // renders are cheap; 30/sec gives smooth streaming with minimal Oilpan pressure.
       let _lastRenderMs = 0;
-      const _RENDER_INTERVAL = 50;
+      const _RENDER_INTERVAL = 33; // ~30 fps
       const _throttledRenderStream = () => {
         const now = performance.now();
         if (now - _lastRenderMs < _RENDER_INTERVAL) return;
