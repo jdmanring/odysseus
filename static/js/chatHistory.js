@@ -843,6 +843,7 @@
         var idx = (ref.dataset && ref.dataset.chIdx !== undefined)
           ? parseInt(ref.dataset.chIdx, 10)
           : null;
+        if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(ref);
         ref.remove();
         removed++;
         if (idx !== null && idx < lowestIdx) lowestIdx = idx;
@@ -862,6 +863,7 @@
              !check.classList.contains('chat-history-spacer')) {
         if (check.dataset && parseInt(check.dataset.chIdx, 10) === lowestIdx) {
           var prevCheck = check.previousElementSibling;
+          if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(check);
           check.remove();
           check = prevCheck;
         } else {
