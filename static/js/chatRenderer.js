@@ -6,6 +6,7 @@ import markdownModule from './markdown.js';
 import { addAITTSButton } from './tts-ai.js';
 import { providerLogo, providerLabel } from './providers.js';
 import settingsModule from './settings.js';
+import { deferHighlightAll } from './hljsDefer.js';
 import spinnerModule from './spinner.js';
 import { bindMenuDismiss } from './escMenuStack.js';
 import { matchModelKey } from './model/matchKey.js';
@@ -2125,9 +2126,7 @@ export function addMessage(role, content, modelName, metadata) {
         if (metadata) displayMetrics(firstWrap, metadata);
       }
 
-      if (window.hljs) {
-        box.querySelectorAll('pre code:not(.hljs)').forEach(b => window.hljs.highlightElement(b));
-      }
+      deferHighlightAll(box);
       if (markdownModule.renderMermaid) markdownModule.renderMermaid(box);
       return lastWrap;
     }

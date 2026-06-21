@@ -1,8 +1,85 @@
 # Memory Explosion Research: QtWebEngine OOM in Long Agent Sessions
 
-**Status**: Investigation complete. Three root causes confirmed. Upstream PR #4661 addresses two of them. One (Phase 2 guard bug) remains fork-only work.
+**Status**: Active investigation. Root cause revised 2026-06-21 — see Session 2 findings below. Original analysis (V8 old-gen theory) was based on `/proc/PID/maps` labels which are misleading for Oilpan allocations. CDP diagnosis overturned it.
 
-**Symptoms**: QtWebEngine renderer process grows to 14–18+ GB RSS during long agent sessions (~300+ messages). Memory grows ~200–300 MB per message exchange. Requires app restart. Confirmed on the "A Simple Greeting" libvirt debugging session (308 messages, 487 tool events).
+**Symptoms**: QtWebEngine renderer process grows to 14–18+ GB RSS during long agent sessions (~300+ messages). Memory grows ~200–300 MB per message exchange (or faster during active streaming). Requires app restart. Confirmed on multiple sessions. Growth visible from the very first session restart (~600 MB/min during active use in new sessions).
+
+---
+
+## Session 2 Findings — 2026-06-21 (CDP Diagnosis)
+
+### Revised root cause: Oilpan/Blink, not V8
+
+CDP (`Memory.getDOMCounters()`, enabled via `--remote-debugging-port=9222`) gave a direct reading that invalidated the Session 1 analysis:
+
+```
+documents:       5
+nodes:           224,986   ← total DOM nodes in Blink heap
+jsEventListeners: 5,427
+```
+
+At the same time, the V8 heap report showed only **82 MB** in V8 JavaScript heap — negligibly small.
+
+**The memory explosion is almost entirely Oilpan (Blink's garbage collector for DOM nodes, CSS objects, and layout trees)**, not V8's JavaScript old-generation space. The `/proc/PID/maps` labels from Session 1 that showed `[anon:v8]` regions totalling 15.8 GB were misleading — Chromium's PartitionAlloc (used by Oilpan) does not label its regions `[anon:oilpan]`; they appear as generic anonymous mappings, some of which are labelled `v8` by the kernel's AnonVma naming for the renderer process as a whole.
+
+**Confirmed**: 224,986 total Blink nodes vs ~9,195 live nodes = ~215,000 **detached nodes** sitting in Oilpan's heap, not yet collected. Each streaming response creates and discards a large DOM subtree (the streaming tail is cleared and rebuilt on every render, each clearTail + rebuild cycle leaving one full response tree detached). Oilpan does not collect these in a timely way because:
+
+1. **No OS memory pressure signals**: QtWebEngine is an embedded renderer — it does not participate in the browser-level memory pressure notification system that signals Oilpan to run a major collection. In a real Chrome tab, when the OS reports low memory, Blink's memory coordinator forces a GC. In QtWebEngine, this path is not wired up.
+
+2. **Oilpan incremental GC is insufficient**: Oilpan's default schedule is based on allocation rate heuristics. During active streaming, the allocation rate is high enough to trigger frequent minor cycles but not major ones. Detached subtrees (Oilpan's "old objects") accumulate between major GCs.
+
+3. **No external pressure to trigger a major cycle**: Without the OS signal and without an explicit `gc()` call, major Oilpan GC does not run between responses.
+
+### What Session 1 fixes did and didn't do
+
+All Session 1 fixes (thinking-block textContent throttle, rAF throttle, in-place tail patch, `_purgeStaleBackgroundStreams()`, `content-visibility: auto`, idle callbacks, history pagination, 30fps `_RENDER_INTERVAL`) were applied to `develop` before the Session 2 monitoring started.
+
+**Measured results (new session, pid=18573, all fixes applied)**:
+
+```
+337 MB   start
+474 MB   +137 MB/min  (light initial load)
+1,599 MB +1,125 MB/min ← first burst of conversation
+1,607 MB +8 MB/min    (brief stability)
+1,617 MB +10 MB/min   (brief stability)
+1,748 MB +131 MB/min  (next exchange)
+2,380 MB +632 MB/min  (continued use)
+2,996 MB +616 MB/min  (continued use)
+3,178 MB +182 MB/min  (continued use)
+```
+
+**Conclusion**: The Session 1 fixes reduced the *continuous drip* rate during idle periods (~8–10 MB/min vs ~200–300 MB/min before) but did NOT stop the per-response spike pattern. Memory climbs monotonically during active use, just at a somewhat slower rate. The session would still hit OOM within 20–40 more exchanges.
+
+**Why content-visibility: auto didn't fix it**: `content-visibility: auto` defers layout and paint for off-screen elements, reducing Oilpan's *cost to access* those elements. But the detached nodes from streaming still exist in Oilpan's heap — they just aren't laid out. The node count (215,000) is unchanged; only the CPU time to process them is reduced.
+
+**Why idle callbacks didn't fix it**: `scheduler.postTask('background')` and `requestIdleCallback()` create the idle window that V8 uses for incremental GC steps. But V8's incremental GC handles *JavaScript* objects, not Oilpan's C++ DOM node graph. Oilpan has its own GC scheduler that idle callbacks do not directly influence.
+
+### The only mechanism that works: --expose-gc
+
+During Session 1, `--expose-gc` was added to Chromium flags (enabling `gc()` in JS) and `gc()` was called in the `finally` block after each response. Memory **oscillated** (went up during streaming, then came back down after each GC call) instead of climbing monotonically. This was the only observed mechanism that caused RSS to decrease.
+
+The V8 `gc()` API, when called via `--expose-gc`, triggers a full major collection that includes **both** V8 old-gen and Oilpan. Specifically, `gc({ type: 'major', execution: 'async' })` runs incremental major GC slices during idle periods, which collects detached Oilpan nodes.
+
+**Tradeoff**: Both synchronous `gc()` and `gc({ type: 'major', execution: 'async' })` caused brief gray-frame flicker during testing. The flicker is likely Chromium temporarily suspending the compositor during GC. With a 2.5-second post-response delay (allowing the UI to settle before GC starts), flicker is expected to be minimized.
+
+### Current approach (as of 2026-06-21)
+
+1. `--expose-gc` flag re-added to `qt_wrapper.py` Chromium flags
+2. In `chat.js` `finally` block: `setTimeout(() => gc({ type: 'major', execution: 'async' }), 2500)`
+3. Falls back to `requestIdleCallback` no-op if `gc()` is absent (non-QtWebEngine environments)
+4. All Session 1 fixes remain in place (they reduce DOM churn, which reduces the volume of detached nodes that GC must collect)
+
+**Not yet verified**: Whether the 2.5s delay + async mode eliminates the gray flicker. Requires a new session after restart with the updated qt_wrapper.py.
+
+### Revised understanding of PR #4661
+
+The PR was solving a **real but secondary problem** — reducing unnecessary DOM allocation rate (V8 side). The primary problem in QtWebEngine is Oilpan collection failure. The PR's fixes are still valid and are pre-applied to `develop`, but they are not sufficient on their own for QtWebEngine-embedded use.
+
+The correct long-term fix for upstream would include either:
+- Wiring QtWebEngine's memory pressure notifications to Oilpan's coordinator (requires C++ changes to Qt or Chromium embedding code — out of scope for a JS-level PR)
+- Making the JS-level `--expose-gc` approach part of the wrapper with documentation explaining why it's necessary for the embedded case
+
+---
 
 ---
 
@@ -415,3 +492,475 @@ What was NOT taken from PR #4661:
 - History pagination (`routes/history_routes.py` `?limit=`/`?offset=`) — separate concern, taken during ingest after PR merges
 - Document editor rAF throttle — separate concern, same as above
 - `content-visibility: auto` CSS — separate concern, same as above
+
+---
+
+## Session 3 Deep Analysis — 2026-06-21
+
+### All current garbage generation sources (ranked by estimated impact)
+
+The following sources have been identified by code audit of `streamingRenderer.js`, `chat.js`, and `chatHistory.js`. Where possible, the Oilpan pressure type (detached nodes, retained closures, fragmentation) is noted.
+
+#### Source 1 — renderTail() holder div (PRIMARY, unresolved)
+
+**Location**: `streamingRenderer.js:78–108`
+
+Every `renderTail()` call — 30 times per second during streaming — does:
+```js
+const holder = document.createElement('div');
+holder.innerHTML = render(tailText);          // full markdown parse → full DOM subtree
+const newNodes = Array.from(holder.childNodes); // array allocation
+```
+
+Then, on the fast path (in-place patch): the `holder` and its entire parsed DOM subtree are discarded. On the slow path (structure changed): the old `_tailNodes` are removed (detached) AND a new tree from `holder` is inserted.
+
+**Critical misunderstanding in previous analysis**: The in-place patch avoids removing/re-inserting live tail nodes, but it does NOT avoid creating the shadow DOM tree. Every call to `renderTail()` still creates a full parsed DOM tree inside `holder`, even when fast-path patching succeeds. This shadow tree immediately becomes garbage.
+
+For a 10-second streaming response at 30fps: **300 complete DOM trees created and discarded** in Oilpan. Each tree mirrors the full visible tail — typically 1–5 block elements with text nodes. Multiply by session length.
+
+**This is the highest-volume ongoing Oilpan pressure source currently unaddressed.**
+
+**Fix (not yet implemented)**: Before calling `render(tailText)`, count structural blocks with a fast regex that doesn't build a DOM tree. If the count matches `_tailNodes.length` and node types match, update text content directly using the diff between `lastTailText` and `tailText` — no parsing required.
+
+```js
+// Candidate approach: plain-text delta for stable streaming
+function _countBlocks(text) {
+  // Count top-level block boundaries (paragraph breaks, code fence markers)
+  // Returns {count, types[]} without building any DOM
+}
+// If _countBlocks(tailText).count === _tailNodes.length and types match,
+// walk _tailNodes and update only the text nodes using direct .data assignment
+// based on the last known text. This skips render() entirely.
+```
+
+The difficulty: markdown is not a context-free grammar — a new character can change the meaning of preceding text (e.g., closing a fence, completing a link). The regex approach must be conservative: any ambiguous case falls through to the full render path.
+
+#### Source 2 — Final render double-allocation (AGENT PATH)
+
+**Location**: `chat.js:2725–2750` (agent round finalization)
+
+After `streamingRenderer.finalize()` closes the streaming path (freezing remaining tail into live DOM), the agent path does:
+```js
+_liveReplyEl.innerHTML = _replyHtml;  // fresh mdToHtml() render of full text
+```
+
+This creates an entirely new DOM tree from the final markdown. All the nodes that `streamingRenderer.finalize()` just placed into `_liveReplyEl` become detached at this moment — one complete response worth of DOM nodes, all detached simultaneously. This is the largest single-event Oilpan deposition per response.
+
+**Why this exists**: The streaming path renders incrementally (frozen blocks + live tail) while the final path needs a single clean render that can apply `extractThinkingBlocks()` and sources boxes in the correct positions. The streaming renderer can't position these because it doesn't know the full structure until the stream ends.
+
+**Potential fix**: Call `streamingRenderer.finalize()` with the post-processed `finalDisplay` text rather than re-rendering separately. The streaming renderer already does a `freeze(rest)` on the remaining tail — if we pass the full `finalDisplay` as the text rather than the raw stream text, we get the correct output without a second render. This requires threading `finalDisplay` earlier in the pipeline.
+
+#### Source 3 — Tool output double-render (AGENT PATH)
+
+**Location**: `chat.js:2129` (tool start) and `chat.js:2242` (tool end)
+
+When a tool runs:
+1. `node.innerHTML = placeholder_html` — creates DOM for the running state
+2. `currentToolBubble.innerHTML = final_html` — replaces with completed state
+
+The placeholder nodes (`.agent-thread-wave`, running state) become detached when the final innerHTML fires. For an agent session with 50 tool calls, this is 50 placeholder subtrees detached and left in Oilpan.
+
+**Fix**: Patch the tool state in-place — update only the changed elements (status indicator, chevron, output content) rather than replacing the entire `innerHTML`. Reduces Oilpan pressure for every tool call.
+
+#### Source 4 — hljs highlighting allocation (EVERY FINALIZATION)
+
+**Location**: `streamingRenderer.js:47–49`, `chat.js:2769–2771`, `chat.js:2080–2081`
+
+After each finalized code block, `hljs.highlightElement(block)` replaces `<code>` text content with a tree of `<span class="hljs-...">` elements. For a 100-line bash output, this produces 200–500 `<span>` elements. The original text node is detached.
+
+More importantly: `highlightElement` is called immediately at finalization time for ALL code blocks in the message, including those that may be off-screen. A message with 10 code blocks allocates 2,000–5,000 span elements at once.
+
+**Fix**: Defer `highlightElement()` until the code block is scrolled into view, using `IntersectionObserver`. Off-screen blocks remain as plain text. When the user scrolls to them, highlight just-in-time. This reduces per-response Oilpan pressure by 50–90% for tool-heavy agent sessions.
+
+Implementation:
+```js
+// In streamingRenderer.highlight() — replace immediate highlight with deferred
+function highlight(root) {
+  if (!hljs) return;
+  root.querySelectorAll('pre code').forEach((block) => {
+    if (!block.dataset.highlighted) {
+      _deferHighlight(block);
+    }
+  });
+}
+
+const _highlightObserver = new IntersectionObserver((entries) => {
+  entries.forEach((e) => {
+    if (e.isIntersecting && !e.target.dataset.highlighted) {
+      e.target.dataset.highlighted = '1';
+      hljs.highlightElement(e.target);
+      _highlightObserver.unobserve(e.target);
+    }
+  });
+}, { rootMargin: '200px' });
+
+function _deferHighlight(block) {
+  _highlightObserver.observe(block);
+}
+```
+
+#### Source 5 — Event listeners on per-response elements (SUSPECTED MINOR)
+
+**Location**: `chat.js` — `contBtn`, `_cont`, variant nav buttons, `closeBtn` (ask-user modal)
+
+Per-response UI buttons get `addEventListener('click', () => { ... })` with closures. When the button's parent message is evicted by Phase 2 (`_evictLive()`), the button is removed from DOM but the listener closure is NOT explicitly removed.
+
+**Assessment**: In modern Chromium, detached nodes with event listeners ARE GC-able if no external code holds a strong reference to the node itself. The listener closure doesn't prevent collection. However, if any closure captures a live object (e.g., `_session`, `_backgroundStreams` Map) without going through a weak reference, that object's reachability chain could prevent collection.
+
+**Verification needed**: A `Runtime.evaluate` CDP call to count listeners on detached nodes would confirm whether this is a genuine leak or not. Until verified, treat as suspected minor contributor.
+
+**Partial mitigation already in place**: `_evictLive()` clears `_waveInterval`, `_elapsedTicker`, and `_streamRenderer` on evicted nodes, which breaks the most obvious retention chains.
+
+#### Source 6 — Round holder innerHTML resets (AGENT MULTI-ROUND)
+
+**Location**: `chat.js:2750`, `chat.js:2757`
+
+For multi-round agent responses, each round's body is reset multiple times during the stream:
+- Initial round structure set
+- Source box added
+- Final round text rendered
+
+Each `innerHTML` reset discards the previous DOM tree. For a 5-round agent session with sources, this is 5×3 = 15 detached subtrees per session.
+
+**Scale**: Small relative to Sources 1 and 2, but compounds over long sessions.
+
+---
+
+### gc() behavior in depth
+
+**Does `gc({ type: 'major', execution: 'async' })` collect Oilpan nodes?**
+
+Yes. Since Chrome 96 (unified heap milestone), V8 and Oilpan share a single GC cycle called "Unified Heap". When a V8 major GC runs, it includes Oilpan's marking phase — DOM nodes, CSS objects, and layout trees are traced and collected alongside V8 heap objects. The `gc()` call via `--expose-gc` triggers this unified cycle.
+
+**Synchronous vs asynchronous execution**:
+
+- `gc({ type: 'major', execution: 'sync' })` — one blocking pause. GC runs to completion before the next JS task. Total pause: 50–500ms depending on heap size. Causes gray frames.
+- `gc({ type: 'major', execution: 'async' })` — incremental, runs in slices during idle time between JS tasks. Individual slice: ~1ms. Total GC work is the same, spread over multiple frames. Theoretically no gray frames, but QtWebEngine's event loop integration may still cause compositor hiccups.
+
+**Why we saw gray flicker with async GC**: The gray is likely the Qt compositor repainting the WebView background during a brief stall in the renderer's compositing pipeline, not from the GC slices themselves. The 2.5s post-response delay should push GC past the compositing flush, reducing (but possibly not eliminating) the flicker.
+
+**Measuring GC effectiveness**:
+```js
+// In the setTimeout callback, sandwich gc() with CDP queries:
+// Before gc():  Memory.getDOMCounters() → log node count
+// After gc() settles (another setTimeout 3s later): Memory.getDOMCounters() → log node count
+// Delta = nodes collected
+```
+
+Currently we have no way to confirm how many nodes each gc() call actually collects. This measurement is essential for tuning.
+
+**Optimal gc() call frequency**: Too frequent = wasted CPU on GC overhead. Too infrequent = large accumulation between collections. The current approach (once per response, 2.5s after [DONE]) is a reasonable starting point. If each response takes 10s and produces 5,000 detached nodes, and GC takes 200ms spread across frames, the overhead is ~2% — acceptable.
+
+**Minor GC between renders**: `gc({ type: 'minor', execution: 'sync' })` collects only V8 new-space objects (young generation). Since Oilpan nodes are not in V8 new-space, minor GC does NOT help with our primary problem. Do not add minor GC calls.
+
+---
+
+### Chromium flags for GC and memory tuning
+
+These flags can be added to `QTWEBENGINE_CHROMIUM_FLAGS` in `qt_wrapper.py`. Each has tradeoffs.
+
+#### Currently in use
+- `--js-flags=--expose-gc` — enables `gc()` JS API. Required for our primary fix.
+
+#### Worth evaluating
+
+**`--js-flags=--max-old-space-size=N`** (e.g., 512)
+Caps V8 old-generation heap at N MB. When V8 old-gen approaches the cap, it triggers major GC more aggressively — including Oilpan (unified heap). This is a backstop that forces GC even if our explicit `gc()` calls are insufficient.
+
+Tradeoff: If Oilpan plus V8 together exceed N MB, GC will thrash (constant major cycles). Set conservatively — 512 MB leaves room for the application's legitimate V8 usage (~100 MB) plus one large response worth of streaming churn.
+
+**`--enable-features=PartitionAllocMemoryReclaimer`**
+PartitionAlloc's memory reclaimer periodically decommits free pages back to the OS, reducing RSS even when objects have been logically collected but memory not returned. Has no effect until GC has run and freed Oilpan objects. Reduces the RSS waterline after successful GC.
+
+**`--enable-features=BlinkHeapCompaction`**
+Oilpan heap compaction moves live objects to consolidate free pages, reducing fragmentation. Standard GC marks objects as free but doesn't relocate them — fragmentation means 20 small live objects spread across 5 pages prevent those pages from being returned to OS. Compaction solves this.
+
+Tradeoff: Compaction requires relocating pointers (Oilpan uses handles that support relocation). Increases individual GC pause time but reduces long-term RSS. Worth testing — may explain some of the RSS that doesn't drop fully after gc() even when nodes are collected.
+
+**`--disable-features=RendererCodeIntegrity`** (security tradeoff, not recommended)
+Disables code signing in the renderer — allows JIT code to be generated more freely. Not memory-related.
+
+**`--renderer-process-limit=1`**
+Limits the number of renderer processes. Irrelevant for single-tab use (we only have one renderer), but ensures no additional renderer is spawned for popups.
+
+**`--js-flags=--incremental-marking-wrappers`**
+Forces incremental marking for wrapper objects (objects that bridge V8 and Oilpan). May improve collection of cross-heap references. Experimental.
+
+#### Avoid
+- `--js-flags=--gc-interval=N` — triggers GC every N allocations. Too aggressive, causes constant GC pauses.
+- `--memory-pressure-off` — disables Chromium's memory pressure system entirely. Would make things worse.
+- `--disable-background-timer-throttling` — unrelated; affects timer firing rate in background tabs.
+
+---
+
+### New instrumentation to implement
+
+#### Instrument 1 — CDP node count alongside RSS (Python-side)
+
+Add to `qt_wrapper.py`: a background thread that polls CDP's `Memory.getDOMCounters()` every 60s and writes node counts to `wrapper_system.log` alongside the existing RSS log.
+
+```python
+import asyncio, json, threading
+import websockets
+
+async def _poll_cdp_memory(ws_url):
+    async with websockets.connect(ws_url) as ws:
+        while True:
+            await asyncio.sleep(60)
+            await ws.send(json.dumps({"id": 1, "method": "Memory.getDOMCounters"}))
+            resp = json.loads(await ws.recv())
+            r = resp.get("result", {})
+            print(f"[CDP] nodes={r.get('nodes')} documents={r.get('documents')} listeners={r.get('jsEventListeners')}", flush=True)
+```
+
+This gives us the node count curve over time, correlated with RSS, so we can see exactly how many nodes each response produces and how many gc() collects.
+
+#### Instrument 2 — GC effectiveness log (JS-side)
+
+In the `setTimeout` callback in `chat.js` that calls `gc()`, add before/after node counts using CDP via the existing debugging port. Since JS can't directly read node counts, instead use `performance.measureUserAgentSpecificMemory()` if available (requires cross-origin isolation), or time the GC via `performance.now()` delta:
+
+```js
+setTimeout(function () {
+  if (typeof gc === 'function') {
+    const t0 = performance.now();
+    gc({ type: 'major', execution: 'async' });
+    // Async GC doesn't block, so this just measures dispatch time, not completion.
+    // Useful only to confirm gc() was called without throwing.
+    console.log('[gc] major async dispatched, t=' + t0.toFixed(0) + 'ms');
+  }
+}, 2500);
+```
+
+Full effectiveness measurement requires CDP-side polling (Instrument 1), not JS-side.
+
+#### Instrument 3 — renderTail() call rate and fast-path ratio
+
+Add counters to `streamingRenderer.js`:
+
+```js
+let _renderTailCalls = 0;
+let _renderTailFastPath = 0;
+
+function renderTail(tailText) {
+  _renderTailCalls++;
+  // ... existing code ...
+  if (/* fast path condition */) {
+    _renderTailFastPath++;
+    // ...
+    return;
+  }
+  // slow path continues
+}
+
+// In finalize():
+if (_renderTailCalls > 0) {
+  console.log('[streamRenderer] renderTail calls=' + _renderTailCalls +
+    ' fast=' + _renderTailFastPath +
+    ' (' + ((_renderTailFastPath/_renderTailCalls)*100).toFixed(0) + '%)');
+  _renderTailCalls = 0;
+  _renderTailFastPath = 0;
+}
+```
+
+This tells us: for a typical response, what fraction of renders are fast-path vs full-rebuild? If 95% are fast-path, we know the holder-div allocation is the dominant cost. If 50% are full-rebuild, structure changes are also a significant source.
+
+#### Instrument 4 — Heap snapshot diff via CDP
+
+A one-time manual procedure to identify which types of objects make up the detached node count:
+
+```bash
+# 1. Start app, send 3–5 messages
+# 2. In a Python script:
+import asyncio, json, websockets
+
+async def snapshot():
+    async with websockets.connect('ws://localhost:9222/json') as ws:
+        # Get the page WS URL
+        pass
+
+# 3. Use chrome://inspect to take heap snapshot
+# 4. Filter by "Detached" in the snapshot viewer
+# 5. Look at object types and counts in "Detached DOM tree" group
+```
+
+This would confirm whether the 215,000 detached nodes are predominantly:
+- Streaming tail nodes (from renderTail())
+- Frozen block nodes (from freeze())
+- Tool output nodes (from tool bubble replacement)
+- hljs span elements (from highlight())
+
+Each has a different fix priority.
+
+#### Instrument 5 — Event listener audit
+
+One-time CDP evaluation to map event listeners on detached nodes:
+
+```bash
+# Via CDP Runtime.evaluate:
+python3 -c "
+import json, asyncio, websockets
+
+async def audit():
+    async with websockets.connect('ws://localhost:9222/json') as ws:
+        await ws.send(json.dumps({'id': 1, 'method': 'Runtime.evaluate', 'params': {
+            'expression': '''
+                (function() {
+                    const result = { detachedWithListeners: 0, totalListeners: 0 };
+                    // Walk all nodes via TreeWalker on a clone is not possible for detached.
+                    // Use getEventListeners() which is a DevTools API.
+                    return JSON.stringify(result);
+                })()
+            ''',
+            'returnByValue': True
+        }}))
+        print(await ws.recv())
+asyncio.run(audit())
+"
+```
+
+Note: `getEventListeners()` is only available in DevTools context, not via `Runtime.evaluate`. The correct approach is to use the DevTools Profiler → Event Listeners tab while attached to the page. Do this manually during a long session.
+
+---
+
+### DOM production reduction — unimplemented opportunities
+
+These are concrete optimizations that reduce how many DOM nodes are created per response. Ranked by estimated impact and implementation difficulty.
+
+#### Opportunity 1 — Deferred hljs highlighting (HIGH IMPACT, MEDIUM EFFORT)
+
+Implement `IntersectionObserver`-based deferred highlighting as described in Source 4 above. For a tool-heavy agent session (50 tool calls, 2 code blocks each = 100 code blocks), this would defer ~90% of hljs span allocation until the user actually scrolls to each block.
+
+**Estimated Oilpan reduction**: 50–90% reduction in hljs-related detached nodes. hljs spans are currently created and immediately become candidates for collection when messages are evicted — deferring creation eliminates them entirely for blocks the user never sees.
+
+**Required changes**: `streamingRenderer.highlight()`, `chat.js` post-finalization highlight calls, `chatHistory.js` (observer cleanup on eviction).
+
+#### Opportunity 2 — In-place tool bubble patching (MEDIUM IMPACT, MEDIUM EFFORT)
+
+Replace the tool start/end `innerHTML` replace with targeted DOM updates:
+
+```js
+// Tool start: create structure once, mark elements for later update
+node.querySelector('.agent-thread-icon').textContent = toolIcon;
+node.querySelector('.agent-thread-tool').textContent = toolLabel;
+// leave wave spinner in place
+
+// Tool end: patch only what changed
+const header = node.querySelector('.agent-thread-header');
+header.querySelector('.agent-thread-icon').textContent = ok ? '✓' : '✗';
+header.querySelector('.agent-thread-tool').textContent = json.tool;
+// replace wave with status
+const wave = header.querySelector('.agent-thread-wave');
+if (wave) wave.replaceWith(statusSpan);
+// update content directly
+node.querySelector('.agent-thread-content').innerHTML = cmdHtml2 + outHtml + diffHtml;
+```
+
+Eliminates one complete detached subtree per tool call. For 50 tool calls per session, this is significant.
+
+#### Opportunity 3 — Avoid double final render in agent path (HIGH IMPACT, HIGH EFFORT)
+
+Thread `finalDisplay` through `streamingRenderer.update()` so that `finalize()` produces the fully-processed output directly, eliminating the secondary `_liveReplyEl.innerHTML = _replyHtml` call. The challenge: `finalDisplay` isn't known until `[DONE]` arrives, and thinking block extraction (`extractThinkingBlocks()`) needs the full response. Possible approach: pass a post-processor callback into the renderer that runs on finalize.
+
+#### Opportunity 4 — Render-free fast path for renderTail() (HIGH IMPACT, HIGH EFFORT)
+
+As described in Source 1: a pre-parse block counter that skips `render(tailText)` entirely when structure is stable. Requires careful handling of markdown edge cases (fence completion, link parsing, etc.).
+
+#### Opportunity 5 — content-visibility for code blocks (MEDIUM IMPACT, LOW EFFORT)
+
+Already applied `content-visibility: auto` to `.msg`, `.thinking-content`, `.agent-thread`. Additionally apply it to individual `<pre>` blocks within messages — long code outputs are the largest per-message DOM structures and benefit most from deferred layout.
+
+```css
+.msg pre {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+```
+
+This doesn't reduce node count but reduces Oilpan *layout tree* cost for off-screen code blocks.
+
+---
+
+### GC optimization — if --expose-gc is permanent
+
+Assuming `--expose-gc` remains in `qt_wrapper.py` as a permanent fixture, the following optimizations improve GC effectiveness:
+
+#### Optimization 1 — Verify async GC collects before next message
+
+Currently GC fires 2.5s after `[DONE]`. If the user sends another message before GC completes (incremental slices still running), the next response's DOM churn overlaps with ongoing collection. Consider: check whether a previous gc() is still running before dispatching another. There is no JS API to query GC state, but we can approximate with a flag:
+
+```js
+let _gcPending = false;
+// In setTimeout callback:
+if (!_gcPending && typeof gc === 'function') {
+  _gcPending = true;
+  gc({ type: 'major', execution: 'async' });
+  // Assume incremental GC completes within 5s; reset flag after
+  setTimeout(() => { _gcPending = false; }, 5000);
+}
+```
+
+This prevents stacking multiple concurrent async GC cycles, which would increase total GC overhead.
+
+#### Optimization 2 — gc() when tab loses visibility
+
+QtWebEngine doesn't have a "tab hidden" concept (it's always visible), but Qt's window focus events could be used. When the main window loses focus (user switches to another app), trigger a synchronous major GC — the user won't see the gray frame because the window isn't visible:
+
+```python
+# In qt_wrapper.py MainWindow:
+def changeEvent(self, event):
+    if event.type() == QEvent.Type.WindowDeactivate:
+        # Window lost focus — safe to run synchronous GC
+        self.web_view.page().runJavaScript(
+            "if (typeof gc === 'function') gc({ type: 'major', execution: 'sync' });"
+        )
+    super().changeEvent(event)
+```
+
+This is a zero-flicker path to full major GC.
+
+#### Optimization 3 — Flag combination for autonomous Oilpan GC
+
+Add these flags alongside `--expose-gc` to make Chromium's own GC more aggressive without needing explicit `gc()` calls:
+
+```python
+"--js-flags=--expose-gc --max-old-space-size=512",
+"--enable-features=PartitionAllocMemoryReclaimer",
+"--enable-features=BlinkHeapCompaction",
+```
+
+`--max-old-space-size=512` acts as a pressure valve — when V8+Oilpan unified heap exceeds 512 MB, Chromium triggers its own major GC. This backstop means even if our `gc()` call is skipped (e.g., user sends rapid messages), memory can't grow unbounded.
+
+**Risk**: If 512 MB is too low for legitimate use (large responses, many open docs), GC will thrash. Tune based on measured baseline usage.
+
+#### Optimization 4 — Track gc() call in active-work.md logging
+
+Add a `[GC]` log line to `wrapper_system.log` each time `gc()` fires (via Qt's `runJavaScript()` callback mechanism), correlated with the RSS reading that follows. This lets us see whether the RSS reading after a GC call shows a drop, confirming Oilpan actually collected:
+
+```js
+// In the gc setTimeout:
+setTimeout(function () {
+  if (typeof gc === 'function') {
+    gc({ type: 'major', execution: 'async' });
+    // Post a message that qt_wrapper.py can intercept via QWebChannel or console
+    console.log('[GC] major async triggered');
+  }
+}, 2500);
+```
+
+---
+
+### Open questions (prioritized)
+
+1. **Does `gc({ type: 'major', execution: 'async' })` eliminate the gray flicker at 2.5s delay?** Not yet measured. First observation needed after next restart.
+
+2. **What fraction of renderTail() calls are fast-path?** Determines whether Source 1 is worth addressing with the render-free optimization.
+
+3. **What types of objects make up the 215,000 detached nodes?** CDP heap snapshot would reveal whether hljs spans, streaming tail nodes, or tool bubbles dominate.
+
+4. **Does `--max-old-space-size=512` cause thrashing in normal use?** Baseline V8 heap in a fresh session is ~82 MB; peak during streaming is unknown. Measure before setting a cap.
+
+5. **Does BlinkHeapCompaction reduce post-GC RSS?** If gc() collects nodes but memory doesn't drop much, fragmentation (not live objects) is the problem, and compaction would fix it.
+
+6. **Are event listeners on evicted DOM nodes causing retention?** Manual DevTools listener audit during a long session.
+
+7. **Does the focus-change gc() (Optimization 2) work in QtWebEngine?** `changeEvent(WindowDeactivate)` may not fire as expected in all Qt configurations.

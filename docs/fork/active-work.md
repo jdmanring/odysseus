@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-21. OOM investigation active. Upstream PR #4661 safe pieces pre-applied to develop (see Staged for Upstream notes). Pending: confirm content-visibility + evictLive contain memory growth; file issue for streamingRenderer in-place patch.
+Last updated: 2026-06-21. OOM investigation active. CDP diagnosis (2026-06-21) overturned the V8 old-gen theory — growth is Oilpan/Blink detached nodes. Content-visibility + idle callbacks alone are insufficient; --expose-gc + deferred async gc() re-added to qt_wrapper.py and chat.js. Pending: verify async GC (2.5s delay) eliminates flicker and contains growth; file issue for streamingRenderer in-place patch; consider QtWebEngine-specific upstream issue for Oilpan collection failure.
 
 ---
 
