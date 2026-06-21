@@ -1,19 +1,4 @@
-"""Static validation of the cooperative GC hint in chat.js.
-
-chat.js is browser-coupled and cannot be imported in pytest. These checks
-analyse the source text to lock in the structural contracts for the async GC
-hint and its stacking guard:
-
-  Embedded Chromium environments (PyQt, Electron, native wrappers) do not
-  receive OS memory-pressure signals that trigger Oilpan's automatic
-  collection in regular browsers. The deferred gc() call after each response
-  is a cooperative hint for those environments. _gcPending prevents stacking
-  concurrent incremental GC cycles, and requestIdleCallback provides a
-  graceful fallback when gc() is unavailable.
-
-Root: docs/fork/memory-explosion-research.md
-"""
-
+# Source-text contract tests for the deferred GC hint in chat.js.
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parent.parent
@@ -21,7 +6,6 @@ _SRC  = (_REPO / "static/js/chat.js").read_text(encoding="utf-8")
 
 
 def _gc_block() -> str:
-    """The setTimeout GC block in the finally handler."""
     marker = "_gcPending = true"
     start  = _SRC.rindex("setTimeout(function () {", 0, _SRC.index(marker))
     end    = _SRC.index("}, 2500);", start) + len("}, 2500);")
