@@ -1365,6 +1365,7 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
     let processingProbeTimer = null;
     let processingProbeAbort = null;
     let _renderStream = () => {};
+    let _streamRenderRaf = null; // pending rAF id — guards against >1 render per frame
     let _cancelThinkingTimer = () => {};
     let _removeThinkingSpinner = () => {};
     let timeoutId = null;
@@ -2595,9 +2596,17 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
                   // Render any reply text that arrived with the closing </think> token
                   _renderStream();
                 } else {
-                  // Normal streaming
+                  // Normal streaming — throttle to one DOM update per animation frame.
+                  // At 150–200 tok/s each renderTail() allocates and discards a full
+                  // Blink DOM subtree; capping at rAF cadence (~60fps) reduces that
+                  // allocation pressure 3× with no perceptible rendering difference.
                   if (spinner && spinner.element) spinner.destroy();
-                  _renderStream();
+                  if (!_streamRenderRaf) {
+                    _streamRenderRaf = requestAnimationFrame(function () {
+                      _streamRenderRaf = null;
+                      _renderStream();
+                    });
+                  }
                   _scheduleThinkingSpinner();
                   // Feed streaming TTS with accumulated text
                   if (streamingTTS) window.aiTTSManager.streamingUpdate(roundText);
@@ -3921,6 +3930,7 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
         }
       }
     } finally {
+      if (_streamRenderRaf) { cancelAnimationFrame(_streamRenderRaf); _streamRenderRaf = null; }
       clearResponseTimeout();
       clearProcessingProbe();
       clearFirstTokenWaitTimers();
