@@ -173,8 +173,8 @@ def test_prototype_prune_bottom():
     assert "MessageWindow.prototype._pruneBottom" in _SRC
 
 
-def test_prototype_live_child_count():
-    assert "MessageWindow.prototype._liveChildCount" in _SRC
+def test_prototype_total_child_count():
+    assert "MessageWindow.prototype._totalChildCount" in _SRC
 
 
 def test_prototype_hist_child_count():
@@ -425,16 +425,16 @@ def test_spacer_excluded_from_live_count():
     assert "this._sentinel" in _SRC
 
 
-def test_live_child_count_excludes_hist_sep():
-    lcc = _SRC[_SRC.index("MessageWindow.prototype._liveChildCount"):]
+def test_total_child_count_excludes_hist_sep():
+    lcc = _SRC[_SRC.index("MessageWindow.prototype._totalChildCount"):]
     lcc = lcc[:lcc.index("MessageWindow.prototype._histChildCount")]
     assert "this._histSep" in lcc
 
 
-def test_live_child_count_excludes_evict_notice():
+def test_total_child_count_excludes_evict_notice():
     # The in-place eviction notice must not count toward the pruning threshold,
     # otherwise it inflates the total and causes spurious eviction on every tick.
-    lcc = _SRC[_SRC.index("MessageWindow.prototype._liveChildCount"):]
+    lcc = _SRC[_SRC.index("MessageWindow.prototype._totalChildCount"):]
     lcc = lcc[:lcc.index("MessageWindow.prototype._histChildCount")]
     assert "chat-live-evict-notice" in lcc
 
@@ -624,7 +624,7 @@ def test_resume_stream_strips_think_tags_from_display():
 
 def _update_evict_notice_body() -> str:
     start = _SRC.index("MessageWindow.prototype._updateEvictNotice")
-    end   = _SRC.index("MessageWindow.prototype._liveChildCount")
+    end   = _SRC.index("MessageWindow.prototype._totalChildCount")
     return _SRC[start:end]
 
 
@@ -707,7 +707,7 @@ def test_update_evict_notice_handles_singular_plural():
 def test_update_evict_notice_reuses_existing_element():
     # On repeated eviction events the method must update the existing notice
     # rather than appending a new one each time.  Creating a new element each
-    # call would: (a) inflate DOM and (b) distort _liveChildCount (the notice
+    # call would: (a) inflate DOM and (b) distort _totalChildCount (the notice
     # is excluded from the threshold — multiple notices would be counted).
     body       = _update_evict_notice_body()
     qs_idx     = body.index("querySelector")
