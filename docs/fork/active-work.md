@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-21. OOM investigation complete (Phase 1). CDP confirmed: Oilpan is the growth source (215K detached nodes vs ~9K live). Five upstream-candidate branches built for issues #68–72. All changes on develop. Verify GC cadence + reduced node counts in logs after restart. Research doc: docs/fork/memory-explosion-research.md.
+Last updated: 2026-06-21. OOM investigation complete (Phase 1). CDP confirmed: Oilpan is the growth source (215K detached nodes vs ~9K live). Five upstream-candidate branches built for issues #68–72. All changes on develop. OS integration round complete: Linux CDP+PSI monitor (`feat/qt-native-linux-app`), macOS vm_stat monitor + `mac_wrapper.py` (`feat/qt-native-macos-app`), Windows kernel notification + `windows_wrapper.py` (`feat/qt-native-windows-app`). Verify GC cadence + reduced node counts in logs after restart. Research doc: docs/fork/memory-explosion-research.md.
 
 ---
 
@@ -18,8 +18,8 @@ Last updated: 2026-06-21. OOM investigation complete (Phase 1). CDP confirmed: O
 | [#40 Google compat layer hardening](https://github.com/jdmanring/odysseus/issues/40) | not started | `_is_google_compat()`, `_build_google_compat_payload()`, extract streaming quirk helpers, add tests for all four known quirks. Native API path explicitly out of scope. |
 | [#41 Gemma 4 local serving format](https://github.com/jdmanring/odysseus/issues/41) | not started | Low priority. Raw `<\|tool_call>` tokens leak only through self-hosted Ollama/llama-cpp-python/mlx-lm when chat template is incomplete. Google's hosted API is unaffected (already translates to `<tool_code>` format). |
 | [#42 Expanded quality-scored resolver — all backends + imatrix tiers](https://github.com/jdmanring/odysseus/issues/42) | not started | Depends on `feat/aria2c-downloader` and `fix/gguf-quality-scored` landing upstream. Scope: add imatrix variants to QUANT_HIERARCHY, extend HfUrlResolver with find_vllm_sources(), wire resolver into all download paths (not just missing-config fallback). |
-| [#43 macOS native wrapper](https://github.com/jdmanring/odysseus/issues/43) | `feat/qt-native-macos-app` | build-mac-app.sh done (.app + .dmg, NSSupportsAutomaticGraphicsSwitching). mac_wrapper.py pending macOS hardware. Plan at `docs/fork/plans/mac-wrapper-plan.md`. |
-| [#44 Windows native wrapper](https://github.com/jdmanring/odysseus/issues/44) | `feat/qt-native-windows-app` | build-windows-app.ps1 + install.bat done (pythonw.exe, Start Menu + Desktop shortcuts). windows_wrapper.py pending Windows hardware. Plan at `docs/fork/plans/windows-wrapper-plan.md`. |
+| [#43 macOS native wrapper](https://github.com/jdmanring/odysseus/issues/43) | `feat/qt-native-macos-app` | build-mac-app.sh done (.app + .dmg). `mac_wrapper.py` built (`6b1ee5e8`): vm_stat compression-delta pressure monitor, QColorDialog (NSColorPanel), ps-based RSS, CDP+focus-loss purge. Pending macOS hardware test. |
+| [#44 Windows native wrapper](https://github.com/jdmanring/odysseus/issues/44) | `feat/qt-native-windows-app` | build-windows-app.ps1 + install.bat done. `windows_wrapper.py` built (`bcc05cc4`): `CreateMemoryResourceNotification` kernel pressure monitor, QColorDialog, tasklist RSS, CDP+focus-loss purge. Pending Windows hardware test. |
 | [#45 FreeBSD (KDE Plasma) wrapper](https://github.com/jdmanring/odysseus/issues/45) | `feat/qt-native-freebsd-app` | build-freebsd-app.sh and install.sh done. qt_wrapper.py platform guard pending FreeBSD hardware. Plan at `docs/fork/plans/freebsd-wrapper-plan.md`. |
 | [#46 OpenBSD native wrapper](https://github.com/jdmanring/odysseus/issues/46) | `feat/qt-native-openbsd-app` | build-openbsd-app.sh done. qt_wrapper.py pkill/pgrep guards pending OpenBSD hardware. Plan at `docs/fork/plans/openbsd-wrapper-plan.md`. |
 
@@ -49,7 +49,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Single commit, ready. Verified 2026-06-12: pause/resume, split-file, zombie detection, clear-finished, resume spinner, cancel. Windows buffering fix in — untested. |
 | `feat/catppuccin-theme` | [#30](https://github.com/jdmanring/odysseus/issues/30) | Single commit, ready |
 | `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Single commit, ready |
-| `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Single commit, ready |
+| `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | 3 commits: initial wrapper (`94826cf4`), CDP+GC tuning (`cecc5a99`), CDP-native GC + PSI monitor + node-count threshold (`0c87ab5b`). CDP replaces runJavaScript(gc()); PSI monitor via /proc/pressure/memory; no --expose-gc dependency. Ready. |
 | `fix/gpu-compositor-flicker` | [#32](https://github.com/jdmanring/odysseus/issues/32) | Single commit, ready |
 | `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Single commit, ready |
 | `feat/gh-cli-detection` | [#5](https://github.com/jdmanring/odysseus/issues/5) | Single commit, ready. Detects gh CLI and injects GitHub context into agent system prompt; module-level cache ensures subprocess is called once per server lifetime; exports GH_TOKEN for keyring-auth systems. |
