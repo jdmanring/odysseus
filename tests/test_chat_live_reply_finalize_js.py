@@ -77,6 +77,13 @@ def test_live_reply_fallback_uses_inner_html():
 # Shared: class removal after both branches
 # ---------------------------------------------------------------------------
 
+def test_live_reply_renderer_logs_finalize():
+    # console.log in the renderer branch provides observability in wrapper_system.log
+    # to confirm the in-place path fires during real sessions.
+    body = _renderer_branch()
+    assert "console.log('[chat] live-reply: finalized in-place')" in body
+
+
 def test_live_reply_class_removed_unconditionally():
     block = _live_reply_block()
     # classList.remove must appear after the if/else branches close
