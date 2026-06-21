@@ -9,6 +9,7 @@ import { providerLogo, providerLabel } from './providers.js';
 import settingsModule from './settings.js';
 import spinnerModule from './spinner.js';
 import { bindMenuDismiss } from './escMenuStack.js';
+import { deferHighlightAll } from './hljsDefer.js';
 import { matchModelKey } from './model/matchKey.js';
 
 const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
@@ -2444,9 +2445,7 @@ export function addMessage(role, content, modelName, metadata) {
         if (metadata) displayMetrics(firstWrap, metadata);
       }
 
-      if (window.hljs) {
-        box.querySelectorAll('pre code:not(.hljs)').forEach(b => window.hljs.highlightElement(b));
-      }
+      deferHighlightAll(box);
       if (markdownModule.renderMermaid) markdownModule.renderMermaid(box);
       if (pendingAskUser) {
         // Session history is rendered oldest-to-newest.  A later user message
