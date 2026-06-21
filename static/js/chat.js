@@ -111,6 +111,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
   let _streamSessionId = null; // Session ID for the currently active reader loop
   let _lastReaderActivity = 0; // Timestamp of last reader.read() success — used to detect frozen streams
   let _webLockRelease = null;  // Function to release the Web Lock held during streaming
+  let _gcPending = false;      // True while an async major GC cycle is still running
 
   /** Check if an SSE reader is still actively connected for a session. */
   function hasActiveStream(sessionId) {
@@ -3058,11 +3059,16 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       // Deferred major GC after streaming finishes. Oilpan accumulates detached
       // nodes from the final render; async mode runs incrementally during idle
       // slices to minimise visible frame gaps. 2.5 s delay lets the UI settle
-      // before GC begins. Falls back to a no-op idle hint when gc() is absent.
+      // before GC begins. _gcPending prevents stacking concurrent async cycles
+      // (stacked cycles double overhead without extra benefit). Falls back to a
+      // no-op idle hint when gc() is absent.
       setTimeout(function () {
-        if (typeof gc === 'function') {
+        if (typeof gc === 'function' && !_gcPending) {
+          _gcPending = true;
+          console.log('[GC] major async dispatched');
           gc({ type: 'major', execution: 'async' });
-        } else if (typeof requestIdleCallback !== 'undefined') {
+          setTimeout(function () { _gcPending = false; }, 5000);
+        } else if (!_gcPending && typeof requestIdleCallback !== 'undefined') {
           requestIdleCallback(function () {}, { timeout: 2000 });
         }
       }, 2500);
