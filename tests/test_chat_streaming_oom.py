@@ -103,11 +103,12 @@ def test_think_close_clears_whitespace_style():
 # Fix A2 — rAF throttle for normal streaming
 # ---------------------------------------------------------------------------
 
-def test_normal_streaming_calls_render_stream():
-    # Normal streaming path calls _renderStream() directly (rAF throttle removed
-    # — it caused render delays and flickering on OOM recovery reloads).
+def test_normal_streaming_uses_throttled_render():
+    # Normal streaming path uses _throttledRenderStream() to cap Oilpan DOM
+    # churn — streamingRenderer rebuilds the tail on every call, so uncapped
+    # streaming at 100 tok/s generates thousands of DOM create/remove cycles.
     body = _normal_stream_body()
-    assert "_renderStream()" in body
+    assert "_throttledRenderStream()" in body
 
 
 def test_finally_has_no_raf_cancel():
