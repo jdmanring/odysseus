@@ -3572,6 +3572,7 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
               _liveReplyEl._streamRenderer.update(_finalReply);
               _liveReplyEl._streamRenderer.finalize();
               _liveReplyEl._streamRenderer = null;
+              console.log('[chat] live-reply: finalized in-place');
             } else {
               // No streaming renderer (e.g. fast non-streaming path): full render.
               var _replyHtml = markdownModule.mdToHtml(markdownModule.squashOutsideCode(_finalReply));
