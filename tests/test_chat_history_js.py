@@ -727,6 +727,55 @@ def test_update_evict_notice_inserts_after_hist_sep():
 
 
 # ---------------------------------------------------------------------------
+# IntersectionObserver cleanup — hljsDeferForgetNode calls before removal
+# ---------------------------------------------------------------------------
+# hljsDefer.js registers a shared IntersectionObserver for every <pre><code>
+# element added during load or streaming. If chatHistory.js removes a node
+# without calling forgetNode(), the observer retains a reference to each
+# contained code block and prevents its GC. The guard is optional (the global
+# is only present when chat.js has initialised) so the tests verify that the
+# call is made and that it precedes removal in both eviction paths.
+
+def test_prune_top_calls_forget_node_before_remove():
+    body = _prune_top_body()
+    forget_pos = body.index("hljsDeferForgetNode")
+    remove_pos = body.index("ch.remove()", forget_pos - 200)
+    assert forget_pos < remove_pos, (
+        "_pruneTop must call hljsDeferForgetNode before ch.remove()"
+    )
+
+
+def test_prune_top_boundary_pass_calls_forget_node():
+    # _pruneTop has a second removal pass (boundary cleanup for multi-DOM
+    # messages sharing the same chIdx). This pass must also release observer refs.
+    body = _prune_top_body()
+    # First forgetNode call is in the main loop; find the second.
+    first  = body.index("hljsDeferForgetNode")
+    second = body.index("hljsDeferForgetNode", first + 1)
+    assert second > first, (
+        "_pruneTop boundary-cleanup pass must also call hljsDeferForgetNode"
+    )
+
+
+def test_evict_live_calls_forget_node_before_remove():
+    body = _evict_live_body()
+    forget_pos = body.index("hljsDeferForgetNode")
+    remove_pos = body.index("el.remove()", forget_pos - 200)
+    assert forget_pos < remove_pos, (
+        "_evictLive must call hljsDeferForgetNode before el.remove()"
+    )
+
+
+def test_forget_node_calls_guarded_by_window_check():
+    # chatHistory.js is loaded before chat.js sets the global; the guard
+    # prevents a ReferenceError during the window between page load and init.
+    body = _prune_top_body() + _evict_live_body()
+    assert "window.hljsDeferForgetNode" in body, (
+        "hljsDeferForgetNode must be accessed via window to allow the guard"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Observability — console.debug logging
 # ---------------------------------------------------------------------------
 # Each key operation logs a '[chatHistory]' prefixed message so operators can
