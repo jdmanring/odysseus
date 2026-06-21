@@ -103,28 +103,17 @@ def test_think_close_clears_whitespace_style():
 # Fix A2 — rAF throttle for normal streaming
 # ---------------------------------------------------------------------------
 
-def test_render_raf_id_variable_declared():
-    # _renderRafId must be declared before the while(true) loop so it is
-    # accessible in the finally block to cancel any pending frame.
-    while_start = _SRC.index("      while (true) {")
-    before      = _SRC[:while_start]
-    assert "_renderRafId" in before
-
-
-def test_normal_streaming_uses_raf_throttle():
-    # _renderStream() is now guarded by a requestAnimationFrame — at most one
-    # render fires per frame instead of one per SSE delta.
+def test_normal_streaming_calls_render_stream():
+    # Normal streaming path calls _renderStream() directly (rAF throttle removed
+    # — it caused render delays and flickering on OOM recovery reloads).
     body = _normal_stream_body()
-    assert "requestAnimationFrame" in body
-    assert "_renderRafId" in body
+    assert "_renderStream()" in body
 
 
-def test_raf_cancelled_in_finally():
-    # If a pending rAF is in-flight when the stream ends, cancel it so the
-    # final synchronous re-render (after the loop) is not double-fired.
+def test_finally_has_no_raf_cancel():
+    # _renderRafId removed — rAF throttle on normal streaming path was reverted.
     body = _finally_body()
-    assert "cancelAnimationFrame" in body
-    assert "_renderRafId" in body
+    assert "_renderRafId" not in body
 
 
 # ---------------------------------------------------------------------------

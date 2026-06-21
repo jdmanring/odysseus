@@ -323,6 +323,9 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
+    # Disable HTTP cache — app serves local files that change on restart;
+    # caching causes stale JS to load after updates.
+    profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
 
     win = OdysseusWindow(profile)
     win.show()
