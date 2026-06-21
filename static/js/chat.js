@@ -1094,8 +1094,11 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
         continueBtn.className = 'continue-btn';
         continueBtn.title = 'Continue';
         continueBtn.textContent = '\u25B8';
-        const _stoppedHolder = currentHolder; // capture before it gets cleared
+        // WeakRef: prevents the closure from retaining the holder after Phase 2 eviction.
+        const _stoppedHolderRef = new WeakRef(currentHolder);
         continueBtn.addEventListener('click', () => {
+          const _stoppedHolder = _stoppedHolderRef.deref();
+          if (!_stoppedHolder) return; // evicted \u2014 ignore click
           stoppedIndicator.remove();
           _hideUserBubble = true;
           _pendingContinue = _stoppedHolder;
@@ -2836,8 +2839,12 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
                   contBtn.className = 'continue-btn';
                   contBtn.title = 'Continue the task';
                   contBtn.textContent = 'Continue ▸';
-                  const _holder = holder;
+                  // WeakRef: this button lives in _chatBox (not the holder's subtree), so its
+                  // listener is a GC root. Without WeakRef the closure retains the evicted holder.
+                  const _holderRef = new WeakRef(holder);
                   contBtn.addEventListener('click', () => {
+                    const _holder = _holderRef.deref();
+                    if (!_holder) return; // evicted — ignore click
                     note.remove();
                     _hideUserBubble = true;
                     _pendingContinue = _holder;
@@ -3861,10 +3868,14 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
             continueBtn.className = 'continue-btn';
             continueBtn.title = 'Continue';
             continueBtn.textContent = '\u25B8';
+            // WeakRef: prevents the closure from retaining the holder after Phase 2 eviction.
+            const _catchHolderRef = new WeakRef(holder);
             continueBtn.addEventListener('click', () => {
+              const _catchHolder = _catchHolderRef.deref();
+              if (!_catchHolder) return; // evicted \u2014 ignore click
               stoppedIndicator.remove();
               _hideUserBubble = true;
-              _pendingContinue = holder;
+              _pendingContinue = _catchHolder;
               const cutoff = accumulated;
               const msgInput = uiModule.el('message');
               if (msgInput) {
