@@ -66,6 +66,7 @@
     this._all      = messages;
     this._startIdx = Math.max(0, messages.length - WINDOW_SIZE);
     this._endIdx   = messages.length;
+    console.debug('[chatHistory] Session load: %d msgs, rendering %d–%d', messages.length, this._startIdx, this._endIdx - 1);
     this._renderTail();
     // Attach the sentinel first so the scroll accounts for its height.
     // IO callbacks are asynchronous — they cannot fire until the current
@@ -318,6 +319,7 @@
     }
 
     this._startIdx = from;
+    console.debug('[chatHistory] Load older: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
     // Attach sentinel before computing the scroll compensation. Sentinel height
     // changes (e.g. removing the sentinel when _startIdx reaches 0) happen above
     // the viewport and must be included in the positional correction so the user
@@ -367,6 +369,7 @@
           } else { break; }
         }
         this._endIdx = _pruneLowest;
+        console.debug('[chatHistory] Phase 3 prune (load-older): removed %d nodes, endIdx → %d', _pruneRemoved, this._endIdx);
         this._attachBottomSentinel();
         // The prune reduced scrollHeight. Re-assert the pre-prune scrollTop so
         // the browser's implicit clamp does not silently move the user toward
@@ -443,6 +446,7 @@
     }
 
     this._endIdx = upTo;
+    console.debug('[chatHistory] Load newer: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
 
     // Symmetric with _loadOlder: cap historical DOM from the top when scrolling down.
     // Without this, a full up-then-down cycle loads the entire session into the DOM.
@@ -486,6 +490,7 @@
           }
         }
         this._startIdx = highIdx + 1;
+        console.debug('[chatHistory] Phase 3 prune (load-newer): removed %d nodes, startIdx → %d', removed, this._startIdx);
         // Attach sentinel before computing the scroll adjustment so that any
         // sentinel height change (e.g. adding a new sentinel when _startIdx
         // crosses 0) is included in the delta and the viewport does not jump.
@@ -634,6 +639,7 @@
       el.remove();
       this._evictedLiveCount++;
     }
+    console.debug('[chatHistory] Phase 2 evict: removed %d live nodes (total evicted: %d)', toRemove.length, this._evictedLiveCount);
 
     // Compensate for scrollHeight reduction (mirrors _pruneTop pattern).
     var delta = before - this._c.scrollHeight;
@@ -726,6 +732,7 @@
       if (cidx > highIdx) highIdx = cidx;
     }
     if (removed === 0) return;
+    console.debug('[chatHistory] Phase 2 prune: removed %d nodes, startIdx → %d', removed, highIdx + 1);
 
     // A single _all[i] entry may span multiple DOM children with the same chIdx.
     // Remove any remaining siblings at the boundary that share highIdx so the
