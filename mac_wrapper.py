@@ -350,10 +350,12 @@ class OdysseusWindow(QMainWindow):
             counts = _cdp_call('Memory.getDOMCounters')
             if counts:
                 nodes = counts.get('nodes', 0)
+                listeners = counts.get('jsEventListeners', 0)
+                ratio = f'{listeners / nodes:.1f}' if nodes else 'n/a'
                 print(
                     f'[CDP] nodes={nodes} '
                     f'documents={counts.get("documents")} '
-                    f'listeners={counts.get("jsEventListeners")}',
+                    f'listeners={listeners} (listeners/node={ratio})',
                     flush=True,
                 )
                 if nodes > 50_000:
