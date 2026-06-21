@@ -23,6 +23,7 @@ import slashCommands, { initSlashCommands, isCommand, handleSlashCommand, handle
 import createResearchSynapse from './researchSynapse.js';
 import { createStreamRenderer } from './streamingRenderer.js';
 import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composerArrowUpRecall.js';
+import { deferHighlightAll } from './hljsDefer.js';
 
   const RESEARCH_TIMEOUT_MS = 360000;
   const DEFAULT_TIMEOUT_MS = 120000;
@@ -3084,11 +3085,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
         }
 
 
-        if (window.hljs) {
-          roundHolder.querySelectorAll('pre code').forEach((block) => {
-            window.hljs.highlightElement(block);
-          });
-        }
+        deferHighlightAll(roundHolder);
         if (markdownModule.renderMermaid) markdownModule.renderMermaid(roundHolder);
 
         uiModule.scrollHistory();
@@ -5455,3 +5452,5 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
   export default chatModule;
   window.chatModule = chatModule;
+  // Expose for non-module scripts (chatHistory.js)
+  window.hljsDeferHighlightAll = deferHighlightAll;
