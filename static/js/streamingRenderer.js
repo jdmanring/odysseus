@@ -36,6 +36,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
   let appendMode = null; // { codeText: Text, appendedLen } while an open fence streams
   let degraded = !ENABLED; // true once we fall back to full re-render
   let _tailNodes = []; // live tail DOM nodes currently in contentEl (after tailMarker)
+  let _rtCalls = 0, _rtFast = 0; // renderTail() call counter; fast-path hit counter
 
   function start() {
     _tailNodes = [];
@@ -63,6 +64,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
 
   // Re-render the live tail. An open trailing fence streams in append-mode.
   function renderTail(tailText) {
+    _rtCalls++;
     const fence = tailText ? describeOpenFence(tailText) : null;
     if (fence) {
       appendOpenFence(tailText, fence);
@@ -94,6 +96,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
         }
       }
       tailShownLen = holder.textContent.length;
+      _rtFast++;
       return;
     }
 
@@ -223,6 +226,12 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
       tailMarker.remove();
       tailMarker = null;
       committedLen = lastText.length;
+      if (_rtCalls > 0) {
+        console.log('[streamRenderer] renderTail calls=' + _rtCalls
+          + ' fast=' + _rtFast
+          + ' (' + ((_rtFast / _rtCalls) * 100).toFixed(0) + '%)');
+        _rtCalls = 0; _rtFast = 0;
+      }
     } catch (err) {
       degraded = true;
       console.error('streamingRenderer: falling back to full render', err);
