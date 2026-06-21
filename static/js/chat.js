@@ -3394,6 +3394,15 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       clearResponseTimeout();
       clearProcessingProbe();
       clearFirstTokenWaitTimers();
+      // Deferred major GC: Oilpan accumulates detached nodes from each response's
+      // final render. gc() with async execution runs incremental collection slices
+      // during idle periods; the 2.5 s delay lets the final render settle first.
+      // No-ops gracefully when gc() is absent (non-debug environments).
+      setTimeout(function () {
+        if (typeof gc === 'function') {
+          gc({ type: 'major', execution: 'async' });
+        }
+      }, 2500);
       // Streaming done — let screen readers announce the settled response.
       const _chatLogDone = document.getElementById('chat-history');
       if (_chatLogDone) _chatLogDone.setAttribute('aria-busy', 'false');
