@@ -2092,6 +2092,11 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                 node.className = 'agent-thread-node running';
                 const cmdHtml = cmd ? `<pre class="agent-thread-cmd">${esc(cmd)}</pre>` : '';
                 node.innerHTML = `<div class="agent-thread-dot"></div><div class="agent-thread-header"><span class="agent-thread-icon">${toolIcon}</span><span class="agent-thread-tool">${esc(toolLabel)}</span><span class="agent-thread-wave">▁▂▃</span></div><div class="agent-thread-content">${cmdHtml}</div>`;
+                // Cache child refs for in-place completion at tool_output.
+                node._toolHeaderEl  = node.querySelector('.agent-thread-header');
+                node._toolIconEl    = node.querySelector('.agent-thread-icon');
+                node._toolWaveEl    = node.querySelector('.agent-thread-wave');
+                node._toolContentEl = node.querySelector('.agent-thread-content');
                 // Expand/collapse via delegated click handler (init at module bottom).
                 threadWrap.appendChild(node);
                 currentToolBubble = node;
@@ -2197,14 +2202,32 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   // For file edits the "command" is the raw JSON args — redundant
                   // next to the diff, so hide it when we have a diff to show.
                   const cmdHtml2 = (cmd && !(json.diff && json.diff.text)) ? `<pre class="agent-thread-cmd">${esc(cmd)}</pre>` : '';
-                  // Preserve the user's .open choice across the innerHTML
-                  // rewrite \u2014 otherwise expanding a running tool collapses
-                  // it as soon as the result lands, forcing the user to
-                  // click again. Click handling is delegated (see init at
-                  // bottom of file) so no per-node listener needed.
+                  // Preserve the user's .open choice \u2014 otherwise expanding a running
+                  // tool collapses it as soon as the result lands.
                   const _wasOpen = currentToolBubble.classList.contains('open');
                   currentToolBubble.className = 'agent-thread-node' + (ok ? '' : ' error') + (_wasOpen ? ' open' : '');
-                  currentToolBubble.innerHTML = `<div class="agent-thread-dot"></div><div class="agent-thread-header"><span class="agent-thread-icon">${ok ? '\u2713' : '\u2717'}</span><span class="agent-thread-tool">${esc(json.tool)}</span><span class="agent-thread-status">${ok ? 'done' : 'failed'}</span><span class="agent-thread-chevron">\u25B6</span></div><div class="agent-thread-content">${cmdHtml2}${outHtml}${diffHtml}</div>`;
+                  // Patch in-place: update only the changed child elements so we avoid
+                  // detaching and replacing a full DOM subtree on every tool completion.
+                  if (currentToolBubble._toolIconEl)
+                    currentToolBubble._toolIconEl.textContent = ok ? '\u2713' : '\u2717';
+                  if (currentToolBubble._toolWaveEl) {
+                    currentToolBubble._toolWaveEl.remove();
+                    currentToolBubble._toolWaveEl = null;
+                  }
+                  if (currentToolBubble._toolHeaderEl) {
+                    const _elapsed = currentToolBubble._toolHeaderEl.querySelector('.agent-thread-elapsed');
+                    if (_elapsed) _elapsed.remove();
+                    const _st = document.createElement('span');
+                    _st.className = 'agent-thread-status';
+                    _st.textContent = ok ? 'done' : 'failed';
+                    currentToolBubble._toolHeaderEl.appendChild(_st);
+                    const _ch = document.createElement('span');
+                    _ch.className = 'agent-thread-chevron';
+                    _ch.textContent = '\u25B6';
+                    currentToolBubble._toolHeaderEl.appendChild(_ch);
+                  }
+                  if (currentToolBubble._toolContentEl)
+                    currentToolBubble._toolContentEl.innerHTML = cmdHtml2 + outHtml + diffHtml;
                   // Reset so thinking spinner between tools says "Thinking" not the old tool's label
                   _lastToolName = '';
                   uiModule.scrollHistory();
