@@ -282,12 +282,14 @@
     var upTo = this._startIdx;
     if (from >= upTo) { this._attachSentinel(); return; }
 
-    // Remove stale spacers before measuring — they should be replaced by real content
-    var _spcs = this._c.querySelectorAll('.chat-history-spacer');
-    for (var _si = 0; _si < _spcs.length; _si++) _spcs[_si].remove();
-
+    // Measure before any DOM mutation. The spacer contributes to scrollHeight;
+    // removing it first would undercount the baseline and then overcorrect
+    // scrollTop by the full content height instead of the net change.
     var before    = this._c.scrollHeight;
     var insertRef = this._sentinel ? this._sentinel.nextSibling : this._c.firstChild;
+
+    var _spcs = this._c.querySelectorAll('.chat-history-spacer');
+    for (var _si = 0; _si < _spcs.length; _si++) _spcs[_si].remove();
 
     this._loading = true;
     var nodes = [];
@@ -588,7 +590,7 @@
   MessageWindow.prototype._maybePrune = function () {
     if (!this._isAtBottom()) return;
     if (!this._histSep || !this._histSep.parentNode) return;
-    var total = this._liveChildCount();
+    var total = this._totalChildCount();
     if (total <= PRUNE_AT) return;
     var count = total - PRUNE_AT + PRUNE_COUNT;
     var hist  = this._histChildCount();
@@ -672,7 +674,7 @@
   };
 
   // Count all non-control DOM children (excludes sentinels, spacer, sep).
-  MessageWindow.prototype._liveChildCount = function () {
+  MessageWindow.prototype._totalChildCount = function () {
     var n        = 0;
     var children = this._c.children;
     for (var i = 0; i < children.length; i++) {
@@ -715,21 +717,22 @@
     var before   = this._c.scrollHeight;
     var removed  = 0;
     var highIdx  = -1;
-    var children = Array.from(this._c.children);
-    for (var i = 0; i < children.length && removed < count; i++) {
-      var ch = children[i];
+    // Walk firstElementChild → nextElementSibling; capture next before removal
+    // so we never touch the live HTMLCollection after mutating it.
+    var ch = this._c.firstElementChild;
+    while (ch && removed < count) {
       // Hard boundary: never cross into live messages after _histSep.
-      // A single addMessage() call can produce multiple top-level DOM children,
-      // so _startIdx must be derived from data-ch-idx, not the raw node count.
       if (ch === this._histSep) break;
+      var next = ch.nextElementSibling;
       if (ch === this._sentinel  ||
           ch === this._bSentinel ||
-          ch.classList.contains('chat-history-spacer')) continue;
+          ch.classList.contains('chat-history-spacer')) { ch = next; continue; }
       var cidx = (ch.dataset && ch.dataset.chIdx !== undefined)
         ? parseInt(ch.dataset.chIdx, 10) : -1;
       ch.remove();
       removed++;
       if (cidx > highIdx) highIdx = cidx;
+      ch = next;
     }
     if (removed === 0) return;
     console.debug('[chatHistory] Phase 2 prune: removed %d nodes, startIdx → %d', removed, highIdx + 1);
