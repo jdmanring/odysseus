@@ -21,6 +21,7 @@
 // fallback so a bug can never produce broken output — only today's behavior.
 
 import { splitFinalized, describeOpenFence } from './streamingSegmenter.js';
+import { deferHighlight } from './hljsDefer.js';
 
 // Compile-time escape hatch: set to false to force the plain full-re-render path.
 // (The per-instance try/catch `degraded` fallback below is the runtime safety net.)
@@ -34,49 +35,109 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
   let tailShownLen = 0; // rendered-text length of the live tail (drives token fade)
   let appendMode = null; // { codeText: Text, appendedLen } while an open fence streams
   let degraded = !ENABLED; // true once we fall back to full re-render
+  let _tailNodes = []; // live tail DOM nodes currently in contentEl (after tailMarker)
+  let _rtCalls = 0, _rtFast = 0; // renderTail() call counter; fast-path hit counter
+  let _lastTailText = null; // text from last successful renderTail(); null when tail is empty/unknown
 
   function start() {
+    _tailNodes = [];
     contentEl.textContent = '';
     tailMarker = document.createComment('tail');
     contentEl.appendChild(tailMarker);
     started = true;
-  }
-
-  function highlight(root) {
-    if (hljs) root.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
+    _lastTailText = null;
   }
 
   function clearTail() {
+    _tailNodes = [];
+    _lastTailText = null;
     while (tailMarker.nextSibling) tailMarker.nextSibling.remove();
   }
 
-  // Render `src` and freeze the nodes before the tail marker. Highlighting happens
-  // here, once, on the detached fragment before the nodes are ever shown.
+  // Render `src` and freeze the nodes before the tail marker. Code blocks are
+  // collected before moving (same node refs) then deferred-highlighted after
+  // insertion so IntersectionObserver can measure viewport distance.
   function freeze(src) {
     const holder = document.createElement('div');
     holder.innerHTML = render(src);
-    highlight(holder);
+    const codeBlocks = Array.from(holder.querySelectorAll('pre code'));
     while (holder.firstChild) contentEl.insertBefore(holder.firstChild, tailMarker);
+    codeBlocks.forEach(deferHighlight);
   }
 
   // Re-render the live tail. An open trailing fence streams in append-mode.
   function renderTail(tailText) {
+    _rtCalls++;
     const fence = tailText ? describeOpenFence(tailText) : null;
     if (fence) {
+      // Fence path bypasses text tracking — reset so the next prose token re-establishes.
+      _lastTailText = null;
       appendOpenFence(tailText, fence);
       return;
     }
     appendMode = null;
-    clearTail();
+
+    // Text-only append fast path: when the tail is growing by plain prose (no markdown
+    // structural characters in the new suffix), append directly to the live text node
+    // without re-parsing or clearing the tail. Eliminates the holder div allocation for
+    // the common streaming case. Caveat: skips the fade-in span (imperceptible at 30fps).
+    if (_lastTailText !== null && tailText.startsWith(_lastTailText)) {
+      const suffix = tailText.slice(_lastTailText.length);
+      const lastTail = _tailNodes.length > 0 ? _tailNodes[_tailNodes.length - 1] : null;
+      if (
+        suffix.length > 0 &&
+        !/[*_`#\[\]<>\n\\{]/.test(suffix) &&
+        lastTail &&
+        lastTail.lastChild &&
+        lastTail.lastChild.nodeType === Node.TEXT_NODE
+      ) {
+        lastTail.lastChild.appendData(suffix);
+        tailShownLen += suffix.length;
+        _lastTailText = tailText;
+        _rtFast++;
+        return;
+      }
+    }
+
     if (!tailText) {
+      clearTail();
       tailShownLen = 0;
+      _lastTailText = null;
       return;
     }
     const holder = document.createElement('div');
     holder.innerHTML = render(tailText);
+    const newNodes = Array.from(holder.childNodes);
+
+    // Fast path: patch existing tail nodes in-place when the block structure
+    // matches. Avoids the clearTail + re-insert cycle that generates Oilpan
+    // DOM node create/remove pressure on every SSE token.
+    if (
+      _tailNodes.length > 0 &&
+      _tailNodes.length === newNodes.length &&
+      _tailNodes.every((n, i) => n.nodeName === newNodes[i].nodeName)
+    ) {
+      for (let i = 0; i < _tailNodes.length; i++) {
+        if (_tailNodes[i].nodeType === Node.TEXT_NODE) {
+          _tailNodes[i].data = newNodes[i].data;
+        } else {
+          _tailNodes[i].innerHTML = newNodes[i].innerHTML;
+        }
+      }
+      tailShownLen = holder.textContent.length;
+      _rtFast++;
+      return;
+    }
+
+    // Structure changed (new block, heading, etc.): full clear + rebuild.
+    clearTail();
     fadeNewText(holder, tailShownLen);
     tailShownLen = holder.textContent.length;
-    while (holder.firstChild) contentEl.appendChild(holder.firstChild);
+    while (holder.firstChild) {
+      _tailNodes.push(holder.firstChild);
+      contentEl.appendChild(holder.firstChild);
+    }
+    _lastTailText = tailText;
   }
 
   // Stream the body of an unterminated code fence by appending only the new
@@ -134,7 +195,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
 
   function fullRender(fullText) {
     contentEl.innerHTML = render(fullText);
-    highlight(contentEl);
+    if (hljs) contentEl.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
   }
 
   // Render the latest full source text.
@@ -195,6 +256,15 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
       tailMarker.remove();
       tailMarker = null;
       committedLen = lastText.length;
+      // renderTail() fires once per SSE token and allocates a holder div each call.
+      // This count is the direct measure of that DOM allocation pressure; a successful
+      // rAF throttle will reduce it from ~token_rate/s to ~60/s.
+      if (_rtCalls > 0) {
+        console.log('[streamRenderer] renderTail calls=' + _rtCalls
+          + ' fast=' + _rtFast
+          + ' (' + ((_rtFast / _rtCalls) * 100).toFixed(0) + '%)');
+        _rtCalls = 0; _rtFast = 0;
+      }
     } catch (err) {
       degraded = true;
       console.error('streamingRenderer: falling back to full render', err);
