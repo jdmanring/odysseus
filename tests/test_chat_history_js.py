@@ -431,10 +431,107 @@ def test_live_child_count_excludes_hist_sep():
     assert "this._histSep" in lcc
 
 
+def test_live_child_count_excludes_evict_notice():
+    # The in-place eviction notice must not count toward the pruning threshold,
+    # otherwise it inflates the total and causes spurious eviction on every tick.
+    lcc = _SRC[_SRC.index("MessageWindow.prototype._liveChildCount"):]
+    lcc = lcc[:lcc.index("MessageWindow.prototype._histChildCount")]
+    assert "chat-live-evict-notice" in lcc
+
+
 def test_prune_top_excludes_hist_sep():
     pt = _SRC[_SRC.index("MessageWindow.prototype._pruneTop"):]
     pt = pt[:pt.index("MessageWindow.prototype._pruneBottom")]
     assert "this._histSep" in pt
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — live-message eviction (_evictLive, fix/dom-oom-phase2-guard)
+# ---------------------------------------------------------------------------
+# When history is exhausted (hist === 0) and live messages overflow PRUNE_AT,
+# _maybePrune() must route to _evictLive() instead of returning early.
+# Previously the hard-stop "if (hist === 0) return;" caused live messages
+# to accumulate without bound for the rest of the session.
+
+def _maybe_prune_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._maybePrune")
+    end   = _SRC.index("MessageWindow.prototype.", start + 1)
+    return _SRC[start:end]
+
+
+def _evict_live_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._evictLive")
+    end   = _SRC.index("MessageWindow.prototype.", start + 1)
+    return _SRC[start:end]
+
+
+def test_prototype_evict_live():
+    assert "MessageWindow.prototype._evictLive" in _SRC
+
+
+def test_prototype_update_evict_notice():
+    assert "MessageWindow.prototype._updateEvictNotice" in _SRC
+
+
+def test_evicted_live_count_initialized():
+    # _evictedLiveCount must be set to 0 in the constructor so it survives a
+    # session with no evictions and resets cleanly on session switch.
+    ctor_start = _SRC.index("function MessageWindow(")
+    ctor_end   = _SRC.index("MessageWindow.prototype", ctor_start)
+    ctor = _SRC[ctor_start:ctor_end]
+    assert "_evictedLiveCount" in ctor
+
+
+def test_evicted_live_count_reset():
+    reset = _SRC[_SRC.index("MessageWindow.prototype.reset"):]
+    reset = reset[:reset.index("MessageWindow.prototype.", len("MessageWindow.prototype.reset"))]
+    assert "_evictedLiveCount" in reset
+
+
+def test_maybe_prune_no_hard_stop_on_hist_zero():
+    # The old "if (hist === 0) return;" permanently disabled Phase 2 once
+    # all historical nodes were pruned. Verify it is gone.
+    body = _maybe_prune_body()
+    assert "if (hist === 0) return;" not in body
+
+
+def test_maybe_prune_routes_to_evict_live():
+    # When hist > 0 prune historical nodes; when hist === 0 evict live nodes.
+    body = _maybe_prune_body()
+    assert "_evictLive" in body
+    assert "_pruneTop" in body
+
+
+def test_evict_live_clears_wave_interval():
+    body = _evict_live_body()
+    assert "_waveInterval" in body
+    assert "clearInterval" in body
+
+
+def test_evict_live_clears_elapsed_ticker():
+    body = _evict_live_body()
+    assert "_elapsedTicker" in body
+
+
+def test_evict_live_clears_stream_renderer():
+    body = _evict_live_body()
+    assert "_streamRenderer" in body
+
+
+def test_evict_live_calls_update_notice():
+    body = _evict_live_body()
+    assert "_updateEvictNotice" in body
+
+
+def test_evict_notice_has_reload_hint():
+    # Notice text must tell the user how to see evicted messages.
+    notice = _SRC[_SRC.index("MessageWindow.prototype._updateEvictNotice"):]
+    notice = notice[:notice.index("MessageWindow.prototype.", len("MessageWindow.prototype._updateEvictNotice"))]
+    assert "reload" in notice.lower()
+
+
+def test_evict_notice_class_name():
+    assert "chat-live-evict-notice" in _SRC
 
 
 # ---------------------------------------------------------------------------
