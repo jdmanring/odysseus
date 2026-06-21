@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import time as _time
@@ -45,9 +46,10 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--no-sandbox",
     "--ignore-gpu-blocklist",
     "--enable-gpu-rasterization",
-    "--enable-features=WebGPU,SharedArrayBuffer",
+    "--enable-features=WebGPU,SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction",
     "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
     "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
+    "--js-flags=--expose-gc --max-old-space-size=512",  # expose gc() + backstop heap cap
     *_gpu_flags,
 ])
 
@@ -59,7 +61,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
-from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -258,7 +260,60 @@ class OdysseusWindow(QMainWindow):
                 QUrl(f"http://localhost:{PORT}")))
         page.renderProcessTerminated.connect(_on_renderer_crash)
 
-        # Periodic renderer memory snapshot (every 60s)
+        # Periodic renderer memory snapshot (every 60s).
+        # Also polls CDP Memory.getDOMCounters to track Oilpan node counts alongside RSS.
+        def _cdp_dom_counts():
+            """One-shot CDP query via raw WebSocket (stdlib only, no third-party deps).
+            Returns {nodes, documents, jsEventListeners} or None on any error."""
+            import socket as _sock
+            import struct as _struct
+            import base64 as _b64
+            import urllib.request as _req
+            try:
+                raw = _req.urlopen('http://localhost:9222/json', timeout=1).read()
+                pages = json.loads(raw)
+                ws_url = next((p['webSocketDebuggerUrl'] for p in pages
+                               if p.get('type') == 'page'), None)
+                if not ws_url:
+                    return None
+                hostpath = ws_url[len('ws://'):]
+                host_port, path = hostpath.split('/', 1)
+                host_name, port_s = host_port.split(':')
+                s = _sock.create_connection((host_name, int(port_s)), timeout=2)
+                try:
+                    key = _b64.b64encode(os.urandom(16)).decode()
+                    s.sendall((
+                        f'GET /{path} HTTP/1.1\r\nHost: {host_port}\r\n'
+                        'Upgrade: websocket\r\nConnection: Upgrade\r\n'
+                        f'Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n'
+                    ).encode())
+                    buf = b''
+                    while b'\r\n\r\n' not in buf:
+                        buf += s.recv(4096)
+                    if b' 101 ' not in buf.split(b'\r\n')[0]:
+                        return None
+                    msg = b'{"id":1,"method":"Memory.getDOMCounters"}'
+                    mask = os.urandom(4)
+                    payload = bytes(b ^ mask[i % 4] for i, b in enumerate(msg))
+                    s.sendall(bytes([0x81, 0x80 | len(msg)]) + mask + payload)
+                    hdr = b''
+                    while len(hdr) < 2:
+                        hdr += s.recv(2 - len(hdr))
+                    dlen = hdr[1] & 0x7F
+                    if dlen == 126:
+                        lb = b''
+                        while len(lb) < 2:
+                            lb += s.recv(2 - len(lb))
+                        dlen = _struct.unpack('!H', lb)[0]
+                    data = b''
+                    while len(data) < dlen:
+                        data += s.recv(dlen - len(data))
+                    return json.loads(data.decode()).get('result')
+                finally:
+                    s.close()
+            except Exception:
+                return None
+
         def _log_renderer_memory():
             try:
                 import subprocess as _sp
@@ -273,6 +328,14 @@ class OdysseusWindow(QMainWindow):
                         pass
             except Exception as e:
                 print(f'[MEM] error: {e}', flush=True)
+            counts = _cdp_dom_counts()
+            if counts:
+                print(
+                    f'[CDP] nodes={counts.get("nodes")} '
+                    f'documents={counts.get("documents")} '
+                    f'listeners={counts.get("jsEventListeners")}',
+                    flush=True,
+                )
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
         self._mem_timer.start(60_000)
@@ -281,6 +344,16 @@ class OdysseusWindow(QMainWindow):
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.WindowDeactivate:
+            # Window lost focus — safe to run a synchronous major GC here because
+            # the compositor is not painting our surface while another app has focus,
+            # so the GC pause does not produce visible gray frames.
+            self.browser.page().runJavaScript(
+                "if (typeof gc === 'function') gc({ type: 'major', execution: 'sync' });"
+            )
+        super().changeEvent(event)
 
     def closeEvent(self, event):
         s = QSettings("odysseus", "odysseus")
