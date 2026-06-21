@@ -54,7 +54,12 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
 ])
 
 import signal
+import socket as _cdp_sock
+import struct as _cdp_struct
+import base64 as _cdp_b64
+import urllib.request as _cdp_req
 import subprocess
+import threading as _threading
 import time
 from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -131,6 +136,122 @@ def stop_server():
 def _signal_handler(sig, frame):
     stop_server()
     sys.exit(0)
+
+
+def _cdp_call(method, params=None):
+    """One-shot CDP call via stdlib WebSocket. Safe to call from any thread.
+
+    Embedded Chromium builds (PyQt, Electron, native wrappers) do not receive OS
+    memory-pressure signals that would trigger Oilpan's automatic GC, so Python-side
+    CDP calls are the reliable way to invoke collection without --expose-gc.
+    Returns the CDP result dict or None on any error.
+    """
+    try:
+        raw = _cdp_req.urlopen('http://localhost:9222/json', timeout=1).read()
+        pages = json.loads(raw)
+        ws_url = next(
+            (p['webSocketDebuggerUrl'] for p in pages if p.get('type') == 'page'),
+            None,
+        )
+        if not ws_url:
+            return None
+        hostpath = ws_url[len('ws://'):]
+        host_port, path = hostpath.split('/', 1)
+        host_name, port_s = host_port.split(':')
+        s = _cdp_sock.create_connection((host_name, int(port_s)), timeout=2)
+        try:
+            key = _cdp_b64.b64encode(os.urandom(16)).decode()
+            s.sendall((
+                f'GET /{path} HTTP/1.1\r\nHost: {host_port}\r\n'
+                'Upgrade: websocket\r\nConnection: Upgrade\r\n'
+                f'Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n'
+            ).encode())
+            buf = b''
+            while b'\r\n\r\n' not in buf:
+                buf += s.recv(4096)
+            if b' 101 ' not in buf.split(b'\r\n')[0]:
+                return None
+            payload_obj = {'id': 1, 'method': method}
+            if params:
+                payload_obj['params'] = params
+            msg = json.dumps(payload_obj).encode()
+            mask = os.urandom(4)
+            masked = bytes(b ^ mask[i % 4] for i, b in enumerate(msg))
+            frame_len = len(msg)
+            length_byte = 0x7E if frame_len > 125 else frame_len
+            header = bytes([0x81, 0x80 | length_byte])
+            if frame_len > 125:
+                header += _cdp_struct.pack('!H', frame_len)
+            s.sendall(header + mask + masked)
+            hdr = b''
+            while len(hdr) < 2:
+                hdr += s.recv(2 - len(hdr))
+            dlen = hdr[1] & 0x7F
+            if dlen == 126:
+                lb = b''
+                while len(lb) < 2:
+                    lb += s.recv(2 - len(lb))
+                dlen = _cdp_struct.unpack('!H', lb)[0]
+            data = b''
+            while len(data) < dlen:
+                data += s.recv(dlen - len(data))
+            return json.loads(data.decode()).get('result')
+        finally:
+            s.close()
+    except Exception:
+        return None
+
+
+def _cdp_purge_memory():
+    """Invoke V8/Oilpan major GC across all isolates via CDP.
+
+    Memory.forciblyPurgeJavaScriptMemory calls V8::LowMemoryNotification() in the
+    renderer process — no --expose-gc flag needed, works across all V8 isolates.
+    Pure stdlib; safe to call from any background thread.
+    """
+    _cdp_call('Memory.forciblyPurgeJavaScriptMemory')
+    print('[GC] CDP Memory.forciblyPurgeJavaScriptMemory dispatched', flush=True)
+
+
+def _start_psi_monitor():
+    """Background thread monitoring Linux /proc/pressure/memory (PSI).
+
+    PSI avg10 measures the fraction of time tasks are stalled waiting for memory
+    over the last 10 seconds. When it exceeds 5% the system is under genuine memory
+    pressure. This mirrors the OS memory-pressure signal path that is absent in
+    embedded QtWebEngine builds — the signal that would normally trigger Oilpan's
+    automatic collection in a regular browser.
+
+    Skipped silently on kernels < 4.20 and non-Linux platforms.
+    """
+    _PSI_PATH = '/proc/pressure/memory'
+    _POLL_INTERVAL = 5    # seconds
+    _THRESHOLD_PCT = 5.0  # avg10 % that triggers a purge
+
+    if not os.path.exists(_PSI_PATH):
+        return
+
+    def _loop():
+        while True:
+            try:
+                with open(_PSI_PATH) as f:
+                    for line in f:
+                        if line.startswith('some'):
+                            avg10 = float(line.split()[1].split('=')[1])
+                            if avg10 > _THRESHOLD_PCT:
+                                print(
+                                    f'[MEM] PSI avg10={avg10:.2f}% > {_THRESHOLD_PCT}%'
+                                    f' — triggering CDP purge',
+                                    flush=True,
+                                )
+                                _cdp_purge_memory()
+                            break
+            except Exception:
+                pass
+            _time.sleep(_POLL_INTERVAL)
+
+    _threading.Thread(target=_loop, daemon=True, name='psi-monitor').start()
+    print('[MEM] PSI memory pressure monitor started', flush=True)
 
 
 class NativeBridge(QObject):
@@ -261,63 +382,13 @@ class OdysseusWindow(QMainWindow):
         page.renderProcessTerminated.connect(_on_renderer_crash)
 
         # Periodic renderer memory snapshot (every 60s).
-        # Also polls CDP Memory.getDOMCounters to track Oilpan node counts alongside RSS.
-        def _cdp_dom_counts():
-            """One-shot CDP query via raw WebSocket (stdlib only, no third-party deps).
-            Returns {nodes, documents, jsEventListeners} or None on any error."""
-            import socket as _sock
-            import struct as _struct
-            import base64 as _b64
-            import urllib.request as _req
-            try:
-                raw = _req.urlopen('http://localhost:9222/json', timeout=1).read()
-                pages = json.loads(raw)
-                ws_url = next((p['webSocketDebuggerUrl'] for p in pages
-                               if p.get('type') == 'page'), None)
-                if not ws_url:
-                    return None
-                hostpath = ws_url[len('ws://'):]
-                host_port, path = hostpath.split('/', 1)
-                host_name, port_s = host_port.split(':')
-                s = _sock.create_connection((host_name, int(port_s)), timeout=2)
-                try:
-                    key = _b64.b64encode(os.urandom(16)).decode()
-                    s.sendall((
-                        f'GET /{path} HTTP/1.1\r\nHost: {host_port}\r\n'
-                        'Upgrade: websocket\r\nConnection: Upgrade\r\n'
-                        f'Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n'
-                    ).encode())
-                    buf = b''
-                    while b'\r\n\r\n' not in buf:
-                        buf += s.recv(4096)
-                    if b' 101 ' not in buf.split(b'\r\n')[0]:
-                        return None
-                    msg = b'{"id":1,"method":"Memory.getDOMCounters"}'
-                    mask = os.urandom(4)
-                    payload = bytes(b ^ mask[i % 4] for i, b in enumerate(msg))
-                    s.sendall(bytes([0x81, 0x80 | len(msg)]) + mask + payload)
-                    hdr = b''
-                    while len(hdr) < 2:
-                        hdr += s.recv(2 - len(hdr))
-                    dlen = hdr[1] & 0x7F
-                    if dlen == 126:
-                        lb = b''
-                        while len(lb) < 2:
-                            lb += s.recv(2 - len(lb))
-                        dlen = _struct.unpack('!H', lb)[0]
-                    data = b''
-                    while len(data) < dlen:
-                        data += s.recv(dlen - len(data))
-                    return json.loads(data.decode()).get('result')
-                finally:
-                    s.close()
-            except Exception:
-                return None
-
+        # Polls /proc/<pid>/status for RSS and CDP Memory.getDOMCounters for live
+        # Oilpan node counts. When node accumulation is high, triggers a CDP purge
+        # so collection doesn't wait for the next focus-loss event.
         def _log_renderer_memory():
             try:
-                import subprocess as _sp
-                r = _sp.run(['pgrep', '-f', 'QtWebEngineProcess'], capture_output=True, text=True)
+                r = subprocess.run(
+                    ['pgrep', '-f', 'QtWebEngineProcess'], capture_output=True, text=True)
                 for pid_s in r.stdout.strip().split():
                     try:
                         with open(f'/proc/{pid_s}/status') as f:
@@ -328,17 +399,31 @@ class OdysseusWindow(QMainWindow):
                         pass
             except Exception as e:
                 print(f'[MEM] error: {e}', flush=True)
-            counts = _cdp_dom_counts()
+            counts = _cdp_call('Memory.getDOMCounters')
             if counts:
+                nodes = counts.get('nodes', 0)
                 print(
-                    f'[CDP] nodes={counts.get("nodes")} '
+                    f'[CDP] nodes={nodes} '
                     f'documents={counts.get("documents")} '
                     f'listeners={counts.get("jsEventListeners")}',
                     flush=True,
                 )
+                # Detached node accumulation above this threshold means Oilpan is not
+                # keeping up. Purge proactively rather than waiting for focus-loss.
+                if nodes > 50_000:
+                    print(
+                        f'[GC] node-count threshold ({nodes} > 50000)'
+                        f' — triggering CDP purge',
+                        flush=True,
+                    )
+                    _threading.Thread(
+                        target=_cdp_purge_memory, daemon=True, name='threshold-gc',
+                    ).start()
+
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
         self._mem_timer.start(60_000)
+        _start_psi_monitor()
 
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
@@ -347,12 +432,12 @@ class OdysseusWindow(QMainWindow):
 
     def changeEvent(self, event):
         if event.type() == QEvent.Type.WindowDeactivate:
-            # Window lost focus — safe to run a synchronous major GC here because
-            # the compositor is not painting our surface while another app has focus,
-            # so the GC pause does not produce visible gray frames.
-            self.browser.page().runJavaScript(
-                "if (typeof gc === 'function') gc({ type: 'major', execution: 'sync' });"
-            )
+            # Window lost focus — the compositor is not painting, so it is safe to
+            # run GC now. Use CDP in a daemon thread so the Qt event loop is not
+            # blocked by the WebSocket handshake; the renderer is idle anyway.
+            _threading.Thread(
+                target=_cdp_purge_memory, daemon=True, name='focus-loss-gc',
+            ).start()
         super().changeEvent(event)
 
     def closeEvent(self, event):
