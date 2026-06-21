@@ -1057,7 +1057,8 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       let isThinking = false;
       let thinkingStartTime = null;
       // Streaming TTS: synthesize sentence-by-sentence during streaming
-      const streamingTTS = !!(window.aiTTSManager && window.aiTTSManager.autoPlay && window.aiTTSManager.available);
+      // var (not const/let) — referenced in catch block which is a separate block scope
+      var streamingTTS = !!(window.aiTTSManager && window.aiTTSManager.autoPlay && window.aiTTSManager.available);
       if (streamingTTS) window.aiTTSManager.streamingStart();
       // Multi-bubble agent tracking
       let roundHolder = holder;       // Current AI text bubble (changes per round)
@@ -1276,6 +1277,17 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
       let _nextIsError = false;
       let _streamSawDone = false;
+      // Throttle live DOM renders — the streaming renderer rebuilds the tail on
+      // every call (clearTail + full DOM re-create), generating thousands of
+      // Oilpan DOM node create/remove cycles. Cap at 20 renders/sec.
+      let _lastRenderMs = 0;
+      const _RENDER_INTERVAL = 50;
+      const _throttledRenderStream = () => {
+        const now = performance.now();
+        if (now - _lastRenderMs < _RENDER_INTERVAL) return;
+        _lastRenderMs = now;
+        _renderStream();
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -1666,9 +1678,9 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   // Render any reply text that arrived with the closing </think> token
                   _renderStream();
                 } else {
-                  // Normal streaming
+                  // Normal streaming — throttled to cap Oilpan DOM churn
                   if (spinner && spinner.element) spinner.destroy();
-                  _renderStream();
+                  _throttledRenderStream();
                   _scheduleThinkingSpinner();
                   // Feed streaming TTS with accumulated text
                   if (streamingTTS) window.aiTTSManager.streamingUpdate(roundText);
