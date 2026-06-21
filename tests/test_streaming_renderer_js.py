@@ -2,7 +2,7 @@
 
 streamingRenderer.js is browser-coupled (uses DOM) and cannot be imported
 in pytest. These checks analyse the source text to lock in the structural
-contracts for two Oilpan OOM fixes:
+contracts for three Oilpan OOM fixes:
 
 1. In-place tail patching: renderTail() patches existing nodes in-place when
    block structure is unchanged, avoiding clearTail() + full DOM rebuild on
@@ -11,6 +11,10 @@ contracts for two Oilpan OOM fixes:
 2. Deferred hljs highlighting: freeze() inserts nodes into the live DOM before
    observing them, so IntersectionObserver can measure viewport distance and
    defer hljs span allocation for off-screen code blocks.
+
+3. renderTail call counter: _rtCalls counts holder-div allocations per response
+   and logs the total in finalize(), so a successful rAF throttle is immediately
+   visible as a reduced count.
 
 Root: docs/fork/memory-explosion-research.md
 """
@@ -36,6 +40,18 @@ def _start_body() -> str:
 def _clear_tail_body() -> str:
     start = _SRC.index("function clearTail()")
     end   = _SRC.index("\n  }", start) + 4
+    return _SRC[start:end]
+
+
+def _freeze_body() -> str:
+    start = _SRC.index("function freeze(")
+    end   = _SRC.index("\n  }", start) + 4
+    return _SRC[start:end]
+
+
+def _finalize_body() -> str:
+    start = _SRC.index("function finalize()")
+    end   = _SRC.index("\n  return { update, finalize }", start)
     return _SRC[start:end]
 
 
@@ -94,12 +110,6 @@ def test_render_tail_pushes_to_tail_nodes_on_rebuild():
 # Deferred hljs highlighting in freeze()
 # ---------------------------------------------------------------------------
 
-def _freeze_body() -> str:
-    start = _SRC.index("function freeze(")
-    end   = _SRC.index("\n  }", start) + 4
-    return _SRC[start:end]
-
-
 def test_freeze_imports_defer_highlight():
     # hljsDefer.js must be imported so deferHighlight is in scope.
     assert "hljsDefer.js" in _SRC
@@ -136,3 +146,45 @@ def test_full_render_keeps_immediate_highlight():
     end   = _SRC.index("\n  }", start) + 4
     body  = _SRC[start:end]
     assert "highlightElement" in body
+
+
+# ---------------------------------------------------------------------------
+# renderTail call counter (_rtCalls)
+# ---------------------------------------------------------------------------
+
+def test_rendertail_counter_declared():
+    assert "let _rtCalls = 0" in _SRC
+
+
+def test_rendertail_counter_incremented():
+    body = _render_tail_body()
+    assert "_rtCalls++" in body
+
+
+def test_rendertail_counter_incremented_before_early_returns():
+    # The increment must appear before the appendOpenFence early-return so every
+    # call (including fence-streaming calls) is counted.
+    body = _render_tail_body()
+    incr_pos  = body.index("_rtCalls++")
+    fence_pos = body.index("appendOpenFence")
+    assert incr_pos < fence_pos, "_rtCalls++ must precede appendOpenFence early-return"
+
+
+def test_rendertail_counter_logged_in_finalize():
+    body = _finalize_body()
+    assert "[streamRenderer]" in body
+    assert "_rtCalls" in body
+
+
+def test_rendertail_counter_log_guarded_by_nonzero():
+    # Avoid a spurious '[streamRenderer] renderTail calls=0' for responses that
+    # never stream (e.g. instant errors).
+    body = _finalize_body()
+    assert "_rtCalls > 0" in body
+
+
+def test_rendertail_counter_reset_after_log():
+    body = _finalize_body()
+    log_pos   = body.index("[streamRenderer]")
+    reset_pos = body.index("_rtCalls = 0", log_pos)
+    assert reset_pos > log_pos, "_rtCalls must be reset after the log, not before"

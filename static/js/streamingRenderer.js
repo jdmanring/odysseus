@@ -226,6 +226,9 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
       tailMarker.remove();
       tailMarker = null;
       committedLen = lastText.length;
+      // renderTail() fires once per SSE token and allocates a holder div each call.
+      // This count is the direct measure of that DOM allocation pressure; a successful
+      // rAF throttle will reduce it from ~token_rate/s to ~60/s.
       if (_rtCalls > 0) {
         console.log('[streamRenderer] renderTail calls=' + _rtCalls
           + ' fast=' + _rtFast
