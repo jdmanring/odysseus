@@ -3055,7 +3055,6 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
                 // Expand/collapse via delegated click handler (init at module bottom).
                 threadWrap.appendChild(node);
                 currentToolBubble = node;
-                // Animate the wave
                 const waveEl = node.querySelector('.agent-thread-wave');
                 if (waveEl) {
                   const waveFrames = ['▁▂▃', '▂▃▄', '▃▄▅', '▄▅▆', '▅▆▇', '▆▅▄', '▅▄▃', '▄▃▂'];
@@ -3076,13 +3075,11 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
                   if (!el2) {
                     el2 = document.createElement('span');
                     el2.className = 'agent-thread-elapsed';
-                    // Sits on the LEFT, right after the icon.
                     const icon = hdr2.querySelector('.agent-thread-icon');
                     if (icon && icon.nextSibling) hdr2.insertBefore(el2, icon.nextSibling);
                     else hdr2.appendChild(el2);
                   }
                   const s = (Date.now() - node._startTime) / 1000;
-                  // Hundredths so it visibly counts sub-second (1.00, 1.05, …).
                   el2.textContent = s < 60 ? `${s.toFixed(2)}s` : `${Math.floor(s / 60)}m ${(s % 60).toFixed(2).padStart(5, '0')}s`;
                 }, 50);
                 uiModule.scrollHistory();
