@@ -727,7 +727,7 @@ def test_update_evict_notice_inserts_after_hist_sep():
 
 
 # ---------------------------------------------------------------------------
-# Observability — console.debug logging
+# Observability — console.log logging
 # ---------------------------------------------------------------------------
 # Each key operation logs a '[chatHistory]' prefixed message so operators can
 # diagnose OOM behaviour in production by filtering DevTools console output
@@ -765,8 +765,8 @@ def test_load_logs_console_log():
 
 
 def test_prune_top_logs_debug():
-    # Phase 2 prune fires frequently during streaming — kept at console.debug (opt-in).
-    assert "console.debug" in _prune_top_body(), (
+    # Phase 2 prune fires frequently during streaming — kept at console.log (opt-in).
+    assert "console.log" in _prune_top_body(), (
         "_pruneTop must log the prune count and new startIdx"
     )
 
@@ -779,24 +779,24 @@ def test_evict_live_logs_console_log():
 
 
 def test_load_older_logs_debug():
-    # Batch load fires on every scroll-up step — kept at console.debug (opt-in).
-    assert "console.debug" in _load_older_body(), (
+    # Batch load fires on every scroll-up step — kept at console.log (opt-in).
+    assert "console.log" in _load_older_body(), (
         "_loadOlder must log the batch range and node count"
     )
 
 
 def test_load_newer_logs_debug():
-    # Batch load fires on every scroll-down step — kept at console.debug (opt-in).
-    assert "console.debug" in _load_newer_body(), (
+    # Batch load fires on every scroll-down step — kept at console.log (opt-in).
+    assert "console.log" in _load_newer_body(), (
         "_loadNewer must log the batch range and node count"
     )
 
 
 def test_all_logs_use_consistent_prefix():
-    # All console.log and console.debug calls must use '[chatHistory]' so they
+    # All console.log and console.log calls must use '[chatHistory]' so they
     # can be filtered as a group in DevTools (Console → Filter → '[chatHistory]').
     # Significant events (session load, eviction, Phase 3 prune) use console.log
-    # (visible by default); routine batch loads and Phase 2 prunes use console.debug
+    # (visible by default); routine batch loads and Phase 2 prunes use console.log
     # (opt-in via Verbose) to avoid noise during normal scroll.
     import re
     calls = re.findall(r"console\.(?:log|debug)\(['\"]([^'\"]+)", _SRC)
