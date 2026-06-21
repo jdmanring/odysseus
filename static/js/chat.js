@@ -2624,7 +2624,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                 // Guard against _evictLive removing the bubble node before tool_output
                 // arrives. Writes to a detached node silently fail; skip instead.
                 if (!currentToolBubble || !currentToolBubble.isConnected) {
-                  console.warn('[chatHistory] tool_output: bubble evicted before completion');
+                  console.warn('[chat] tool_output: bubble evicted before completion, skipping update');
                   continue;
                 }
                 // --- Update the current thread node ---
