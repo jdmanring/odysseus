@@ -1276,7 +1276,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
       let _nextIsError = false;
       let _streamSawDone = false;
-      let _renderRafId = 0;
+      var _renderRafId = 0;
 
       while (true) {
         const { done, value } = await reader.read();
