@@ -2212,70 +2212,68 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   continue;
                 }
                 // --- Update the current thread node ---
-                if (currentToolBubble) {
-                  const ok = (json.exit_code === 0 || json.exit_code == null);
-                  const cmd = json.command || '';
-                  let outHtml = '';
-                  if (json.output && json.output.trim()) {
-                    outHtml = `<details class="agent-tool-output"><summary>Output</summary><pre>${esc(json.output)}</pre></details>`;
-                  }
-                  // File-write diff (write_file): show a before/after unified diff.
-                  let diffHtml = '';
-                  if (json.diff && json.diff.text) {
-                    const d = json.diff;
-                    // Collapsed summary: filename + +adds (green) / −dels (red).
-                    const stat = [
-                      d.new_file ? '<span class="diff-stat-new">new</span>' : '',
-                      d.added ? `<span class="diff-stat-add">+${d.added}</span>` : '',
-                      d.removed ? `<span class="diff-stat-del">−${d.removed}</span>` : '',
-                    ].filter(Boolean).join(' ');
-                    const rows = d.text.split('\n').map(line => {
-                      let cls = 'diff-ctx', text = line;
-                      if (line.startsWith('+++') || line.startsWith('---')) cls = 'diff-meta';
-                      else if (line.startsWith('@@')) cls = 'diff-hunk';
-                      // Drop the leading diff marker (+/-/space) — the row colour
-                      // already encodes add/del, and keeping it doubles up with
-                      // markdown "- " bullets (reads as "+-"/"--").
-                      else if (line.startsWith('+')) { cls = 'diff-add'; text = line.slice(1); }
-                      else if (line.startsWith('-')) { cls = 'diff-del'; text = line.slice(1); }
-                      else if (line.startsWith(' ')) { text = line.slice(1); }
-                      return `<span class="${cls}">${esc(text) || '&nbsp;'}</span>`;
-                    }).join('');  // spans are display:block — a literal \n here would double-space the diff
-                    diffHtml = `<details class="agent-tool-output agent-tool-diff"><summary><span class="diff-file">${esc(d.file || 'diff')}</span> <span class="diff-summary-stats">${stat}</span></summary><pre class="diff-pre">${rows}</pre></details>`;
-                  }
-                  // For file edits the "command" is the raw JSON args — redundant
-                  // next to the diff, so hide it when we have a diff to show.
-                  const cmdHtml2 = (cmd && !(json.diff && json.diff.text)) ? `<pre class="agent-thread-cmd">${esc(cmd)}</pre>` : '';
-                  // Preserve the user's .open choice \u2014 otherwise expanding a running
-                  // tool collapses it as soon as the result lands.
-                  const _wasOpen = currentToolBubble.classList.contains('open');
-                  currentToolBubble.className = 'agent-thread-node' + (ok ? '' : ' error') + (_wasOpen ? ' open' : '');
-                  // Patch in-place: update only the changed child elements so we avoid
-                  // detaching and replacing a full DOM subtree on every tool completion.
-                  if (currentToolBubble._toolIconEl)
-                    currentToolBubble._toolIconEl.textContent = ok ? '\u2713' : '\u2717';
-                  if (currentToolBubble._toolWaveEl) {
-                    currentToolBubble._toolWaveEl.remove();
-                    currentToolBubble._toolWaveEl = null;
-                  }
-                  if (currentToolBubble._toolHeaderEl) {
-                    const _elapsed = currentToolBubble._toolHeaderEl.querySelector('.agent-thread-elapsed');
-                    if (_elapsed) _elapsed.remove();
-                    const _st = document.createElement('span');
-                    _st.className = 'agent-thread-status';
-                    _st.textContent = ok ? 'done' : 'failed';
-                    currentToolBubble._toolHeaderEl.appendChild(_st);
-                    const _ch = document.createElement('span');
-                    _ch.className = 'agent-thread-chevron';
-                    _ch.textContent = '\u25B6';
-                    currentToolBubble._toolHeaderEl.appendChild(_ch);
-                  }
-                  if (currentToolBubble._toolContentEl)
-                    currentToolBubble._toolContentEl.innerHTML = cmdHtml2 + outHtml + diffHtml;
-                  // Reset so thinking spinner between tools says "Thinking" not the old tool's label
-                  _lastToolName = '';
-                  uiModule.scrollHistory();
+                const ok = (json.exit_code === 0 || json.exit_code == null);
+                const cmd = json.command || '';
+                let outHtml = '';
+                if (json.output && json.output.trim()) {
+                  outHtml = `<details class="agent-tool-output"><summary>Output</summary><pre>${esc(json.output)}</pre></details>`;
                 }
+                // File-write diff (write_file): show a before/after unified diff.
+                let diffHtml = '';
+                if (json.diff && json.diff.text) {
+                  const d = json.diff;
+                  // Collapsed summary: filename + +adds (green) / −dels (red).
+                  const stat = [
+                    d.new_file ? '<span class="diff-stat-new">new</span>' : '',
+                    d.added ? `<span class="diff-stat-add">+${d.added}</span>` : '',
+                    d.removed ? `<span class="diff-stat-del">−${d.removed}</span>` : '',
+                  ].filter(Boolean).join(' ');
+                  const rows = d.text.split('\n').map(line => {
+                    let cls = 'diff-ctx', text = line;
+                    if (line.startsWith('+++') || line.startsWith('---')) cls = 'diff-meta';
+                    else if (line.startsWith('@@')) cls = 'diff-hunk';
+                    // Drop the leading diff marker (+/-/space) — the row colour
+                    // already encodes add/del, and keeping it doubles up with
+                    // markdown "- " bullets (reads as "+-"/"--").
+                    else if (line.startsWith('+')) { cls = 'diff-add'; text = line.slice(1); }
+                    else if (line.startsWith('-')) { cls = 'diff-del'; text = line.slice(1); }
+                    else if (line.startsWith(' ')) { text = line.slice(1); }
+                    return `<span class="${cls}">${esc(text) || '&nbsp;'}</span>`;
+                  }).join('');  // spans are display:block — a literal \n here would double-space the diff
+                  diffHtml = `<details class="agent-tool-output agent-tool-diff"><summary><span class="diff-file">${esc(d.file || 'diff')}</span> <span class="diff-summary-stats">${stat}</span></summary><pre class="diff-pre">${rows}</pre></details>`;
+                }
+                // For file edits the "command" is the raw JSON args — redundant
+                // next to the diff, so hide it when we have a diff to show.
+                const cmdHtml2 = (cmd && !(json.diff && json.diff.text)) ? `<pre class="agent-thread-cmd">${esc(cmd)}</pre>` : '';
+                // Preserve the user's .open choice \u2014 otherwise expanding a running
+                // tool collapses it as soon as the result lands.
+                const _wasOpen = currentToolBubble.classList.contains('open');
+                currentToolBubble.className = 'agent-thread-node' + (ok ? '' : ' error') + (_wasOpen ? ' open' : '');
+                // Patch in-place: update only the changed child elements so we avoid
+                // detaching and replacing a full DOM subtree on every tool completion.
+                if (currentToolBubble._toolIconEl)
+                  currentToolBubble._toolIconEl.textContent = ok ? '\u2713' : '\u2717';
+                if (currentToolBubble._toolWaveEl) {
+                  currentToolBubble._toolWaveEl.remove();
+                  currentToolBubble._toolWaveEl = null;
+                }
+                if (currentToolBubble._toolHeaderEl) {
+                  const _elapsed = currentToolBubble._toolHeaderEl.querySelector('.agent-thread-elapsed');
+                  if (_elapsed) _elapsed.remove();
+                  const _st = document.createElement('span');
+                  _st.className = 'agent-thread-status';
+                  _st.textContent = ok ? 'done' : 'failed';
+                  currentToolBubble._toolHeaderEl.appendChild(_st);
+                  const _ch = document.createElement('span');
+                  _ch.className = 'agent-thread-chevron';
+                  _ch.textContent = '\u25B6';
+                  currentToolBubble._toolHeaderEl.appendChild(_ch);
+                }
+                if (currentToolBubble._toolContentEl)
+                  currentToolBubble._toolContentEl.innerHTML = cmdHtml2 + outHtml + diffHtml;
+                // Reset so thinking spinner between tools says "Thinking" not the old tool's label
+                _lastToolName = '';
+                uiModule.scrollHistory();
                 // --- Render generated images inline ---
                 if (json.image_url) {
                   const chatBox = document.getElementById('chat-history');
