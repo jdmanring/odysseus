@@ -2152,10 +2152,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                 uiModule.scrollHistory();
 
               } else if (json.type === 'tool_output') {
-                if (_isBg) continue;
-                // --- Update the current thread node ---
+                // Timer cleanup is unconditional: tool_start always starts these intervals
+                // and tool_output is the only reliable cleanup point. The _isBg path skips
+                // the rest of this handler, so cleanup must run before that check.
                 if (currentToolBubble) {
-                  // Stop wave animation + the per-second cooking ticker
                   if (currentToolBubble._waveInterval) {
                     clearInterval(currentToolBubble._waveInterval);
                     currentToolBubble._waveInterval = null;
@@ -2164,6 +2164,16 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                     clearInterval(currentToolBubble._elapsedTicker);
                     currentToolBubble._elapsedTicker = null;
                   }
+                }
+                if (_isBg) continue;
+                // Guard against _evictLive removing the bubble node before tool_output
+                // arrives. Writes to a detached node silently fail; skip instead.
+                if (!currentToolBubble || !currentToolBubble.isConnected) {
+                  console.warn('[chatHistory] tool_output: bubble evicted before completion');
+                  continue;
+                }
+                // --- Update the current thread node ---
+                if (currentToolBubble) {
                   const ok = (json.exit_code === 0 || json.exit_code == null);
                   const cmd = json.command || '';
                   let outHtml = '';
