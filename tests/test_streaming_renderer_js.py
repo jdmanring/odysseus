@@ -1,24 +1,4 @@
-"""Static validation of streamingRenderer.js structural contracts.
-
-streamingRenderer.js is browser-coupled (uses DOM) and cannot be imported
-in pytest. These checks analyse the source text to lock in the structural
-contracts for three Oilpan OOM fixes:
-
-1. In-place tail patching: renderTail() patches existing nodes in-place when
-   block structure is unchanged, avoiding clearTail() + full DOM rebuild on
-   every SSE token.
-
-2. Deferred hljs highlighting: freeze() inserts nodes into the live DOM before
-   observing them, so IntersectionObserver can measure viewport distance and
-   defer hljs span allocation for off-screen code blocks.
-
-3. renderTail call counter: _rtCalls counts holder-div allocations per response
-   and logs the total in finalize(), so a successful rAF throttle is immediately
-   visible as a reduced count.
-
-Root: docs/fork/memory-explosion-research.md
-"""
-
+# Source-text contract tests for streamingRenderer.js (_tailNodes lifecycle, hljs defer, _rtCalls counter).
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parent.parent
@@ -172,8 +152,7 @@ def test_rendertail_counter_incremented_before_early_returns():
 
 def test_rendertail_counter_logged_in_finalize():
     body = _finalize_body()
-    assert "[streamRenderer]" in body
-    assert "_rtCalls" in body
+    assert "'[streamRenderer] renderTail calls=' + _rtCalls" in body
 
 
 def test_rendertail_counter_log_guarded_by_nonzero():
