@@ -1,17 +1,4 @@
-"""Static validation of the renderTail call counter in streamingRenderer.js.
-
-streamingRenderer.js is browser-coupled (uses DOM) and cannot be imported
-in pytest. These checks analyse the source text to lock in the structural
-contract for the renderTail() allocation counter:
-
-  renderTail() fires once per SSE token and allocates a holder div each call.
-  _rtCalls measures this DOM allocation pressure. finalize() logs the total and
-  resets it, so every response produces one '[streamRenderer]' log line that
-  verifies how many holder-div allocations occurred during streaming.
-
-Root: docs/fork/memory-explosion-research.md
-"""
-
+# Source-text contract tests for streamingRenderer.js (_tailNodes lifecycle, hljs defer, _rtCalls counter).
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parent.parent
@@ -62,8 +49,7 @@ def test_rendertail_counter_incremented_before_early_returns():
 
 def test_rendertail_counter_logged_in_finalize():
     body = _finalize_body()
-    assert "[streamRenderer]" in body
-    assert "_rtCalls" in body
+    assert "'[streamRenderer] renderTail calls=' + _rtCalls" in body
 
 
 def test_rendertail_counter_log_guarded_by_nonzero():
