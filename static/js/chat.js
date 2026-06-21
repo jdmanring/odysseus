@@ -3093,12 +3093,15 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } finally {
       clearResponseTimeout();
       clearProcessingProbe();
-      // Deferred major GC after streaming finishes. Oilpan accumulates detached
-      // nodes from the final render; async mode runs incrementally during idle
-      // slices to minimise visible frame gaps. 2.5 s delay lets the UI settle
-      // before GC begins. _gcPending prevents stacking concurrent async cycles
-      // (stacked cycles double overhead without extra benefit). Falls back to a
-      // no-op idle hint when gc() is absent.
+      // Deferred major GC hint for embedded Chromium environments (PyQt, Electron,
+      // native wrappers). Regular browsers receive OS memory-pressure signals that
+      // trigger Oilpan's automatic collection; embedded builds typically do not, so
+      // detached nodes accumulate without a cooperative nudge.
+      // gc() with async execution runs incremental collection slices during idle
+      // periods; the 2.5 s delay lets the final render settle first.
+      // _gcPending prevents stacking a second cycle while the first is still running
+      // its incremental slices (stacked cycles double overhead without extra benefit).
+      // Feature-detected — no-ops in all regular browsers where gc() is not exposed.
       setTimeout(function () {
         if (typeof gc === 'function' && !_gcPending) {
           _gcPending = true;
