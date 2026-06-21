@@ -1,6 +1,6 @@
 # Active Work
 
-Last updated: 2026-06-20. Memory explosion OOM fix branches complete. Phase 2 _evictLive fix folded into `fix/dom-oom-virtualization` (#2); `fix/dom-oom-phase2-guard` branch deleted, issue #65 closed as merged into #2. `fix/dom-oom-streaming-throttle` (#64) is independent and ready to file.
+Last updated: 2026-06-21. OOM investigation active. Upstream PR #4661 safe pieces pre-applied to develop (see Staged for Upstream notes). Pending: confirm content-visibility + evictLive contain memory growth; file issue for streamingRenderer in-place patch.
 
 ---
 
@@ -61,6 +61,7 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | `fix/untrusted-tool-result-header` | [#48](https://github.com/jdmanring/odysseus/issues/48) | 2 commits — initial scope fix (`a6fcc3e3`), improved header language (`484e9702`). Removes "reference material only" phrase, adds explicit "use it to complete the request" instruction, narrows injection warning to embedded *instructions*. Applied to develop as `db011acc`. File upstream issue first. |
 | `fix/api-token-utcnow-deprecated` | [#51](https://github.com/jdmanring/odysseus/issues/51) | Single commit, ready. Follow-up to upstream 790ef81b — missed instance of deprecated datetime.utcnow() in api-token last_used_at update. File upstream issue first. |
 | `fix/chat-auto-scroll-threshold` | [#49](https://github.com/jdmanring/odysseus/issues/49) | Single commit, ready. Adaptive viewport-based threshold replaces rigid 300px guard in _smoothScrollStep(). File upstream issue first. Rebuilt clean from contaminated `fix/chat-auto-scroll-bottom`. |
+| _(pending ingest — upstream PR #4661)_ | — | "fix(ui): prevent browser OOM during long agent interactions" by holden093. Open, not yet merged. Safe pieces pre-applied to develop (67268d2b): `_purgeStaleBackgroundStreams()`, `?limit=400` history pagination, `streamDocDelta()` rAF throttle, `content-visibility:auto` CSS (49ce03bb). **Do not take `_trimChatHistoryDOM()` or `_loadOlderMessages()` during ingest** — incompatible with chatHistory.js virtualization; our `_evictLive()` replaces them. Attribution: adapted from PR #4661 (holden093). Test branches: `test/pr-4661`, `test/upstream-pr-4661`. |
 
 ---
 
