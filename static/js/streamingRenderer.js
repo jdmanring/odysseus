@@ -37,6 +37,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
   let degraded = !ENABLED; // true once we fall back to full re-render
   let _tailNodes = []; // live tail DOM nodes currently in contentEl (after tailMarker)
   let _rtCalls = 0, _rtFast = 0; // renderTail() call counter; fast-path hit counter
+  let _lastTailText = null; // text from last successful renderTail(); null when tail is empty/unknown
 
   function start() {
     _tailNodes = [];
@@ -44,10 +45,12 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
     tailMarker = document.createComment('tail');
     contentEl.appendChild(tailMarker);
     started = true;
+    _lastTailText = null;
   }
 
   function clearTail() {
     _tailNodes = [];
+    _lastTailText = null;
     while (tailMarker.nextSibling) tailMarker.nextSibling.remove();
   }
 
@@ -67,13 +70,39 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
     _rtCalls++;
     const fence = tailText ? describeOpenFence(tailText) : null;
     if (fence) {
+      // Fence path bypasses text tracking — reset so the next prose token re-establishes.
+      _lastTailText = null;
       appendOpenFence(tailText, fence);
       return;
     }
     appendMode = null;
+
+    // Text-only append fast path: when the tail is growing by plain prose (no markdown
+    // structural characters in the new suffix), append directly to the live text node
+    // without re-parsing or clearing the tail. Eliminates the holder div allocation for
+    // the common streaming case. Caveat: skips the fade-in span (imperceptible at 30fps).
+    if (_lastTailText !== null && tailText.startsWith(_lastTailText)) {
+      const suffix = tailText.slice(_lastTailText.length);
+      const lastTail = _tailNodes.length > 0 ? _tailNodes[_tailNodes.length - 1] : null;
+      if (
+        suffix.length > 0 &&
+        !/[*_`#\[\]<>\n\\{]/.test(suffix) &&
+        lastTail &&
+        lastTail.lastChild &&
+        lastTail.lastChild.nodeType === Node.TEXT_NODE
+      ) {
+        lastTail.lastChild.appendData(suffix);
+        tailShownLen += suffix.length;
+        _lastTailText = tailText;
+        _rtFast++;
+        return;
+      }
+    }
+
     if (!tailText) {
       clearTail();
       tailShownLen = 0;
+      _lastTailText = null;
       return;
     }
     const holder = document.createElement('div');
@@ -108,6 +137,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
       _tailNodes.push(holder.firstChild);
       contentEl.appendChild(holder.firstChild);
     }
+    _lastTailText = tailText;
   }
 
   // Stream the body of an unterminated code fence by appending only the new
