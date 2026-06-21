@@ -9313,6 +9313,7 @@ import * as Modals from './modalManager.js';
 
   /** Append streaming content to the currently-streaming doc */
   let _streamHlDebounce = null;
+  let _streamDeltaPending = null; // rAF handle — throttles DOM updates to one per frame
   export function streamDocDelta(content) {
     if (!_streamDocId) return;
     const doc = docs.get(_streamDocId);
@@ -9323,27 +9324,30 @@ import * as Modals from './modalManager.js';
         _showEmailFields(doc);
         return;
       }
-      const textarea = document.getElementById('doc-editor-textarea');
-      if (textarea) {
-        textarea.value = content;
-        // Auto-scroll to bottom as content streams in
-        textarea.scrollTop = textarea.scrollHeight;
+      // Throttle DOM updates to once per animation frame — avoids thrashing the
+      // textarea, code element, and line-number layout on every SSE delta.
+      if (!_streamDeltaPending) {
+        _streamDeltaPending = requestAnimationFrame(() => {
+          _streamDeltaPending = null;
+          const latest = docs.get(_streamDocId)?.content ?? doc.content;
+          const textarea = document.getElementById('doc-editor-textarea');
+          if (textarea) {
+            textarea.value = latest;
+            textarea.scrollTop = textarea.scrollHeight;
+          }
+          const codeEl = document.getElementById('doc-editor-code');
+          if (codeEl) codeEl.textContent = latest + '\n';
+          updateLineNumbers(latest);
+          let cursor = document.getElementById('doc-stream-cursor');
+          if (!cursor) {
+            cursor = document.createElement('span');
+            cursor.id = 'doc-stream-cursor';
+            cursor.className = 'doc-stream-cursor';
+            cursor.textContent = '\u258F';
+          }
+          if (codeEl && codeEl.parentElement) codeEl.parentElement.appendChild(cursor);
+        });
       }
-      // Update text and line numbers immediately, debounce expensive highlighting
-      const codeEl = document.getElementById('doc-editor-code');
-      if (codeEl) codeEl.textContent = content + '\n';
-      updateLineNumbers(content);
-      // Show blinking cursor at end of content
-      let cursor = document.getElementById('doc-stream-cursor');
-      if (!cursor) {
-        cursor = document.createElement('span');
-        cursor.id = 'doc-stream-cursor';
-        cursor.className = 'doc-stream-cursor';
-        cursor.textContent = '\u258F';
-      }
-      if (codeEl && codeEl.parentElement) codeEl.parentElement.appendChild(cursor);
-      clearTimeout(_streamHlDebounce);
-      _streamHlDebounce = setTimeout(syncHighlighting, 150);
     }
   }
 
@@ -9352,6 +9356,18 @@ import * as Modals from './modalManager.js';
   export function streamDocFinalize() {
     const oldId = _streamDocId;
     _streamDocId = null;
+    // Cancel any pending throttled frame and flush final content
+    if (_streamDeltaPending) {
+      cancelAnimationFrame(_streamDeltaPending);
+      _streamDeltaPending = null;
+    }
+    const textarea = document.getElementById('doc-editor-textarea');
+    const codeEl   = document.getElementById('doc-editor-code');
+    if (textarea && codeEl) {
+      const finalContent = docs.get(oldId)?.content || '';
+      textarea.value = finalContent;
+      codeEl.textContent = finalContent + '\n';
+    }
     // Hide streaming indicator + cursor
     const indicator = document.getElementById('doc-stream-indicator');
     if (indicator) indicator.style.display = 'none';

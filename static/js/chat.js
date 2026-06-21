@@ -117,6 +117,17 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
            _resumingStreams.has(sessionId);
   }
 
+  /** Remove completed/error background stream entries to free accumulated text. */
+  function _purgeStaleBackgroundStreams() {
+    _backgroundStreams.forEach(function (entry, sid) {
+      if (entry.status === 'completed' || entry.status === 'error') {
+        if (entry.abortCtrl) entry.abortCtrl = null;
+        entry.accumulated = '';
+        _backgroundStreams.delete(sid);
+      }
+    });
+  }
+
   // Sources box builder and toggleSources are now in chatRenderer.js
   var _buildSourcesBox = chatRenderer.buildSourcesBox;
 
@@ -274,6 +285,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
    */
   export async function handleChatSubmit(e) {
     e.preventDefault();
+    _purgeStaleBackgroundStreams();
     // Cancel research clarification timeout if active
     if (window._researchTimeoutTimer) {
       clearTimeout(window._researchTimeoutTimer);
