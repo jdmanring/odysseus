@@ -3046,15 +3046,12 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } finally {
       clearResponseTimeout();
       clearProcessingProbe();
-      // Force Oilpan + V8 GC to collect detached DOM nodes from the stream render.
-      // Each completed stream leaves ~1000+ detached nodes from the final innerHTML
-      // rerender; without explicit gc() they accumulate until Oilpan's lazy sweep.
-      // async execution runs GC on helper threads — avoids the stop-the-world pause
-      // that causes the gray screen flicker with synchronous gc().
+      // Yield to idle — creates the low-priority window V8 uses for incremental
+      // GC steps after the streaming allocation burst.
       if (typeof scheduler !== 'undefined' && scheduler.postTask) {
-        scheduler.postTask(() => { if (typeof gc !== 'undefined') { try { gc({ type: 'major', execution: 'async' }); } catch (_) { gc(); } } }, { priority: 'background' }).catch(() => {});
+        scheduler.postTask(() => {}, { priority: 'background' }).catch(() => {});
       } else if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => { if (typeof gc !== 'undefined') { try { gc({ type: 'major', execution: 'async' }); } catch (_) { gc(); } } }, { timeout: 2000 });
+        requestIdleCallback(() => {}, { timeout: 2000 });
       }
       // Streaming done — let screen readers announce the settled response.
       const _chatLogDone = document.getElementById('chat-history');

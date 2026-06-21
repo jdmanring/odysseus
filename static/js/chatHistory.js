@@ -794,12 +794,9 @@
     // clamp that occurred during node removal.
     this._c.scrollTop = savedScrollTop;
 
-    // Prune leaves large detached DOM subtrees in Oilpan. Force GC on idle so
-    // they're collected before the next prune rather than accumulating.
-    if (typeof gc !== 'undefined') {
-      requestIdleCallback(function () {
-        try { gc({ type: 'major', execution: 'async' }); } catch (_) { gc(); }
-      }, { timeout: 3000 });
+    // Yield to idle after prune so V8 can run incremental GC on the detached subtrees.
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(function () {}, { timeout: 3000 });
     }
   };
 
