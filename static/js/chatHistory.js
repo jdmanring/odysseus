@@ -47,6 +47,7 @@
     this._bidiPending = false;     // rAF guard for scroll-based _loadNewer
     this._draining   = false;      // true while scrollToBottom() is draining all batches
     this._gen        = 0;          // incremented on reset(); all rAF callbacks check this
+    this._evictedLiveCount = 0;   // live nodes evicted when history exhausted (for notice)
     this._initMutObs();
     this._initScrollListener();
   }
@@ -131,6 +132,7 @@
     this._all      = [];
     this._startIdx = 0;
     this._endIdx   = 0;
+    this._evictedLiveCount = 0;
   };
 
   // Snap to the true bottom of history, draining all remaining _loadNewer() batches.
@@ -581,16 +583,86 @@
   MessageWindow.prototype._maybePrune = function () {
     if (!this._isAtBottom()) return;
     if (!this._histSep || !this._histSep.parentNode) return;
-    // Threshold is based on total non-control DOM nodes (historical + live) so that
-    // a long live session (many turns after the history boundary) also triggers
-    // pruning — not just sessions where the user scrolled up through history.
-    // Pruning itself is still limited to historical nodes (before _histSep) because
-    // live nodes have no _all[] entry and cannot be reloaded once removed.
     var total = this._liveChildCount();
     if (total <= PRUNE_AT) return;
+    var count = total - PRUNE_AT + PRUNE_COUNT;
     var hist  = this._histChildCount();
-    if (hist === 0) return;
-    this._pruneTop(Math.min(hist, total - PRUNE_AT + PRUNE_COUNT));
+    if (hist > 0) {
+      // Normal case: prune oldest historical messages (Phase 2).
+      this._pruneTop(Math.min(hist, count));
+    } else {
+      // History exhausted — evict oldest live messages that are above the viewport.
+      // They persist in DB and reload on session switch; we show a notice in-place.
+      this._evictLive(count);
+    }
+  };
+
+  // Evict the oldest `count` live DOM nodes (those immediately after _histSep).
+  // Called when Phase 2 needs to prune but all historical nodes are gone.
+  // Evicted messages are persisted in the DB and reload on session switch.
+  MessageWindow.prototype._evictLive = function (count) {
+    if (!this._histSep || !this._histSep.parentNode) return;
+
+    // Collect oldest live nodes (right after _histSep), skipping control elements.
+    var toRemove = [];
+    var cur = this._histSep.nextElementSibling;
+    while (cur && toRemove.length < count) {
+      var isCtl = (cur === this._sentinel || cur === this._bSentinel ||
+                   cur.classList.contains('chat-history-spacer') ||
+                   cur.classList.contains('chat-live-evict-notice'));
+      if (!isCtl) toRemove.push(cur);
+      cur = cur.nextElementSibling;
+    }
+    if (!toRemove.length) return;
+
+    var savedScrollTop = this._c.scrollTop;
+    var before = this._c.scrollHeight;
+
+    for (var i = 0; i < toRemove.length; i++) {
+      var el = toRemove[i];
+      // Stop any live timers/intervals before removing the node.
+      if (el._waveInterval)   { clearInterval(el._waveInterval);   el._waveInterval   = null; }
+      if (el._elapsedTicker)  { clearInterval(el._elapsedTicker);  el._elapsedTicker  = null; }
+      if (el._streamRenderer) { el._streamRenderer = null; }
+      var descendants = el.querySelectorAll('*');
+      for (var j = 0; j < descendants.length; j++) {
+        var d = descendants[j];
+        if (d._waveInterval)   { clearInterval(d._waveInterval);   d._waveInterval   = null; }
+        if (d._elapsedTicker)  { clearInterval(d._elapsedTicker);  d._elapsedTicker  = null; }
+        if (d._streamRenderer) { d._streamRenderer = null; }
+      }
+      el.remove();
+      this._evictedLiveCount++;
+    }
+
+    // Compensate for scrollHeight reduction (mirrors _pruneTop pattern).
+    var delta = before - this._c.scrollHeight;
+    if (delta > 0) {
+      this._c.scrollTop = Math.min(
+        savedScrollTop,
+        Math.max(0, this._c.scrollHeight - this._c.clientHeight)
+      );
+    }
+
+    this._updateEvictNotice();
+  };
+
+  // Show or update the in-place notice above the live section after eviction.
+  MessageWindow.prototype._updateEvictNotice = function () {
+    if (!this._histSep || !this._histSep.parentNode || !this._evictedLiveCount) return;
+    var notice = this._c.querySelector('.chat-live-evict-notice');
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.className = 'chat-live-evict-notice';
+      notice.style.cssText = (
+        'text-align:center;padding:6px 0;color:var(--fg);opacity:0.45;' +
+        'font-size:0.8rem;user-select:none;flex-shrink:0'
+      );
+      this._histSep.insertAdjacentElement('afterend', notice);
+    }
+    notice.textContent = '↑ ' + this._evictedLiveCount +
+      ' earlier message' + (this._evictedLiveCount !== 1 ? 's' : '') +
+      ' not shown — reload session to see all';
   };
 
   // Count all non-control DOM children (excludes sentinels, spacer, sep).
@@ -602,7 +674,8 @@
       if (ch === this._sentinel  ||
           ch === this._bSentinel ||
           ch === this._histSep   ||
-          ch.classList.contains('chat-history-spacer')) continue;
+          ch.classList.contains('chat-history-spacer') ||
+          ch.classList.contains('chat-live-evict-notice')) continue;
       n++;
     }
     return n;
