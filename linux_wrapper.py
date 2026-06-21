@@ -204,6 +204,10 @@ class OdysseusPage(QWebEnginePage):
         page.urlChanged.connect(lambda url: (QDesktopServices.openUrl(url), page.deleteLater()))
         return page
 
+    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
+        label = level.name if hasattr(level, 'name') else str(level)
+        print(f"[JS:{label}] {source_id}:{line_number} {message}", flush=True)
+
 
 class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
