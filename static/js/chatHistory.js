@@ -319,7 +319,7 @@
     }
 
     this._startIdx = from;
-    console.debug('[chatHistory] Load older: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
+    console.log('[chatHistory] Load older: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
     // Attach sentinel before computing the scroll compensation. Sentinel height
     // changes (e.g. removing the sentinel when _startIdx reaches 0) happen above
     // the viewport and must be included in the positional correction so the user
@@ -446,7 +446,7 @@
     }
 
     this._endIdx = upTo;
-    console.debug('[chatHistory] Load newer: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
+    console.log('[chatHistory] Load newer: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
 
     // Symmetric with _loadOlder: cap historical DOM from the top when scrolling down.
     // Without this, a full up-then-down cycle loads the entire session into the DOM.
@@ -732,7 +732,7 @@
       if (cidx > highIdx) highIdx = cidx;
     }
     if (removed === 0) return;
-    console.debug('[chatHistory] Phase 2 prune: removed %d nodes, startIdx → %d', removed, highIdx + 1);
+    console.log('[chatHistory] Phase 2 prune: removed %d nodes, startIdx → %d', removed, highIdx + 1);
 
     // A single _all[i] entry may span multiple DOM children with the same chIdx.
     // Remove any remaining siblings at the boundary that share highIdx so the
