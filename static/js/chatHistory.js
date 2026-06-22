@@ -669,6 +669,9 @@
     }
 
     this._updateEvictNotice();
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(function () {}, { timeout: 3000 });
+    }
   };
 
   // Show or update the in-place notice above the live section after eviction.
@@ -745,6 +748,15 @@
           ch.classList.contains('chat-history-spacer')) { ch = next; continue; }
       var cidx = (ch.dataset && ch.dataset.chIdx !== undefined)
         ? parseInt(ch.dataset.chIdx, 10) : -1;
+      if (ch._waveInterval)   { clearInterval(ch._waveInterval);   ch._waveInterval   = null; }
+      if (ch._elapsedTicker)  { clearInterval(ch._elapsedTicker);  ch._elapsedTicker  = null; }
+      if (ch._streamRenderer) { ch._streamRenderer = null; }
+      var _ptDesc = ch.querySelectorAll('*');
+      for (var _pi = 0; _pi < _ptDesc.length; _pi++) {
+        if (_ptDesc[_pi]._waveInterval)   { clearInterval(_ptDesc[_pi]._waveInterval);   _ptDesc[_pi]._waveInterval   = null; }
+        if (_ptDesc[_pi]._elapsedTicker)  { clearInterval(_ptDesc[_pi]._elapsedTicker);  _ptDesc[_pi]._elapsedTicker  = null; }
+        if (_ptDesc[_pi]._streamRenderer) { _ptDesc[_pi]._streamRenderer = null; }
+      }
       if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(ch);
       ch.remove();
       removed++;
@@ -765,6 +777,9 @@
         if (isPeekCtl) { peek = peek.nextElementSibling; continue; }
         if (peek.dataset && parseInt(peek.dataset.chIdx, 10) === highIdx) {
           var peekNext = peek.nextElementSibling;
+          if (peek._waveInterval)   { clearInterval(peek._waveInterval);   peek._waveInterval   = null; }
+          if (peek._elapsedTicker)  { clearInterval(peek._elapsedTicker);  peek._elapsedTicker  = null; }
+          if (peek._streamRenderer) { peek._streamRenderer = null; }
           if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(peek);
           peek.remove();
           removed++;
@@ -843,6 +858,15 @@
         var idx = (ref.dataset && ref.dataset.chIdx !== undefined)
           ? parseInt(ref.dataset.chIdx, 10)
           : null;
+        if (ref._waveInterval)   { clearInterval(ref._waveInterval);   ref._waveInterval   = null; }
+        if (ref._elapsedTicker)  { clearInterval(ref._elapsedTicker);  ref._elapsedTicker  = null; }
+        if (ref._streamRenderer) { ref._streamRenderer = null; }
+        var _pbDesc = ref.querySelectorAll('*');
+        for (var _pbi = 0; _pbi < _pbDesc.length; _pbi++) {
+          if (_pbDesc[_pbi]._waveInterval)   { clearInterval(_pbDesc[_pbi]._waveInterval);   _pbDesc[_pbi]._waveInterval   = null; }
+          if (_pbDesc[_pbi]._elapsedTicker)  { clearInterval(_pbDesc[_pbi]._elapsedTicker);  _pbDesc[_pbi]._elapsedTicker  = null; }
+          if (_pbDesc[_pbi]._streamRenderer) { _pbDesc[_pbi]._streamRenderer = null; }
+        }
         if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(ref);
         ref.remove();
         removed++;
@@ -863,6 +887,9 @@
              !check.classList.contains('chat-history-spacer')) {
         if (check.dataset && parseInt(check.dataset.chIdx, 10) === lowestIdx) {
           var prevCheck = check.previousElementSibling;
+          if (check._waveInterval)   { clearInterval(check._waveInterval);   check._waveInterval   = null; }
+          if (check._elapsedTicker)  { clearInterval(check._elapsedTicker);  check._elapsedTicker  = null; }
+          if (check._streamRenderer) { check._streamRenderer = null; }
           if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(check);
           check.remove();
           check = prevCheck;
@@ -872,6 +899,9 @@
       }
       this._endIdx = lowestIdx;
       this._attachBottomSentinel();
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(function () {}, { timeout: 3000 });
+      }
     }
   };
 
