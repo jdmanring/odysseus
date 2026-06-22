@@ -6,6 +6,12 @@ _SRC  = (_REPO / "static/js/chat.js").read_text(encoding="utf-8")
 
 
 def _gc_block() -> str:
+    """Extract the outer GC setTimeout block.
+
+    Finds the outermost setTimeout that contains `_gcPending = true` by walking
+    back to the last `setTimeout(function () {` before that marker.  The outer
+    close is `}, 2500);`; inner timeouts use 3000ms so there is no ambiguity.
+    """
     marker = "_gcPending = true"
     start  = _SRC.rindex("setTimeout(function () {", 0, _SRC.index(marker))
     end    = _SRC.index("}, 2500);", start) + len("}, 2500);")
@@ -13,15 +19,20 @@ def _gc_block() -> str:
 
 
 # ---------------------------------------------------------------------------
-# _gcPending guard variable
+# Guard variables
 # ---------------------------------------------------------------------------
 
 def test_gc_pending_declared():
     assert "let _gcPending = false" in _SRC
 
 
+def test_gc_missed_declared():
+    # _gcMissed tracks responses that completed while a GC cycle was running.
+    assert "let _gcMissed" in _SRC and "_gcMissed  = false" in _SRC or "let _gcMissed = false" in _SRC
+
+
 # ---------------------------------------------------------------------------
-# GC block structure
+# Primary GC block structure
 # ---------------------------------------------------------------------------
 
 def test_gc_pending_checked_before_gc_call():
@@ -69,3 +80,33 @@ def test_gc_noop_fallback_present():
 def test_gc_log_line_present():
     body = _gc_block()
     assert "[GC]" in body
+
+
+# ---------------------------------------------------------------------------
+# Missed-GC catch-up mechanism
+# ---------------------------------------------------------------------------
+
+def test_gc_missed_set_true_when_blocked():
+    # When GC is running, a completing response must flag _gcMissed = true.
+    body = _gc_block()
+    assert "_gcMissed = true" in body
+
+
+def test_gc_blocked_logs_catchup_queued():
+    # The blocked path must emit a log so wrapper_system.log shows the event.
+    body = _gc_block()
+    assert "[GC] blocked" in body
+
+
+def test_gc_catchup_dispatched():
+    # A catch-up gc() call fires once when the primary cycle completes with _gcMissed set.
+    body = _gc_block()
+    assert "catch-up dispatched" in body
+
+
+def test_gc_catchup_gated_on_missed_flag():
+    # The catch-up must be gated on `if (_gcMissed`, not unconditional.
+    body = _gc_block()
+    check_pos   = body.index("if (_gcMissed")
+    catchup_pos = body.index("catch-up dispatched")
+    assert check_pos < catchup_pos, "catch-up gc() must be gated by _gcMissed check"

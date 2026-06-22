@@ -112,6 +112,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
   let _lastReaderActivity = 0; // Timestamp of last reader.read() success — used to detect frozen streams
   let _webLockRelease = null;  // Function to release the Web Lock held during streaming
   let _gcPending = false;      // True while an async major GC cycle is still running
+  let _gcMissed  = false;      // True if a response completed while GC was running
 
   /** Check if an SSE reader is still actively connected for a session. */
   function hasActiveStream(sessionId) {
@@ -3141,25 +3142,6 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } finally {
       clearResponseTimeout();
       clearProcessingProbe();
-      // Deferred major GC hint for embedded Chromium environments (PyQt, Electron,
-      // native wrappers). Regular browsers receive OS memory-pressure signals that
-      // trigger Oilpan's automatic collection; embedded builds typically do not, so
-      // detached nodes accumulate without a cooperative nudge.
-      // gc() with async execution runs incremental collection slices during idle
-      // periods; the 2.5 s delay lets the final render settle first.
-      // _gcPending prevents stacking a second cycle while the first is still running
-      // its incremental slices (stacked cycles double overhead without extra benefit).
-      // Feature-detected — no-ops in all regular browsers where gc() is not exposed.
-      setTimeout(function () {
-        if (typeof gc === 'function' && !_gcPending) {
-          _gcPending = true;
-          console.log('[GC] major async dispatched');
-          gc({ type: 'major', execution: 'async' });
-          setTimeout(function () { _gcPending = false; }, 5000);
-        } else if (!_gcPending && typeof requestIdleCallback !== 'undefined') {
-          requestIdleCallback(function () {}, { timeout: 2000 });
-        }
-      }, 2500);
       // Streaming done — let screen readers announce the settled response.
       const _chatLogDone = document.getElementById('chat-history');
       if (_chatLogDone) _chatLogDone.setAttribute('aria-busy', 'false');
@@ -3255,6 +3237,42 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
           sessionModule.loadSessions();
         }
       }, 3000);
+
+      // Deferred major GC hint for embedded Chromium environments (PyQt, Electron,
+      // native wrappers). Regular browsers receive OS memory-pressure signals that
+      // trigger Oilpan's automatic collection; embedded builds typically do not, so
+      // detached nodes accumulate without a cooperative nudge.
+      // gc() with async execution runs incremental collection slices during idle
+      // periods; the 2.5 s delay lets the final render settle first.
+      // _gcPending prevents stacking a second cycle while the first is still running
+      // its incremental slices (stacked cycles double overhead without extra benefit).
+      // _gcMissed tracks responses that completed while GC was running (common in
+      // agent tool-call batches); the single catch-up cycle covers all blocked
+      // responses without creating a cascade of collections.
+      // Feature-detected — no-ops in all regular browsers where gc() is not exposed.
+      setTimeout(function () {
+        if (typeof gc === 'function' && !_gcPending) {
+          _gcPending = true;
+          _gcMissed  = false;
+          console.log('[GC] major async dispatched');
+          gc({ type: 'major', execution: 'async' });
+          setTimeout(function () {
+            _gcPending = false;
+            if (_gcMissed && typeof gc === 'function') {
+              _gcMissed  = false;
+              _gcPending = true;
+              console.log('[GC] catch-up dispatched');
+              gc({ type: 'major', execution: 'async' });
+              setTimeout(function () { _gcPending = false; }, 3000);
+            }
+          }, 3000);
+        } else if (typeof gc === 'function' && _gcPending) {
+          _gcMissed = true;
+          console.log('[GC] blocked — catch-up queued');
+        } else if (!_gcPending && typeof requestIdleCallback !== 'undefined') {
+          requestIdleCallback(function () {}, { timeout: 2000 });
+        }
+      }, 2500);
     }
   }
 
