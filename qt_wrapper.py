@@ -244,15 +244,18 @@ def _cdp_call(method, params=None):
         return None
 
 
-def _cdp_purge_memory():
+def _cdp_purge_memory(reason: str = 'unknown'):
     """Invoke V8/Oilpan major GC across all isolates via CDP.
 
     Memory.forciblyPurgeJavaScriptMemory calls V8::LowMemoryNotification() in the
     renderer process — no --expose-gc flag needed, works across all V8 isolates.
     Pure stdlib; safe to call from any background thread.
     """
-    _cdp_call('Memory.forciblyPurgeJavaScriptMemory')
-    print('[GC] CDP Memory.forciblyPurgeJavaScriptMemory dispatched', flush=True)
+    result = _cdp_call('Memory.forciblyPurgeJavaScriptMemory')
+    if result is not None:
+        print(f'[GC] CDP purge ok — {reason}', flush=True)
+    else:
+        print(f'[GC] CDP purge failed (renderer not reachable) — {reason}', flush=True)
 
 
 # Pattern that chatHistory.js emits at the end of each Phase 2 eviction batch.
@@ -319,7 +322,7 @@ def _start_psi_monitor():
                                     f' — triggering CDP purge',
                                     flush=True,
                                 )
-                                _cdp_executor.submit(_cdp_purge_memory)
+                                _cdp_executor.submit(_cdp_purge_memory, 'psi')
                             break
             except Exception:
                 pass
@@ -380,7 +383,7 @@ class NativeBridge(QObject):
                 ))
                 return
             except Exception as e:
-                print(f'Color portal error: {e}')
+                print(f'[BRIDGE] color portal error: {e}', flush=True)
         self.colorPicked.emit('')
 
     def _fallback(self):
@@ -476,14 +479,22 @@ class OdysseusWindow(QMainWindow):
         # Polls /proc/<pid>/status for RSS and CDP Memory.getDOMCounters for live
         # Oilpan node counts. When node accumulation is high, triggers a CDP purge
         # so collection doesn't wait for the next focus-loss event.
+        _last_vmpeak: list[int] = [0]  # mutable cell for closure capture
+
         def _log_renderer_memory():
             try:
                 pid = page.renderProcessPid()
                 if pid:
                     with open(f'/proc/{pid}/status') as f:
                         for line in f:
-                            if line.startswith(('VmRSS', 'VmPeak')):
+                            if line.startswith('VmRSS'):
                                 print(f'[MEM] pid={pid} {line.rstrip()}', flush=True)
+                            elif line.startswith('VmPeak'):
+                                kb = int(line.split()[1])
+                                if kb > _last_vmpeak[0]:
+                                    _last_vmpeak[0] = kb
+                                    print(f'[MEM] pid={pid} {line.rstrip()} (new peak)',
+                                          flush=True)
             except OSError as e:
                 print(f'[MEM] error: {e}', flush=True)
             counts = _cdp_call('Memory.getDOMCounters')
@@ -509,7 +520,7 @@ class OdysseusWindow(QMainWindow):
                         f' — triggering CDP purge',
                         flush=True,
                     )
-                    _cdp_executor.submit(_cdp_purge_memory)
+                    _cdp_executor.submit(_cdp_purge_memory, 'node-threshold')
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
@@ -523,9 +534,8 @@ class OdysseusWindow(QMainWindow):
 
     def changeEvent(self, event):
         if event.type() == QEvent.Type.WindowDeactivate:
-            # Window lost focus — compositor not painting, safe to GC. Submit to
-            # executor so the Qt event loop is not blocked by the WebSocket handshake.
-            _cdp_executor.submit(_cdp_purge_memory)
+            print('[GC] focus-loss — triggering CDP purge', flush=True)
+            _cdp_executor.submit(_cdp_purge_memory, 'focus-loss')
         super().changeEvent(event)
 
     def closeEvent(self, event):
