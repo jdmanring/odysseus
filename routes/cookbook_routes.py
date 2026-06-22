@@ -441,6 +441,25 @@ def setup_cookbook_routes() -> APIRouter:
         _dl_hf_home_shell = _shell_path(req.local_dir.rstrip("/")) if req.local_dir else None
         _dl_pyarg = ""  # snapshot_download honors the env vars too — no kwarg needed
 
+        # Pre-flight: verify aria2c is available before committing to that path.
+        # Fallback to hf download only here — not mid-stream — because the two paths
+        # write different filesystem layouts (flat vs hub blob cache) and a mid-stream
+        # switch would corrupt partial downloads.
+        if req.use_aria2c and not is_ollama_download:
+            try:
+                from tooling.aria2c_download import get_aria2c
+                if get_aria2c() is None:
+                    logger.warning(
+                        "aria2c unavailable (BinManager install failed or unsupported platform)"
+                        " — falling back to hf download for %s", req.repo_id,
+                    )
+                    req.use_aria2c = False
+            except Exception:
+                logger.warning(
+                    "aria2c pre-flight check raised — falling back to hf download for %s", req.repo_id,
+                )
+                req.use_aria2c = False
+
         # Build the hf download command. Redirection to suppress the interactive
         # "update available? [Y/n]" prompt is added per-platform further down
         # (< /dev/null on bash, $null | on PowerShell).

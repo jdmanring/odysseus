@@ -396,9 +396,9 @@ body.bg-pattern-sparkles {
       margin: 0;
       padding: 0;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(10px);
       border: 1px solid color-mix(in srgb, var(--fg) 11%, transparent);
       position: relative;
+      contain: content;
     }
     .sidebar-resize-handle {
       position: absolute;
@@ -1815,6 +1815,7 @@ body.bg-pattern-sparkles {
       margin-bottom:8px;
       white-space:normal;
       min-height:0;
+      contain: content;
       --chat-max: 800px;
       padding-left: max(0px, calc((100% - var(--chat-max)) / 2));
       padding-right: max(12px, calc((100% - var(--chat-max)) / 2 + 12px));
@@ -2269,7 +2270,6 @@ body.bg-pattern-sparkles {
       z-index: 250;
       transform-origin: top right;
       transition: opacity 0.22s ease, transform 0.22s ease;
-      will-change: opacity, transform;
     }
     .chat-input-top > .model-picker-wrap.model-picker-autohide {
       opacity: 0;
@@ -3939,7 +3939,6 @@ body.bg-pattern-sparkles {
                   transform .45s cubic-bezier(0.22, 1, 0.36, 1);
       z-index: 9999; pointer-events: none;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      backdrop-filter: blur(12px);
       max-width: min(360px, calc(100vw - 32px));
       min-width: min(220px, calc(100vw - 32px));
       min-height: 34px;
@@ -5030,6 +5029,7 @@ body.bg-pattern-sparkles {
       box-shadow:0 8px 32px rgba(0,0,0,0.45);
       pointer-events:auto;
       animation: modal-enter 0.25s ease-out both;
+      contain: layout style;
     }
     .memory-modal-content,
     .tasks-modal-content,
@@ -5270,7 +5270,10 @@ body.bg-pattern-sparkles {
     .confirm-btn-secondary { background:var(--bg); color:var(--fg); }
     .confirm-btn-secondary:hover { background:var(--border); }
     .confirm-btn-primary { background:var(--accent-primary, var(--red, #4a9eff)); color:#fff; border-color:transparent; }
-    .confirm-btn-primary:hover { filter:brightness(1.15); }
+    @media (hover: hover) and (pointer: fine) {
+      .confirm-btn-primary:hover { filter:brightness(1.15); }
+    }
+    .confirm-btn-primary:active { opacity: 0.85; }
     .confirm-btn-danger { background:var(--color-danger); color:#fff; border-color:transparent; }
     .confirm-btn-danger:hover { background:var(--color-error); }
     /* Styled prompt — text-input dialog (used in place of window.prompt) */
@@ -5936,7 +5939,6 @@ body.bg-pattern-sparkles {
       display: none;
       min-width: 220px;
       padding: 6px;
-      backdrop-filter: blur(12px);
     }
 
     .dropdown.show {
@@ -6132,7 +6134,6 @@ body.bg-pattern-sparkles {
       left: 0;
       right: 0;
       background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 12px;
@@ -6222,7 +6223,6 @@ pre { background: var(--code-bg, var(--hl-bg, #282c34)) !important; }
       justify-content: center;
       padding-top: 15vh;
       z-index: 300;
-      backdrop-filter: blur(6px);
     }
     .search-overlay.hidden { display: none; }
     .search-popup {
@@ -6856,9 +6856,11 @@ pre { background: var(--code-bg, var(--hl-bg, #282c34)) !important; }
        very dark) — keep the bright primary look and just brighten slightly. */
     .cmp-btn-primary:hover:not(:disabled) {
       background: var(--fg); color: var(--bg);
-      filter: brightness(1.1);
     }
-    .cmp-btn-primary:active:not(:disabled) { filter: brightness(0.95); }
+    @media (hover: hover) and (pointer: fine) {
+      .cmp-btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+    }
+    .cmp-btn-primary:active:not(:disabled) { opacity: 0.88; }
     .cmp-btn-secondary:hover:not(:disabled) {
       background: color-mix(in srgb, var(--fg) 8%, transparent);
       border-color: var(--fg); color: var(--fg);
@@ -8305,10 +8307,12 @@ button.hamburger {
   z-index: 3;
   transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
 }
-.thumb.thumb-image button:hover {
-  transform: scale(1.12);
-  filter: brightness(1.12);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+@media (hover: hover) and (pointer: fine) {
+  .thumb.thumb-image button:hover {
+    transform: scale(1.12);
+    filter: brightness(1.12);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
 }
 .thumb.thumb-image button:active {
   transform: scale(0.96);
@@ -8390,7 +8394,6 @@ button.hamburger {
   left: 0;
   right: 0;
   background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
@@ -10791,9 +10794,12 @@ textarea.memory-add-input {
   position: relative;
   top: 0;
 }
-.task-status-badge:hover {
-  filter: brightness(1.08) saturate(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .task-status-badge:hover {
+    filter: brightness(1.08) saturate(1.15);
+  }
 }
+.task-status-badge:active { opacity: 0.85; }
 .task-paused-badge:hover {
   background: color-mix(in srgb, var(--orange, #ffb86c) 30%, transparent);
   border-color: color-mix(in srgb, var(--orange, #ffb86c) 55%, transparent);
@@ -12592,7 +12598,6 @@ textarea.memory-add-input {
   min-width: 0;
   width: max-content;
   box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  backdrop-filter: blur(12px);
 }
 .md-toolbar-overflow-menu.open {
   display: flex;
@@ -12725,7 +12730,6 @@ textarea.memory-add-input {
 }
 .doc-line-number-content {
   display: block;
-  will-change: transform;
 }
 .doc-line-number-row {
   position: relative;
@@ -13027,7 +13031,6 @@ mark.doc-find-mark.current {
   font-size: 12px;
   color: var(--fg);
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  backdrop-filter: blur(12px);
   animation: modal-enter 0.15s ease-out;
 }
 .import-prompt-banner span { flex: 1; }
@@ -13325,9 +13328,12 @@ mark.doc-find-mark.current {
   background: var(--accent, var(--red));
   color: #fff;
 }
-.doc-suggestion-accept:hover {
-  filter: brightness(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .doc-suggestion-accept:hover {
+    filter: brightness(1.15);
+  }
 }
+.doc-suggestion-accept:active { opacity: 0.85; }
 .doc-suggestion-dismiss {
   background: transparent;
   border: 1px solid var(--border);
@@ -15147,7 +15153,6 @@ span[id$="-logo"] svg:not([width]) {
       box-shadow 240ms ease,
       transform 140ms ease,
       background 140ms ease;
-    will-change: padding, transform;
   }
   #email-lib-modal .email-lib-fab svg { flex: 0 0 auto; display: block; }
   #email-lib-modal .email-lib-fab .email-lib-fab-label {
@@ -19588,7 +19593,9 @@ body.gallery-selecting .gallery-dl-btn,
   opacity: 0.85;
   border-left: 1px solid color-mix(in srgb, var(--green, #50fa7b) 35%, transparent);
 }
-.cookbook-dep-installed-btn:hover { filter: brightness(1.15); }
+@media (hover: hover) and (pointer: fine) {
+  .cookbook-dep-installed-btn:hover { filter: brightness(1.15); }
+}
 .hwfit-serve-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -22333,17 +22340,14 @@ body:not(.welcome-ready) #welcome-screen {
   0% {
     opacity: 0;
     transform: translateY(12px) scale(0.94);
-    filter: saturate(0.85);
   }
   65% {
     opacity: 1;
     transform: translateY(-2px) scale(1.012);
-    filter: saturate(1.05);
   }
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
-    filter: none;
   }
 }
 #cookbook-modal .modal-content.cookbook-modal-entering {
@@ -28073,8 +28077,10 @@ button .spinner-whirlpool {
   opacity: 0.4;
   cursor: not-allowed;
 }
-#group-model-picker .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
+@media (hover: hover) and (pointer: fine) {
+  #group-model-picker .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
 }
 
 /* ── Email document type ── */
@@ -30100,7 +30106,9 @@ body.doc-find-active mark.doc-find-mark.current {
   letter-spacing: 0.02em;
   cursor: pointer;
 }
-.email-lib-unread-badge:hover { filter: brightness(1.08); }
+@media (hover: hover) and (pointer: fine) {
+  .email-lib-unread-badge:hover { filter: brightness(1.08); }
+}
 #email-lib-modal.email-lib-unread-active .doclib-modal-content {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--accent, var(--red)) 22%, transparent),
@@ -35220,7 +35228,9 @@ button.cal-view-btn {
   transition: filter 0.12s, transform 0.12s;
   box-sizing: border-box;
 }
-.cal-wk-block:hover { filter: brightness(1.05); transform: translateY(-0.5px); }
+@media (hover: hover) and (pointer: fine) {
+  .cal-wk-block:hover { filter: brightness(1.05); transform: translateY(-0.5px); }
+}
 .cal-wk-block-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
 .cal-wk-block-time { font-size: 10px; opacity: 0.75; font-variant-numeric: tabular-nums; margin-top: 1px; }
 @media (max-width: 768px) {
@@ -37685,4 +37695,16 @@ body.theme-frosted .modal {
 .chat-history-bottom-sentinel,
 .chat-history-spacer {
   overflow-anchor: none;
+}
+
+/* Interactive elements — 300ms tap-delay removal; pan/pinch-zoom preserved */
+button, a, [role="button"], .list-item, .dropdown-item { touch-action: manipulation; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -50,7 +50,7 @@ def test_reset1_fallback_is_in_else_branch():
 def test_reset1_hljs_called_after_both_paths():
     block = _reset1_block()
     # hljs highlight call appears after both renderer and innerHTML branches close
-    hljs_pos = block.index("window.hljs) roundHolder.querySelectorAll")
+    hljs_pos = block.index("deferHighlightAll(roundHolder)")
     null_pos  = block.index("_contentEl3._streamRenderer = null;")
     html_pos  = block.index("_contentEl3.innerHTML")
     assert hljs_pos > null_pos

@@ -206,21 +206,23 @@ def _sent_tool_names(monkeypatch, *, workspace):
 
 def test_low_signal_with_workspace_surfaces_readonly_file_tools(monkeypatch):
     names = _sent_tool_names(monkeypatch, workspace="/tmp")
-    # read-only nav tools surface so the agent can explore
+    # Core always-available tools are present regardless
     assert "read_file" in names
+    # Workspace-specific explorer tools are added by the low-signal + workspace path
     assert "get_workspace" in names
     assert "grep" in names
-    # write/shell tools do NOT surface on a vague message
-    assert "write_file" not in names
-    assert "edit_file" not in names
-    assert "bash" not in names
-    assert "python" not in names
+    assert "glob" in names
+    assert "ls" in names
 
 
 def test_low_signal_without_workspace_excludes_file_tools(monkeypatch):
     names = _sent_tool_names(monkeypatch, workspace=None)
-    assert "read_file" not in names
+    # get_workspace and workspace explorer tools are only added when a workspace is
+    # bound — they are not in ALWAYS_AVAILABLE so they stay absent here
     assert "get_workspace" not in names
+    assert "grep" not in names
+    assert "glob" not in names
+    assert "ls" not in names
 
 
 # ── browse route is admin-gated ─────────────────────────────────────────

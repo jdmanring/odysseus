@@ -15,13 +15,13 @@ def _done_finalize_block() -> str:
 def _fast_path_body() -> str:
     block  = _done_finalize_block()
     start  = block.index("{", block.index("!_sourcesHtml) {")) + 1
-    end    = block.index("} else {\n            // Full re-render")
+    end    = block.index("} else {\n            // If Reset 1 already finalized")
     return block[start:end]
 
 
 def _full_rerender_body() -> str:
     block  = _done_finalize_block()
-    marker = "} else {\n            // Full re-render"
+    marker = "} else {\n              // Full re-render (reply empty or no live-reply container, no in-place content)"
     start  = block.index(marker) + len(marker)
     return block[start:]
 
