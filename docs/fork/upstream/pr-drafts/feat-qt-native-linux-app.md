@@ -73,8 +73,13 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   immediately and again 5 seconds later. The delta is logged as
   `[CDP] post-evict listeners: before=X after=Y delta=Z nodes-evicted=N`. A delta
   close to N confirms that event listener closures are releasing after eviction; a
-  near-zero delta indicates GC retention. 13 static-analysis tests in
-  `tests/test_qt_cdp_listener_audit.py`.
+  near-zero delta indicates GC retention.
+- **Stdlib imports for CDP:** `threading`, `socket`, `struct`, `base64`, and
+  `urllib.request` are imported at module scope (aliased as `_threading`, `_cdp_sock`,
+  `_cdp_struct`, `_cdp_b64`, `_cdp_req`) so that `_cdp_call` and all CDP-dependent paths
+  resolve correctly at runtime. 20 static-analysis tests in
+  `tests/test_qt_cdp_listener_audit.py` (including 5 that verify each import is present,
+  ensuring no future refactor silently breaks the CDP paths again).
 
 **`build-linux-app.sh`**: preflight check and launch script. Verifies that
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
