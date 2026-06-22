@@ -5004,6 +5004,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
         if (_rwRenderer) {
           _rwRenderer.finalize();
           _rwRenderer = null;
+          console.log('[chat] rewrite: renderer finalized');
         }
         if (bodyEl) {
           bodyEl.innerHTML = markdownModule.processWithThinking(
