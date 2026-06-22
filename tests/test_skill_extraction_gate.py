@@ -1,12 +1,16 @@
 """
-Verify the extraction gate thresholds and auto-approve defaults introduced by
-fix(skills): raise extraction threshold, align confidence floor, default
-auto-approve to draft.
+Verify the extraction gate thresholds and auto-approve defaults.
 
-Gate now requires rounds >= 2 AND tools >= 3 (was rounds >= 2 OR tools >= 2).
+Gate requires rounds >= 2 AND tools >= 3 (was rounds >= 2 OR tools >= 2).
 MIN_CONFIDENCE raised from 0.6 to 0.85 (aligned with injection floor).
-auto_approve_skills default changed to False in extractor, injection path, and
-audit-finalization path — skills land as drafts until the user publishes them.
+
+auto_approve_skills semantics (fix/skill-lifecycle-correctness, #86):
+  - Extraction: pref has NO effect — always draft regardless of setting.
+  - Injection path (agent_loop.py): default True — published + all drafts
+    at confidence floor; False = source-aware pre-filter (published +
+    teacher-escalation drafts). min_conf=2.0 hack removed.
+  - Audit-finalization (skills_routes.py): default True — the audit IS the
+    quality gate (SkillsBench 2025, arxiv:2602.12670).
 """
 from pathlib import Path
 
@@ -51,14 +55,22 @@ def test_chat_helpers_outer_gate_is_and_with_tool_floor_three():
     assert "agent_rounds >= 2 and agent_tool_calls >= 3" in _CHAT_HELPERS_SRC
 
 
-def test_injection_path_auto_approve_default_is_false():
-    """agent_loop.py injection path must default auto_approve_skills to False."""
-    assert 'auto_approve_skills", False)' in _AGENT_LOOP_SRC
+def test_injection_path_auto_approve_default_is_true():
+    """agent_loop.py injection path must default auto_approve_skills to True.
+
+    The min_conf=2.0 hack has been replaced with a source-aware pre-filter;
+    teacher-escalation drafts inject even when auto_approve=False.
+    """
+    assert 'auto_approve_skills", True)' in _AGENT_LOOP_SRC
 
 
-def test_audit_finalization_auto_approve_default_is_false():
-    """skills_routes.py audit-finalization path must default auto_approve_skills to False."""
-    assert 'auto_approve_skills", False)' in _SKILLS_ROUTES_SRC
+def test_audit_finalization_auto_approve_default_is_true():
+    """skills_routes.py audit-finalization path must default auto_approve_skills to True.
+
+    The audit is the quality gate; defaulting to False means it can never promote
+    and produces zero benefit (SkillsBench 2025, arxiv:2602.12670).
+    """
+    assert 'auto_approve_skills", True)' in _SKILLS_ROUTES_SRC
 
 
 # ── Behavioural test helpers ──────────────────────────────────────────────────
@@ -146,13 +158,21 @@ async def test_low_confidence_dropped_at_new_floor(monkeypatch):
     assert not sm.added
 
 
-async def test_auto_approve_default_is_draft(monkeypatch):
-    """With no prefs override, auto_approve_skills defaults to False → status is 'draft'."""
-    monkeypatch.setattr(
-        "routes.prefs_routes._load_for_user",
-        lambda owner: {},
-    )
+async def test_extraction_always_draft_regardless_of_pref(monkeypatch):
+    """Extraction produces draft regardless of auto_approve_skills pref value.
 
-    entry, sm = await _call_extractor(monkeypatch, _GOOD_RESPONSE, round_count=2, tool_count=3)
-    assert entry is not None
-    assert sm.added[0].get("status") == "draft"
+    The pref check was removed from skill_extractor.py (fix/skill-lifecycle-correctness).
+    Extraction is always draft; the audit pipeline handles promotion.
+    """
+    for pref_value in (True, False):
+        monkeypatch.setattr(
+            "routes.prefs_routes._load_for_user",
+            lambda owner, _v=pref_value: {"auto_approve_skills": _v},
+        )
+        entry, sm = await _call_extractor(monkeypatch, _GOOD_RESPONSE, round_count=2, tool_count=3)
+        assert entry is not None, f"Expected skill with auto_approve_skills={pref_value}"
+        assert sm.added[0].get("status") == "draft", (
+            f"Expected 'draft' with auto_approve_skills={pref_value}, "
+            f"got {sm.added[0].get('status')!r}"
+        )
+        sm.added.clear()
