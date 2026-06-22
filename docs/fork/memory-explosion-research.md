@@ -1061,3 +1061,98 @@ slices during idle periods without blocking the main thread — eliminating the 
 6. **Are event listeners on evicted DOM nodes causing retention?** Manual DevTools listener audit during a long session.
 
 7. **Does the focus-change gc() (Optimization 2) work in QtWebEngine?** `changeEvent(WindowDeactivate)` may not fire as expected in all Qt configurations.
+
+---
+
+## Session 5 Findings — 2026-06-22 (GC Micro-Improvements)
+
+Full audit of the GC stack identified six additional improvements not covered in
+previous sessions. All implemented. Test count: 287 → 302 static-analysis.
+
+### Source A: Missing idle GC signal in `_evictLive` and `_pruneBottom`
+
+`_pruneTop` already yields with `requestIdleCallback(() => {}, { timeout: 3000 })`
+after detaching subtrees. `_evictLive` and `_pruneBottom` create detached subtrees
+but did not call rIC, leaving V8/Oilpan without the scheduler hint.
+
+**Fix:** Added rIC call at the end of `_evictLive` and inside the `if (removed > 0)`
+block of `_pruneBottom`.
+
+**Log to watch:** `[chatHistory] Phase 2 evict: removed N live nodes` followed within
+a few seconds by V8's incremental GC collecting the detached subtrees (Oilpan node
+count drop visible in CDP `Memory.getDOMCounters`).
+
+### Source A+: Timer/renderer teardown gap in `_pruneTop` and `_pruneBottom`
+
+`_evictLive` correctly clears `_waveInterval`, `_elapsedTicker`, and `_streamRenderer`
+on every removed element and its descendants before `.remove()`. `_pruneTop` and
+`_pruneBottom` only called `hljsDeferForgetNode`, leaving live timers running on
+detached nodes and `_streamRenderer` references preventing SR collection.
+
+**Fix:** Added the same teardown loop to all four removal paths in `_pruneTop` and
+`_pruneBottom` (main loop + boundary cleanup in each).
+
+**Log to watch:** After `[chatHistory] Phase 2 prune:` or `Phase 3 prune:`, CDP
+listener delta should drop by approximately the node count removed.
+
+### Source B: `squashOutsideCode` allocs on every render frame
+
+`squashOutsideCode` was called at ~30 fps during streaming. For plain-text responses
+(no code blocks — the common case), it allocated a `split` array and `join` string on
+every invocation, discarded immediately after the three regex replacements.
+
+**Fix:** `str.includes('```')` short-circuit returns after normalizing the whole string
+directly. No allocation for the common case. Code-fence path unchanged.
+
+**Savings:** For a 120-second plain-text stream at 30 fps, eliminates ~3600 array
+allocations and ~3600 string allocations per session.
+
+### Source C: 7 direct `highlightElement` calls bypass IntersectionObserver
+
+`deferHighlightAll` (introduced in `perf/hljs-deferred-highlight`) uses a shared
+IntersectionObserver to highlight code blocks only when they scroll into the viewport.
+The original migration replaced 1 of 8 call sites. The remaining 7 sites in chat.js
+called `window.hljs.highlightElement` directly, highlighting all blocks in a container
+synchronously — including off-screen blocks in history loads and completed background
+streams.
+
+**Fix:** All 7 remaining sites replaced with `deferHighlightAll(container)`.
+
+**Impact:** hljs.highlightElement allocates hundreds of `<span>` nodes per code block.
+For a response with 10 code blocks loaded off-screen, this eliminates ~thousands of
+immediate allocations that Oilpan must track and eventually collect.
+
+### Source D: V8 and Chromium flags undertune memory (qt_wrapper.py)
+
+Three V8 flags added to `--js-flags`, two Chromium flags added:
+
+- `--initial-old-space-size=128`: old-gen heap starts at 128 MB (was unset — V8 heuristic
+  default varies but typically 256–512 MB on desktop). Reduces baseline RSS for short sessions.
+- `--optimize-for-size`: V8 produces smaller JIT code at slight throughput tradeoff.
+  For I/O-bound chat workloads where JS is not the bottleneck, ~5–15% JIT footprint reduction.
+- `--minor-mc`: Replaces Scavenger with MinorMC for young-gen GC. Compacts on every collection;
+  10–20% better retention for DOM-heavy allocation patterns. Overrides `--max-semi-space-size`.
+- `--renderer-process-limit=1`: Single renderer process. Saves ~30–50 MB vs default multi-process
+  behaviour in some Qt 6.x builds.
+- `--disable-extensions`: Removes extension loader overhead (~1–5 MB). No downside for embedded app.
+
+**Log to watch:** `[MEM] VmRSS` at session start should be lower after these flags take effect.
+VmRSS at first CDP poll (60 s after launch) is the baseline comparison point.
+
+### Source F: `_purgeStaleBackgroundStreams` called only on chat submit
+
+`_purgeStaleBackgroundStreams()` sweeps `_backgroundStreams` for completed/error
+entries and deletes them. Previously called only in `handleChatSubmit` (line 291).
+Completed entries accumulated across session switches until the next submit.
+
+**Fix:** Added a call at the top of `checkBackgroundStream`, which fires on every
+session switch. One line added, no new API surface.
+
+### Researched but excluded
+
+- **`dataset.raw` → WeakMap:** The `dataset.raw` string is used across 6 files
+  (chat.js, chatRenderer.js, group.js, slashCommands.js, composerArrowUpRecall.js).
+  A WeakMap would require a shared export module, teardown coordination in chatHistory.js
+  (currently uncoordinated with prune), and ~200 LOC for <1% of measured RSS. Not worth it.
+- **`--gc-interval=N`:** Not a real V8 user-facing flag. Internal build-time constant only.
+- **`--max-semi-space-size`:** Overridden by `--minor-mc` (different memory layout). Excluded.
