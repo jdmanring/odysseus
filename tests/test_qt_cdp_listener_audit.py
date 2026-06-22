@@ -102,10 +102,7 @@ def test_cdp_dom_counts_not_present():
 
 
 def test_log_renderer_memory_uses_cdp_call():
-    marker = "def _log_renderer_memory("
-    start = _SRC.index(marker)
-    block = _SRC[start:start + 800]
-    assert "_cdp_call('Memory.getDOMCounters')" in block
+    assert "_cdp_call('Memory.getDOMCounters')" in _log_renderer_memory_block()
 
 
 def test_psi_monitor_called_not_just_defined():
@@ -159,18 +156,53 @@ def test_psi_purge_uses_executor_submit():
     psi_start = _SRC.index("def _start_psi_monitor(")
     psi_end = _SRC.index("\nclass ", psi_start)
     psi_block = _SRC[psi_start:psi_end]
-    assert "_cdp_executor.submit(_cdp_purge_memory)" in psi_block
+    assert "_cdp_executor.submit(_cdp_purge_memory, 'psi')" in psi_block
 
 
 def test_change_event_uses_executor():
     ce_start = _SRC.index("def changeEvent(")
     ce_end = _SRC.index("\n    def ", ce_start + 1)
     ce_block = _SRC[ce_start:ce_end]
-    assert "_cdp_executor.submit(_cdp_purge_memory)" in ce_block
+    assert "_cdp_executor.submit(_cdp_purge_memory, 'focus-loss')" in ce_block
 
 
 def test_threshold_gc_uses_executor():
-    assert "_cdp_executor.submit(_cdp_purge_memory)" in _log_renderer_memory_block()
+    assert "_cdp_executor.submit(_cdp_purge_memory, 'node-threshold')" in _log_renderer_memory_block()
+
+
+def test_purge_memory_has_reason_param():
+    start = _SRC.index("def _cdp_purge_memory(")
+    line = _SRC[start:_SRC.index("\n", start)]
+    assert "reason" in line
+
+
+def test_purge_memory_logs_ok_on_success():
+    start = _SRC.index("def _cdp_purge_memory(")
+    end = _SRC.index("\ndef ", start + 1)
+    block = _SRC[start:end]
+    assert "'[GC] CDP purge ok" in block
+
+
+def test_purge_memory_logs_failure():
+    start = _SRC.index("def _cdp_purge_memory(")
+    end = _SRC.index("\ndef ", start + 1)
+    block = _SRC[start:end]
+    assert "'[GC] CDP purge failed" in block
+
+
+def test_focus_loss_logs_before_submit():
+    ce_start = _SRC.index("def changeEvent(")
+    ce_end = _SRC.index("\n    def ", ce_start + 1)
+    ce_block = _SRC[ce_start:ce_end]
+    log_pos = ce_block.index("[GC] focus-loss")
+    submit_pos = ce_block.index("_cdp_executor.submit")
+    assert log_pos < submit_pos
+
+
+def test_vmpeak_only_on_new_peak():
+    block = _log_renderer_memory_block()
+    assert "_last_vmpeak" in block
+    assert "(new peak)" in block
 
 
 def test_nodes_assigned_before_threshold_comparison():
