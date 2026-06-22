@@ -81,3 +81,13 @@ def test_reset2_findings_injected_as_sibling():
 def test_reset2_fullrender_fallback_exists():
     block = _reset2_block()
     assert "_body4.innerHTML = (" in block
+
+
+def test_reset1_logs_inplace():
+    block = _reset1_block()
+    assert "console.log('[chat] round-finalize: tool_start in-place')" in block
+
+
+def test_reset2_logs_inplace():
+    block = _reset2_block()
+    assert "console.log('[chat] round-finalize: sources in-place')" in block
