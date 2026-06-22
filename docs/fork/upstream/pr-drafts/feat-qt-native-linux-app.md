@@ -77,9 +77,27 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
 - **Stdlib imports for CDP:** `threading`, `socket`, `struct`, `base64`, and
   `urllib.request` are imported at module scope (aliased as `_threading`, `_cdp_sock`,
   `_cdp_struct`, `_cdp_b64`, `_cdp_req`) so that `_cdp_call` and all CDP-dependent paths
-  resolve correctly at runtime. 20 static-analysis tests in
-  `tests/test_qt_cdp_listener_audit.py` (including 5 that verify each import is present,
-  ensuring no future refactor silently breaks the CDP paths again).
+  resolve correctly at runtime.
+- **Renderer PID:** `OdysseusPage.renderProcessPid()` replaces a `pgrep`
+  subprocess spawn in the 60-second memory poll. PyQt6 already tracks the
+  renderer PID internally; the subprocess was an unnecessary spawn per poll cycle
+  that also matched unrelated processes sharing the binary name. `renderProcessPid()`
+  returns 0 when the renderer has not started or has crashed — guarded with `if pid:`.
+- **Bounded CDP thread pool:** `concurrent.futures.ThreadPoolExecutor(max_workers=2,
+  thread_name_prefix='cdp')` replaces ad-hoc `threading.Thread` spawning for all
+  CDP background work (eviction audit, PSI-triggered purge, focus-loss purge,
+  node-threshold purge). Bounds concurrent thread count; prevents unbounded
+  thread creation under heavy eviction load. The PSI poll loop no longer blocks
+  on the CDP WebSocket round-trip. Executor is shut down
+  (`cancel_futures=True, wait=False`) in `stop_server()`.
+- **Startup log rotation:** `_rotate_log(path)` renames `wrapper_system.log` and
+  `server_access.log` to `*.1` at startup if they exceed 20 MB, keeping one backup.
+  Rotation happens before `os.dup2` so there is no fd conflict with the Chromium
+  renderer's inherited file descriptors. A `[LOG]` timestamp line is written to
+  the newly opened file after `os.dup2` succeeds.
+- 34 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
+  import correctness, call-site presence, executor usage, and log rotation
+  structure.
 
 **`build-linux-app.sh`**: preflight check and launch script. Verifies that
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
