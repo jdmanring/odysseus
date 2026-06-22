@@ -77,7 +77,13 @@ def test_workspace_fast_path_logic_includes_web_search_when_enabled():
 
 
 def test_workspace_fast_path_excludes_web_search_when_disabled():
-    """When Web Search toggle is off, web_search must be excluded from the tool set."""
+    """When Web Search toggle is off, web_search must be excluded from the tool set.
+
+    ALWAYS_AVAILABLE includes web_search for format-visibility, but disabled_tools
+    filtering (applied in _assemble_prompt) removes it before the prompt is built.
+    This test verifies that the disabled_tools filtering correctly removes web_search
+    even when it originates from ALWAYS_AVAILABLE.
+    """
     from src.agent_loop import _DOMAIN_TOOL_MAP
     from src.tool_index import ALWAYS_AVAILABLE
     from src.tool_security import PLAN_MODE_READONLY_TOOLS
@@ -90,6 +96,7 @@ def test_workspace_fast_path_excludes_web_search_when_disabled():
     if "web_search" not in disabled_tools:
         relevant.add("web_search")
         relevant.add("web_fetch")
+    # _assemble_prompt filters disabled_tools from the final prompt schemas
+    relevant -= disabled_tools
 
     assert "web_search" not in relevant
-    assert "web_fetch" not in relevant

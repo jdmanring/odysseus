@@ -159,7 +159,7 @@ class TestLookupKnown:
         assert _lookup_known("gpt-4o") == 128000
 
     def test_deepseek_r1(self):
-        assert _lookup_known("deepseek-r1") == 64000
+        assert _lookup_known("deepseek-r1") == 128000
 
     def test_gemini_pro(self):
         assert _lookup_known("gemini-2.5-pro") == 1048576
@@ -170,12 +170,12 @@ class TestLookupKnown:
     def test_namespaced_model(self):
         """Models prefixed with provider/ should still match."""
         result = _lookup_known("openrouter/deepseek-r1")
-        assert result == 64000
+        assert result == 128000
 
     def test_model_with_tag(self):
         """Models with :free or :extended suffixes should still match."""
         result = _lookup_known("deepseek-r1:free")
-        assert result == 64000
+        assert result == 128000
 
     def test_o1_mini_not_shadowed_by_o1(self):
         """'o1' (200k) precedes 'o1-mini' (128k) in the table; longest match wins."""

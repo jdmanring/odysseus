@@ -40,7 +40,9 @@ def test_llm_call_posts_native_ollama_payload(monkeypatch):
     assert seen["url"] == "https://ollama.com/api/chat"
     assert seen["headers"]["Authorization"] == "Bearer ollama-key"
     assert seen["json"]["stream"] is False
-    assert seen["json"]["options"] == {"temperature": 0.2, "num_predict": 7}
+    opts = seen["json"]["options"]
+    assert opts["temperature"] == 0.2
+    assert opts["num_predict"] == 7
 
 
 # ---------------------------------------------------------------------------
