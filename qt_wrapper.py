@@ -14,6 +14,25 @@ import time as _time
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
+# Rotate logs at startup rather than mid-run: once os.dup2 binds the Chromium
+# renderer's inherited fds to the log inode, the file cannot be swapped while
+# the process lives. Renaming before the open+dup2 avoids that constraint.
+_LOG_MAX_BYTES = 20 * 1024 * 1024  # 20 MB per log file
+
+
+def _rotate_log(path: str) -> None:
+    """Rename path → path.1 if it exceeds _LOG_MAX_BYTES. Silent on any error."""
+    try:
+        if os.path.getsize(path) > _LOG_MAX_BYTES:
+            backup = path + '.1'
+            if os.path.exists(backup):
+                os.remove(backup)
+            os.rename(path, backup)
+    except OSError:
+        pass
+
+
+_rotate_log(os.path.join(LOG_DIR, "wrapper_system.log"))
 _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
 sys.stdout.flush()
 sys.stderr.flush()
@@ -21,6 +40,8 @@ os.dup2(_log_file.fileno(), 1)   # redirect fd 1: Chromium renderer stdout → o
 os.dup2(_log_file.fileno(), 2)   # redirect fd 2: Chromium renderer stderr → our log
 sys.stdout = _log_file
 sys.stderr = _log_file
+print(f'[LOG] wrapper_system.log opened at {_time.strftime("%Y-%m-%dT%H:%M:%S")}',
+      flush=True)
 
 # GPU vendor detection. /proc/driver/nvidia is created by the NVIDIA proprietary
 # kernel module (including nvidia-open); absent for Mesa drivers (AMD, Intel, Nouveau).
@@ -54,6 +75,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     *_gpu_flags,
 ])
 
+import concurrent.futures as _futures
 import signal
 import socket as _cdp_sock
 import struct as _cdp_struct
@@ -96,6 +118,7 @@ def start_server():
            "--host", "127.0.0.1", "--port", PORT, "--access-log"]
     env = os.environ.copy()
     env["ODYSSEUS_LOG_FILE"] = os.path.join(LOG_DIR, "server.log")
+    _rotate_log(os.path.join(LOG_DIR, "server_access.log"))
     _access_log = open(os.path.join(LOG_DIR, "server_access.log"), "a", buffering=1)
     _server_proc = subprocess.Popen(
         cmd,
@@ -130,6 +153,7 @@ def stop_server():
             except Exception:
                 pass
         _server_proc = None
+    _cdp_executor.shutdown(wait=False, cancel_futures=True)
     subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
     print("Server stopped.")
 
@@ -217,6 +241,12 @@ def _cdp_purge_memory():
 # Pattern that chatHistory.js emits at the end of each Phase 2 eviction batch.
 _RE_EVICT = _re.compile(r'\[chatHistory\] Phase 2 evict: removed (\d+) live nodes')
 
+# Bounds CDP background work to 2 concurrent threads: one for eviction audits
+# (5 s sleep), one for GC purges (fast). Prevents unbounded thread creation
+# under load. max_workers=2 allows an audit and a purge to overlap without
+# one blocking the other.
+_cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='cdp')
+
 
 def _cdp_audit_listeners(n_evicted: int) -> None:
     """Measure jsEventListeners delta 5 s after a Phase 2 eviction batch.
@@ -272,7 +302,7 @@ def _start_psi_monitor():
                                     f' — triggering CDP purge',
                                     flush=True,
                                 )
-                                _cdp_purge_memory()
+                                _cdp_executor.submit(_cdp_purge_memory)
                             break
             except Exception:
                 pass
@@ -357,12 +387,7 @@ class OdysseusPage(QWebEnginePage):
         # drops proportionally — confirms that WeakRef fixes released the closures.
         m = _RE_EVICT.match(message)
         if m:
-            _threading.Thread(
-                target=_cdp_audit_listeners,
-                args=(int(m.group(1)),),
-                daemon=True,
-                name='evict-audit',
-            ).start()
+            _cdp_executor.submit(_cdp_audit_listeners, int(m.group(1)))
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         if is_main_frame and url.host() not in ('localhost', '127.0.0.1'):
@@ -435,17 +460,13 @@ class OdysseusWindow(QMainWindow):
         # so collection doesn't wait for the next focus-loss event.
         def _log_renderer_memory():
             try:
-                r = subprocess.run(
-                    ['pgrep', '-f', 'QtWebEngineProcess'], capture_output=True, text=True)
-                for pid_s in r.stdout.strip().split():
-                    try:
-                        with open(f'/proc/{pid_s}/status') as f:
-                            for line in f:
-                                if line.startswith(('VmRSS', 'VmPeak')):
-                                    print(f'[MEM] pid={pid_s} {line.rstrip()}', flush=True)
-                    except OSError:
-                        pass
-            except Exception as e:
+                pid = page.renderProcessPid()
+                if pid:
+                    with open(f'/proc/{pid}/status') as f:
+                        for line in f:
+                            if line.startswith(('VmRSS', 'VmPeak')):
+                                print(f'[MEM] pid={pid} {line.rstrip()}', flush=True)
+            except OSError as e:
                 print(f'[MEM] error: {e}', flush=True)
             counts = _cdp_call('Memory.getDOMCounters')
             if counts:
@@ -470,9 +491,7 @@ class OdysseusWindow(QMainWindow):
                         f' — triggering CDP purge',
                         flush=True,
                     )
-                    _threading.Thread(
-                        target=_cdp_purge_memory, daemon=True, name='threshold-gc',
-                    ).start()
+                    _cdp_executor.submit(_cdp_purge_memory)
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
@@ -486,12 +505,9 @@ class OdysseusWindow(QMainWindow):
 
     def changeEvent(self, event):
         if event.type() == QEvent.Type.WindowDeactivate:
-            # Window lost focus — the compositor is not painting, so it is safe to
-            # run GC now. Use CDP in a daemon thread so the Qt event loop is not
-            # blocked by the WebSocket handshake; the renderer is idle anyway.
-            _threading.Thread(
-                target=_cdp_purge_memory, daemon=True, name='focus-loss-gc',
-            ).start()
+            # Window lost focus — compositor not painting, safe to GC. Submit to
+            # executor so the Qt event loop is not blocked by the WebSocket handshake.
+            _cdp_executor.submit(_cdp_purge_memory)
         super().changeEvent(event)
 
     def closeEvent(self, event):
