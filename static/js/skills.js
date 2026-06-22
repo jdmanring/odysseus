@@ -375,6 +375,17 @@ function _confColor(conf) {
   return `hsl(${Math.round(hue)}, 70%, 42%)`;
 }
 
+// Health score badge. Green ≥ 80, yellow 60–79, red < 60.
+// Derived from confidence, audit_verdict, uses, and necessity (SkillOps 2025).
+function _healthBadge(sk) {
+  const h = typeof sk.health_score === 'number' ? sk.health_score : null;
+  if (h === null) return '';
+  const color = h >= 80 ? 'color-mix(in srgb, #4ade80 60%, transparent)'
+              : h >= 60 ? 'color-mix(in srgb, #f0ad4e 60%, transparent)'
+              :            'color-mix(in srgb, #f87171 60%, transparent)';
+  return `<span class="memory-cat-badge" title="Health score: ${h}/100 (confidence + audit verdict + uses + necessity)" style="background:${color};font-size:0.72em;padding:1px 5px;cursor:default;">${h}</span>`;
+}
+
 // Shared action icons (collapsed kebab menu + expanded footer use the same).
 const _ICON = {
   del:   '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
@@ -702,7 +713,7 @@ function renderSkillsList() {
         ${_auditModelPills(sk)}
         ${_necessityPill(sk)}
         ${_duplicatePriorityPill(sk)}
-        <span class="skill-stats">${_auditMarks(sk)}<span class="skill-conf" style="color:${confColor};">${conf}%</span> · ${uses}u</span>
+        <span class="skill-stats">${_auditMarks(sk)}<span class="skill-conf" style="color:${confColor};">${conf}%</span> · ${uses}u ${_healthBadge(sk)}</span>
         <span class="skill-chevron-up" title="Collapse"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></span>
         <button class="skill-kebab-btn" title="Actions" aria-label="Actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>
       </div>
