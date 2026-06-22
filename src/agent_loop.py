@@ -1237,8 +1237,9 @@ def _build_system_prompt(
                 # Brain → Skills settings → "Auto-approve skills" toggle +
                 # confidence threshold. Approve OFF → published-only (no draft
                 # passes). Approve ON → drafts at/above the chosen confidence
-                # (0 = "All"). Falls back to the global default setting.
-                if not _prefs.get("auto_approve_skills", True):
+                # (0 = "All"). Default OFF so only user-reviewed published skills
+                # are injected; opt-in to draft injection via Brain > Skills.
+                if not _prefs.get("auto_approve_skills", False):
                     _skill_min_conf = 2.0  # nothing draft clears it → published only
                 else:
                     try:

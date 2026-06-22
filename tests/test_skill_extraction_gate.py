@@ -1,15 +1,67 @@
 """
-Verify the extraction gate thresholds and auto-approve default introduced by
+Verify the extraction gate thresholds and auto-approve defaults introduced by
 fix(skills): raise extraction threshold, align confidence floor, default
 auto-approve to draft.
 
 Gate now requires rounds >= 2 AND tools >= 3 (was rounds >= 2 OR tools >= 2).
 MIN_CONFIDENCE raised from 0.6 to 0.85 (aligned with injection floor).
-auto_approve_skills default changed from True to False (skills land as drafts).
+auto_approve_skills default changed to False in extractor, injection path, and
+audit-finalization path — skills land as drafts until the user publishes them.
 """
+from pathlib import Path
+
 import pytest
 
 from services.memory import skill_extractor
+
+# ── Source-text fixtures ──────────────────────────────────────────────────────
+
+_EXTRACTOR_SRC = (
+    Path(__file__).resolve().parent.parent
+    / "services/memory/skill_extractor.py"
+).read_text(encoding="utf-8")
+
+_CHAT_HELPERS_SRC = (
+    Path(__file__).resolve().parent.parent / "routes/chat_helpers.py"
+).read_text(encoding="utf-8")
+
+_AGENT_LOOP_SRC = (
+    Path(__file__).resolve().parent.parent / "src/agent_loop.py"
+).read_text(encoding="utf-8")
+
+_SKILLS_ROUTES_SRC = (
+    Path(__file__).resolve().parent.parent / "routes/skills_routes.py"
+).read_text(encoding="utf-8")
+
+# ── Source-text tests — gate constants ───────────────────────────────────────
+
+
+def test_extractor_min_confidence_is_085():
+    """MIN_CONFIDENCE must be 0.85 — aligned with the injection floor."""
+    assert "MIN_CONFIDENCE = 0.85" in _EXTRACTOR_SRC
+
+
+def test_extractor_gate_is_and_with_tool_floor_three():
+    """Extraction gate in skill_extractor.py uses AND with tool floor >= 3."""
+    assert "round_count < 2 or tool_count < 3" in _EXTRACTOR_SRC
+
+
+def test_chat_helpers_outer_gate_is_and_with_tool_floor_three():
+    """Outer extraction gate in chat_helpers.py uses AND with tool floor >= 3."""
+    assert "agent_rounds >= 2 and agent_tool_calls >= 3" in _CHAT_HELPERS_SRC
+
+
+def test_injection_path_auto_approve_default_is_false():
+    """agent_loop.py injection path must default auto_approve_skills to False."""
+    assert 'auto_approve_skills", False)' in _AGENT_LOOP_SRC
+
+
+def test_audit_finalization_auto_approve_default_is_false():
+    """skills_routes.py audit-finalization path must default auto_approve_skills to False."""
+    assert 'auto_approve_skills", False)' in _SKILLS_ROUTES_SRC
+
+
+# ── Behavioural test helpers ──────────────────────────────────────────────────
 
 _GOOD_RESPONSE = (
     '{"title": "Deploy runbook", "problem": "manual deploys are error-prone", '
@@ -63,6 +115,9 @@ async def _call_extractor(monkeypatch, response, round_count, tool_count):
     return entry, sm
 
 
+# ── Behavioural tests — gate thresholds ──────────────────────────────────────
+
+
 async def test_gate_skips_when_rounds_low_tools_below_three(monkeypatch):
     """rounds=1, tools=2 → skipped (rounds < 2, fails new AND gate)."""
     entry, sm = await _call_extractor(monkeypatch, _GOOD_RESPONSE, round_count=1, tool_count=2)
@@ -93,11 +148,9 @@ async def test_low_confidence_dropped_at_new_floor(monkeypatch):
 
 async def test_auto_approve_default_is_draft(monkeypatch):
     """With no prefs override, auto_approve_skills defaults to False → status is 'draft'."""
-    # Prevent prefs lookup from finding anything
     monkeypatch.setattr(
         "routes.prefs_routes._load_for_user",
         lambda owner: {},
-        raising=False,
     )
 
     entry, sm = await _call_extractor(monkeypatch, _GOOD_RESPONSE, round_count=2, tool_count=3)
