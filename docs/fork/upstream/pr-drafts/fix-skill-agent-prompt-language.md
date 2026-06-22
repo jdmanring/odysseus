@@ -59,14 +59,24 @@ Remove "consult before doing domain work" mandate and "treat them as authoritati
 
 ## Tests
 
-6 static source-text assertions in `tests/test_agent_skill_prompt_language.py`:
+12 static source-text assertions in `tests/test_agent_skill_prompt_language.py`
+(6 absence checks + 6 presence checks for replacement language):
 
+**Absence — bad strings removed:**
 1. `"BEFORE doing domain work"` not in `agent_loop.py`
 2. `"authoritative guidance"` not in `manage_skills` tool description block
 3. `"proven to work"` not in `agent_loop.py`
 4. `"Follow them step by step"` not in `agent_loop.py`
 5. `"consult before doing domain work"` not in `agent_loop.py`
 6. `"treat them as authoritative"` not in `agent_loop.py`
+
+**Presence — advisory replacement language in place:**
+7. `"check the skill registry — there may be a reusable procedure"` in `agent_loop.py`
+8. `"Published skills are user-reviewed; drafts are candidate procedures from prior sessions"` in `agent_loop.py`
+9. `"candidate procedures"` in matched-skills injection header
+10. `"use your own judgment"` in matched-skills injection header
+11. `"Reference procedures for this session"` in skill index header
+12. `"evaluate fit before following"` in skill index header
 
 ## Target branch
 
@@ -97,14 +107,16 @@ Relates to #2750 (Agent prompt token bloat: measure, slim, and modularize)
 1. Start Odysseus with at least one published skill in Brain > Skills.
 2. Send a simple request (e.g. "what is 2+2"). The agent should answer directly without calling `manage_skills list` first.
 3. Send a request clearly in a skill's domain. The agent may consult the skill registry, but should not do so for every request.
-4. Run `pytest tests/test_agent_skill_prompt_language.py -v` — 6 tests pass.
-5. Run `pytest tests/ -q` — full suite passes.
+4. Run `pytest tests/test_agent_skill_prompt_language.py -v` — 12 tests pass (6 absence + 6 presence).
+5. Run `pytest tests/ -q` — full suite passes (minus pre-existing failures in `test_model_context`, `test_tool_parsing_pycall`, `test_workspace_*`).
 
 ---
 
 ## Filing Notes
 
-- 1 commit: `383fbc6f` on branch `fix/skill-agent-prompt-language`.
+- 2 commits on branch `fix/skill-agent-prompt-language`:
+  - `383fbc6f` — 3 string literal replacements in `agent_loop.py`
+  - `960ec5db` — strengthened tests (added 6 presence assertions, fixed manage_skills index anchoring)
 - Branch built from `upstream-mirror` — clean, no fork-specific history.
 - **File upstream issue first**, then add upstream issue number to `Fixes #` above.
 - Reference upstream #2750 when filing — this PR reduces one measurable component of per-request prompt overhead (mandatory manage_skills rounds).
