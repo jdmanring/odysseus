@@ -17,17 +17,34 @@ os.makedirs(LOG_DIR, exist_ok=True)
 # Rotate logs at startup rather than mid-run: once os.dup2 binds the Chromium
 # renderer's inherited fds to the log inode, the file cannot be swapped while
 # the process lives. Renaming before the open+dup2 avoids that constraint.
-_LOG_MAX_BYTES = 20 * 1024 * 1024  # 20 MB per log file
+# Constants match src/constants.py (LOG_MAX_BYTES, LOG_BACKUP_COUNT) so all
+# three log files follow the same retention policy.
+_LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB — matches app RotatingFileHandler
+_LOG_BACKUP_COUNT = 5               # matches app LOG_BACKUP_COUNT
 
 
 def _rotate_log(path: str) -> None:
-    """Rename path → path.1 if it exceeds _LOG_MAX_BYTES. Silent on any error."""
+    """Shift existing backups and rename path → path.1 if over _LOG_MAX_BYTES.
+
+    Mirrors the behaviour of logging.handlers.RotatingFileHandler with
+    backupCount=_LOG_BACKUP_COUNT. Silent on any error.
+    """
     try:
-        if os.path.getsize(path) > _LOG_MAX_BYTES:
-            backup = path + '.1'
-            if os.path.exists(backup):
-                os.remove(backup)
-            os.rename(path, backup)
+        if os.path.getsize(path) <= _LOG_MAX_BYTES:
+            return
+        # Shift: path.4 → path.5, path.3 → path.4, ..., path.1 → path.2
+        for n in range(_LOG_BACKUP_COUNT, 1, -1):
+            src = f'{path}.{n - 1}'
+            dst = f'{path}.{n}'
+            if os.path.exists(src):
+                if os.path.exists(dst):
+                    os.remove(dst)
+                os.rename(src, dst)
+        # Move current log to path.1
+        backup = path + '.1'
+        if os.path.exists(backup):
+            os.remove(backup)
+        os.rename(path, backup)
     except OSError:
         pass
 
