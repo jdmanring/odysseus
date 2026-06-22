@@ -518,31 +518,22 @@ export function getAutoScroll() {
  * Auto-resize textarea based on content
  */
 export function autoResize(textarea) {
-  const lineHeight = parseInt(getComputedStyle(textarea).lineHeight);
-  const isMobile = window.innerWidth <= 768;
-  const maxHeight = isMobile ? 150 : lineHeight * 8;
-
-  // Use a hidden clone to measure without disrupting the real textarea
-  let clone = textarea._resizeClone;
-  if (!clone) {
-    clone = textarea.cloneNode(false);
-    clone.style.cssText = getComputedStyle(textarea).cssText;
-    clone.style.position = 'absolute';
-    clone.style.visibility = 'hidden';
-    clone.style.height = '0';
-    clone.style.transition = 'none';
-    clone.style.overflow = 'hidden';
-    clone.style.pointerEvents = 'none';
-    clone.style.zIndex = '-1';
-    textarea.parentNode.appendChild(clone);
-    textarea._resizeClone = clone;
-  }
-  clone.style.width = textarea.offsetWidth + 'px';
-  clone.value = textarea.value;
-  clone.style.height = '0';
-  const newHeight = Math.min(Math.max(clone.scrollHeight, lineHeight), maxHeight);
-  textarea.style.height = newHeight + 'px';
-  textarea.style.overflow = newHeight >= maxHeight ? 'auto' : 'hidden';
+  // Coalesce rapid keystrokes: if a rAF is already queued for this textarea, skip.
+  // This reduces layout reflows from O(keystrokes) to O(animation frames) — at most
+  // one forced layout per 16 ms regardless of typing speed.
+  if (textarea._arRafId) return;
+  textarea._arRafId = requestAnimationFrame(() => {
+    textarea._arRafId = null;
+    const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
+    const maxHeight = window.innerWidth <= 768 ? 150 : lineHeight * 8;
+    // height:'auto' releases the fixed height so the browser can compute the
+    // natural content height.  Both writes resolve in the same paint frame —
+    // no visible flicker.
+    textarea.style.height = 'auto';
+    const newHeight = Math.min(Math.max(textarea.scrollHeight, lineHeight), maxHeight);
+    textarea.style.height = newHeight + 'px';
+    textarea.style.overflow = newHeight >= maxHeight ? 'auto' : 'hidden';
+  });
 }
 
 /**
