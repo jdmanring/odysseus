@@ -27,9 +27,9 @@ Add a `catppuccin` entry to `THEMES` in `static/js/theme.js` using the official 
 |----------|-------|--------|
 | Background | `#1e1e2e` | Mocha Base |
 | Foreground | `#cdd6f4` | Mocha Text |
-| Panel | `#181825` | Mocha Surface0 |
-| Border | `#5b6078` | Mocha Overlay0 |
-| Accent | `#8565d1` | Mocha Mauve |
+| Panel | `#181825` | Mocha Mantle |
+| Border | `#585b70` | Mocha Surface2 |
+| Accent | `#cba6f7` | Mocha Mauve |
 
 The default theme remains `dark`. This is an opt-in preset — a single entry added to the existing themes list. No changes to the theme engine, scheduling, persistence, or UI.
 

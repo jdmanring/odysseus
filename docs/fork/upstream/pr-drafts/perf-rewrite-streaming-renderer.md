@@ -107,3 +107,47 @@ Heap allocation reduced from O(n²) intermediate trees to O(n) live nodes.
 - `_rwRenderer = null` after finalize
 - Single final `bodyEl.innerHTML` present
 - Log line `[chat] rewrite: renderer finalized` present
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`.
+
+## Linked Issue
+
+Fixes # <!-- [add upstream issue number before filing] -->
+
+## Type of Change
+
+- [ ] Bug fix
+- [ ] New feature
+- [x] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+### How to Test
+
+1. Start a session and trigger a rewrite (long response with `[REWRITE]` marker or the equivalent chat action).
+2. Open DevTools → Console. After the stream completes, confirm `[chat] rewrite: renderer finalized` appears.
+3. Open DevTools → Memory. Compare heap snapshot `div` counts during the rewrite vs. before — the count should grow at O(1) per token rather than O(n²).
+4. Verify the final rendered output is identical to a non-rewrite response of the same content.
+5. Run `pytest tests/test_chat_rewrite_streaming_js.py -q` — 11 tests.
+
+---
+
+## Filing Notes
+
+- 2 commits: main fix (`04eea77f`), logging (`1d8bdd83`).
+- Branch: `perf/rewrite-streaming-renderer` — built from `upstream-mirror`.
+- **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
+- The `_rwRenderer` variable is declared as `null` at the top of `rewriteWith()` scope. If an error path exits the SSE loop early, the `finally` block should null it out — verify this edge case is handled if filing this PR.
+
+## Visual / UI changes
+
+None. The final rendered output is identical; this change only affects the allocation pattern during streaming.

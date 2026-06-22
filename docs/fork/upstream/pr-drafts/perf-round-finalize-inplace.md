@@ -137,3 +137,51 @@ Reset 2:
   correctly with both paths.
 - Depends on `fix/dom-oom-virtualization` for multi-round agent session testing,
   but is independently correct without it.
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`.
+
+## Linked Issue
+
+Fixes # <!-- [add upstream issue number before filing] -->
+
+## Type of Change
+
+- [ ] Bug fix
+- [ ] New feature
+- [x] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+### How to Test
+
+1. Start the app with agent mode active (tool calls enabled).
+2. Run a multi-round agent session — 3+ rounds, with tool calls and text in each round.
+3. In `wrapper_system.log` (or DevTools Console), confirm:
+   - `[chat] round-finalize: tool_start in-place` appears once per round (Reset 1 in-place path firing)
+   - `[chat] round-finalize: sources in-place` appears for rounds with sources (Reset 2 in-place path)
+4. Open DevTools → Memory. Confirm `div` count grows more slowly than before for multi-round sessions.
+5. Verify final rendered content and source boxes are identical to the previous behavior.
+6. Run `pytest tests/test_chat_round_finalize_js.py -q` — 13 tests.
+
+---
+
+## Filing Notes
+
+- 2 commits: in-place fixes (`1ee51846`), logging (`06cb0a2e`).
+- Branch: `perf/round-finalize-inplace` — built from `upstream-mirror`.
+- **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
+- Reset 1 only fires when `_contentEl3._streamRenderer` is non-null. In thinking-only rounds (no text tokens), `_streamRenderer` is null and the existing `innerHTML` path runs. This is expected.
+- Reset 2's `_hasInPlaceContent` check is structural (child node presence), not flag-based. It composes correctly with both the Reset 1 in-place path and the existing `perf/streaming-final-render` fast-path finalize.
+
+## Visual / UI changes
+
+None. The rendered output and source box layout are identical; this change only affects how many intermediate DOM trees are created during multi-round finalization.
