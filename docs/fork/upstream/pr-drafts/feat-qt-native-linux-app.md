@@ -90,15 +90,19 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   thread creation under heavy eviction load. The PSI poll loop no longer blocks
   on the CDP WebSocket round-trip. Executor is shut down
   (`cancel_futures=True, wait=False`) in `stop_server()`.
-- **Startup log rotation:** `_rotate_log(path)` renames `wrapper_system.log` and
-  `server_access.log` to `*.1` at startup if they exceed 20 MB, keeping one backup.
-  Rotation happens before `os.dup2` so there is no fd conflict with the Chromium
-  renderer's inherited file descriptors. A `[LOG]` timestamp line is written to
-  the newly opened file after `os.dup2` succeeds.
-- 35 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
+- **Startup log rotation:** `_rotate_log(path)` rotates `wrapper_system.log` and
+  `server_access.log` at startup if they exceed 10 MB, preserving 5 numbered
+  backups (`path.1`–`path.5`) via the same shift algorithm used by
+  `logging.handlers.RotatingFileHandler`. Constants (`_LOG_MAX_BYTES = 10 MB`,
+  `_LOG_BACKUP_COUNT = 5`) match `src/constants.py` so all three log files
+  follow the same retention policy. Rotation happens before `os.dup2` so there
+  is no fd conflict with the Chromium renderer's inherited file descriptors.
+  A `[LOG]` timestamp line is written to the newly opened file after `os.dup2`.
+- 38 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
   import correctness, call-site presence, executor usage, log rotation
-  structure, and that `nodes` is assigned before the threshold comparison
-  (positional assertion guards against future cherry-pick divergence).
+  structure (including that the shift loop and `_LOG_BACKUP_COUNT` are present
+  and that constants match the app), and that `nodes` is assigned before the
+  threshold comparison (positional assertion guards against cherry-pick divergence).
 
 **`build-linux-app.sh`**: preflight check and launch script. Verifies that
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
