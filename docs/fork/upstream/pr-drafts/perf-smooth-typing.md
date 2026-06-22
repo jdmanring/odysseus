@@ -57,7 +57,7 @@ off-screen and are removed on page reload.
 
 ## Files changed
 
-- `static/js/ui.js` — `autoResize` rewrite (−25 +18 lines)
+- `static/js/ui.js` — `autoResize` rewrite (−25 +16 lines)
 - `tests/test_ui_auto_resize_js.py` — new file, 5 static-analysis tests
 
 ## Tests
