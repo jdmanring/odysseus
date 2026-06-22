@@ -462,7 +462,7 @@ Generate an image. Line 1 = description, line 2 = model name, line 3 = WxH (e.g.
     "list_models": "- ```list_models``` — Show all available AI models across all endpoints. Use when user asks what models are available.",
     "manage_session": "- ```manage_session``` — Rename, archive, delete, fork, switch, or `list` chats (the UI calls them 'chats'; 'session' is internal). Line 1 = action (list/switch/rename/archive/unarchive/delete/important/unimportant/truncate/fork), Line 2 = exact chat id from `list_sessions` (or `current` where supported). For delete/archive/truncate, always list first and reuse the exact id; never invent placeholder ids. `switch`/`open` returns a clickable anchor link the user can tap to open the chat — use for \"open my X chat\".",
     "manage_memory": "- ```manage_memory``` — Manage the user's persistent memory (facts about the USER themselves, their preferences, context that persists across chats). Line 1 = action (list/add/edit/delete/search), rest = content. Use when user says 'remember this' about themselves, states identity facts like 'my name is <name>' / 'call me <name>' / 'I live in <place>', or asks about stored memories. DO NOT use for info about another person (their address, phone, email, birthday) — that goes in `manage_contact`. If the user pastes an address/phone with a name and says 'save this for <person>', use `manage_contact add` with the address arg, NOT manage_memory.",
-    "manage_skills": "- ```manage_skills``` — Skill registry (SKILL.md format). Args (JSON): {\"action\": \"list|view|view_ref|search|add|edit|patch|publish|delete\", ...}. `list` returns the index of available skills (published + teacher-escalation drafts); `view name=foo` fetches the full SKILL.md; `view_ref name=foo path=...` loads a reference file under the skill directory. For `add`, provide an explicit kebab-case `name` and only report the exact returned name, because storage may normalize or dedupe it. Use this BEFORE doing domain work — there may already be a procedure (published or draft) that prescribes the correct steps. Drafts written by the teacher loop are authoritative guidance even though they're not yet published.",
+    "manage_skills": "- ```manage_skills``` — Skill registry (SKILL.md format). Args (JSON): {\"action\": \"list|view|view_ref|search|add|edit|patch|publish|delete\", ...}. `list` returns the index of available skills (published + teacher-escalation drafts); `view name=foo` fetches the full SKILL.md; `view_ref name=foo path=...` loads a reference file under the skill directory. For `add`, provide an explicit kebab-case `name` and only report the exact returned name, because storage may normalize or dedupe it. If the user's request involves a domain where a prior procedure may exist (automation, system tasks, multi-step workflows), check the skill registry — there may be a reusable procedure. Published skills are user-reviewed; drafts are candidate procedures from prior sessions.",
     "manage_tasks": "- ```manage_tasks``` — Create and manage scheduled background tasks (recurring AI jobs). Args (JSON): {\"action\": \"list|create|edit|delete|pause|resume|run\", ...}",
     "manage_endpoints": "- ```manage_endpoints``` — Add, remove, or configure AI model API endpoints. Args (JSON): {\"action\": \"list|add|delete|enable|disable\", ...}. Use when user wants to add a new AI provider.",
     "manage_mcp": "- ```manage_mcp``` — Manage MCP (Model Context Protocol) tool servers — external tools that extend your capabilities. Args (JSON): {\"action\": \"list|add|delete|reconnect|list_tools\", ...}",
@@ -1947,11 +1947,10 @@ def _build_system_prompt(
                         except Exception:
                             pass
                     lines.append("## Relevant skills for this request")
-                    lines.append("These skills are matched to your current request. Each is a "
-                                 "procedure proven to work. Follow them step by step. To see "
-                                 "the full SKILL.md (more detail, pitfalls, verification "
-                                 "steps), call `manage_skills` with action='view' and the "
-                                 "skill name.")
+                    lines.append("These skills are matched to your current request as candidate "
+                                 "procedures. If a skill fits the task closely, fetch its full "
+                                 "SKILL.md with `manage_skills` action=view and apply its "
+                                 "procedure. If the match is weak, use your own judgment.")
                     for sk in relevant_skills:
                         src_tag = ""
                         if sk.get("source") == "teacher-escalation":
@@ -2149,12 +2148,10 @@ def _build_base_prompt(
             skill_idx = _sm.index_for(owner=owner, active_toolsets=active_tools)
             if skill_idx:
                 lines = ["## Available skills",
-                         "Procedures the assistant should consult before doing domain work. "
-                         "Fetch the full procedure with `manage_skills` action=view name=<name> "
-                         "when one looks relevant. Entries tagged `(draft)` were written by the "
-                         "teacher-escalation loop after a prior failure — treat them as authoritative "
-                         "guidance; if you follow one and it works, that's a good signal the procedure "
-                         "is correct."]
+                         "Reference procedures for this session. When a task closely matches a "
+                         "skill's description, fetch the full SKILL.md with `manage_skills` "
+                         "action=view name=<name> and apply its procedure. Draft entries are "
+                         "candidate procedures from prior sessions — evaluate fit before following."]
                 by_cat: dict[str, list] = {}
                 for s in skill_idx:
                     by_cat.setdefault(s["category"], []).append(s)
