@@ -370,12 +370,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
           markdownModule.squashOutsideCode(stoppedContent)
         );
         
-        // Highlight code blocks
-        if (window.hljs) {
-          currentHolder.querySelectorAll('pre code').forEach((block) => {
-            window.hljs.highlightElement(block);
-          });
-        }
+        deferHighlightAll(currentHolder);
         
         // Add the stopped indicator with continue button
         const stoppedIndicator = document.createElement('div');
@@ -2094,7 +2089,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                     } else {
                       _contentEl3.innerHTML = markdownModule.processWithThinking(markdownModule.squashOutsideCode(dt));
                     }
-                    if (window.hljs) roundHolder.querySelectorAll('pre code').forEach((b) => window.hljs.highlightElement(b));
+                    deferHighlightAll(roundHolder);
                   } else {
                     roundHolder.style.display = 'none';
                   }
@@ -2946,9 +2941,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
             const oldFooter = prevEl.querySelector('.msg-footer');
             if (oldFooter) oldFooter.remove();
             prevEl.appendChild(createMsgFooter(prevEl));
-            if (window.hljs) {
-              prevEl.querySelectorAll('pre code').forEach(block => window.hljs.highlightElement(block));
-            }
+            deferHighlightAll(prevEl);
 
             // Persist merge to server
             const sid = sessionModule.getCurrentSessionId();
@@ -3061,11 +3054,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               markdownModule.squashOutsideCode(accumulated)
             );
 
-            if (window.hljs) {
-              holder.querySelectorAll('pre code').forEach((block) => {
-                window.hljs.highlightElement(block);
-              });
-            }
+            deferHighlightAll(holder);
 
             const stoppedIndicator = document.createElement('div');
             stoppedIndicator.className = 'stopped-indicator';
@@ -4390,9 +4379,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     if (body) body.innerHTML = v.html;
     msgElement.dataset.raw = v.raw;
     msgElement.dataset.variantIndex = String(newIdx);
-    if (window.hljs) {
-      msgElement.querySelectorAll('pre code').forEach(block => window.hljs.highlightElement(block));
-    }
+    deferHighlightAll(msgElement);
     _renderVariantNav(msgElement, variants, newIdx);
 
     // Persist selected variant to server
@@ -4488,7 +4475,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               _wrap.appendChild(chatRenderer.createMsgFooter(_wrap));
               _appendViewReportLink(_wrap, sessionId);
               _box.appendChild(_wrap);
-              if (window.hljs) _wrap.querySelectorAll('pre code').forEach(function(b) { window.hljs.highlightElement(b); });
+              deferHighlightAll(_wrap);
               // Research result is completed history, not active streaming — instant
               // snap is correct. scrollHistory() aborts when diff > 300px, which a
               // large research result easily exceeds, leaving the user above the bottom.
@@ -4642,9 +4629,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   ) + findingsHtml;
                   holder.dataset.raw = rData.result;
                   _appendViewReportLink(holder, sessionId);
-                  if (window.hljs) {
-                    holder.querySelectorAll('pre code').forEach(b => window.hljs.highlightElement(b));
-                  }
+                  deferHighlightAll(holder);
                 }
               }
             } else {
