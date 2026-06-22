@@ -2045,6 +2045,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                     if (_contentEl3._streamRenderer) {
                       _contentEl3._streamRenderer.finalize();
                       _contentEl3._streamRenderer = null;
+                      console.log('[chat] round-finalize: tool_start in-place');
                     } else {
                       _contentEl3.innerHTML = markdownModule.processWithThinking(markdownModule.squashOutsideCode(dt));
                     }
@@ -2710,6 +2711,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
             var _streamContentEl = _body4.querySelector('.stream-content');
             var _hasInPlaceContent = !!(_streamContentEl && _streamContentEl.childNodes.length > 0);
             if (_hasInPlaceContent) {
+              console.log('[chat] round-finalize: sources in-place');
               if (_sourcesData) {
                 var _srcEl = document.createElement('div');
                 _srcEl.innerHTML = _buildSourcesBox(_sourcesData, _sourcesType, _wasExpanded);
