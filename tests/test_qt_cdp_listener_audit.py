@@ -80,3 +80,34 @@ def test_console_message_thread_targets_audit():
 def test_console_message_thread_is_daemon():
     block = _js_console_block()
     assert "daemon=True," in block
+
+
+def test_threading_imported():
+    assert "import threading as _threading" in _SRC
+
+
+def test_cdp_sock_imported():
+    assert "import socket as _cdp_sock" in _SRC
+
+
+def test_cdp_struct_imported():
+    assert "import struct as _cdp_struct" in _SRC
+
+
+def test_cdp_b64_imported():
+    assert "import base64 as _cdp_b64" in _SRC
+
+
+def test_cdp_req_imported():
+    assert "import urllib.request as _cdp_req" in _SRC
+
+
+def test_cdp_dom_counts_not_present():
+    assert "def _cdp_dom_counts(" not in _SRC
+
+
+def test_log_renderer_memory_uses_cdp_call():
+    marker = "def _log_renderer_memory("
+    start = _SRC.index(marker)
+    block = _SRC[start:start + 800]
+    assert "_cdp_call('Memory.getDOMCounters')" in block
