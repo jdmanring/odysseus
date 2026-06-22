@@ -1078,12 +1078,7 @@ import { deferHighlightAll, forgetNode as hljsForgetNode } from './hljsDefer.js'
           markdownModule.squashOutsideCode(stoppedContent)
         );
         
-        // Highlight code blocks
-        if (window.hljs) {
-          currentHolder.querySelectorAll('pre code').forEach((block) => {
-            window.hljs.highlightElement(block);
-          });
-        }
+        deferHighlightAll(currentHolder);
         
         // Add the stopped indicator with continue button
         const stoppedIndicator = document.createElement('div');
@@ -2998,7 +2993,7 @@ import { deferHighlightAll, forgetNode as hljsForgetNode } from './hljsDefer.js'
                     var _contentEl3 = _ensureStreamLayout(_body3);
                     _contentEl3.style.minHeight = '';  // clear streaming inflate
                     _contentEl3.innerHTML = markdownModule.processWithThinking(markdownModule.squashOutsideCode(dt));
-                    if (window.hljs) roundHolder.querySelectorAll('pre code').forEach((b) => window.hljs.highlightElement(b));
+                    deferHighlightAll(roundHolder);
                   } else {
                     roundHolder.style.display = 'none';
                   }
@@ -3713,9 +3708,7 @@ import { deferHighlightAll, forgetNode as hljsForgetNode } from './hljsDefer.js'
             const oldFooter = prevEl.querySelector('.msg-footer');
             if (oldFooter) oldFooter.remove();
             prevEl.appendChild(createMsgFooter(prevEl));
-            if (window.hljs) {
-              prevEl.querySelectorAll('pre code').forEach(block => window.hljs.highlightElement(block));
-            }
+            deferHighlightAll(prevEl);
 
             // Persist merge to server
             const sid = sessionModule.getCurrentSessionId();
@@ -3843,11 +3836,7 @@ import { deferHighlightAll, forgetNode as hljsForgetNode } from './hljsDefer.js'
               markdownModule.squashOutsideCode(accumulated)
             );
 
-            if (window.hljs) {
-              holder.querySelectorAll('pre code').forEach((block) => {
-                window.hljs.highlightElement(block);
-              });
-            }
+            deferHighlightAll(holder);
 
             const stoppedIndicator = document.createElement('div');
             stoppedIndicator.className = 'stopped-indicator';
@@ -5179,9 +5168,7 @@ import { deferHighlightAll, forgetNode as hljsForgetNode } from './hljsDefer.js'
     if (body) body.innerHTML = v.html;
     msgElement.dataset.raw = v.raw;
     msgElement.dataset.variantIndex = String(newIdx);
-    if (window.hljs) {
-      msgElement.querySelectorAll('pre code').forEach(block => window.hljs.highlightElement(block));
-    }
+    deferHighlightAll(msgElement);
     _renderVariantNav(msgElement, variants, newIdx);
 
     // Persist selected variant to server
@@ -5280,7 +5267,7 @@ import { deferHighlightAll, forgetNode as hljsForgetNode } from './hljsDefer.js'
               _wrap.appendChild(chatRenderer.createMsgFooter(_wrap));
               _appendViewReportLink(_wrap, sessionId);
               _box.appendChild(_wrap);
-              if (window.hljs) _wrap.querySelectorAll('pre code').forEach(function(b) { window.hljs.highlightElement(b); });
+              deferHighlightAll(_wrap);
               uiModule.scrollHistory();
             }
           }
@@ -5431,9 +5418,7 @@ import { deferHighlightAll, forgetNode as hljsForgetNode } from './hljsDefer.js'
                   ) + findingsHtml;
                   holder.dataset.raw = rData.result;
                   _appendViewReportLink(holder, sessionId);
-                  if (window.hljs) {
-                    holder.querySelectorAll('pre code').forEach(b => window.hljs.highlightElement(b));
-                  }
+                  deferHighlightAll(holder);
                 }
               }
             } else {
