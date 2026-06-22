@@ -173,6 +173,15 @@ def test_threshold_gc_uses_executor():
     assert "_cdp_executor.submit(_cdp_purge_memory)" in _log_renderer_memory_block()
 
 
+def test_nodes_assigned_before_threshold_comparison():
+    # Guards against cherry-pick divergence: the threshold block references `nodes`
+    # as a local variable; it must be extracted from the counts dict before use.
+    block = _log_renderer_memory_block()
+    nodes_assign = block.index("nodes = counts.get(")
+    threshold_use = block.index("if nodes > 50_000")
+    assert nodes_assign < threshold_use
+
+
 # --- Change C: startup log rotation ---
 
 def test_rotate_log_defined():
