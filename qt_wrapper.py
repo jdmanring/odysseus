@@ -244,28 +244,26 @@ def _cdp_call(method, params=None):
         return None
 
 
-def _cdp_purge_memory(reason: str = 'unknown'):
-    """Invoke V8/Oilpan major GC across all isolates via CDP.
-
-    Memory.forciblyPurgeJavaScriptMemory calls V8::LowMemoryNotification() in the
-    renderer process — no --expose-gc flag needed, works across all V8 isolates.
-    Pure stdlib; safe to call from any background thread.
-    """
-    result = _cdp_call('Memory.forciblyPurgeJavaScriptMemory')
-    if result is not None:
-        print(f'[GC] CDP purge ok — {reason}', flush=True)
-    else:
-        print(f'[GC] CDP purge failed (renderer not reachable) — {reason}', flush=True)
-
-
 # Pattern that chatHistory.js emits at the end of each Phase 2 eviction batch.
 _RE_EVICT = _re.compile(r'\[chatHistory\] Phase 2 evict: removed (\d+) live nodes')
 
-# Bounds CDP background work to 2 concurrent threads: one for eviction audits
-# (5 s sleep), one for GC purges (fast). Prevents unbounded thread creation
-# under load. max_workers=2 allows an audit and a purge to overlap without
-# one blocking the other.
+# Bounds CDP background work to eviction audit threads (5 s sleep each).
 _cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='cdp')
+
+# GC request cell — written by background threads (PSI monitor), read and drained
+# by a 250 ms QTimer on the Qt main thread.  CPython's GIL makes single-element
+# list assignment atomic so no explicit lock is needed.
+_gc_request_pending: list[bool] = [False]
+
+
+def _request_async_gc() -> None:
+    """Signal the main-thread drain timer to schedule an async JS GC cycle.
+
+    Thread-safe: sets a module-level flag that the Qt main thread polls every
+    250 ms.  Using a flag + poll avoids QTimer.singleShot from a non-Qt daemon
+    thread (which has no event loop and would silently drop the call).
+    """
+    _gc_request_pending[0] = True
 
 
 def _cdp_audit_listeners(n_evicted: int) -> None:
@@ -304,12 +302,14 @@ def _start_psi_monitor():
     """
     _PSI_PATH = '/proc/pressure/memory'
     _POLL_INTERVAL = 5    # seconds
-    _THRESHOLD_PCT = 5.0  # avg10 % that triggers a purge
+    _THRESHOLD_PCT = 5.0  # avg10 % that triggers a GC request
+    _COOLDOWN = 30        # minimum seconds between GC requests under sustained pressure
 
     if not os.path.exists(_PSI_PATH):
         return
 
     def _loop():
+        last_gc = 0.0
         while True:
             try:
                 with open(_PSI_PATH) as f:
@@ -317,12 +317,15 @@ def _start_psi_monitor():
                         if line.startswith('some'):
                             avg10 = float(line.split()[1].split('=')[1])
                             if avg10 > _THRESHOLD_PCT:
-                                print(
-                                    f'[MEM] PSI avg10={avg10:.2f}% > {_THRESHOLD_PCT}%'
-                                    f' — triggering CDP purge',
-                                    flush=True,
-                                )
-                                _cdp_executor.submit(_cdp_purge_memory, 'psi')
+                                now = _time.monotonic()
+                                if now - last_gc >= _COOLDOWN:
+                                    last_gc = now
+                                    print(
+                                        f'[MEM] PSI avg10={avg10:.2f}% > {_THRESHOLD_PCT}%'
+                                        f' — queuing async JS GC',
+                                        flush=True,
+                                    )
+                                    _request_async_gc()
                             break
             except Exception:
                 pass
@@ -512,19 +515,52 @@ class OdysseusWindow(QMainWindow):
                     flush=True,
                 )
                 # Detached node accumulation above this threshold means Oilpan is not
-                # keeping up. Purge proactively rather than waiting for focus-loss.
+                # keeping up.  Direct runJavaScript call is safe here because
+                # _log_renderer_memory runs on the Qt main thread via QTimer.
                 if nodes > 50_000:
                     print(
                         f'[GC] node-count threshold ({nodes} > 50000)'
-                        f' — triggering CDP purge',
+                        f' — async JS GC',
                         flush=True,
                     )
-                    _cdp_executor.submit(_cdp_purge_memory, 'node-threshold')
+                    page.runJavaScript(
+                        "if(typeof gc==='function')"
+                        "gc({type:'major',execution:'async'});"
+                    )
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
         self._mem_timer.start(60_000)
         _start_psi_monitor()
+
+        # Focus-loss GC timer: 500 ms single-shot debounce started on WindowDeactivate,
+        # cancelled on WindowActivate.  Skips transient focus shifts (notifications,
+        # dropdowns) that would otherwise trigger unnecessary GC mid-typing.
+        def _on_focus_loss_gc():
+            print('[GC] focus-loss — async JS GC', flush=True)
+            page.runJavaScript(
+                "if(typeof gc==='function')"
+                "gc({type:'major',execution:'async'});"
+            )
+        self._gc_focus_timer = QTimer()
+        self._gc_focus_timer.setSingleShot(True)
+        self._gc_focus_timer.timeout.connect(_on_focus_loss_gc)
+
+        # PSI drain timer: polls _gc_request_pending every 250 ms on the main thread.
+        # QTimer.singleShot from a daemon Python thread (PSI monitor) has no event
+        # loop to fire on; this polling pattern is the correct cross-thread dispatch.
+        def _drain_gc_requests():
+            if not _gc_request_pending[0]:
+                return
+            _gc_request_pending[0] = False
+            print('[GC] async JS GC — PSI', flush=True)
+            page.runJavaScript(
+                "if(typeof gc==='function')"
+                "gc({type:'major',execution:'async'});"
+            )
+        self._gc_drain_timer = QTimer()
+        self._gc_drain_timer.timeout.connect(_drain_gc_requests)
+        self._gc_drain_timer.start(250)
 
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
@@ -533,8 +569,9 @@ class OdysseusWindow(QMainWindow):
 
     def changeEvent(self, event):
         if event.type() == QEvent.Type.WindowDeactivate:
-            print('[GC] focus-loss — triggering CDP purge', flush=True)
-            _cdp_executor.submit(_cdp_purge_memory, 'focus-loss')
+            self._gc_focus_timer.start(500)
+        elif event.type() == QEvent.Type.WindowActivate:
+            self._gc_focus_timer.stop()
         super().changeEvent(event)
 
     def closeEvent(self, event):
