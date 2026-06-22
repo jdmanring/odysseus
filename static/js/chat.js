@@ -3894,6 +3894,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
    * Called after history loads on session switch.
    */
   export function checkBackgroundStream(sessionId) {
+    _purgeStaleBackgroundStreams();
     if (!sessionId || !_backgroundStreams.has(sessionId)) return;
     var entry = _backgroundStreams.get(sessionId);
 
