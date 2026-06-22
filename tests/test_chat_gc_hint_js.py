@@ -28,7 +28,8 @@ def test_gc_pending_declared():
 
 def test_gc_missed_declared():
     # _gcMissed tracks responses that completed while a GC cycle was running.
-    assert "let _gcMissed" in _SRC and "_gcMissed  = false" in _SRC or "let _gcMissed = false" in _SRC
+    # Accepts one- or two-space alignment with _gcPending.
+    assert "let _gcMissed" in _SRC and ("_gcMissed  = false" in _SRC or "_gcMissed = false" in _SRC)
 
 
 # ---------------------------------------------------------------------------
@@ -36,8 +37,11 @@ def test_gc_missed_declared():
 # ---------------------------------------------------------------------------
 
 def test_gc_pending_checked_before_gc_call():
+    # The primary gc() call must be inside a !_gcPending branch, not unconditional.
     body = _gc_block()
-    assert "!_gcPending" in body
+    guard_pos = body.index("!_gcPending")
+    gc_pos    = body.index("gc({ type: 'major'")
+    assert guard_pos < gc_pos, "!_gcPending guard must precede gc() call"
 
 
 def test_gc_called_with_async_execution():
@@ -77,9 +81,10 @@ def test_gc_noop_fallback_present():
     assert "requestIdleCallback" in body
 
 
-def test_gc_log_line_present():
+def test_gc_primary_log_line_present():
+    # The primary dispatch must be identifiable by log prefix in wrapper_system.log.
     body = _gc_block()
-    assert "[GC]" in body
+    assert "[GC] major async dispatched" in body
 
 
 # ---------------------------------------------------------------------------
