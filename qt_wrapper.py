@@ -1,5 +1,6 @@
 import json
 import os
+import re as _re
 import sys
 import time as _time
 
@@ -213,6 +214,33 @@ def _cdp_purge_memory():
     print('[GC] CDP Memory.forciblyPurgeJavaScriptMemory dispatched', flush=True)
 
 
+# Pattern that chatHistory.js emits at the end of each Phase 2 eviction batch.
+_RE_EVICT = _re.compile(r'\[chatHistory\] Phase 2 evict: removed (\d+) live nodes')
+
+
+def _cdp_audit_listeners(n_evicted: int) -> None:
+    """Measure jsEventListeners delta 5 s after a Phase 2 eviction batch.
+
+    Runs in a background thread. Captures the listener count immediately before
+    sleeping (pre-GC baseline) then again after GC has had time to collect the
+    evicted nodes. A delta close to zero after evicting N nodes with continue
+    buttons indicates listener retention; a delta ≈ N confirms clean release.
+    """
+    pre = _cdp_call('Memory.getDOMCounters')
+    pre_listeners = pre.get('jsEventListeners', 0) if pre else None
+    _time.sleep(5)
+    post = _cdp_call('Memory.getDOMCounters')
+    if post and pre_listeners is not None:
+        post_listeners = post.get('jsEventListeners', 0)
+        delta = pre_listeners - post_listeners
+        print(
+            f'[CDP] post-evict listeners:'
+            f' before={pre_listeners} after={post_listeners}'
+            f' delta={delta} nodes-evicted={n_evicted}',
+            flush=True,
+        )
+
+
 def _start_psi_monitor():
     """Background thread monitoring Linux /proc/pressure/memory (PSI).
 
@@ -315,6 +343,26 @@ class NativeBridge(QObject):
 
 class OdysseusPage(QWebEnginePage):
     """QWebEnginePage subclass that routes external links to the system browser."""
+
+    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
+        # Chromium's --enable-logging=stderr captures the renderer's internal log but
+        # NOT JavaScript console.log() — those only reach Python via this override.
+        # Print without a prefix so structured [tag] messages sort cleanly in the log.
+        label = level.name if hasattr(level, 'name') else str(level)
+        if label in ('WARNING', 'ERROR', 'CRITICAL'):
+            print(f'[JS:{label}] {message}', flush=True)
+        else:
+            print(message, flush=True)
+        # When chatHistory.js evicts a Phase 2 batch, audit whether jsEventListeners
+        # drops proportionally — confirms that WeakRef fixes released the closures.
+        m = _RE_EVICT.match(message)
+        if m:
+            _threading.Thread(
+                target=_cdp_audit_listeners,
+                args=(int(m.group(1)),),
+                daemon=True,
+                name='evict-audit',
+            ).start()
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         if is_main_frame and url.host() not in ('localhost', '127.0.0.1'):
