@@ -800,7 +800,14 @@ export function mdToHtml(src, opts) {
  */
 export function squashOutsideCode(s) {
   if (!s) return "";
-  const parts = String(s).split(/```/);
+  const str = String(s);
+  if (!str.includes('```')) {
+    return str
+      .replace(/\r\n/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n');
+  }
+  const parts = str.split(/```/);
   for (let i = 0; i < parts.length; i += 2) {
     parts[i] = parts[i]
       .replace(/\r\n/g, '\n')
