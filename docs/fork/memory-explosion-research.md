@@ -989,6 +989,63 @@ setTimeout(function () {
 
 ---
 
+## Session 4 Findings — 2026-06-22 (Typing Lag + GC Freeze)
+
+### Problem: typing lag and 1-second lockups
+
+Two distinct performance problems were reported during typing:
+
+**1-second lockups**: Diagnosed as `Memory.forciblyPurgeJavaScriptMemory` via CDP. This
+method calls `V8::LowMemoryNotification()` synchronously in the renderer, blocking the JS
+event loop for 100 ms–1 s+ during large-heap collections. Three trigger sites:
+- PSI monitor every 5 s when `avg10 > 5 %` — no cooldown, could fire every 5 s under
+  sustained memory pressure
+- `changeEvent(WindowDeactivate)` — fires on every focus shift on KDE/Wayland (tooltip
+  popups, notification banners, clicking into a dialog)
+- Node-threshold in `_log_renderer_memory` — fires when node count exceeds 50,000
+
+**General jankiness**: `autoResize` in `ui.js` forced 2 DOM layout reflows per keystroke
+via a hidden clone (`getComputedStyle` + `offsetWidth` → first reflow; `clone.scrollHeight`
+→ second reflow). At 8 chars/sec: 16 forced layouts/sec in QtWebEngine.
+
+### Fix: async JS GC replaces synchronous CDP purge
+
+`gc({ type: 'major', execution: 'async' })` is already available via `--expose-gc` and
+covers both V8 and Oilpan (Blink GC). The `async` execution mode runs incremental GC
+slices during idle periods without blocking the main thread — eliminating the freeze.
+
+**`qt_wrapper.py` changes** (branch `feat/qt-native-linux-app`, commit `7d288485`):
+- Removed `_cdp_purge_memory()` entirely
+- Added `_gc_request_pending: list[bool] = [False]` + `_request_async_gc()` for
+  cross-thread scheduling (PSI monitor is a daemon thread with no Qt event loop; using a
+  module-level flag polled every 250 ms by `_gc_drain_timer` on the main thread is the
+  correct pattern)
+- Focus-loss: 500 ms single-shot debounce via `_gc_focus_timer` — `WindowActivate`
+  within 500 ms cancels the GC (skips transient focus shifts); `WindowDeactivate` restarts
+  the timer
+- PSI monitor: 30 s cooldown (`_COOLDOWN = 30`) prevents repeated GC bursts under
+  sustained pressure
+- Node-threshold: direct `page.runJavaScript(...)` call (already on Qt main thread)
+
+**`static/js/ui.js` change** (branch `perf/smooth-typing`, commit `4ba75a26`):
+- Replaced clone-based autoResize with `requestAnimationFrame`-coalesced
+  `height: 'auto'` + `scrollHeight` measurement
+- `textarea._arRafId` guard coalesces all keystrokes in a 16 ms frame to one layout reflow
+- Clone (`_resizeClone`, `cloneNode`, `offsetWidth`) removed entirely
+
+### Diagnostic log lines after fix
+
+| Log line | Meaning |
+|---|---|
+| `[GC] focus-loss — async JS GC` | Window was inactive for 500 ms; async GC queued |
+| `[MEM] PSI avg10=X% > 5.0% — queuing async JS GC` | System memory pressure; cooldown respected |
+| `[GC] async JS GC — PSI` | Drain timer dispatched the PSI-requested GC |
+| `[GC] node-count threshold (N > 50000) — async JS GC` | Node threshold triggered direct GC |
+
+`[GC] CDP purge ok` and `[GC] CDP purge failed` no longer appear.
+
+---
+
 ### Open questions (prioritized)
 
 1. **Does `gc({ type: 'major', execution: 'async' })` eliminate the gray flicker at 2.5s delay?** Not yet measured. First observation needed after next restart.
