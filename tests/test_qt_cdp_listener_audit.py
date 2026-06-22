@@ -275,3 +275,19 @@ def test_log_constants_match_app():
     # 10 MB and 5 backups must match src/constants.py LOG_MAX_BYTES / LOG_BACKUP_COUNT.
     assert "_LOG_MAX_BYTES = 10 * 1024 * 1024" in _SRC
     assert "_LOG_BACKUP_COUNT = 5" in _SRC
+
+
+def test_initial_old_space_size_set():
+    assert "--initial-old-space-size=128" in _SRC
+
+
+def test_optimize_for_size_flag_set():
+    assert "--optimize-for-size" in _SRC
+
+
+def test_minor_mc_flag_set():
+    assert "--minor-mc" in _SRC
+
+
+def test_renderer_process_limit_set():
+    assert "--renderer-process-limit=1" in _SRC

@@ -88,7 +88,9 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--enable-features=WebGPU,SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction",
     "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
     "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
-    "--js-flags=--expose-gc --max-old-space-size=512",  # expose gc() + backstop heap cap
+    "--js-flags=--expose-gc --initial-old-space-size=128 --max-old-space-size=512 --optimize-for-size --minor-mc",
+    "--renderer-process-limit=1",
+    "--disable-extensions",
     *_gpu_flags,
 ])
 
