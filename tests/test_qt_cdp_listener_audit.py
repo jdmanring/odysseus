@@ -192,6 +192,10 @@ def test_log_max_bytes_defined():
     assert "_LOG_MAX_BYTES" in _SRC
 
 
+def test_log_backup_count_defined():
+    assert "_LOG_BACKUP_COUNT" in _SRC
+
+
 def test_rotate_log_called_before_dup2():
     rotate_pos = _SRC.index("_rotate_log(")
     dup2_pos = _SRC.index("os.dup2(")
@@ -203,3 +207,19 @@ def test_access_log_rotated_in_start_server():
     server_end = _SRC.index("\ndef stop_server(")
     server_block = _SRC[server_start:server_end]
     assert "_rotate_log(" in server_block
+
+
+def test_rotate_log_shifts_multiple_backups():
+    # _rotate_log must implement a shift loop, not a single rename, so that
+    # _LOG_BACKUP_COUNT backups are preserved (matching RotatingFileHandler).
+    start = _SRC.index("def _rotate_log(")
+    end = _SRC.index("\n\n\n", start)
+    block = _SRC[start:end]
+    assert "_LOG_BACKUP_COUNT" in block
+    assert "for n in range(" in block
+
+
+def test_log_constants_match_app():
+    # 10 MB and 5 backups must match src/constants.py LOG_MAX_BYTES / LOG_BACKUP_COUNT.
+    assert "_LOG_MAX_BYTES = 10 * 1024 * 1024" in _SRC
+    assert "_LOG_BACKUP_COUNT = 5" in _SRC
