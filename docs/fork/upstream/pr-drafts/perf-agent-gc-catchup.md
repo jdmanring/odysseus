@@ -80,3 +80,49 @@ coordinator handles collection automatically. The `typeof gc === 'function'` gua
   measure holder-div allocation pressure per SSE token
 - `perf/rendertail-text-only-path` (#75) — skips holder-div creation for plain-prose
   tokens; directly reduces the Oilpan node volume that GC must collect
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`.
+
+## Linked Issue
+
+Fixes # <!-- [add upstream issue number before filing] -->
+
+## Type of Change
+
+- [ ] Bug fix
+- [ ] New feature
+- [x] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+### How to Test
+
+1. Start the app with `--expose-gc` set (via `QTWEBENGINE_CHROMIUM_FLAGS` in `qt_wrapper.py`, or pass directly in a dev build).
+2. Run an agent session with 4+ tool calls firing in quick succession (a research task that triggers multiple tool rounds).
+3. In `wrapper_system.log` (or DevTools Console), confirm:
+   - `[GC] blocked — catch-up queued` appears when a response completes while GC is running
+   - `[GC] catch-up dispatched` appears ~3s later
+4. In DevTools → Memory, confirm the heap grows more slowly compared to a session without this patch (one additional GC cycle fires per burst instead of being silently dropped).
+5. Run `pytest tests/test_chat_gc_hint_js.py -q` — 14 tests.
+
+---
+
+## Filing Notes
+
+- 1 commit: `163f946c`.
+- Branch: `perf/agent-gc-catchup` — built from `upstream-mirror`.
+- **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
+- This branch supersedes `fix/qtwebengine-oilpan-gc` (#67, #69) — do not file that branch separately. The catch-up mechanism and the GC tests from that branch are both included here.
+
+## Visual / UI changes
+
+None. GC timing is invisible to the user; this only affects memory usage patterns during agent sessions.

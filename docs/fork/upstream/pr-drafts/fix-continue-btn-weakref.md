@@ -86,3 +86,47 @@ with a continue button), versus near-zero delta before the fix.
 - Depends on `fix/dom-oom-virtualization` for the Phase 2 eviction mechanism
   that makes this observable; the WeakRef fix is independently correct without it.
 - Site 2 is the only confirmed retention path; sites 1 and 3 are defensive.
+
+## Target branch
+
+- [x] This PR targets **`dev`**, not `main`.
+
+## Linked Issue
+
+Fixes # <!-- [add upstream issue number before filing] -->
+
+## Type of Change
+
+- [x] Bug fix (non-breaking, fixes a confirmed issue)
+- [ ] New feature
+- [ ] Refactor / cleanup (behaviour unchanged)
+- [ ] Documentation only
+- [ ] CI / tooling / configuration
+
+## Checklist
+
+- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] This PR targets `dev`
+- [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
+- [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
+
+### How to Test
+
+1. Start a long agent session (10+ multi-step rounds) until Phase 2 eviction fires (`[chatHistory] Phase 2 evict: removed N live nodes` in the console/wrapper_system.log).
+2. After eviction, open DevTools → Memory. Take a heap snapshot. Search for detached nodes with `_pendingContinue` or `continue-btn` in their tree — the count should be zero (no holder retained by the step-limit button after eviction).
+3. In `qt_wrapper.py`, the post-evict CDP audit (`_cdp_audit_listeners`) logs `delta=Z nodes-evicted=N`. With this fix, `Z` should be close to `N`; without it, `Z` is near zero.
+4. Click the Continue button after Phase 2 eviction — confirm it either works (if the holder is still live) or silently does nothing (if evicted), rather than retaining a stale reference.
+5. Run `pytest tests/test_chat_continue_btn_js.py -q` — 9 tests.
+
+---
+
+## Filing Notes
+
+- Single commit: `d3ba512c`.
+- Branch: `fix/continue-btn-weakref` — built from `upstream-mirror`.
+- **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
+- Depends on `fix/dom-oom-virtualization` for the Phase 2 eviction mechanism that makes this observable in production, but is independently correct as a defensive measure without it.
+
+## Visual / UI changes
+
+None. Continue button behavior is unchanged — the WeakRef only affects what happens when the holder has already been evicted.
