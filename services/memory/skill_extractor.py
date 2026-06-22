@@ -261,21 +261,10 @@ async def maybe_extract_skill(
             logger.debug("[skill-extract] '%s' already exists — dropped as duplicate", title)
             return None
 
-        # Auto-publish gate: if the user has `auto_approve_skills` on, the
-        # newly-extracted skill is created `published` immediately rather
-        # than waiting for the next audit batch. The audit still runs later
-        # and can demote it back to `draft` (or delete) on failure. Default
-        # OFF so skills land as drafts; the user publishes from Brain > Skills
-        # after reviewing. Opt-in to auto-publish by enabling the toggle.
-        _initial_status = "draft"
-        try:
-            from routes.prefs_routes import _load_for_user as _load_prefs
-            _prefs = _load_prefs(owner) or {}
-            if _prefs.get("auto_approve_skills", False):
-                _initial_status = "published"
-        except Exception:
-            pass
-
+        # Extraction always produces draft skills. The audit pipeline
+        # (_audit_one_skill in skills_routes.py) is the quality gate; it
+        # tests the skill and promotes to published when auto_approve_skills
+        # is True (the default). auto_approve_skills has no effect here.
         entry = skills_manager.add_skill(
             title=title,
             problem=data.get("problem", ""),
@@ -286,7 +275,7 @@ async def maybe_extract_skill(
             confidence=data.get("confidence", 0.7),
             session_id=getattr(session, "session_id", None),
             owner=owner,
-            status=_initial_status,
+            status="draft",
         )
         try:
             from src.event_bus import fire_event

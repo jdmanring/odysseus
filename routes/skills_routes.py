@@ -490,7 +490,13 @@ _skill_audit_jobs: dict = {}
 
 
 def _audit_auto_publish_policy(owner) -> tuple[bool, float]:
-    """Return (auto_publish_enabled, minimum_confidence) for audit finalization."""
+    """Return (auto_publish_enabled, minimum_confidence) for audit finalization.
+
+    Default is True: when the audit passes, promote the skill to published.
+    The audit IS the quality gate (SkillsBench 2025, arxiv:2602.12670 — skills
+    without promotion provide zero measurable benefit). Users who want to
+    review before publishing can toggle auto_approve_skills off in Brain > Skills.
+    """
     try:
         from routes.prefs_routes import _load_for_user
         prefs = _load_for_user(owner) or {}
@@ -501,7 +507,7 @@ def _audit_auto_publish_policy(owner) -> tuple[bool, float]:
         default_min = get_setting("skill_autosave_min_confidence", 0.85)
     except Exception:
         default_min = 0.85
-    enabled = bool(prefs.get("auto_approve_skills", False))
+    enabled = bool(prefs.get("auto_approve_skills", True))
     try:
         min_conf = float(prefs.get("skill_min_confidence", default_min))
     except (TypeError, ValueError):

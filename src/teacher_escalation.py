@@ -192,7 +192,7 @@ Respond with TWO sections, in this exact order:
   "verification": ["..."],
   "category": "<single category word>",
   "status": "draft",
-  "confidence": 0.8,
+  "confidence": 0.9,
   "source": "teacher-escalation"
 }}
 ```
@@ -290,7 +290,7 @@ Output ONE fenced JSON code block matching this schema and nothing else:
   "verification": ["..."],
   "category": "<single category word>",
   "status": "draft",
-  "confidence": 0.8,
+  "confidence": 0.9,
   "source": "teacher-escalation"
 }}
 ```
