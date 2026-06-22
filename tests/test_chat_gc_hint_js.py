@@ -115,3 +115,14 @@ def test_gc_catchup_gated_on_missed_flag():
     check_pos   = body.index("if (_gcMissed")
     catchup_pos = body.index("catch-up dispatched")
     assert check_pos < catchup_pos, "catch-up gc() must be gated by _gcMissed check"
+
+
+def _check_bg_block() -> str:
+    start = _SRC.index("export function checkBackgroundStream(")
+    end = _SRC.index("\n  export function ", start + 1)
+    return _SRC[start:end]
+
+
+def test_check_background_stream_purges_stale():
+    """checkBackgroundStream must purge stale Map entries on every session switch."""
+    assert "_purgeStaleBackgroundStreams()" in _check_bg_block()

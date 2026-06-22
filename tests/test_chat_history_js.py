@@ -878,3 +878,45 @@ def test_all_logs_use_consistent_prefix():
     assert not bad, (
         "These console calls are missing the '[chatHistory]' prefix: " + str(bad)
     )
+
+
+# ---------------------------------------------------------------------------
+# GC micro-improvements: idle yield + teardown gap
+# ---------------------------------------------------------------------------
+
+def _evict_live_block() -> str:
+    start = _SRC.index("MessageWindow.prototype._evictLive")
+    end = _SRC.index("MessageWindow.prototype._updateEvictNotice", start)
+    return _SRC[start:end]
+
+
+def _prune_top_block() -> str:
+    start = _SRC.index("MessageWindow.prototype._pruneTop")
+    end = _SRC.index("MessageWindow.prototype._pruneBottom", start)
+    return _SRC[start:end]
+
+
+def _prune_bottom_block() -> str:
+    start = _SRC.index("MessageWindow.prototype._pruneBottom")
+    end = _SRC.index("// ---------------------------------------------------------------------------\n  // Singleton", start)
+    return _SRC[start:end]
+
+
+def test_evict_live_yields_to_idle():
+    """_evictLive must signal idle after removing nodes so V8/Oilpan can collect them."""
+    assert "requestIdleCallback" in _evict_live_block()
+
+
+def test_prune_bottom_yields_to_idle():
+    """_pruneBottom must signal idle after removing nodes (mirrors _pruneTop pattern)."""
+    assert "requestIdleCallback" in _prune_bottom_block()
+
+
+def test_prune_top_clears_intervals_before_remove():
+    """_pruneTop must clear _waveInterval before .remove() (mirrors _evictLive teardown)."""
+    assert "_waveInterval" in _prune_top_block()
+
+
+def test_prune_bottom_clears_intervals_before_remove():
+    """_pruneBottom must clear _waveInterval before .remove() (mirrors _evictLive teardown)."""
+    assert "_waveInterval" in _prune_bottom_block()
