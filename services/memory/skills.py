@@ -655,11 +655,16 @@ class SkillsManager:
         if not skills or not query.strip():
             return []
         # Consider published AND draft skills for relevance retrieval.
-        # The teacher-escalation loop writes new skills as drafts; the
-        # whole point is for the student to find them on the next try
-        # without a manual publish click. The UI flags teacher-written
-        # entries with a 🎓 badge so users can demote / delete bad
-        # ones when they spot them.
+        # Teacher-escalation drafts have a fast path to injection: when
+        # auto_approve_skills=True (the default), they inject at the normal
+        # confidence floor so the student can retry a failed task on the next
+        # turn (SkillWeaver pattern, arxiv:2504.07079). The UI flags teacher-
+        # written entries with a 🎓 badge so users can demote or delete bad
+        # ones when they spot them. When auto_approve_skills=False (manual-
+        # review mode), the agent_loop injection path pre-filters to
+        # published + teacher-escalation drafts — so the fast path is
+        # preserved even in manual mode; other drafts wait for the user
+        # to publish or for the nightly audit to promote them.
         skills = [s for s in skills if s.get("status") in ("published", "draft")]
         # Confidence gate (used by prompt-injection, NOT by search): a DRAFT
         # skill must clear the bar to be injected. Published skills are already

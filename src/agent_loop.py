@@ -2435,19 +2435,26 @@ def _build_system_prompt(
                 from services.memory.skills import SkillsManager
                 from src.constants import DATA_DIR
                 sm = SkillsManager(DATA_DIR)
-                # Brain → Skills settings → "Auto-approve skills" toggle +
-                # confidence threshold. Approve OFF → published-only (no draft
-                # passes). Approve ON → drafts at/above the chosen confidence
-                # (0 = "All"). Falls back to the global default setting.
+                # auto_approve_skills controls which draft skills can be injected.
+                # ON (True, default): published + all drafts at confidence floor.
+                # OFF (False): published + source=teacher-escalation drafts only.
+                #   Teacher drafts keep their fast path so the student can retry
+                #   a failed task on the next turn (SkillWeaver, arxiv:2504.07079).
+                # Published skills always inject regardless of this setting.
+                _all_skills = sm.load(owner=owner)
                 if not _prefs.get("auto_approve_skills", True):
-                    _skill_min_conf = 2.0  # nothing draft clears it → published only
-                else:
-                    try:
-                        _skill_min_conf = float(_prefs.get(
-                            "skill_min_confidence",
-                            get_setting("skill_autosave_min_confidence", 0.85)))
-                    except (TypeError, ValueError):
-                        _skill_min_conf = 0.85
+                    _all_skills = [
+                        s for s in _all_skills
+                        if s.get("status") == "published"
+                        or (s.get("status") == "draft"
+                            and s.get("source") == "teacher-escalation")
+                    ]
+                try:
+                    _skill_min_conf = float(_prefs.get(
+                        "skill_min_confidence",
+                        get_setting("skill_autosave_min_confidence", 0.85)))
+                except (TypeError, ValueError):
+                    _skill_min_conf = 0.85
                 try:
                     _skill_max_injected = int(_prefs.get(
                         "skill_max_injected",
@@ -2457,7 +2464,7 @@ def _build_system_prompt(
                 _skill_max_injected = max(0, min(12, _skill_max_injected))
                 relevant_skills = sm.get_relevant_skills(
                     last_user,
-                    skills=sm.load(owner=owner),
+                    skills=_all_skills,
                     threshold=0.25,
                     max_items=_skill_max_injected,
                     min_confidence=_skill_min_conf,
