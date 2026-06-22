@@ -84,12 +84,27 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   that also matched unrelated processes sharing the binary name. `renderProcessPid()`
   returns 0 when the renderer has not started or has crashed — guarded with `if pid:`.
 - **Bounded CDP thread pool:** `concurrent.futures.ThreadPoolExecutor(max_workers=2,
-  thread_name_prefix='cdp')` replaces ad-hoc `threading.Thread` spawning for all
-  CDP background work (eviction audit, PSI-triggered purge, focus-loss purge,
-  node-threshold purge). Bounds concurrent thread count; prevents unbounded
-  thread creation under heavy eviction load. The PSI poll loop no longer blocks
-  on the CDP WebSocket round-trip. Executor is shut down
+  thread_name_prefix='cdp')` replaces ad-hoc `threading.Thread` spawning for CDP
+  background work (post-eviction listener audit). Bounds concurrent thread count;
+  prevents unbounded thread creation under heavy eviction load. Executor is shut down
   (`cancel_futures=True, wait=False`) in `stop_server()`.
+- **Async GC (non-blocking input):** Memory pressure events use
+  `gc({ type: 'major', execution: 'async' })` via `page.runJavaScript()` rather than
+  `Memory.forciblyPurgeJavaScriptMemory` via CDP. The CDP variant calls
+  `V8::LowMemoryNotification()` synchronously in the renderer, blocking the JS event
+  loop for 100 ms–1 s+ and causing visible input freezes during large-heap collections.
+  The async variant runs incremental GC slices during idle and does not block.
+  Three trigger paths:
+  - **Focus-loss** (`changeEvent(WindowDeactivate)`): 500 ms single-shot debounce
+    (`_gc_focus_timer`) so transient focus shifts (notifications, dropdown menus) are
+    skipped; `WindowActivate` within 500 ms cancels the GC.
+  - **PSI monitor** (`/proc/pressure/memory` avg10 > 5 %): 30 s cooldown
+    (`_COOLDOWN = 30`) prevents repeated GC bursts under sustained pressure. The PSI
+    loop is a daemon Python thread with no Qt event loop; a 250 ms main-thread drain
+    timer (`_gc_drain_timer`) polls `_gc_request_pending` and calls `runJavaScript`,
+    avoiding `QTimer.singleShot` cross-thread hazards.
+  - **Node-threshold** (> 50 000 Oilpan nodes): direct `page.runJavaScript()` call
+    inside `_log_renderer_memory`, which already runs on the Qt main thread.
 - **Startup log rotation:** `_rotate_log(path)` rotates `wrapper_system.log` and
   `server_access.log` at startup if they exceed 10 MB, preserving 5 numbered
   backups (`path.1`–`path.5`) via the same shift algorithm used by
@@ -98,11 +113,12 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   follow the same retention policy. Rotation happens before `os.dup2` so there
   is no fd conflict with the Chromium renderer's inherited file descriptors.
   A `[LOG]` timestamp line is written to the newly opened file after `os.dup2`.
-- 38 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
+- 43 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
   import correctness, call-site presence, executor usage, log rotation
   structure (including that the shift loop and `_LOG_BACKUP_COUNT` are present
-  and that constants match the app), and that `nodes` is assigned before the
-  threshold comparison (positional assertion guards against cherry-pick divergence).
+  and that constants match the app), `nodes` assigned before threshold comparison,
+  async GC machinery (`_request_async_gc`, `_gc_drain_timer`, `_gc_request_pending`),
+  PSI cooldown, and `changeEvent` debounce/cancel behaviour.
 
 **`build-linux-app.sh`**: preflight check and launch script. Verifies that
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
