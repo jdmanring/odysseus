@@ -501,7 +501,7 @@ def _audit_auto_publish_policy(owner) -> tuple[bool, float]:
         default_min = get_setting("skill_autosave_min_confidence", 0.85)
     except Exception:
         default_min = 0.85
-    enabled = bool(prefs.get("auto_approve_skills", True))
+    enabled = bool(prefs.get("auto_approve_skills", False))
     try:
         min_conf = float(prefs.get("skill_min_confidence", default_min))
     except (TypeError, ValueError):
