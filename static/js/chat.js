@@ -4876,6 +4876,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     // rewrite (replaces the old "Rewriting..." text).
     const bodyEl = aiMsgElement.querySelector('.body');
     let _rwSpin = null;
+    let _rwRenderer = null;
     if (bodyEl) {
       bodyEl.innerHTML = '';
       _rwSpin = spinnerModule.createWhirlpool(18);
@@ -4932,9 +4933,20 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
               newText += data.delta;
               _killRwSpin();
               if (bodyEl) {
-                bodyEl.innerHTML = markdownModule.processWithThinking(
-                  markdownModule.squashOutsideCode(newText)
-                );
+                if (!_rwRenderer) {
+                  let _rwContentEl = bodyEl.querySelector('.stream-content');
+                  if (!_rwContentEl) {
+                    _rwContentEl = document.createElement('div');
+                    _rwContentEl.className = 'stream-content';
+                    bodyEl.appendChild(_rwContentEl);
+                  }
+                  _rwRenderer = createStreamRenderer(_rwContentEl, {
+                    render: (t) => markdownModule.processWithThinking(
+                      markdownModule.squashOutsideCode(t)),
+                    hljs: window.hljs,
+                  });
+                }
+                _rwRenderer.update(newText);
               }
             }
           } catch (e) {
@@ -4966,7 +4978,12 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       // Update the element's raw text
       if (newText) {
         aiMsgElement.dataset.raw = newText;
-        // Final render with proper markdown
+        // Finalize incremental renderer if it was used, then do a single clean
+        // final render with the stripped text (thinking blocks removed).
+        if (_rwRenderer) {
+          _rwRenderer.finalize();
+          _rwRenderer = null;
+        }
         if (bodyEl) {
           bodyEl.innerHTML = markdownModule.processWithThinking(
             markdownModule.squashOutsideCode(newText)
