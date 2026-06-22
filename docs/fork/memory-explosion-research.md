@@ -62,14 +62,54 @@ The V8 `gc()` API, when called via `--expose-gc`, triggers a full major collecti
 
 **Tradeoff**: Both synchronous `gc()` and `gc({ type: 'major', execution: 'async' })` caused brief gray-frame flicker during testing. The flicker is likely Chromium temporarily suspending the compositor during GC. With a 2.5-second post-response delay (allowing the UI to settle before GC starts), flicker is expected to be minimized.
 
-### Current approach (as of 2026-06-21)
+### Current approach (as of 2026-06-21, updated)
 
 1. `--expose-gc` flag re-added to `qt_wrapper.py` Chromium flags
-2. In `chat.js` `finally` block: `setTimeout(() => gc({ type: 'major', execution: 'async' }), 2500)`
+2. In `chat.js` `finally` block: `setTimeout(() => gc({ type: 'major', execution: 'async' }), 2500)` with `_gcPending` / `_gcMissed` catch-up scheduling (see Session 3 below)
 3. Falls back to `requestIdleCallback` no-op if `gc()` is absent (non-QtWebEngine environments)
 4. All Session 1 fixes remain in place (they reduce DOM churn, which reduces the volume of detached nodes that GC must collect)
 
 **Not yet verified**: Whether the 2.5s delay + async mode eliminates the gray flicker. Requires a new session after restart with the updated qt_wrapper.py.
+
+---
+
+## Session 3 Findings — 2026-06-21 (GC Scheduling Analysis)
+
+### Diagnosis: `_gcPending` lockout blocks GC in agent sessions
+
+The `_gcPending` guard (originally 5000ms lockout) was designed to prevent stacking concurrent GC cycles. However, in a rapid agent tool-call batch, it prevents GC from firing for any response except the first:
+
+```
+T=0s   Response 1 finishes → gc() dispatched → _gcPending = true
+T=2s   Response 2 finishes → gc() BLOCKED (_gcPending)
+T=4s   Response 3 finishes → gc() BLOCKED
+T=6s   Response 4 finishes → gc() BLOCKED
+T=5s   _gcPending = false  ← no catch-up; 3 responses' Oilpan garbage stranded
+```
+
+A run of 4 tool-call responses accumulates 3×(response Oilpan garbage) with no collection until the next manual response triggers a new 2.5s timer.
+
+### Fix: `_gcMissed` catch-up flag
+
+Branch `perf/agent-gc-catchup` (issue #80) adds:
+
+1. `_gcMissed` flag alongside `_gcPending`. When a response completes while GC is running, `_gcMissed = true` is set and `[GC] blocked — catch-up queued` is logged.
+2. When the primary GC cycle completes (`_gcPending = false` reset), if `_gcMissed` is true, one catch-up GC cycle fires immediately and logs `[GC] catch-up dispatched`.
+3. Lockout reduced from 5000ms → 3000ms: `gc({ type: 'major', execution: 'async' })` runs incremental slices during idle; 3s is sufficient for a sweep over 50k–200k Oilpan nodes.
+
+**Result**: A burst of N rapid agent responses gets exactly 2 GC cycles (primary + catch-up) rather than 1 (or 0 if the next response arrives within 5s).
+
+### Diagnostic signals (check in wrapper_system.log)
+
+| Log line | Meaning |
+|----------|---------|
+| `[GC] major async dispatched` | Primary GC fired; Oilpan collection started |
+| `[GC] blocked — catch-up queued` | Response completed while GC was running; catch-up scheduled |
+| `[GC] catch-up dispatched` | Catch-up cycle fired for the blocked batch |
+| `[CDP] nodes=N documents=D listeners=L` | 60s Oilpan snapshot; N should oscillate, not climb monotonically |
+| `[GC] CDP purge ok — focus-loss` | Focus-loss CDP purge succeeded |
+
+A healthy session shows nodes go up during streaming and drop after each GC cycle. Monotonically climbing nodes indicate GC is failing to fire or collect.
 
 ### Revised understanding of PR #4661
 
