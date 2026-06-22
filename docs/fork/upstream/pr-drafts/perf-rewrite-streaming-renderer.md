@@ -1,0 +1,109 @@
+# PR Draft: perf/rewrite-streaming-renderer → pewdiepie-archdaemon/odysseus:dev
+
+**Branch:** `jdmanring/odysseus:perf/rewrite-streaming-renderer`
+**Issue:** [#79](https://github.com/jdmanring/odysseus/issues/79) (fork tracking)
+**Status:** Ready to file
+
+---
+
+## Title
+
+`perf(chat): stream rewrite path through streamingRenderer to eliminate O(n²) rebuilds`
+
+---
+
+## Summary
+
+### Problem
+
+`rewriteWith()` streams a rewritten response token-by-token. On every SSE `delta`
+token it executes:
+
+```javascript
+bodyEl.innerHTML = markdownModule.processWithThinking(
+  markdownModule.squashOutsideCode(newText)
+);
+```
+
+This is an O(n²) pattern: each token triggers a full markdown parse, DOMPurify
+sanitization, and complete DOM reconstruction of the entire accumulated text. For a
+200-token rewrite that is 200 full parse+rebuild cycles. The final `[DONE]`
+handling then assigns `bodyEl.innerHTML` a second time, discarding the entire
+streaming-built tree immediately after construction.
+
+This is the same anti-pattern that was fixed for the main chat streaming path
+(incremental `streamingRenderer` via `renderTail()`); the rewrite path was
+overlooked.
+
+### Fix
+
+Lazy-initialize a `createStreamRenderer` on the first delta token and call
+`.update(newText)` per token — identical to the main streaming path pattern.
+After the SSE loop completes, finalize the renderer and perform a single final
+`bodyEl.innerHTML` render with the stripped text (thinking blocks removed by
+`_stripThink`):
+
+```javascript
+// Per-token: lazy init + incremental update
+if (!_rwRenderer) {
+  let _rwContentEl = bodyEl.querySelector('.stream-content');
+  if (!_rwContentEl) {
+    _rwContentEl = document.createElement('div');
+    _rwContentEl.className = 'stream-content';
+    bodyEl.appendChild(_rwContentEl);
+  }
+  _rwRenderer = createStreamRenderer(_rwContentEl, {
+    render: (t) => markdownModule.processWithThinking(
+      markdownModule.squashOutsideCode(t)),
+    hljs: window.hljs,
+  });
+}
+_rwRenderer.update(newText);
+
+// After loop + _stripThink:
+if (_rwRenderer) {
+  _rwRenderer.finalize();
+  _rwRenderer = null;
+  console.log('[chat] rewrite: renderer finalized');
+}
+bodyEl.innerHTML = markdownModule.processWithThinking(
+  markdownModule.squashOutsideCode(newText)
+);
+```
+
+The renderer provides O(1)-per-token incremental DOM updates during streaming
+(total O(n) over the full response). The single final `innerHTML` after
+`_stripThink` ensures the displayed text is the clean canonical version with
+thinking tags removed — identical behaviour to before, with O(n) total work
+instead of O(n²).
+
+### Performance impact
+
+For a 200-token rewrite:
+- **Before:** 200 full markdown parse + DOMPurify + innerHTML per token + 1 final
+  = 201 complete DOM rebuilds
+- **After:** O(n) incremental tail-patch per token via streamingRenderer + 1 final
+  = ~1 effective DOM build
+
+Heap allocation reduced from O(n²) intermediate trees to O(n) live nodes.
+
+---
+
+## Files changed
+
+- `static/js/chat.js` — lazy-init renderer in `rewriteWith()` delta loop; finalize
+  before final render
+
+## Tests
+
+11 static-analysis tests in `tests/test_chat_rewrite_streaming_js.py`:
+- `_rwRenderer` variable declared in `rewriteWith` scope
+- `.stream-content` div created on first delta
+- `querySelector('.stream-content')` used for lazy reuse
+- `createStreamRenderer` called with correct render function
+- `_rwRenderer.update(newText)` called in delta loop
+- No `bodyEl.innerHTML` in the delta loop
+- `_rwRenderer.finalize()` called before final render
+- `_rwRenderer = null` after finalize
+- Single final `bodyEl.innerHTML` present
+- Log line `[chat] rewrite: renderer finalized` present

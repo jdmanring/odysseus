@@ -62,6 +62,19 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
 - **Logging:** `os.dup2` redirects Chromium renderer fd 1/2 into
   `logs/wrapper_system.log` before Qt is imported so all renderer subprocess
   output is captured.
+- **JS console routing:** `OdysseusPage.javaScriptConsoleMessage` override routes all
+  JavaScript `console.log()` output into `wrapper_system.log`. Chromium's
+  `--enable-logging=stderr` only captures the renderer's internal C++ log — JS console
+  calls are silent without this override. This surfaces all `[streamRenderer]`,
+  `[chatHistory]`, `[chat]`, and `[GC]` structured log lines from the application JS.
+- **Post-evict listener audit:** when `chatHistory.js` emits
+  `[chatHistory] Phase 2 evict: removed N live nodes`, the console override spawns
+  a background thread that measures `jsEventListeners` (via `Memory.getDOMCounters`)
+  immediately and again 5 seconds later. The delta is logged as
+  `[CDP] post-evict listeners: before=X after=Y delta=Z nodes-evicted=N`. A delta
+  close to N confirms that event listener closures are releasing after eviction; a
+  near-zero delta indicates GC retention. 13 static-analysis tests in
+  `tests/test_qt_cdp_listener_audit.py`.
 
 **`build-linux-app.sh`**: preflight check and launch script. Verifies that
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
