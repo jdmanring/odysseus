@@ -23,7 +23,7 @@ import json
 import logging
 import os
 import time
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from .skill_format import Skill, slugify
 
@@ -55,6 +55,81 @@ def _to_float(x, default: float = 0.0) -> float:
 
 
 # ---------------------------------------------------------------------------
+# BM25 helpers (SkillRet arxiv:2605.05726; Skill Retrieval Benchmark arxiv:2604.24594)
+# ---------------------------------------------------------------------------
+
+from math import log as _log
+
+
+def _compute_idf(skills: List[Dict]) -> Dict[str, float]:
+    """Compute BM25 IDF weights over the skill corpus. O(N*L)."""
+    N = max(len(skills), 1)
+    df: Dict[str, int] = {}
+    for sk in skills:
+        tokens = _tokenize(" ".join([
+            sk.get("name", ""),
+            sk.get("description", ""),
+            sk.get("when_to_use", ""),
+            " ".join(sk.get("tags", []) or []),
+        ]))
+        for t in tokens:
+            df[t] = df.get(t, 0) + 1
+    return {t: _log((N - n + 0.5) / (n + 0.5) + 1.0) for t, n in df.items()}
+
+
+def _bm25_score(
+    query_tokens: set,
+    skill_tokens: List[str],
+    idf: Dict[str, float],
+    k1: float = 1.5,
+    b: float = 0.75,
+    avg_len: float = 60.0,
+) -> float:
+    """BM25 relevance score for one skill (un-normalized)."""
+    tf_map: Dict[str, int] = {}
+    for t in skill_tokens:
+        tf_map[t] = tf_map.get(t, 0) + 1
+    doc_len = len(skill_tokens)
+    score = 0.0
+    for qt in query_tokens:
+        idf_val = idf.get(qt)
+        if idf_val is None:
+            continue
+        tf = tf_map.get(qt, 0)
+        score += idf_val * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * doc_len / avg_len))
+    return score
+
+
+# ---------------------------------------------------------------------------
+# Skill health score (SkillOps arxiv:2605.13716 five diagnostic dimensions)
+# ---------------------------------------------------------------------------
+
+
+def _health_score(skill: Dict) -> int:
+    """Composite 0–100 quality score from existing sidecar signals.
+
+    Calibrated to SkillOps five diagnostic dimensions:
+      Utility  (uses, 0–20 pts)
+      Validation (audit_verdict + confidence, 0–70 pts)
+      Redundancy (necessity, 0–10 pts)
+    """
+    score = 0
+    # Confidence: 0–40 pts (primary signal — audit-adjusted)
+    score += int(_to_float(skill.get("confidence"), 0.5) * 40)
+    # Audit verdict: 0–30 pts
+    score += {"pass": 30, "inconclusive": 15, "needs_work": 10,
+              "skipped": 5, "fail": 0}.get(skill.get("audit_verdict"), 15)
+    # Usage: 0–20 pts, capped at 20 uses
+    uses = min(int(skill.get("uses") or 0), 20)
+    score += int((uses / 20) * 20)
+    # Necessity: +10 pts if necessary or unknown (unaudited skills assumed necessary)
+    necessity = skill.get("necessity") or {}
+    if necessity.get("necessary") is not False:
+        score += 10
+    return min(score, 100)
+
+
+# ---------------------------------------------------------------------------
 # SkillsManager
 # ---------------------------------------------------------------------------
 
@@ -68,6 +143,9 @@ class SkillsManager:
         self.usage_file = os.path.join(self.skills_root, "_usage.json")
         self.legacy_file = os.path.join(data_dir, "skills.json")  # back-compat
         os.makedirs(self.skills_root, exist_ok=True)
+        # (corpus_key, idf) — keyed to the corpus so a filtered subset can't
+        # reuse the full library's IDF. None until first use / after a mutation.
+        self._idf_cache: Optional[Tuple[frozenset, Dict[str, float]]] = None
 
     # ----------------------------------------------------------------------
     # Path helpers
@@ -233,6 +311,7 @@ class SkillsManager:
             d["audit_teacher_model"] = u.get("audit_teacher_model")
             d["audited_at"] = u.get("audited_at")
             d["necessity"] = u.get("necessity")
+            d["health_score"] = _health_score(d)
             out.append(d)
             seen_names.add(sk.name)
         # Legacy JSON entries — surfaced as draft, not editable from new flow
@@ -378,7 +457,7 @@ class SkillsManager:
             body_extra=(solution if solution and not procedure else ""),
         )
         self._write_skill(sk)
-
+        self._idf_cache = None
         return sk.to_dict()
 
     def import_bundle_from_files(
@@ -499,6 +578,7 @@ class SkillsManager:
                     usage[self._usage_key(sk.name, sk.owner)] = usage.pop(old_usage_key)
                     self._save_usage(usage)
             self._write_skill(sk)
+            self._idf_cache = None
             return True
         return False
 
@@ -526,6 +606,7 @@ class SkillsManager:
             if usage_key in usage:
                 del usage[usage_key]
                 self._save_usage(usage)
+            self._idf_cache = None
             return True
         return False
 
@@ -689,8 +770,30 @@ class SkillsManager:
             return []
 
         query_tokens = _tokenize(query)
-        scored = []
+
+        # BM25 IDF over the candidate corpus — cached per corpus. Library
+        # mutations (add/update/delete) invalidate the cache, but callers also
+        # pass *different* corpora (owner/status-filtered subsets), so the cache
+        # is keyed to the corpus identity: applying one corpus's IDF to another
+        # would silently skew ranking.
+        corpus_key = frozenset(sk.get("id") or sk.get("name", "") for sk in skills)
+        if self._idf_cache is None or self._idf_cache[0] != corpus_key:
+            self._idf_cache = (corpus_key, _compute_idf(skills))
+        idf = self._idf_cache[1]
+        token_lists = []
         for sk in skills:
+            toks = list(_tokenize(" ".join([
+                sk.get("name", ""),
+                sk.get("description", ""),
+                sk.get("when_to_use", ""),
+                " ".join(sk.get("tags", []) or []),
+                " ".join(sk.get("procedure", []) or []),
+            ])))
+            token_lists.append(toks)
+        avg_len = max(sum(len(t) for t in token_lists) / len(token_lists), 1.0) if token_lists else 60.0
+
+        scored = []
+        for sk, skill_tokens in zip(skills, token_lists):
             text = " ".join([
                 sk.get("name", ""),
                 sk.get("description", ""),
@@ -698,10 +801,15 @@ class SkillsManager:
                 " ".join(sk.get("tags", []) or []),
                 " ".join(sk.get("procedure", []) or []),
             ])
-            score = _jaccard(query_tokens, _tokenize(text))
+            jaccard = _jaccard(query_tokens, set(skill_tokens))
+            bm25_raw = _bm25_score(query_tokens, skill_tokens, idf, avg_len=avg_len)
+            # Normalize BM25 to [0, 1]: bm25_raw / (bm25_raw + 3.0)
+            # The +3.0 constant keeps moderate scores below 0.5 and very high
+            # scores approaching 1.0 — calibrated for typical Odysseus skill lengths.
+            bm25_norm = bm25_raw / (bm25_raw + 3.0) if bm25_raw > 0 else 0.0
+            score = 0.5 * jaccard + 0.5 * bm25_norm
             for tag in sk.get("tags", []) or []:
-                # Match tags as whole tokens, not substrings: `tag in query`
-                # boosted e.g. a "ai" tag for any query containing "email".
+                # Match tags as whole tokens, not substrings.
                 tag_tokens = _tokenize(tag)
                 if tag_tokens and tag_tokens <= query_tokens:
                     score = max(score, 0.3) * 1.3
