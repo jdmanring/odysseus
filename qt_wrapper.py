@@ -1,13 +1,8 @@
-import base64 as _cdp_b64
 import json
 import os
 import re as _re
-import socket as _cdp_sock
-import struct as _cdp_struct
 import sys
-import threading as _threading
 import time as _time
-import urllib.request as _cdp_req
 
 # ==============================================================================
 # CRITICAL: Logging setup must happen BEFORE any PyQt6/QtWebEngine imports.
