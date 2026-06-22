@@ -95,9 +95,10 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   Rotation happens before `os.dup2` so there is no fd conflict with the Chromium
   renderer's inherited file descriptors. A `[LOG]` timestamp line is written to
   the newly opened file after `os.dup2` succeeds.
-- 34 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
-  import correctness, call-site presence, executor usage, and log rotation
-  structure.
+- 35 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
+  import correctness, call-site presence, executor usage, log rotation
+  structure, and that `nodes` is assigned before the threshold comparison
+  (positional assertion guards against future cherry-pick divergence).
 
 **`build-linux-app.sh`**: preflight check and launch script. Verifies that
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
