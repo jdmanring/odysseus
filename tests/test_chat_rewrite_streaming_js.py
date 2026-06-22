@@ -73,3 +73,8 @@ def test_rw_renderer_nulled_after_finalize():
 def test_rw_final_single_innerhtml_exists():
     body = _rewrite_fn_body()
     assert "bodyEl.innerHTML = markdownModule.processWithThinking(" in body
+
+
+def test_rw_renderer_logs_finalize():
+    body = _rewrite_fn_body()
+    assert "console.log('[chat] rewrite: renderer finalized')" in body
