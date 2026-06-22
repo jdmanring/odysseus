@@ -2496,7 +2496,12 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                     var _body3 = roundHolder.querySelector('.body');
                     var _contentEl3 = _ensureStreamLayout(_body3);
                     _contentEl3.style.minHeight = '';  // clear streaming inflate
-                    _contentEl3.innerHTML = markdownModule.processWithThinking(markdownModule.squashOutsideCode(dt));
+                    if (_contentEl3._streamRenderer) {
+                      _contentEl3._streamRenderer.finalize();
+                      _contentEl3._streamRenderer = null;
+                    } else {
+                      _contentEl3.innerHTML = markdownModule.processWithThinking(markdownModule.squashOutsideCode(dt));
+                    }
                     if (window.hljs) roundHolder.querySelectorAll('pre code').forEach((b) => window.hljs.highlightElement(b));
                   } else {
                     roundHolder.style.display = 'none';
@@ -3057,10 +3062,26 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
             }
             if (_findingsData) _body4.insertAdjacentHTML('beforeend', chatRenderer.buildFindingsBox(_findingsData));
           } else {
-            // Full re-render (reply empty or no live-reply container)
-            _body4.innerHTML = (_sourcesData ? _buildSourcesBox(_sourcesData, _sourcesType, _wasExpanded) : '')
-              + markdownModule.processWithThinking(markdownModule.squashOutsideCode(finalDisplay))
-              + (_findingsData ? chatRenderer.buildFindingsBox(_findingsData) : '');
+            // If Reset 1 already finalized the renderer in-place, the .stream-content
+            // div holds the rendered nodes — inject sources/findings as siblings instead
+            // of wiping and rebuilding the whole body.
+            var _streamContentEl = _body4.querySelector('.stream-content');
+            var _hasInPlaceContent = !!(_streamContentEl && _streamContentEl.childNodes.length > 0);
+            if (_hasInPlaceContent) {
+              if (_sourcesData) {
+                var _srcEl = document.createElement('div');
+                _srcEl.innerHTML = _buildSourcesBox(_sourcesData, _sourcesType, _wasExpanded);
+                _body4.insertBefore(_srcEl.firstChild || _srcEl, _streamContentEl);
+              }
+              if (_findingsData) {
+                _body4.insertAdjacentHTML('beforeend', chatRenderer.buildFindingsBox(_findingsData));
+              }
+            } else {
+              // Full re-render (reply empty or no live-reply container, no in-place content)
+              _body4.innerHTML = (_sourcesData ? _buildSourcesBox(_sourcesData, _sourcesType, _wasExpanded) : '')
+                + markdownModule.processWithThinking(markdownModule.squashOutsideCode(finalDisplay))
+                + (_findingsData ? chatRenderer.buildFindingsBox(_findingsData) : '');
+            }
           }
         } else if (_sourcesHtml) {
           var _body4b = roundHolder.querySelector('.body');
