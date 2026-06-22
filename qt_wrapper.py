@@ -456,7 +456,9 @@ class OdysseusWindow(QMainWindow):
         page.renderProcessTerminated.connect(_on_renderer_crash)
 
         # Periodic renderer memory snapshot (every 60s).
-        # Also polls CDP Memory.getDOMCounters to track Oilpan node counts alongside RSS.
+        # Polls /proc/<pid>/status for RSS and CDP Memory.getDOMCounters for live
+        # Oilpan node counts. When node accumulation is high, triggers a CDP purge
+        # so collection doesn't wait for the next focus-loss event.
         def _log_renderer_memory():
             try:
                 pid = page.renderProcessPid()
@@ -469,10 +471,17 @@ class OdysseusWindow(QMainWindow):
                 print(f'[MEM] error: {e}', flush=True)
             counts = _cdp_call('Memory.getDOMCounters')
             if counts:
+                nodes = counts.get('nodes', 0)
+                listeners = counts.get('jsEventListeners', 0)
+                # listeners/node ratio should be roughly constant (~3–5× for a
+                # typical chat session). A rising ratio indicates a listener leak
+                # — either removeEventListener is being skipped or setInterval
+                # closures are preventing GC of elements that still hold listeners.
+                ratio = f'{listeners / nodes:.1f}' if nodes else 'n/a'
                 print(
-                    f'[CDP] nodes={counts.get("nodes")} '
+                    f'[CDP] nodes={nodes} '
                     f'documents={counts.get("documents")} '
-                    f'listeners={counts.get("jsEventListeners")}',
+                    f'listeners={listeners} (listeners/node={ratio})',
                     flush=True,
                 )
                 # Detached node accumulation above this threshold means Oilpan is not
