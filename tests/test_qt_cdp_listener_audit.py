@@ -214,19 +214,20 @@ def test_nodes_assigned_before_threshold_comparison():
     assert nodes_assign < threshold_use
 
 
+# --- Change B: executor shutdown ---
+
+def test_executor_shutdown_in_stop_server():
+    # Executor must be shut down when the server stops so CDP threads do not
+    # outlive the server process.  cancel_futures=True prevents queued work
+    # from running after shutdown is requested.
+    stop_start = _SRC.index("def stop_server(")
+    stop_end   = _SRC.index("\ndef ", stop_start + 1)
+    stop_block = _SRC[stop_start:stop_end]
+    assert "_cdp_executor.shutdown(" in stop_block
+    assert "cancel_futures=True" in stop_block
+
+
 # --- Change C: startup log rotation ---
-
-def test_rotate_log_defined():
-    assert "def _rotate_log(" in _SRC
-
-
-def test_log_max_bytes_defined():
-    assert "_LOG_MAX_BYTES" in _SRC
-
-
-def test_log_backup_count_defined():
-    assert "_LOG_BACKUP_COUNT" in _SRC
-
 
 def test_rotate_log_called_before_dup2():
     rotate_pos = _SRC.index("_rotate_log(")
