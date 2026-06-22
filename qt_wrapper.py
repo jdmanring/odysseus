@@ -458,6 +458,7 @@ class OdysseusWindow(QMainWindow):
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
         self._mem_timer.start(60_000)
+        _start_psi_monitor()
 
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
