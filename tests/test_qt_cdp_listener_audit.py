@@ -111,3 +111,9 @@ def test_log_renderer_memory_uses_cdp_call():
     start = _SRC.index(marker)
     block = _SRC[start:start + 800]
     assert "_cdp_call('Memory.getDOMCounters')" in block
+
+
+def test_psi_monitor_called_not_just_defined():
+    # Verify _start_psi_monitor() is actually invoked, not only defined.
+    # Count occurrences: first is the def, second must be the call site.
+    assert _SRC.count("_start_psi_monitor") >= 2
