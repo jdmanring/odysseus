@@ -115,3 +115,41 @@ def test_ge_transform_popup_retains_backdrop_filter():
     # .ge-transform-popup has background: color-mix(in srgb, var(--panel) 96%, transparent).
     # 4% translucency — blur is faint but intentional. Kept.
     assert _near(".ge-transform-popup {", "backdrop-filter")
+
+
+# ---------------------------------------------------------------------------
+# Brain panel sweep animation — must use transform, not @property custom property
+# ---------------------------------------------------------------------------
+
+def test_memory_sweep_uses_no_css_property_registration():
+    # @property --sweep forced main-thread style recalculation every frame for
+    # every memory item, filling Oilpan with raster tiles that QtWebEngine never
+    # GCs (no OS memory pressure signals reach the renderer process). This caused
+    # 14–18 GB RSS spikes when the Brain panel was open. The fix uses
+    # transform: translateX() which is fully GPU-composited.
+    assert "@property --sweep" not in _CSS
+    assert "syntax: '<percentage>'" not in _CSS
+
+
+def test_memory_sweep_animation_uses_transform():
+    # The memory-synapse-sweep keyframe must animate transform (GPU-composited),
+    # not the --sweep custom property (main-thread, triggers raster tile churn).
+    idx = _CSS.find("@keyframes memory-synapse-sweep {")
+    assert idx >= 0, "memory-synapse-sweep keyframe must exist"
+    block = _CSS[idx : idx + 400]
+    assert "transform" in block, "sweep must animate transform"
+    assert "--sweep" not in block, "sweep must not animate --sweep custom property"
+
+
+def test_memory_sweep_hover_does_not_use_animation_none():
+    # `animation: none` on hover destroys the compositor layer and recreates it
+    # on mouse-leave, causing a gray-frame flash. The hover rule must suppress
+    # the sweep with opacity only (compositor-friendly) instead.
+    idx = _CSS.find("#memory-list .memory-item:hover::after")
+    assert idx >= 0, "hover rule for sweep must exist"
+    rule = _CSS[idx : idx + 200]
+    assert "animation: none" not in rule, (
+        "hover must not use animation:none — use opacity:0 to avoid "
+        "compositor layer teardown and the resulting gray-frame flash"
+    )
+    assert "opacity: 0" in rule or "opacity:0" in rule

@@ -10865,25 +10865,25 @@ textarea.memory-add-input {
   overflow: hidden;
 }
 #memory-list .memory-item::after {
-  /* Sweep highlight rides the border ring only — gradient-fill + mask cutout
-     keeps the bright pulse on the 1px stroke instead of washing the body. */
+  /* Sweep highlight — compositor-only: transform+opacity only so the GPU
+     handles every frame. The @property gradient approach forced main-thread
+     style recalculation each frame for every item, filling Oilpan with
+     raster tiles that QtWebEngine never GCs. overflow:hidden on the parent
+     clips the strip while it waits off-screen, so no opacity trick is needed
+     for the idle phase. */
   content: '';
   position: absolute;
-  inset: 0;
+  inset: 0 0 0 -40%;
+  width: 40%;
   border-radius: inherit;
-  padding: 1px;
   pointer-events: none;
   background: linear-gradient(
-    to right,
+    90deg,
     transparent 0%,
-    transparent calc(var(--sweep, -20%) - 8%),
-    color-mix(in srgb, var(--red) 85%, transparent) var(--sweep, -20%),
-    transparent calc(var(--sweep, -20%) + 8%),
+    color-mix(in srgb, var(--red) 25%, transparent) 50%,
     transparent 100%
   );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
+  will-change: transform;
   animation: memory-synapse-sweep 6.2s linear infinite;
   animation-delay: 0.4s;
 }
@@ -10891,18 +10891,16 @@ textarea.memory-add-input {
 #memory-list .memory-item:nth-child(3n)::after { animation-duration: 8.8s; animation-delay: 3.2s; }
 #memory-list .memory-item:nth-child(5n)::after { animation-duration: 9.3s; animation-delay: 4.7s; }
 #memory-list .memory-item:nth-child(7n)::after { animation-duration: 5.5s; animation-delay: 2.3s; }
-#memory-list .memory-item:hover::after { animation: none; opacity: 0; }
-@property --sweep {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: -20%;
-}
+/* Fade on hover without stopping the animation — stopping it destroys the
+   compositor layer and recreates it on mouse-leave, causing a gray-frame flash. */
+#memory-list .memory-item:hover::after { opacity: 0; }
 @keyframes memory-synapse-sweep {
-  /* Sweep traverses left → right in the first ~12% of the cycle (≈0.7s of
-     a 6.2s loop), then waits offscreen. */
-  0%   { --sweep: -20%; }
-  12%  { --sweep: 120%; }
-  13%, 100% { --sweep: 120%; }
+  /* Strip starts off-screen left, sweeps right in the first 12% of the
+     cycle (≈0.7s), then idles off-screen right until the next loop.
+     Only transform is animated — GPU-composited, no main-thread work. */
+  0%   { transform: translateX(0%); }
+  12%  { transform: translateX(350%); }
+  100% { transform: translateX(350%); }
 }
 @media (prefers-reduced-motion: reduce) {
   #memory-list .memory-item::after { animation: none; opacity: 0; }
