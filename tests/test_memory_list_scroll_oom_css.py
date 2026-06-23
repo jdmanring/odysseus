@@ -170,16 +170,65 @@ def test_memory_list_menu_btn_always_visible():
     assert "opacity: 1" in block
 
 
-def test_memory_list_menu_btn_transition_only_opacity():
+def test_memory_list_menu_btn_no_transition():
     """
-    .memory-menu-btn in the list context must not carry transition: background
-    or transition: border-color. The base rule has these; in #memory-list the
-    opacity does not change on hover, so no transition ever fires — but ensuring
-    the transition is scoped to opacity prevents future regressions.
+    .memory-menu-btn in the list context must have transition: none.
+    The base rule carries transition: opacity 0.15s, background 0.15s,
+    border-color 0.15s. All three are suppressed since no property on this
+    element changes on hover in the list context.
     """
     css = _css()
-    idx = css.index("#memory-list .memory-menu-btn")
+    idx = css.index("#memory-list .memory-menu-btn {")
     block = css[idx:idx + 200]
     block_no_comments = re.sub(r"/\*.*?\*/", "", block, flags=re.DOTALL)
-    assert "transition: background" not in block_no_comments
-    assert "transition: border" not in block_no_comments
+    assert "transition: none" in block_no_comments
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: button hover paint suppression
+# ---------------------------------------------------------------------------
+
+def test_memory_list_menu_btn_hover_suppressed():
+    """
+    #memory-list .memory-menu-btn:hover must set background, border-color, and
+    color to the same non-hover values. The base rule changes all three on hover
+    (background: 7% fg, border-color: var(--border), color: var(--fg)) —
+    each change rasterizes new tiles. Qt never evicts tiles without OS pressure.
+    """
+    css = _css()
+    assert "#memory-list .memory-menu-btn:hover" in css
+    idx = css.index("#memory-list .memory-menu-btn:hover")
+    block = css[idx:idx + 200]
+    assert "background: none" in block
+    assert "border-color: transparent" in block
+    assert "color: var(--color-muted)" in block
+
+
+def test_memory_list_item_btn_no_transition():
+    """
+    .memory-item-btn in the list context must have transition: none.
+    The base rule carries transition: all 0.15s — on hover, background,
+    border-color, and color all transition, generating ~9 raster tile frames
+    each pass. transition: none eliminates the multi-frame accumulation.
+    """
+    css = _css()
+    assert "#memory-list .memory-item-btn" in css
+    idx = css.index("#memory-list .memory-item-btn {")
+    block = css[idx:idx + 200]
+    assert "transition: none" in block
+
+
+def test_memory_list_item_btn_hover_suppressed():
+    """
+    #memory-list .memory-item-btn:hover must set background, border-color, and
+    color to the same non-hover values — Chromium skips repaint when computed
+    values are unchanged. Covers all button variants (.delete, .save, etc.)
+    since #memory-list id specificity beats all class-only variant selectors.
+    """
+    css = _css()
+    assert "#memory-list .memory-item-btn:hover" in css
+    idx = css.index("#memory-list .memory-item-btn:hover")
+    block = css[idx:idx + 200]
+    assert "background: none" in block
+    assert "border-color: transparent" in block
+    assert "color: var(--color-muted)" in block
