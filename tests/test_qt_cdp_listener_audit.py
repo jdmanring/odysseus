@@ -293,13 +293,27 @@ def test_renderer_process_limit_set():
     assert "--renderer-process-limit=1" in _SRC
 
 
-def test_tile_eviction_pressure_simulated():
+def test_cdp_ws_call_extracted():
+    """_cdp_ws_call must exist as a shared WebSocket helper used by both
+    _cdp_call (page target) and _cdp_browser_call (browser target)."""
+    assert "def _cdp_ws_call(" in _SRC
+
+
+def test_cdp_browser_call_exists():
+    """_cdp_browser_call must exist and use /json/version (the browser target).
+    simulatePressureNotification is a browser-level command; called from the page
+    target it is either rejected or fires only in the browser process, leaving
+    cc::TileManager in the renderer unaffected."""
+    assert "def _cdp_browser_call(" in _SRC
+    assert "/json/version" in _SRC
+
+
+def test_tile_eviction_uses_browser_target():
     """
-    _log_renderer_memory must call Memory.simulatePressureNotification at
-    level moderate every 60 s. Qt WebEngine doesn't forward OS memory-pressure
-    signals to cc::TileManager, so hover rasterization accumulates without
-    eviction. This CDP call fires the MemoryPressureListener path that the OS
-    would use, causing the tile manager to evict non-visible accumulated tiles.
+    The tile eviction call must use _cdp_browser_call, not _cdp_call.
+    Memory.simulatePressureNotification must be sent to the browser target so the
+    browser process broadcasts the pressure notification to all renderer processes
+    via IPC, reaching cc::TileManager where the accumulated hover tiles live.
     """
-    assert "Memory.simulatePressureNotification" in _SRC
+    assert "_cdp_browser_call('Memory.simulatePressureNotification'" in _SRC
     assert "'level': 'moderate'" in _SRC
