@@ -9,63 +9,86 @@
 
 ## Title
 
-`fix(css): override transition: all in #memory-list to stop scroll-hover raster-tile buildup`
+`fix(css): eliminate hover raster-tile accumulation in Brain memory list`
 
 ---
 
 ## Summary
 
-The base `.memory-item` class applies `transition: all 0.15s`. In the Brain memory list, as the cursor moves over items during scroll each item cycles through enter-hover and leave-hover, animating `background` and `border-color`. Both properties require main-thread painting. At 60 fps with a 0.15 s transition, each hover entry/exit deposits approximately 9 frames of raster tiles per item. Qt does not forward OS memory pressure to the embedded Chromium renderer; the compositor's tile manager never receives eviction signals, so these tiles accumulate without bound. Around 1 GB of growth is reproducible from repeated scroll passes over a list of 20+ memories.
+Moving the cursor over the Brain memory list causes continuous RSS growth — up to ~1 GB from repeated passes over 20+ items. Two root causes combine: an inherited `transition: all` that generates ~9 raster frames per hover event, and the hover paint itself that generates 1 raster frame per hover entry/exit even without a transition. Qt-embedded Chromium never receives OS memory pressure signals, so `cc::TileManager` never evicts accumulated tiles. Memory returns only when the panel is hidden and the compositor discards off-screen layer tiles.
 
 ---
 
 ## Fix
 
-**File**: `static/style.css`
+Two phases, both in `static/style.css`.
 
-**Before**: `#memory-list .memory-item` inherited `transition: all 0.15s` from the base class with no override.
+### Phase 1: transition animation (commit `f43c69c2`)
 
-**After**: Added `transition: opacity 0.15s` to `#memory-list .memory-item`. This overrides `transition: all` in the list context, limiting animated changes to `opacity` — the only compositor-promoted property involved in hover rules in this context. Background and border-color changes take effect immediately (no transition) instead of depositing raster tiles per frame.
+The base `.memory-item` carries `transition: all 0.15s`. In the Brain memory list, hover entry/exit animates `background` and `border-color` — neither is compositor-promoted. Each transition deposits ~9 raster tile frames at 60 fps.
 
-The base `.memory-item` rule retains `transition: all 0.15s` for use in other contexts (task list, skill rows, etc.) where the list is not a scroll container receiving continuous hover events.
+Added `transition: opacity 0.15s` to `#memory-list .memory-item`, overriding `transition: all` in the list context. Base class retains `transition: all` for other contexts (task list, skill rows) that are not continuous-hover scroll containers.
+
+### Phase 2: hover paint (commit `90e21d62`)
+
+Even with no transition, the base `.memory-item:hover` rule changes `background` and `border-color` on every hover entry/exit, generating 1 raster frame each time. Three changes working together:
+
+**`isolation: isolate`** on `#memory-list .memory-item` creates a CSS stacking context (no GPU memory cost) so the `::before` overlay can sit at `z-index: -1` above the item's own background layer but below static content children and the `::after` sweep animation.
+
+**`::before` hover overlay** with `opacity: 0 → 1` on hover. Opacity is compositor-promoted — the GPU handles the fade without rasterizing new tiles. Background is `color-mix(in srgb, var(--fg) 2%, transparent)`; alpha-composited over the base 3% it produces ≈5% total, matching the original hover background exactly.
+
+**`#memory-list .memory-item:hover` override** sets `background` and `border-color` to the same computed values as the non-hover state. Chromium's paint-invalidation check skips repaint when computed values are unchanged — zero raster tiles generated on hover entry/exit.
+
+Reduced-motion block updated to disable the `::before` transition (`transition: none`).
 
 ---
 
-## Related: will-change on ::after (also in this branch set)
+## Related: will-change on ::after (companion branch)
 
-A companion change on `fix/brain-panel-oom` removes `will-change: transform` from `#memory-list .memory-item::after`. A continuously running `transform` animation auto-promotes the composited layer; the `will-change` hint is redundant for visible items and forces GPU backing texture allocation for off-screen items in the scrollable list. This is a separate concern from the transition issue above and is tracked on the `fix/brain-panel-oom` branch.
+`fix/brain-panel-oom` removes `will-change: transform` from `#memory-list .memory-item::after`. A continuously running `transform` animation is self-promoting; the `will-change` hint is redundant for visible items and forces GPU backing texture allocation for off-screen items. Separate branch, same root cause.
 
 ---
 
 ## Files changed
 
-- `static/style.css` — `transition: opacity 0.15s` override in `#memory-list .memory-item`
-- `tests/test_memory_list_scroll_oom_css.py` — new file, 4 regression tests
+- `static/style.css` — phase 1 transition override; phase 2 `isolation`, `::before` overlay, hover suppression, reduced-motion update
+- `tests/test_memory_list_scroll_oom_css.py` — 13 regression tests (4 phase 1 + 9 phase 2)
 
 ---
 
 ## Tests
 
-4 static-analysis tests in `tests/test_memory_list_scroll_oom_css.py`:
+13 static-analysis tests in `tests/test_memory_list_scroll_oom_css.py`:
 
+**Phase 1 (transition):**
 - `#memory-list .memory-item` block contains `transition: opacity`
 - Base `.memory-item` still has `transition: all` (non-list contexts unaffected)
-- `#memory-list .memory-item` block does not contain `transition: all` (comment-stripped check)
-- `#memory-list .memory-item` block does not contain `transition: background` or `transition: border`
+- `#memory-list .memory-item` block does not contain `transition: all` (comment-stripped)
+- `#memory-list .memory-item` block has no `transition: background` or `transition: border`
+
+**Phase 2 (hover paint):**
+- `isolation: isolate` present in `#memory-list .memory-item`
+- `#memory-list .memory-item::before` block exists
+- `::before` has `opacity: 0`, `transition: opacity`, `z-index: -1`, `pointer-events: none`
+- `#memory-list .memory-item:hover::before` has `opacity: 1`
+- `#memory-list .memory-item:hover` contains background at non-hover computed value
+- `#memory-list .memory-item:hover` contains `border-color: var(--border)`
 
 ---
 
 ## Manual verification
 
 1. Open the Brain panel with 20+ memories.
-2. Move the cursor slowly up and down over the list for 60 seconds.
-3. RSS should remain stable. Before this fix, growth of several hundred MB is observable in that time.
-4. Hover effects (background and border change) still occur immediately on mouse-over — the transition is gone but the visual state change is not.
-5. Run `python -m pytest tests/test_memory_list_scroll_oom_css.py -v` — 4 passed.
+2. Enable DevTools → Rendering → Paint flashing (green flash = repaint). Hover over list items — **no green flash** confirms zero paint on hover entry/exit.
+3. Move the cursor up and down over the list for 60 seconds. Check RSS via DevTools Task Manager or `ps aux`. Growth should be flat.
+4. Confirm hover highlight still appears (subtle background tint on hover items — visually identical to before).
+5. Confirm sweep animation still appears on non-hovered items and suppresses on hover.
+6. `python -m pytest tests/test_memory_list_scroll_oom_css.py -v` — 13 passed.
 
 ---
 
 ## Notes
 
-- The root cause is shared with the fixes in `fix/brain-panel-oom`: Qt does not forward OS memory pressure to the renderer, so raster tiles from main-thread paint operations accumulate indefinitely. The fix is the same: use only compositor-promoted properties (`opacity`, `transform`) for animated state changes in the list context.
-- Hover state changes in `#memory-list` (`background` and `border-color`) are instantaneous after this fix. The animated sweep on `::after` remains the primary hover-interactive visual.
+- Qt does not forward OS memory pressure to the embedded Chromium renderer. The `cc::TileManager` relies on these signals for tile eviction; without them, raster tiles from main-thread paint accumulate without bound. The only correct fix is to eliminate the paints, not to try to trigger eviction.
+- The `::before` opacity approach is the standard technique for hover highlights in paint-sensitive contexts. It moves the entire hover visual onto the GPU compositing layer.
+- Chromium's paint-skip optimization (comparing computed values before invalidating) is well-established and documented in the Blink rendering pipeline. Setting hover properties to their non-hover values is a reliable way to prevent paint from the base hover rule.
