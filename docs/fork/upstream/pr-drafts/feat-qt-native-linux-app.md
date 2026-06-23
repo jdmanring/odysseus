@@ -105,6 +105,15 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
     avoiding `QTimer.singleShot` cross-thread hazards.
   - **Node-threshold** (> 50 000 Oilpan nodes): direct `page.runJavaScript()` call
     inside `_log_renderer_memory`, which already runs on the Qt main thread.
+- **Raster tile eviction:** `Memory.simulatePressureNotification(moderate)` is called
+  at the end of each 60 s `_log_renderer_memory` cycle. Qt WebEngine does not forward
+  OS memory-pressure signals to Chromium's `cc::TileManager`; any hover event
+  rasterizes new tiles that are never evicted under normal conditions, causing
+  unbounded RSS growth. Simulating moderate pressure fires the
+  `base::MemoryPressureListener` path the OS would use, causing the tile manager to
+  evict non-visible accumulated tiles. `_cdp_call()` returns `None` silently on any
+  error, so the fix degrades gracefully if the CDP method is unavailable in a given
+  build.
 - **Startup log rotation:** `_rotate_log(path)` rotates `wrapper_system.log` and
   `server_access.log` at startup if they exceed 10 MB, preserving 5 numbered
   backups (`path.1`–`path.5`) via the same shift algorithm used by
@@ -122,12 +131,13 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   `--renderer-process-limit=1` (single renderer process — saves ~30–50 MB vs default
   multi-process behaviour in some Qt builds); `--disable-extensions` (removes extension
   loader overhead, ~1–5 MB, no downside for embedded app).
-- 47 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
+- 48 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
   import correctness, call-site presence, executor usage, log rotation
   structure (including that the shift loop and `_LOG_BACKUP_COUNT` are present
   and that constants match the app), `nodes` assigned before threshold comparison,
   async GC machinery (`_request_async_gc`, `_gc_drain_timer`, `_gc_request_pending`),
-  PSI cooldown, `changeEvent` debounce/cancel behaviour, and all five memory flags.
+  PSI cooldown, `changeEvent` debounce/cancel behaviour, all five memory flags,
+  and `Memory.simulatePressureNotification` tile eviction call.
 
 **`build-linux-app.sh`**: preflight check and launch script. Verifies that
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
