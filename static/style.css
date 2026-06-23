@@ -10889,7 +10889,6 @@ textarea.memory-add-input {
     color-mix(in srgb, var(--red) 25%, transparent) 50%,
     transparent 100%
   );
-  will-change: transform;
   animation: memory-synapse-sweep 6.2s linear infinite;
   animation-delay: 0.4s;
 }
