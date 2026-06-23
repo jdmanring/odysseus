@@ -291,3 +291,15 @@ def test_minor_mc_flag_set():
 
 def test_renderer_process_limit_set():
     assert "--renderer-process-limit=1" in _SRC
+
+
+def test_tile_eviction_pressure_simulated():
+    """
+    _log_renderer_memory must call Memory.simulatePressureNotification at
+    level moderate every 60 s. Qt WebEngine doesn't forward OS memory-pressure
+    signals to cc::TileManager, so hover rasterization accumulates without
+    eviction. This CDP call fires the MemoryPressureListener path that the OS
+    would use, causing the tile manager to evict non-visible accumulated tiles.
+    """
+    assert "Memory.simulatePressureNotification" in _SRC
+    assert "'level': 'moderate'" in _SRC
