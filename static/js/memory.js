@@ -17,6 +17,20 @@ let selectMode = false;
 let selectedIds = new Set();
 let memoriesLoading = false;
 
+// AbortController for the most recent renderMemoryList() call.
+// Aborting it removes all item-level listeners in one synchronous call so
+// the closure captures (especially dropdown references) can be GC'd as soon
+// as the old DOM nodes are cleared. Each render pass replaces this.
+let _listAbortCtrl = null;
+
+// The currently open dropdown, if any. Tracked so cleanup code can remove
+// it without querying the DOM.
+let _activeDropdown = null;
+
+function _closeActiveDropdown() {
+  if (_activeDropdown && _activeDropdown.parentNode) _activeDropdown.remove();
+  _activeDropdown = null;
+}
 
 const MEMORY_CATEGORIES = ['fact', 'identity', 'preference', 'contact', 'project', 'goal', 'task'];
 
@@ -689,6 +703,15 @@ export function renderMemoryList() {
     return;
   }
 
+  // Release all listeners from the previous render pass before clearing the
+  // list. Aborting the controller removes every listener that was registered
+  // with its signal, freeing the closure captures (dropdown refs, memory ids)
+  // immediately rather than waiting for the GC to notice the nodes are gone.
+  if (_listAbortCtrl) _listAbortCtrl.abort();
+  _closeActiveDropdown();
+  _listAbortCtrl = new AbortController();
+  const _sig = _listAbortCtrl.signal;
+
   const filtered = getFilteredMemories();
   memoryList.innerHTML = '';
 
@@ -716,7 +739,7 @@ export function renderMemoryList() {
       memoryList.querySelector('[data-mem-goto-add]')?.addEventListener('click', (e) => {
         e.preventDefault();
         document.querySelector('.memory-tab[data-memory-tab="add"]')?.click();
-      });
+      }, { signal: _sig });
     }
     return;
   }
@@ -739,14 +762,14 @@ export function renderMemoryList() {
         toggleSelectItem(memory.id);
         const selectAllEl = document.getElementById('memory-select-all');
         if (selectAllEl) selectAllEl.checked = filtered.every(m => selectedIds.has(m.id));
-      });
+      }, { signal: _sig });
       item.appendChild(cb);
       item.style.cursor = 'pointer';
       item.addEventListener('click', (e) => {
         if (e.target === cb) return;
         cb.checked = !cb.checked;
         cb.dispatchEvent(new Event('change'));
-      });
+      }, { signal: _sig });
     }
 
     // Content: text + metadata
@@ -807,7 +830,7 @@ export function renderMemoryList() {
       textSpan.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         startInlineEdit(item, memory);
-      });
+      }, { signal: _sig });
       textSpan.style.cursor = 'text';
     }
 
@@ -830,17 +853,17 @@ export function renderMemoryList() {
       const pinItem = document.createElement('div');
       pinItem.className = 'dropdown-item-compact';
       pinItem.innerHTML = `<span class="dropdown-icon">${_pinSvg}</span><span>${memory.pinned ? 'Unpin' : 'Pin'}</span>`;
-      pinItem.addEventListener('click', () => { dropdown.style.display = 'none'; togglePin(memory.id, !memory.pinned); });
+      pinItem.addEventListener('click', () => { dropdown.style.display = 'none'; togglePin(memory.id, !memory.pinned); }, { signal: _sig });
 
       const editItem = document.createElement('div');
       editItem.className = 'dropdown-item-compact';
       editItem.textContent = '✎ Edit';
-      editItem.addEventListener('click', () => { dropdown.style.display = 'none'; startInlineEdit(item, memory); });
+      editItem.addEventListener('click', () => { dropdown.style.display = 'none'; startInlineEdit(item, memory); }, { signal: _sig });
 
       const deleteItem = document.createElement('div');
       deleteItem.className = 'dropdown-item-compact memory-dropdown-delete';
       deleteItem.textContent = '✕ Delete';
-      deleteItem.addEventListener('click', () => { dropdown.style.display = 'none'; deleteMemory(memory.id); });
+      deleteItem.addEventListener('click', () => { dropdown.style.display = 'none'; deleteMemory(memory.id); }, { signal: _sig });
 
       // Select — enters bulk-select mode and pre-selects this memory. Same
       // pattern as the email/documents/skills Select item.
@@ -854,7 +877,7 @@ export function renderMemoryList() {
         selectedIds.add(memory.id);
         updateBulkCount();
         renderMemoryList();
-      });
+      }, { signal: _sig });
 
       // Mobile-only Cancel — mirrors the email/documents popup pattern. CSS
       // hides `.dropdown-cancel-mobile` on desktop where outside-click already
@@ -862,7 +885,7 @@ export function renderMemoryList() {
       const cancelItem = document.createElement('div');
       cancelItem.className = 'dropdown-item-compact dropdown-cancel-mobile';
       cancelItem.textContent = '✕ Cancel';
-      cancelItem.addEventListener('click', (e) => { e.stopPropagation(); if (dropdown.parentNode) dropdown.remove(); });
+      cancelItem.addEventListener('click', (e) => { e.stopPropagation(); if (dropdown.parentNode) dropdown.remove(); _activeDropdown = null; }, { signal: _sig });
 
       dropdown.appendChild(pinItem);
       dropdown.appendChild(selectItem);
@@ -874,6 +897,7 @@ export function renderMemoryList() {
         e.stopPropagation();
         // Close any other open dropdowns
         document.querySelectorAll('.memory-item-dropdown').forEach(d => d.remove());
+        _activeDropdown = null;
         const rect = menuBtn.getBoundingClientRect();
         dropdown.style.position = 'fixed';
         dropdown.style.top = rect.bottom + 2 + 'px';
@@ -888,6 +912,7 @@ export function renderMemoryList() {
         dropdown.style.zIndex = String(topPortalZ());
         dropdown.style.display = 'block';
         document.body.appendChild(dropdown);
+        _activeDropdown = dropdown;
         // Keep on-screen (mobile): flip above the button if it overflows the
         // bottom, clamp the left edge, cap height as a last resort.
         const dr = dropdown.getBoundingClientRect();
@@ -942,7 +967,15 @@ export function renderMemoryList() {
         dropdown.addEventListener('touchstart', _onTS, { passive: true });
         dropdown.addEventListener('touchmove', _onTM, { passive: true });
         dropdown.addEventListener('touchend', _onTE);
-      });
+
+        // Close on outside click. once:true means the listener removes itself
+        // after it fires, and signal:_sig removes it on re-render so it never
+        // accumulates across render passes even if the dropdown stays open.
+        document.addEventListener('click', () => {
+          if (dropdown.parentNode) dropdown.remove();
+          _activeDropdown = null;
+        }, { once: true, signal: _sig });
+      }, { signal: _sig });
 
       item.appendChild(menuBtn);
 
@@ -963,17 +996,14 @@ export function renderMemoryList() {
             if (navigator.vibrate) try { navigator.vibrate(15); } catch {}
             menuBtn.click();
           }, 500);
-        });
+        }, { signal: _sig });
         item.addEventListener('pointermove', (e) => {
           if (!start) return;
           if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) _lpCancel();
-        });
-        item.addEventListener('pointerup', _lpCancel);
-        item.addEventListener('pointercancel', _lpCancel);
+        }, { signal: _sig });
+        item.addEventListener('pointerup', _lpCancel, { signal: _sig });
+        item.addEventListener('pointercancel', _lpCancel, { signal: _sig });
       }
-
-      // Close dropdown on outside click
-      document.addEventListener('click', () => { if (dropdown.parentNode) dropdown.remove(); }, { once: false });
     }
 
     memoryList.appendChild(item);
@@ -1530,6 +1560,23 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('memory-refresh', () => {
     loadMemories();
   });
+
+  // Release item listeners and trigger GC when the Brain panel is hidden.
+  // The AbortController abort releases all item-level listener closures.
+  // The GC call (feature-detected — only exposed in Chromium with
+  // --js-flags=--expose-gc) collects the freed Oilpan objects that were
+  // referenced by those closures, preventing them from building up until
+  // the next agent-response GC cycle.
+  const _memModal = document.getElementById('memory-modal');
+  if (_memModal) {
+    new MutationObserver(() => {
+      if (_memModal.classList.contains('hidden')) {
+        _closeActiveDropdown();
+        if (_listAbortCtrl) { _listAbortCtrl.abort(); _listAbortCtrl = null; }
+        if (typeof gc === 'function') setTimeout(gc, 100);
+      }
+    }).observe(_memModal, { attributes: true, attributeFilter: ['class'] });
+  }
 });
 
 const memoryModule = {
