@@ -1304,3 +1304,151 @@ PR draft: `docs/fork/upstream/pr-drafts/fix-memory-list-scroll-oom.md`
 Cherry-picked to `develop` (commit `7e9a2203`). The `will-change` change is a separate
 commit on `fix/brain-panel-oom` (commit `18dbbd25`), also cherry-picked to `develop`
 (`91082bca`).
+
+
+---
+
+## Session 8 — Event Listener Accumulation in Brain Memory List (2026-06-22)
+
+**Trigger:** User reported ~956 MiB permanent RSS growth from the Brain memory list that
+did not reclaim after closing the Brain panel. The fix from Sessions 6 and 7 (CSS
+animation patterns) addressed compositor tile accumulation but left the JavaScript-side
+listener accumulation unaddressed.
+
+### Root cause 1: document.addEventListener accumulation (primary leak)
+
+`renderMemoryList()` registered a `document`-level click listener per memory item per
+render call. The purpose was to dismiss the item action dropdown when the user clicked
+outside it. The listener used the default `{ once: false }`, so it never self-removed.
+
+With 50 items and 10 render passes (from filter changes, CRUD operations, sort changes):
+
+```
+50 items × 10 renders = 500 listeners on document
+```
+
+Each listener held a closure over a dropdown DOM element (a `<div>` appended to
+`document.body`). When `renderMemoryList()` cleared the list via `memoryList.innerHTML = ''`,
+the old dropdown elements were detached from the DOM but still referenced by those
+closures. In Qt-embedded Chromium, where Oilpan (the Blink C++ garbage collector) never
+receives OS memory pressure signals, these closures prevented the old nodes from being
+collected. Each render pass compounded the problem.
+
+**Why Qt never triggers collection:** The Chromium renderer relies on the OS to send
+memory pressure notifications (`base::MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_CRITICAL`)
+to trigger Oilpan major GC cycles. Qt's embedded Chromium does not implement this signal
+path. Without it, the GC only runs minor cycles (young-generation) during normal
+execution, and major cycles (old-generation, which would collect these detached nodes)
+are triggered only at process exit or by explicit `--js-flags=--expose-gc` calls.
+
+### Root cause 2: item-level listener closure retention
+
+Item-level listeners (checkbox change, click/select mode, dblclick/inline-edit,
+pointer events for long-press, and 5 dropdown item buttons) were registered on each item
+during `renderMemoryList()`. No AbortController or removeEventListener call cleaned
+them up before the next render. When `innerHTML = ''` cleared the list, those item DOM
+nodes were detached but their listener closures — capturing `memory.id`, `item` refs,
+`dropdown` refs, `menuBtn` refs — kept them in Oilpan's reachable graph.
+
+51 addEventListener calls, 0 removeEventListener calls in the file before this fix.
+
+### Root cause 3: animation while panel is hidden
+
+The `::after` sweep animation on `.memory-item` (addressed in Session 6) continued
+running when `#memory-modal` received the `.hidden` class. Compositor tile allocations
+for the entire hidden list remained active. No JavaScript was needed to pause them — a
+CSS selector rule suffices.
+
+### Fix
+
+**AbortController per render pass (root cause 2):**
+
+Module-level state:
+```javascript
+let _listAbortCtrl = null;
+let _activeDropdown = null;
+
+function _closeActiveDropdown() {
+  if (_activeDropdown && _activeDropdown.parentNode) _activeDropdown.remove();
+  _activeDropdown = null;
+}
+```
+
+Start of `renderMemoryList()`:
+```javascript
+if (_listAbortCtrl) _listAbortCtrl.abort();  // release previous pass closures
+_closeActiveDropdown();
+_listAbortCtrl = new AbortController();
+const _sig = _listAbortCtrl.signal;
+```
+
+All 14+ item-level `addEventListener` calls updated to carry `{ signal: _sig }`.
+When abort fires, every registered listener is removed synchronously — the old-school
+equivalent of calling `free()` before the next `malloc()`.
+
+**document listener fix (root cause 1):**
+
+Moved from the `forEach` body to inside the `menuBtn` click handler:
+
+```javascript
+menuBtn.addEventListener('click', (e) => {
+  // ... build and append dropdown ...
+  _activeDropdown = dropdown;
+  document.addEventListener('click', () => {
+    if (dropdown.parentNode) dropdown.remove();
+    _activeDropdown = null;
+  }, { once: true, signal: _sig });  // two removal paths: click and abort
+}, { signal: _sig });
+```
+
+This changes the registration model from "N listeners per render call" to "1 listener
+per open dropdown," and gives each listener two removal paths: the user's next click
+(`once: true`) and the next render's abort (`signal: _sig`).
+
+**CSS animation pause (root cause 3):**
+
+```css
+#memory-modal.hidden #memory-list .memory-item::after {
+  animation-play-state: paused;
+}
+```
+
+Halts compositor tile work when the panel is not visible. No JavaScript required.
+
+**Panel close cleanup:**
+
+A MutationObserver on `#memory-modal` observes `attributeFilter: ['class']`. On
+`.hidden`, it calls `_closeActiveDropdown()` (defensive cleanup) and `gc()` (if exposed).
+
+Important: the observer does NOT abort `_listAbortCtrl` on close. The abort belongs
+at the start of `renderMemoryList()` (immediately before `innerHTML = ''`), not at
+panel close. Aborting on close without a corresponding `odysseus:modal-opened` listener
+in `memory.js` would leave DOM items with dead event handlers until the next
+`memory-refresh` event fired — a UI regression where buttons appear but don't work.
+
+**odysseus:modal-closed event (modalManager.js):**
+
+Added `_emitModalClosed()` mirroring the existing `_emitModalOpened()`. Fired in the
+existing MutationObserver when the visibility transition goes from true to false.
+
+### Design notes
+
+The AbortController pattern is the modern equivalent of the old-school "cancel all
+outstanding work before starting a new allocation cycle" discipline. Before ES2022
+`AbortSignal`, the standard idiom was to maintain a list of listeners and call
+`removeEventListener` on each before re-rendering. AbortController consolidates this
+into a single `abort()` call that releases every registered listener simultaneously.
+
+The `once: true` pattern for the document click listener is superior to `{ once: false }`
+with a manual `removeEventListener`, because it eliminates the need to retain a reference
+to the handler function — which itself creates a closure.
+
+### Branch and tests
+
+Branch: `fix/memory-panel-listener-leak` (from `upstream-mirror`)  
+Commits: `d89d93a6` (primary fix), `ab8a5f21` (abort-on-close correctness)  
+Tests: `tests/test_memory_panel_listener_leak.py` — 14 regression tests  
+Issue: jdmanring/odysseus#89  
+PR draft: `docs/fork/upstream/pr-drafts/fix-memory-panel-listener-leak.md`
+
+Cherry-picked to `develop`: `fd646bce` (primary), `ac70b23f` (abort-on-close fix).
