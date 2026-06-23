@@ -122,12 +122,11 @@ def test_ge_transform_popup_retains_backdrop_filter():
 # ---------------------------------------------------------------------------
 
 def test_memory_sweep_uses_no_css_property_registration():
-    # @property --sweep forced main-thread style recalculation every frame for
-    # every memory item, filling Oilpan with raster tiles that QtWebEngine never
-    # GCs (no OS memory pressure signals reach the renderer process). This caused
-    # 14–18 GB RSS spikes when the Brain panel was open. The fix uses
-    # transform: translateX() which is fully GPU-composited.
-    assert "@property --sweep" not in _CSS
+    # The @property --sweep registration forced per-item style recalculation
+    # every frame (typed custom properties invalidate computed styles on change).
+    # Qt does not forward OS memory pressure to the renderer; raster tiles from
+    # the per-frame repaints accumulated without eviction.
+    assert "@property --sweep {" not in _CSS
     assert "syntax: '<percentage>'" not in _CSS
 
 

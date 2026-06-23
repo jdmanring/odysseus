@@ -10865,12 +10865,11 @@ textarea.memory-add-input {
   overflow: hidden;
 }
 #memory-list .memory-item::after {
-  /* Sweep highlight — compositor-only: transform+opacity only so the GPU
-     handles every frame. The @property gradient approach forced main-thread
-     style recalculation each frame for every item, filling Oilpan with
-     raster tiles that QtWebEngine never GCs. overflow:hidden on the parent
-     clips the strip while it waits off-screen, so no opacity trick is needed
-     for the idle phase. */
+  /* Was @property --sweep animating gradient stop positions (typed custom
+     property, so style recalculation fires for every item every frame). Qt
+     does not forward OS memory pressure to the renderer; raster tiles from
+     the per-frame repaints are not evicted. Use transform instead;
+     overflow:hidden on the parent parks the strip off-screen while idle. */
   content: '';
   position: absolute;
   inset: 0 0 0 -40%;
@@ -10891,13 +10890,12 @@ textarea.memory-add-input {
 #memory-list .memory-item:nth-child(3n)::after { animation-duration: 8.8s; animation-delay: 3.2s; }
 #memory-list .memory-item:nth-child(5n)::after { animation-duration: 9.3s; animation-delay: 4.7s; }
 #memory-list .memory-item:nth-child(7n)::after { animation-duration: 5.5s; animation-delay: 2.3s; }
-/* Fade on hover without stopping the animation — stopping it destroys the
-   compositor layer and recreates it on mouse-leave, causing a gray-frame flash. */
+/* Suppress with opacity, not animation:none. animation:none destroys the promoted
+   compositor layer and the recreate-on-leave produces a one-frame gray flash. */
 #memory-list .memory-item:hover::after { opacity: 0; }
 @keyframes memory-synapse-sweep {
-  /* Strip starts off-screen left, sweeps right in the first 12% of the
-     cycle (≈0.7s), then idles off-screen right until the next loop.
-     Only transform is animated — GPU-composited, no main-thread work. */
+  /* Sweeps right in the first ~12% of the loop (approx. 0.7s at the 6.2s base),
+     then parks off-screen via overflow:hidden until the next cycle. */
   0%   { transform: translateX(0%); }
   12%  { transform: translateX(350%); }
   100% { transform: translateX(350%); }
@@ -30770,17 +30768,23 @@ body.notes-drag-mode .note-card {
               opacity 0.18s ease;
 }
 body.notes-drag-mode .note-card::after {
+  /* Was background-position animating a 250%-wide gradient across every card
+     during drag. background-position is not compositor-promoted so each frame
+     re-rasterizes the gradient on every visible card. Qt does not forward OS
+     memory pressure to the renderer; tiles accumulate. Use transform instead;
+     overflow:hidden on the parent parks the strip off-screen. */
   content: '';
   position: absolute;
-  inset: 0;
+  inset: 0 0 0 -60%;
+  width: 60%;
   pointer-events: none;
   background: linear-gradient(
     115deg,
-    transparent 30%,
+    transparent 0%,
     color-mix(in srgb, var(--fg) 14%, transparent) 50%,
-    transparent 70%
+    transparent 100%
   );
-  background-size: 250% 100%;
+  will-change: transform;
   animation: notes-drag-shimmer 2.1s linear infinite;
   border-radius: inherit;
   z-index: 1;
@@ -30797,8 +30801,8 @@ body.notes-drag-mode .note-card::after {
   }
 }
 @keyframes notes-drag-shimmer {
-  0%   { background-position: 250% 0; }
-  100% { background-position: -150% 0; }
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(270%); }
 }
 /* The grabbed card lifts above its siblings; suppress the shimmer on
    it so it reads as the "live" element being moved. */
@@ -31893,9 +31897,11 @@ body.notes-mobile-mode.notes-drag-mode .note-card-pin.active {
   flex-shrink: 0;
   animation: note-ai-shine 2.4s ease-in-out infinite;
 }
+/* Animating filter forces the compositor to reapply it every frame as values
+   change, preventing frame elision. opacity-only is compositor-promoted. */
 @keyframes note-ai-shine {
-  0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 0 transparent); }
-  50%      { opacity: 1;    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent, var(--red)) 60%, transparent)); }
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
 }
 .note-card-ai-solving {
   cursor: default;
@@ -32124,13 +32130,13 @@ body.notes-mobile-mode.notes-drag-mode .note-card-pin.active {
 .notes-quick-add:hover {
   border-color: color-mix(in srgb, var(--accent, var(--red)) 55%, var(--border));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--red)) 18%, transparent);
-  animation: none;
+  animation-play-state: paused;
 }
 .notes-quick-add:focus-within {
   border-color: var(--accent, var(--red));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--red)) 25%, transparent);
   background: color-mix(in srgb, var(--fg) 3%, var(--panel));
-  animation: none;
+  animation-play-state: paused;
 }
 .notes-quick-input {
   flex: 1;
