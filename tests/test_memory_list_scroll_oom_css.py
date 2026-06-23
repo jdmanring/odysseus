@@ -170,3 +170,60 @@ def test_memory_list_hover_suppresses_border_paint():
     idx = css.index("#memory-list .memory-item:hover {")
     block = css[idx:idx + 200]
     assert "border-color: var(--border)" in block
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: will-change pre-promotion for opacity-animated descendants
+# ---------------------------------------------------------------------------
+
+def test_memory_list_before_has_will_change_opacity():
+    """
+    ::before must have will-change: opacity so the compositor layer is
+    pre-promoted at load time. Without it, each hover cycle creates and
+    destroys a compositor layer, leaving orphaned raster tiles in the Qt
+    tile cache (no OS memory pressure signal — tiles never evicted).
+    """
+    css = _css()
+    idx = css.index("#memory-list .memory-item::before")
+    block = css[idx:idx + 500]
+    assert "will-change: opacity" in block
+
+
+def test_memory_list_item_actions_will_change_opacity():
+    """
+    .memory-item-actions in the list context must be pre-promoted with
+    will-change: opacity. It transitions opacity 0→1 on item hover; without
+    pre-promotion the layer is created/destroyed every hover cycle.
+    """
+    css = _css()
+    assert "#memory-list .memory-item-actions" in css
+    idx = css.index("#memory-list .memory-item-actions")
+    block = css[idx:idx + 200]
+    assert "will-change: opacity" in block
+
+
+def test_memory_list_menu_btn_will_change_opacity():
+    """
+    .memory-menu-btn in the list context must be pre-promoted with
+    will-change: opacity for the same reason as .memory-item-actions.
+    """
+    css = _css()
+    assert "#memory-list .memory-menu-btn" in css
+    idx = css.index("#memory-list .memory-menu-btn")
+    block = css[idx:idx + 200]
+    assert "will-change: opacity" in block
+
+
+def test_memory_list_menu_btn_transition_only_opacity():
+    """
+    .memory-menu-btn in the list context must not carry transition: background
+    or transition: border-color. The base rule has these; in #memory-list only
+    opacity changes on item hover — the paint-inducing properties must be
+    suppressed.
+    """
+    css = _css()
+    idx = css.index("#memory-list .memory-menu-btn")
+    block = css[idx:idx + 200]
+    block_no_comments = re.sub(r"/\*.*?\*/", "", block, flags=re.DOTALL)
+    assert "transition: background" not in block_no_comments
+    assert "transition: border" not in block_no_comments
