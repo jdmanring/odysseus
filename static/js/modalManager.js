@@ -82,6 +82,14 @@ function _emitModalOpened(id, modal) {
   } catch (_) {}
 }
 
+function _emitModalClosed(id, modal) {
+  try {
+    window.dispatchEvent(new CustomEvent('odysseus:modal-closed', {
+      detail: { id, modal },
+    }));
+  } catch (_) {}
+}
+
 function _captureRestoreHeight(modal, state) {
   if (!modal || !state) return;
   const content = modal.querySelector('.modal-content');
@@ -1171,6 +1179,8 @@ export function register(id, { restoreFn, closeFn, railBtnId, sidebarBtnId, labe
         _bringToFront(_modalEl);
         _applyRememberedDock(id);
         _emitModalOpened(id, _modalEl);
+      } else if (!vis && _modalEl._mmAutoStackLast) {
+        _emitModalClosed(id, _modalEl);
       }
       _modalEl._mmAutoStackLast = vis;
     });
