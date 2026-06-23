@@ -333,6 +333,22 @@ class OdysseusWindow(QMainWindow):
         qwc_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         page.scripts().insert(qwc_script)
 
+        _hover_css = (
+            "*, *::before, *::after"
+            "{ transition-property: opacity, transform !important; }"
+        )
+        tile_script = QWebEngineScript()
+        tile_script.setSourceCode(
+            "(function(){var s=document.createElement('style');"
+            "s.id='qt-transition-suppress';"
+            f"s.textContent={repr(_hover_css)};"
+            "document.head.appendChild(s);})()"
+        )
+        tile_script.setName("qt-transition-suppress")
+        tile_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+        tile_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        page.scripts().insert(tile_script)
+
         # Native bridge — held as instance attrs to prevent GC
         self._bridge = NativeBridge()
         self._channel = QWebChannel(page)
