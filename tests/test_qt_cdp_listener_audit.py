@@ -329,3 +329,19 @@ def test_hover_transition_suppress_script_injected():
     assert "qt-transition-suppress" in _SRC
     assert "transition: none !important" in _SRC
     assert "DocumentReady" in _SRC
+
+
+def test_paint_skip_script_injected():
+    """
+    A QWebEngineScript named 'qt-paint-skip' must be injected at DocumentReady.
+    It captures each element's non-hover background-color/border-color/box-shadow
+    on first mouseleave (Chromium removes :hover before dispatching mouseleave),
+    then inserts a CSSStyleSheet rule forcing :hover to those exact values.
+    Chromium's paint-invalidation check sees no computed-value change on subsequent
+    hovers and skips rasterization — zero tile frames after first hover cycle.
+    """
+    assert "qt-paint-skip" in _SRC
+    assert "mouseleave" in _SRC
+    assert "CSSStyleSheet" in _SRC
+    assert "adoptedStyleSheets" in _SRC
+    assert "data-qths" in _SRC or "qths" in _SRC
