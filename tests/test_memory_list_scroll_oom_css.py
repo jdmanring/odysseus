@@ -1,28 +1,19 @@
 """
 Regression tests for hover raster-tile accumulation fixes on the Brain memory list.
 
-Three root causes addressed:
+Root cause addressed: the base .memory-item carries `transition: all 0.15s`. In
+#memory-list, hover entry/exit animates background and border-color — neither is
+compositor-promoted. Each transition deposited raster tile frames at 60 fps. Qt
+never evicts tiles without OS memory pressure, so they accumulated without bound.
 
-1. Transition animation (phase 1 fix):
-   The base .memory-item carries `transition: all 0.15s`. In #memory-list, hover
-   entry/exit animates background and border-color — neither is compositor-promoted.
-   Each transition deposited ~9 raster tile frames at 60 fps. Qt never evicts tiles
-   without OS memory pressure, so they accumulated without bound.
-   Fix: override with `transition: opacity 0.15s` in the list context.
+Fix: override with `transition: opacity 0.15s` in the list context. Opacity is
+compositor-promoted (zero raster cost); background and border-color transitions
+are eliminated. Primary bounding is done by the Chromium tile budget flag
+(--enable-low-end-device-mode) and content-visibility:auto on list items.
 
-2. Hover paint itself (phase 2 fix):
-   Even with no transition, the base .memory-item:hover rule changes background and
-   border-color on every hover entry/exit, generating 1 raster tile frame per event.
-   Fix: set them to the same computed values as the non-hover state — Chromium's
-   paint-invalidation check skips repaint when computed values are unchanged.
-
-3. Opacity-animated descendants (phase 3 fix):
-   The base rules hide .memory-item-actions and .memory-menu-btn at opacity:0 and
-   reveal them on :hover. Each opacity 0→1→0 cycle creates and destroys a compositor
-   layer in Qt's embedded Chromium (no OS memory pressure reaches cc::TileManager,
-   so orphaned tiles from each destroyed layer accumulate without eviction).
-   Fix: always-visible at opacity:1 in the list context. The hover rule computes to
-   1→1 — Chromium detects no change and skips rasterization entirely.
+Previous suppression-based fixes (hover background/border-color matching,
+always-visible opacity:1 buttons, transition:none) have been reverted now that
+proper engine-level tile management is in place.
 """
 
 import re
@@ -36,7 +27,7 @@ def _css() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Phase 1: transition override
+# Transition override (kept — compositor-safe alternative to suppression)
 # ---------------------------------------------------------------------------
 
 def test_memory_list_overrides_transition_all():
@@ -84,16 +75,11 @@ def test_memory_list_transition_is_compositor_promoted():
     assert "transition: border" not in block
 
 
-# ---------------------------------------------------------------------------
-# Phase 2: hover paint suppression
-# ---------------------------------------------------------------------------
-
 def test_memory_list_item_no_isolation_isolate():
     """
     #memory-list .memory-item must NOT have isolation: isolate.
-    isolation: isolate was added for the ::before z-index:-1 approach (phase 2),
-    which was removed because it caused compositor layer explosion. Regression
-    guard: ensure it is not re-introduced.
+    isolation: isolate was added for the ::before z-index:-1 approach, which
+    was removed because it caused compositor layer explosion. Regression guard.
     """
     css = _css()
     idx = css.index("#memory-list .memory-item {")
@@ -102,133 +88,34 @@ def test_memory_list_item_no_isolation_isolate():
     assert "isolation: isolate" not in block_no_comments
 
 
-def test_memory_list_hover_suppresses_background_paint():
-    """
-    #memory-list .memory-item:hover must set background to the same computed
-    value as the non-hover state. This prevents Chromium from marking the element
-    dirty for repaint when the base .memory-item:hover rule fires.
-    """
-    css = _css()
-    assert "#memory-list .memory-item:hover {" in css
-    idx = css.index("#memory-list .memory-item:hover {")
-    block = css[idx:idx + 200]
-    assert "background: color-mix(in srgb, var(--fg) 3%, transparent)" in block
-
-
-def test_memory_list_hover_suppresses_border_paint():
-    """
-    #memory-list .memory-item:hover must reset border-color to var(--border)
-    (the non-hover value), suppressing the paint-inducing border change.
-    """
-    css = _css()
-    idx = css.index("#memory-list .memory-item:hover {")
-    block = css[idx:idx + 200]
-    assert "border-color: var(--border)" in block
-
-
 # ---------------------------------------------------------------------------
-# Phase 3: always-visible action buttons (no opacity cycle per hover)
+# Suppression revert guards (ensure the old approach is not re-introduced)
 # ---------------------------------------------------------------------------
 
-def test_memory_list_item_actions_always_visible():
+def test_hover_background_suppression_not_present():
     """
-    .memory-item-actions in the list context must be at opacity:1 always.
-    The base rule hides it at opacity:0; revealing it on hover via opacity 0→1→0
-    creates/destroys a compositor layer each cycle — orphaned tiles accumulate in
-    Qt's tile cache (no OS pressure signal). opacity:1 makes the hover rule a
-    no-op: Chromium's paint-invalidation check sees no change, zero tiles.
+    The old approach of setting #memory-list .memory-item:hover background
+    to match the non-hover value has been reverted. Hover UX is restored.
+    Primary tile bounding is now --enable-low-end-device-mode.
     """
     css = _css()
-    assert "#memory-list .memory-item-actions" in css
-    idx = css.index("#memory-list .memory-item-actions")
-    block = css[idx:idx + 200]
-    assert "opacity: 1" in block
+    assert "Suppress paint-inducing background/border-color" not in css
 
 
-def test_memory_list_item_actions_no_transition():
+def test_action_buttons_opacity_suppression_not_present():
     """
-    .memory-item-actions in the list context must have transition: none.
-    The base rule carries transition: opacity 0.15s — removing it in the list
-    context eliminates any transition machinery even if opacity were to change.
+    The old approach of fixing #memory-list .memory-item-actions opacity at 1
+    and removing its transition has been reverted. Buttons now reveal on hover
+    normally; tile eviction is handled at the engine level.
     """
     css = _css()
-    idx = css.index("#memory-list .memory-item-actions")
-    block = css[idx:idx + 200]
-    assert "transition: none" in block
+    assert "#memory-list .memory-item-actions {\n  opacity: 1" not in css
 
 
-def test_memory_list_menu_btn_always_visible():
+def test_menu_btn_opacity_suppression_not_present():
     """
-    .memory-menu-btn in the list context must be at opacity:1 always.
-    Same rationale as .memory-item-actions: the 0→1→0 opacity cycle destroys
-    and recreates compositor layers, leaving orphaned tiles in Qt's tile cache.
+    The old approach of fixing #memory-list .memory-menu-btn opacity at 1
+    has been reverted. Hover reveal animation is restored.
     """
     css = _css()
-    assert "#memory-list .memory-menu-btn" in css
-    idx = css.index("#memory-list .memory-menu-btn")
-    block = css[idx:idx + 200]
-    assert "opacity: 1" in block
-
-
-def test_memory_list_menu_btn_no_transition():
-    """
-    .memory-menu-btn in the list context must have transition: none.
-    The base rule carries transition: opacity 0.15s, background 0.15s,
-    border-color 0.15s. All three are suppressed since no property on this
-    element changes on hover in the list context.
-    """
-    css = _css()
-    idx = css.index("#memory-list .memory-menu-btn {")
-    block = css[idx:idx + 200]
-    block_no_comments = re.sub(r"/\*.*?\*/", "", block, flags=re.DOTALL)
-    assert "transition: none" in block_no_comments
-
-
-# ---------------------------------------------------------------------------
-# Phase 4: button hover paint suppression
-# ---------------------------------------------------------------------------
-
-def test_memory_list_menu_btn_hover_suppressed():
-    """
-    #memory-list .memory-menu-btn:hover must set background, border-color, and
-    color to the same non-hover values. The base rule changes all three on hover
-    (background: 7% fg, border-color: var(--border), color: var(--fg)) —
-    each change rasterizes new tiles. Qt never evicts tiles without OS pressure.
-    """
-    css = _css()
-    assert "#memory-list .memory-menu-btn:hover" in css
-    idx = css.index("#memory-list .memory-menu-btn:hover")
-    block = css[idx:idx + 200]
-    assert "background: none" in block
-    assert "border-color: transparent" in block
-    assert "color: var(--color-muted)" in block
-
-
-def test_memory_list_item_btn_no_transition():
-    """
-    .memory-item-btn in the list context must have transition: none.
-    The base rule carries transition: all 0.15s — on hover, background,
-    border-color, and color all transition, generating ~9 raster tile frames
-    each pass. transition: none eliminates the multi-frame accumulation.
-    """
-    css = _css()
-    assert "#memory-list .memory-item-btn" in css
-    idx = css.index("#memory-list .memory-item-btn {")
-    block = css[idx:idx + 200]
-    assert "transition: none" in block
-
-
-def test_memory_list_item_btn_hover_suppressed():
-    """
-    #memory-list .memory-item-btn:hover must set background, border-color, and
-    color to the same non-hover values — Chromium skips repaint when computed
-    values are unchanged. Covers all button variants (.delete, .save, etc.)
-    since #memory-list id specificity beats all class-only variant selectors.
-    """
-    css = _css()
-    assert "#memory-list .memory-item-btn:hover" in css
-    idx = css.index("#memory-list .memory-item-btn:hover")
-    block = css[idx:idx + 200]
-    assert "background: none" in block
-    assert "border-color: transparent" in block
-    assert "color: var(--color-muted)" in block
+    assert "#memory-list .memory-menu-btn {\n  opacity: 1" not in css
