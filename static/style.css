@@ -10830,6 +10830,8 @@ textarea.memory-add-input {
   max-height: 200px;
   flex-shrink: 0;        /* memory-list is a flex column; without this, items get squeezed to fit */
   transition: all 0.15s;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
 }
 
 .memory-item-title {
@@ -10858,14 +10860,6 @@ textarea.memory-add-input {
      because Qt does not forward OS memory pressure to the renderer. Limit to
      opacity — the only compositor-promoted property hover rules use here. */
   transition: opacity 0.15s;
-}
-/* Suppress paint-inducing background/border-color changes from the base
-   .memory-item:hover rule. Setting them to the same computed values as the
-   non-hover state causes Chromium's paint-invalidation check to skip repaint —
-   zero tiles generated on hover entry/exit. */
-#memory-list .memory-item:hover {
-  background: color-mix(in srgb, var(--fg) 3%, transparent);
-  border-color: var(--border);
 }
 #memory-list .memory-item::after {
   /* Sweep highlight rides the border ring only — gradient-fill + mask cutout
@@ -10909,42 +10903,6 @@ textarea.memory-add-input {
 }
 @media (prefers-reduced-motion: reduce) {
   #memory-list .memory-item::after { animation: none; opacity: 0; }
-}
-/* Always show action buttons and menu button in the list context.
-   The base rules hide them at opacity:0 and reveal on :hover — each
-   opacity 0→1→0 cycle creates and destroys a compositor layer in Qt's
-   embedded Chromium, which never receives OS memory pressure signals.
-   Orphaned raster tiles from the destroyed layers accumulate without eviction.
-   Fixing opacity at 1 makes the hover rule a no-op (1→1 = no change) —
-   Chromium detects identical computed values and skips rasterization entirely. */
-#memory-list .memory-item-actions {
-  opacity: 1;
-  transition: none;
-}
-/* Suppress all paint-inducing hover changes on buttons and menu-btn in the
-   list context. Both base rules carry transition: all (or transition: opacity,
-   background, border-color) and their :hover rules change background,
-   border-color, and color — all requiring main-thread rasterization.
-   Setting the hover values equal to the non-hover computed values causes
-   Chromium's paint-invalidation check to skip repaint entirely.
-   transition: none eliminates the multi-frame tile accumulation from the
-   transition animation itself. */
-#memory-list .memory-menu-btn {
-  opacity: 1;
-  transition: none;
-}
-#memory-list .memory-menu-btn:hover {
-  background: none;
-  border-color: transparent;
-  color: var(--color-muted);
-}
-#memory-list .memory-item-btn {
-  transition: none;
-}
-#memory-list .memory-item-btn:hover {
-  background: none;
-  border-color: transparent;
-  color: var(--color-muted);
 }
 /* Pause all item animations while the Brain panel is not visible. Qt does
    not evict raster tiles under memory pressure; pausing stops the compositor
@@ -16008,6 +15966,8 @@ body:not(.email-doc-split-active) #email-lib-modal.email-lib-fullscreen:not(.mod
   cursor: pointer;
   transition: all 0.15s, opacity 0.3s, max-height 0.3s ease;
   position: relative;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
 }
 .doclib-card.doclib-card-deleting {
   opacity: 0;
@@ -23119,6 +23079,8 @@ select.task-form-input { text-overflow: ellipsis; }
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 10px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 140px;
 }
 .task-run-item-header {
   display: flex;
@@ -28195,6 +28157,8 @@ button .spinner-whirlpool {
 .email-item {
   display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
   cursor: pointer; border-bottom: 1px solid var(--border); position: relative; transition: background 0.1s;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px;
 }
 .email-item:hover { background: var(--hover-bg, rgba(255,255,255,0.03)); }
 .email-item:hover .email-menu-btn { opacity: 0.5; }
