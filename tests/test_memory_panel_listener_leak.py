@@ -126,12 +126,20 @@ def test_modal_close_cleanup_present():
     assert "_memModal.classList.contains('hidden')" in js
 
 
-def test_modal_close_aborts_controller():
-    """Cleanup on modal close must abort the list controller."""
+def test_modal_close_does_not_abort_controller():
+    """
+    The modal close handler must NOT abort _listAbortCtrl.
+
+    Aborting on close would leave DOM items without event handlers until the
+    next memory-refresh triggers renderMemoryList() — because memory.js has no
+    odysseus:modal-opened listener. The abort belongs at the START of
+    renderMemoryList() (verified by test_abort_called_before_render), immediately
+    before innerHTML is cleared.
+    """
     js = _js()
     idx = js.index("_memModal.classList.contains('hidden')")
-    block = js[idx:idx + 300]
-    assert "_listAbortCtrl.abort()" in block
+    block = js[idx:idx + 400]
+    assert "_listAbortCtrl.abort()" not in block
 
 
 def test_modal_close_triggers_gc():
