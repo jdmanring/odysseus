@@ -317,3 +317,15 @@ def test_tile_eviction_uses_browser_target():
     """
     assert "_cdp_browser_call('Memory.simulatePressureNotification'" in _SRC
     assert "'level': 'moderate'" in _SRC
+
+
+def test_hover_transition_suppress_script_injected():
+    """
+    A QWebEngineScript named 'qt-transition-suppress' must be injected at
+    DocumentReady. It restricts transition-property to opacity and transform
+    via !important, eliminating ~9 raster tile frames per hover event from
+    transition: all rules without removing compositor-promoted animations.
+    """
+    assert "qt-transition-suppress" in _SRC
+    assert "transition-property: opacity, transform !important" in _SRC
+    assert "DocumentReady" in _SRC
