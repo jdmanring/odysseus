@@ -357,6 +357,32 @@ class OdysseusWindow(QMainWindow):
         tile_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         page.scripts().insert(tile_script)
 
+        _paint_skip_js = (
+            "(function(){"
+            "var seen=new WeakSet(),n=0,sh=new CSSStyleSheet();"
+            "document.adoptedStyleSheets=document.adoptedStyleSheets.concat([sh]);"
+            "document.addEventListener('mouseleave',function(e){"
+            "var el=e.target;"
+            "if(el.nodeType!==1||seen.has(el))return;"
+            "seen.add(el);"
+            "var cs=getComputedStyle(el),id='q'+(n++);"
+            "el.dataset.qths=id;"
+            "try{sh.insertRule("
+            "'[data-qths=\"'+id+'\"]:hover{'"
+            "+'background-color:'+cs.backgroundColor+'!important;'"
+            "+'border-color:'+cs.borderColor+'!important;'"
+            "+'box-shadow:'+cs.boxShadow+'!important}'"
+            ");}catch(_){}"
+            "},{capture:true,passive:true});"
+            "})()"
+        )
+        paint_skip_script = QWebEngineScript()
+        paint_skip_script.setSourceCode(_paint_skip_js)
+        paint_skip_script.setName("qt-paint-skip")
+        paint_skip_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+        paint_skip_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        page.scripts().insert(paint_skip_script)
+
         # Native bridge — held as instance attrs to prevent GC
         self._bridge = NativeBridge()
         self._channel = QWebChannel(page)
