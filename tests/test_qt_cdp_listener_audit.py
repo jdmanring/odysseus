@@ -327,5 +327,5 @@ def test_hover_transition_suppress_script_injected():
     transition: all rules without removing compositor-promoted animations.
     """
     assert "qt-transition-suppress" in _SRC
-    assert "transition-property: opacity, transform !important" in _SRC
+    assert "transition: none !important" in _SRC
     assert "DocumentReady" in _SRC
