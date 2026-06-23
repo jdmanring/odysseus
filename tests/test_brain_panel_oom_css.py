@@ -131,18 +131,22 @@ def test_no_webkit_mask_on_memory_sweep():
 
 
 # ---------------------------------------------------------------------------
-# will-change declared so the compositor promotes the layer before first paint
+# will-change must NOT be on ::after — the animation is self-promoting
 # ---------------------------------------------------------------------------
 
-def test_memory_sweep_declares_will_change_transform():
-    """will-change: transform tells the compositor to promote the layer before
-    the first animation frame, avoiding a one-frame layout cost on first paint."""
+def test_memory_sweep_omits_will_change_transform():
+    """will-change: transform on a scrollable list pre-promotes every item,
+    including those off-screen. A continuously running transform animation
+    auto-promotes the composited layer; will-change is redundant for visible
+    items and forces GPU backing texture allocation for off-screen items
+    that are never rendered into the viewport."""
     idx = _CSS.find("#memory-list .memory-item::after {")
     assert idx >= 0
     block = _CSS[idx : idx + 900]
-    assert "will-change: transform" in block, (
-        "::after should declare will-change:transform so the compositor "
-        "promotes its layer before the first animation frame"
+    assert "will-change: transform" not in block, (
+        "::after must not declare will-change:transform; the infinite "
+        "transform animation is self-promoting and the hint forces backing "
+        "textures for off-screen list items"
     )
 
 
