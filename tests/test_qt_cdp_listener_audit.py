@@ -372,3 +372,50 @@ def test_idle_eviction_runs_in_executor():
     """
     assert "_cdp_executor.submit" in _SRC
     assert "_evict_on_idle" in _SRC or "_do" in _SRC
+
+
+# --- P1–P5: professional tile budget + lifecycle management ---
+
+def test_low_end_device_mode_flag():
+    """--enable-low-end-device-mode caps cc::TileManager raster budget at ~96 MB,
+    causing automatic eviction when the budget is hit. This is the primary bounding
+    mechanism — self-regulating via the engine's own memory management."""
+    assert "--enable-low-end-device-mode" in _SRC
+
+
+def test_http_cache_capped():
+    """HTTP cache must be explicitly bounded. Default is unlimited (0), which lets
+    the cache grow without bound even though the app serves from localhost and
+    rarely gets cache hits."""
+    assert "setHttpCacheMaximumSize" in _SRC
+
+
+def test_page_stored_as_instance_attr():
+    """The page must be stored as self._page for changeEvent to access it during
+    minimize/restore lifecycle transitions."""
+    assert "self._page = page" in _SRC
+
+
+def test_lifecycle_freeze_on_minimize():
+    """On window minimize, setLifecycleState(Frozen) must be called to halt rendering
+    and release compositor tile memory. Must check isMinimized() to distinguish
+    minimize from other WindowStateChange events."""
+    block = _change_event_block()
+    assert "setLifecycleState" in block
+    assert "isMinimized" in block
+
+
+def test_periodic_timer_reduced_to_30s():
+    """Periodic CDP eviction interval reduced from 10s to 30s. With P1's tile budget
+    doing primary bounding and the 2s mouse-idle eviction handling the interactive
+    case, 10s polling was unnecessary frequency."""
+    assert "_mem_timer.start(30_000)" in _SRC
+
+
+def test_eviction_telemetry_present():
+    """RSS must be captured before and after the eviction CDP call so logs show
+    whether the call actually freed memory (positive delta) or was a no-op."""
+    block = _log_renderer_memory_block()
+    assert "rss_before" in block
+    evict_pos = block.index("_cdp_browser_call(")
+    assert "rss_after" in block[evict_pos:]
