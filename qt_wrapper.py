@@ -91,6 +91,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--js-flags=--expose-gc --initial-old-space-size=128 --max-old-space-size=512 --optimize-for-size --minor-mc",
     "--renderer-process-limit=1",
     "--disable-extensions",
+    "--enable-low-end-device-mode",  # caps cc::TileManager raster tile budget ~96 MB
     *_gpu_flags,
 ])
 
@@ -481,6 +482,7 @@ class OdysseusWindow(QMainWindow):
         self.setWindowTitle(WINDOW_TITLE)
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
+        self._page = page  # held for lifecycle management in changeEvent
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
@@ -535,12 +537,14 @@ class OdysseusWindow(QMainWindow):
         _last_vmpeak: list[int] = [0]  # mutable cell for closure capture
 
         def _log_renderer_memory():
-            try:
-                pid = page.renderProcessPid()
-                if pid:
+            rss_before = 0
+            pid = page.renderProcessPid()
+            if pid:
+                try:
                     with open(f'/proc/{pid}/status') as f:
                         for line in f:
                             if line.startswith('VmRSS'):
+                                rss_before = int(line.split()[1])
                                 print(f'[MEM] pid={pid} {line.rstrip()}', flush=True)
                             elif line.startswith('VmPeak'):
                                 kb = int(line.split()[1])
@@ -548,8 +552,8 @@ class OdysseusWindow(QMainWindow):
                                     _last_vmpeak[0] = kb
                                     print(f'[MEM] pid={pid} {line.rstrip()} (new peak)',
                                           flush=True)
-            except OSError as e:
-                print(f'[MEM] error: {e}', flush=True)
+                except OSError as e:
+                    print(f'[MEM] error: {e}', flush=True)
             counts = _cdp_call('Memory.getDOMCounters')
             if counts:
                 nodes = counts.get('nodes', 0)
@@ -592,10 +596,26 @@ class OdysseusWindow(QMainWindow):
                 f'[MEM] critical tile eviction: {"ok" if result is not None else "FAILED"}',
                 flush=True,
             )
+            # Telemetry: measure actual RSS freed by the eviction call.
+            if rss_before and pid:
+                try:
+                    with open(f'/proc/{pid}/status') as f:
+                        for line in f:
+                            if line.startswith('VmRSS'):
+                                rss_after = int(line.split()[1])
+                                delta = rss_before - rss_after
+                                print(
+                                    f'[MEM] RSS after eviction: {rss_after} kB'
+                                    f' (delta={delta:+d} kB)',
+                                    flush=True,
+                                )
+                                break
+                except OSError:
+                    pass
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
-        self._mem_timer.start(10_000)
+        self._mem_timer.start(30_000)
         _start_psi_monitor()
 
         # Focus-loss GC timer: 500 ms single-shot debounce started on WindowDeactivate,
@@ -660,8 +680,21 @@ class OdysseusWindow(QMainWindow):
         self.resize(1280, 800)
 
     def changeEvent(self, event):
-        if event.type() == QEvent.Type.WindowDeactivate:
-            self._gc_focus_timer.start(500)
+        if event.type() == QEvent.Type.WindowStateChange:
+            if self.isMinimized():
+                # Freeze halts rendering and releases compositor tile memory.
+                # Risk: active SSE streams pause during freeze — acceptable for
+                # short minimizes; the stream resumes when the page is thawed.
+                self._page.setLifecycleState(QWebEnginePage.LifecycleState.Frozen)
+                print('[LIFECYCLE] page frozen (minimized)', flush=True)
+            else:
+                self._page.setLifecycleState(QWebEnginePage.LifecycleState.Active)
+                print('[LIFECYCLE] page active (restored)', flush=True)
+        elif event.type() == QEvent.Type.WindowDeactivate:
+            # Minimize fires both WindowStateChange and WindowDeactivate; skip the
+            # GC timer here to avoid queuing runJavaScript on a frozen page.
+            if not self.isMinimized():
+                self._gc_focus_timer.start(500)
         elif event.type() == QEvent.Type.WindowActivate:
             self._gc_focus_timer.stop()
         super().changeEvent(event)
@@ -703,6 +736,9 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
+    # App serves from localhost — HTTP cache is almost entirely idle but grows
+    # without bound by default. Cap at 50 MB.
+    profile.setHttpCacheMaximumSize(50_000_000)
 
     win = OdysseusWindow(profile)
     win.show()
