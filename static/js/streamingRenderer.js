@@ -80,7 +80,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
     // Text-only append fast path: when the tail is growing by plain prose (no markdown
     // structural characters in the new suffix), append directly to the live text node
     // without re-parsing or clearing the tail. Eliminates the holder div allocation for
-    // the common streaming case. Caveat: skips the fade-in span (imperceptible at 30fps).
+    // the common streaming case. Caveat: skips the fade-in span (imperceptible at 60fps).
     if (_lastTailText !== null && tailText.startsWith(_lastTailText)) {
       const suffix = tailText.slice(_lastTailText.length);
       const lastTail = _tailNodes.length > 0 ? _tailNodes[_tailNodes.length - 1] : null;
