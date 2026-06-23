@@ -10895,6 +10895,12 @@ textarea.memory-add-input {
 @media (prefers-reduced-motion: reduce) {
   #memory-list .memory-item::after { animation: none; opacity: 0; }
 }
+/* Pause all item animations while the Brain panel is not visible. Qt does
+   not evict raster tiles under memory pressure; pausing stops the compositor
+   from accumulating tiles for a panel the user is not looking at. */
+#memory-modal.hidden #memory-list .memory-item::after {
+  animation-play-state: paused;
+}
 .memory-pinned:hover {
   background: color-mix(in srgb, var(--red) 4%, transparent);
   border-color: var(--border);
