@@ -182,23 +182,13 @@ def _signal_handler(sig, frame):
     sys.exit(0)
 
 
-def _cdp_call(method, params=None):
-    """One-shot CDP call via stdlib WebSocket. Safe to call from any thread.
+def _cdp_ws_call(ws_url, method, params=None):
+    """Send one CDP command to an already-resolved ws:// URL and return the result.
 
-    Embedded Chromium builds (PyQt, Electron, native wrappers) do not receive OS
-    memory-pressure signals that would trigger Oilpan's automatic GC, so Python-side
-    CDP calls are the reliable way to invoke collection without --expose-gc.
+    Shared by _cdp_call (page target) and _cdp_browser_call (browser target).
     Returns the CDP result dict or None on any error.
     """
     try:
-        raw = _cdp_req.urlopen('http://localhost:9222/json', timeout=1).read()
-        pages = json.loads(raw)
-        ws_url = next(
-            (p['webSocketDebuggerUrl'] for p in pages if p.get('type') == 'page'),
-            None,
-        )
-        if not ws_url:
-            return None
         hostpath = ws_url[len('ws://'):]
         host_port, path = hostpath.split('/', 1)
         host_name, port_s = host_port.split(':')
@@ -242,6 +232,47 @@ def _cdp_call(method, params=None):
             return json.loads(data.decode()).get('result')
         finally:
             s.close()
+    except Exception:
+        return None
+
+
+def _cdp_call(method, params=None):
+    """One-shot CDP call on the page target via stdlib WebSocket.
+
+    Embedded Chromium builds (PyQt, Electron, native wrappers) do not receive OS
+    memory-pressure signals that would trigger Oilpan's automatic GC, so Python-side
+    CDP calls are the reliable way to invoke collection without --expose-gc.
+    Returns the CDP result dict or None on any error.
+    """
+    try:
+        raw = _cdp_req.urlopen('http://localhost:9222/json', timeout=1).read()
+        pages = json.loads(raw)
+        ws_url = next(
+            (p['webSocketDebuggerUrl'] for p in pages if p.get('type') == 'page'),
+            None,
+        )
+        if not ws_url:
+            return None
+        return _cdp_ws_call(ws_url, method, params)
+    except Exception:
+        return None
+
+
+def _cdp_browser_call(method, params=None):
+    """One-shot CDP call on the browser target via stdlib WebSocket.
+
+    Browser-level commands (e.g. Memory.simulatePressureNotification) must be sent
+    to the browser target — they are not dispatched to renderer processes when called
+    from a page target. The browser target URL is at /json/version rather than /json.
+    Returns the CDP result dict or None on any error.
+    """
+    try:
+        raw = _cdp_req.urlopen('http://localhost:9222/json/version', timeout=1).read()
+        info = json.loads(raw)
+        ws_url = info.get('webSocketDebuggerUrl')
+        if not ws_url:
+            return None
+        return _cdp_ws_call(ws_url, method, params)
     except Exception:
         return None
 
@@ -530,12 +561,12 @@ class OdysseusWindow(QMainWindow):
                         "if(typeof gc==='function')"
                         "gc({type:'major',execution:'async'});"
                     )
-            # Qt WebEngine doesn't forward OS memory-pressure signals to
-            # cc::TileManager; hover events rasterize tiles that are never evicted.
-            # Moderate pressure simulation fires the same MemoryPressureListener
-            # path the OS would use, causing the tile manager to evict non-visible
-            # accumulated tiles.
-            _cdp_call('Memory.simulatePressureNotification', {'level': 'moderate'})
+            # Browser-target call required: simulatePressureNotification is a
+            # browser-level command that the browser process broadcasts to all
+            # renderer processes via IPC. On a page target it is either rejected
+            # or fires only in the browser process, leaving cc::TileManager in the
+            # renderer unaffected.
+            _cdp_browser_call('Memory.simulatePressureNotification', {'level': 'moderate'})
             print('[MEM] moderate memory pressure simulated (tile eviction)', flush=True)
 
         self._mem_timer = QTimer()
