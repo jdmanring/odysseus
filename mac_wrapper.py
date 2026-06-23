@@ -335,7 +335,7 @@ class OdysseusWindow(QMainWindow):
 
         _hover_css = (
             "*, *::before, *::after"
-            "{ transition-property: opacity, transform !important; }"
+            "{ transition: none !important; }"
         )
         tile_script = QWebEngineScript()
         tile_script.setSourceCode(
