@@ -374,6 +374,13 @@ class OdysseusWindow(QMainWindow):
                     _threading.Thread(
                         target=_cdp_purge_memory, daemon=True, name='threshold-gc',
                     ).start()
+            # Qt WebEngine doesn't forward OS memory-pressure signals to
+            # cc::TileManager; hover events rasterize tiles that are never evicted.
+            # Moderate pressure simulation fires the same MemoryPressureListener
+            # path the OS would use, causing the tile manager to evict non-visible
+            # accumulated tiles.
+            _cdp_call('Memory.simulatePressureNotification', {'level': 'moderate'})
+            print('[MEM] moderate memory pressure simulated (tile eviction)', flush=True)
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
