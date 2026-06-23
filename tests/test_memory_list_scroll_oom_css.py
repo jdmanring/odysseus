@@ -1,17 +1,25 @@
 """
-Regression tests for the scroll-triggered raster-tile accumulation fix
-on the Brain memory list.
+Regression tests for hover raster-tile accumulation fixes on the Brain memory list.
 
-Root cause: the base .memory-item class carries `transition: all 0.15s`.
-In #memory-list, as the cursor passes over items during scroll each item
-cycles through enter-hover and leave-hover state, animating background
-and border-color. Neither property is compositor-promoted; each transition
-deposits ~9 frames of raster tiles at 60 fps. Qt does not forward OS
-memory pressure to the renderer so the tiles are never evicted.
+Two root causes addressed:
 
-Fix: #memory-list .memory-item overrides the base transition with
-`transition: opacity 0.15s`, limiting animated changes to the one
-compositor-promoted property used in that context.
+1. Transition animation (phase 1 fix):
+   The base .memory-item carries `transition: all 0.15s`. In #memory-list, hover
+   entry/exit animates background and border-color — neither is compositor-promoted.
+   Each transition deposited ~9 raster tile frames at 60 fps. Qt never evicts tiles
+   without OS memory pressure, so they accumulated without bound.
+   Fix: override with `transition: opacity 0.15s` in the list context.
+
+2. Hover paint itself (phase 2 fix):
+   Even with no transition, the base .memory-item:hover rule changes background and
+   border-color on every hover entry/exit, generating 1 raster tile frame per event.
+   Across many hover cycles with 20+ items, tiles accumulate significantly.
+   Fix: suppress the paint-causing hover properties in the list context (set them to
+   their non-hover computed values — Chromium skips paint when values are unchanged)
+   and replace the hover visual with a ::before overlay whose opacity transitions
+   from 0→1. Opacity is compositor-promoted: zero tiles generated on hover.
+   isolation: isolate on the item creates a stacking context so ::before with
+   z-index: -1 is contained (above item background, below flow content, below ::after).
 """
 
 import re
@@ -28,8 +36,8 @@ def test_memory_list_overrides_transition_all():
     """#memory-list .memory-item must not inherit transition: all."""
     css = _css()
     assert "#memory-list .memory-item" in css
-    idx = css.index("#memory-list .memory-item")
-    block = css[idx:idx + 600]
+    idx = css.index("#memory-list .memory-item {")
+    block = css[idx:idx + 1100]
     # The override must exist inside the scoped rule.
     assert "transition: opacity" in block
 
@@ -50,8 +58,9 @@ def test_memory_list_transition_not_all():
     bug in the comment does not trigger a false positive.
     """
     css = _css()
-    idx = css.index("#memory-list .memory-item")
-    block = css[idx:idx + 600]
+    idx = css.index("#memory-list .memory-item {")
+    # Window must be large enough to capture the full rule body (incl. comments).
+    block = css[idx:idx + 1100]
     block_no_comments = re.sub(r"/\*.*?\*/", "", block, flags=re.DOTALL)
     # The list context must not set transition: all (the source of the bug).
     assert "transition: all" not in block_no_comments
@@ -65,8 +74,99 @@ def test_memory_list_transition_is_compositor_promoted():
     are the source of the raster-tile accumulation.
     """
     css = _css()
-    idx = css.index("#memory-list .memory-item")
-    block = css[idx:idx + 600]
+    idx = css.index("#memory-list .memory-item {")
+    block = css[idx:idx + 1100]
     # No transition on main-thread paint properties in this context.
     assert "transition: background" not in block
     assert "transition: border" not in block
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: hover paint suppression + ::before compositor overlay
+# ---------------------------------------------------------------------------
+
+def test_memory_list_item_has_isolation_isolate():
+    """
+    #memory-list .memory-item must have isolation: isolate.
+    This creates a stacking context so ::before with z-index:-1 is contained
+    within the item (above item background, below static content children).
+    """
+    css = _css()
+    idx = css.index("#memory-list .memory-item {")
+    block = css[idx:idx + 1100]
+    assert "isolation: isolate" in block
+
+
+def test_memory_list_before_overlay_present():
+    """#memory-list .memory-item::before must exist as the hover overlay."""
+    css = _css()
+    assert "#memory-list .memory-item::before" in css
+
+
+def test_memory_list_before_overlay_opacity_zero():
+    """::before overlay must start at opacity 0 (invisible when not hovered)."""
+    css = _css()
+    idx = css.index("#memory-list .memory-item::before")
+    block = css[idx:idx + 400]
+    assert "opacity: 0" in block
+
+
+def test_memory_list_before_overlay_transition_opacity():
+    """::before must transition only opacity (compositor-promoted — no paint)."""
+    css = _css()
+    idx = css.index("#memory-list .memory-item::before")
+    block = css[idx:idx + 400]
+    assert "transition: opacity" in block
+
+
+def test_memory_list_before_has_negative_z_index():
+    """
+    ::before must have z-index: -1 to sit below static content children
+    but above the item's own background within the isolation stacking context.
+    """
+    css = _css()
+    idx = css.index("#memory-list .memory-item::before")
+    block = css[idx:idx + 400]
+    assert "z-index: -1" in block
+
+
+def test_memory_list_before_pointer_events_none():
+    """::before overlay must not capture pointer events."""
+    css = _css()
+    idx = css.index("#memory-list .memory-item::before")
+    block = css[idx:idx + 400]
+    assert "pointer-events: none" in block
+
+
+def test_memory_list_hover_before_opacity_one():
+    """On hover, ::before opacity becomes 1 — the compositor fade-in."""
+    css = _css()
+    assert "#memory-list .memory-item:hover::before" in css
+    idx = css.index("#memory-list .memory-item:hover::before")
+    block = css[idx:idx + 100]
+    assert "opacity: 1" in block
+
+
+def test_memory_list_hover_suppresses_background_paint():
+    """
+    #memory-list .memory-item:hover must set background to the same computed
+    value as the non-hover state. This prevents Chromium from marking the element
+    dirty for repaint when the base .memory-item:hover rule fires.
+    """
+    css = _css()
+    assert "#memory-list .memory-item:hover {" in css
+    idx = css.index("#memory-list .memory-item:hover {")
+    block = css[idx:idx + 200]
+    # Must match the non-hover value exactly so no paint is triggered.
+    assert "background: color-mix(in srgb, var(--fg) 3%, transparent)" in block
+
+
+def test_memory_list_hover_suppresses_border_paint():
+    """
+    #memory-list .memory-item:hover must reset border-color to var(--border)
+    (the non-hover value), suppressing the paint-inducing border change.
+    """
+    css = _css()
+    idx = css.index("#memory-list .memory-item:hover {")
+    block = css[idx:idx + 200]
+    assert "border-color: var(--border)" in block
