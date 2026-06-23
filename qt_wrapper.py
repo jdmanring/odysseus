@@ -508,6 +508,40 @@ class OdysseusWindow(QMainWindow):
         tile_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         page.scripts().insert(tile_script)
 
+        # Dynamic paint-skip: on first mouseleave from each element, capture
+        # its non-hover computed background-color, border-color, and box-shadow,
+        # then insert a CSS rule that forces :hover to those exact values.
+        # In Chromium, updateHoverActiveState() runs before mouseleave is
+        # dispatched, so getComputedStyle() in the handler returns non-hover
+        # values. When the element is hovered again, its computed paint properties
+        # are unchanged → Chromium's paint-invalidation check skips rasterization.
+        # Cost: 2 tile frames on the first hover cycle per unique element, then 0.
+        _paint_skip_js = (
+            "(function(){"
+            "var seen=new WeakSet(),n=0,sh=new CSSStyleSheet();"
+            "document.adoptedStyleSheets=document.adoptedStyleSheets.concat([sh]);"
+            "document.addEventListener('mouseleave',function(e){"
+            "var el=e.target;"
+            "if(el.nodeType!==1||seen.has(el))return;"
+            "seen.add(el);"
+            "var cs=getComputedStyle(el),id='q'+(n++);"
+            "el.dataset.qths=id;"
+            "try{sh.insertRule("
+            "'[data-qths=\"'+id+'\"]:hover{'"
+            "+'background-color:'+cs.backgroundColor+'!important;'"
+            "+'border-color:'+cs.borderColor+'!important;'"
+            "+'box-shadow:'+cs.boxShadow+'!important}'"
+            ");}catch(_){}"
+            "},{capture:true,passive:true});"
+            "})()"
+        )
+        paint_skip_script = QWebEngineScript()
+        paint_skip_script.setSourceCode(_paint_skip_js)
+        paint_skip_script.setName("qt-paint-skip")
+        paint_skip_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+        paint_skip_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+        page.scripts().insert(paint_skip_script)
+
         # Native bridge — held as instance attrs to prevent GC
         self._bridge = NativeBridge()
         self._channel = QWebChannel(page)
