@@ -11749,6 +11749,13 @@ textarea.memory-add-input {
 #memory-list .memory-item {
   position: relative;
   overflow: hidden;
+  /* Override the base .memory-item transition: all. When the cursor moves over
+     items during scroll, background and border-color change as each item enters
+     and leaves hover state. Both properties require main-thread painting; 9
+     frames of raster tiles per transition at 60 fps accumulate without eviction
+     because Qt does not forward OS memory pressure to the renderer. Limit to
+     opacity — the only compositor-promoted property hover rules use here. */
+  transition: opacity 0.15s;
 }
 #memory-list .memory-item::after {
   /* Sweep highlight rides the border ring only — gradient-fill + mask cutout
