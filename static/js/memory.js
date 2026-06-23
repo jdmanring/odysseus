@@ -1536,19 +1536,20 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMemories();
   });
 
-  // Release item listeners and trigger GC when the Brain panel is hidden.
-  // The AbortController abort releases all item-level listener closures.
-  // The GC call (feature-detected — only exposed in Chromium with
-  // --js-flags=--expose-gc) collects the freed Oilpan objects that were
-  // referenced by those closures, preventing them from building up until
-  // the next agent-response GC cycle.
+  // Cleanup when the Brain panel is hidden.
+  // We do NOT abort _listAbortCtrl here: memory.js has no odysseus:modal-opened
+  // listener, so aborting before the next renderMemoryList() would leave DOM items
+  // with dead handlers until a memory-refresh event fires. The abort already
+  // happens at the start of every renderMemoryList() call — that is the right
+  // moment (immediately before innerHTML is cleared). Listeners on hidden modal
+  // items are harmless; they cannot fire while the modal is not visible.
   const _memModal = document.getElementById('memory-modal');
   if (_memModal) {
     new MutationObserver(() => {
       if (_memModal.classList.contains('hidden')) {
         _closeActiveDropdown();
-        if (_listAbortCtrl) { _listAbortCtrl.abort(); _listAbortCtrl = null; }
         if (typeof gc === 'function') setTimeout(gc, 100);
+        console.log('[memory] panel close: dropdown cleared, GC queued');
       }
     }).observe(_memModal, { attributes: true, attributeFilter: ['class'] });
   }
