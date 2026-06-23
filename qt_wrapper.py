@@ -484,16 +484,17 @@ class OdysseusWindow(QMainWindow):
         qwc_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         page.scripts().insert(qwc_script)
 
-        # Restrict CSS transitions to compositor-promoted properties only.
-        # Qt WebEngine doesn't forward OS memory-pressure signals to
-        # cc::TileManager; transition: all generates ~9 raster tile frames per
-        # hover event at 60fps, accumulating without eviction. Limiting to
-        # opacity and transform means background/color/border-color hover
-        # changes snap instantly (zero animated tile frames) while
-        # opacity/transform animations remain smooth.
+        # Suppress all CSS transitions.  Qt WebEngine doesn't forward OS
+        # memory-pressure signals to cc::TileManager; transition: all
+        # generates ~9 raster tile frames per hover event at 60fps that
+        # accumulate without eviction.  193 :hover rules also change opacity,
+        # which with a non-zero transition duration creates and destroys
+        # compositor layers — another source of orphaned tiles.
+        # transition: none eliminates all animated frames; hover states still
+        # apply (background/color changes are still visible) but snap instantly.
         _hover_css = (
             "*, *::before, *::after"
-            "{ transition-property: opacity, transform !important; }"
+            "{ transition: none !important; }"
         )
         tile_script = QWebEngineScript()
         tile_script.setSourceCode(
