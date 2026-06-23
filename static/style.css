@@ -10851,6 +10851,8 @@ textarea.memory-add-input {
 #memory-list .memory-item {
   position: relative;
   overflow: hidden;
+  isolation: isolate; /* stacking context: contains ::before at z-index:-1 above
+                         item background but below static flow content */
   /* Override the base .memory-item transition: all. When the cursor moves over
      items during scroll, background and border-color change as each item enters
      and leaves hover state. Both properties require main-thread painting; 9
@@ -10858,6 +10860,34 @@ textarea.memory-add-input {
      because Qt does not forward OS memory pressure to the renderer. Limit to
      opacity — the only compositor-promoted property hover rules use here. */
   transition: opacity 0.15s;
+}
+/* Hover overlay: opacity is compositor-promoted — the GPU handles the 0→1
+   fade without rasterizing new tiles. The ::before sits at z-index:-1 within
+   the isolation stacking context: above the item's own background layer, below
+   static content children, below the ::after sweep (positioned, z-index:auto).
+   Color is 2% fg; alpha-composited over the base 3% it produces ≈5% total,
+   matching the original .memory-item:hover background exactly. */
+#memory-list .memory-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--fg) 2%, transparent);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  z-index: -1;
+}
+#memory-list .memory-item:hover::before {
+  opacity: 1;
+}
+/* Suppress paint-inducing background/border-color changes from the base
+   .memory-item:hover rule by setting them to the same computed values as the
+   non-hover state. Chromium's paint-invalidation check skips repaint when
+   computed values are unchanged — zero tiles generated on hover entry/exit. */
+#memory-list .memory-item:hover {
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+  border-color: var(--border);
 }
 #memory-list .memory-item::after {
   /* Sweep highlight rides the border ring only — gradient-fill + mask cutout
@@ -10901,6 +10931,7 @@ textarea.memory-add-input {
 }
 @media (prefers-reduced-motion: reduce) {
   #memory-list .memory-item::after { animation: none; opacity: 0; }
+  #memory-list .memory-item::before { transition: none; }
 }
 .memory-pinned:hover {
   background: color-mix(in srgb, var(--red) 4%, transparent);
