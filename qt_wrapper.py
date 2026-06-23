@@ -457,6 +457,24 @@ class OdysseusPage(QWebEnginePage):
         return page
 
 
+class _MouseIdleFilter(QObject):
+    """App-level event filter that restarts a single-shot timer on every mouse move.
+
+    Qt WebEngine handles mouse events internally, but Qt's QEvent::MouseMove is still
+    delivered at the QApplication level before Chromium sees it. Installing this filter
+    on QApplication.instance() catches all mouse movement over any widget or the web
+    content area, which is the correct scope for idle-based tile eviction.
+    """
+    def __init__(self, timer: QTimer, parent=None):
+        super().__init__(parent)
+        self._timer = timer
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.MouseMove:
+            self._timer.start()
+        return False
+
+
 class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
         super().__init__()
@@ -483,64 +501,6 @@ class OdysseusWindow(QMainWindow):
         qwc_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
         qwc_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         page.scripts().insert(qwc_script)
-
-        # Suppress all CSS transitions.  Qt WebEngine doesn't forward OS
-        # memory-pressure signals to cc::TileManager; transition: all
-        # generates ~9 raster tile frames per hover event at 60fps that
-        # accumulate without eviction.  193 :hover rules also change opacity,
-        # which with a non-zero transition duration creates and destroys
-        # compositor layers — another source of orphaned tiles.
-        # transition: none eliminates all animated frames; hover states still
-        # apply (background/color changes are still visible) but snap instantly.
-        _hover_css = (
-            "*, *::before, *::after"
-            "{ transition: none !important; }"
-        )
-        tile_script = QWebEngineScript()
-        tile_script.setSourceCode(
-            "(function(){var s=document.createElement('style');"
-            "s.id='qt-transition-suppress';"
-            f"s.textContent={repr(_hover_css)};"
-            "document.head.appendChild(s);})()"
-        )
-        tile_script.setName("qt-transition-suppress")
-        tile_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
-        tile_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
-        page.scripts().insert(tile_script)
-
-        # Dynamic paint-skip: on first mouseleave from each element, capture
-        # its non-hover computed background-color, border-color, and box-shadow,
-        # then insert a CSS rule that forces :hover to those exact values.
-        # In Chromium, updateHoverActiveState() runs before mouseleave is
-        # dispatched, so getComputedStyle() in the handler returns non-hover
-        # values. When the element is hovered again, its computed paint properties
-        # are unchanged → Chromium's paint-invalidation check skips rasterization.
-        # Cost: 2 tile frames on the first hover cycle per unique element, then 0.
-        _paint_skip_js = (
-            "(function(){"
-            "var seen=new WeakSet(),n=0,sh=new CSSStyleSheet();"
-            "document.adoptedStyleSheets=document.adoptedStyleSheets.concat([sh]);"
-            "document.addEventListener('mouseleave',function(e){"
-            "var el=e.target;"
-            "if(el.nodeType!==1||seen.has(el))return;"
-            "seen.add(el);"
-            "var cs=getComputedStyle(el),id='q'+(n++);"
-            "el.dataset.qths=id;"
-            "try{sh.insertRule("
-            "'[data-qths=\"'+id+'\"]:hover{'"
-            "+'background-color:'+cs.backgroundColor+'!important;'"
-            "+'border-color:'+cs.borderColor+'!important;'"
-            "+'box-shadow:'+cs.boxShadow+'!important}'"
-            ");}catch(_){}"
-            "},{capture:true,passive:true});"
-            "})()"
-        )
-        paint_skip_script = QWebEngineScript()
-        paint_skip_script.setSourceCode(_paint_skip_js)
-        paint_skip_script.setName("qt-paint-skip")
-        paint_skip_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
-        paint_skip_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
-        page.scripts().insert(paint_skip_script)
 
         # Native bridge — held as instance attrs to prevent GC
         self._bridge = NativeBridge()
@@ -623,12 +583,19 @@ class OdysseusWindow(QMainWindow):
             # renderer processes via IPC. On a page target it is either rejected
             # or fires only in the browser process, leaving cc::TileManager in the
             # renderer unaffected.
-            _cdp_browser_call('Memory.simulatePressureNotification', {'level': 'moderate'})
-            print('[MEM] moderate memory pressure simulated (tile eviction)', flush=True)
+            # critical level: cc::TileManager evicts everything not actively composited,
+            # including all stale hover-state tiles from the last interaction burst.
+            result = _cdp_browser_call(
+                'Memory.simulatePressureNotification', {'level': 'critical'}
+            )
+            print(
+                f'[MEM] critical tile eviction: {"ok" if result is not None else "FAILED"}',
+                flush=True,
+            )
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
-        self._mem_timer.start(60_000)
+        self._mem_timer.start(10_000)
         _start_psi_monitor()
 
         # Focus-loss GC timer: 500 ms single-shot debounce started on WindowDeactivate,
@@ -659,6 +626,33 @@ class OdysseusWindow(QMainWindow):
         self._gc_drain_timer = QTimer()
         self._gc_drain_timer.timeout.connect(_drain_gc_requests)
         self._gc_drain_timer.start(250)
+
+        # Mouse-idle tile eviction: when the mouse has been still for 2 seconds,
+        # fire critical memory pressure so cc::TileManager evicts all stale hover
+        # tiles from the last interaction burst. Runs in the executor so the socket
+        # I/O doesn't block the main thread while the user is inactive.
+        # The periodic mem_timer (10 s) handles the continuous-interaction case where
+        # the mouse never fully stops; this timer handles the common stop-and-rest case
+        # and returns memory to near-baseline within 2 seconds of the last hover.
+        self._idle_evict_timer = QTimer(self)
+        self._idle_evict_timer.setSingleShot(True)
+        self._idle_evict_timer.setInterval(2000)
+
+        def _evict_on_idle():
+            def _do():
+                result = _cdp_browser_call(
+                    'Memory.simulatePressureNotification', {'level': 'critical'}
+                )
+                print(
+                    f'[MEM] critical tile eviction (idle): '
+                    f'{"ok" if result is not None else "FAILED"}',
+                    flush=True,
+                )
+            _cdp_executor.submit(_do)
+
+        self._idle_evict_timer.timeout.connect(_evict_on_idle)
+        self._idle_filter = _MouseIdleFilter(self._idle_evict_timer, self)
+        QApplication.instance().installEventFilter(self._idle_filter)
 
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
