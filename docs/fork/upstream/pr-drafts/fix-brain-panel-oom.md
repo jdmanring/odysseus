@@ -29,7 +29,9 @@ This PR replaces each main-thread animation pattern with a compositor-promoted e
 
 The hover rule set `animation: none` to suppress the sweep, destroying the promoted layer. It was recreated on mouse-leave, producing a gray-frame flash.
 
-**After**: Animate `transform: translateX()` instead. The gradient strip starts off-screen left (`inset: 0 0 0 -40%; width: 40%`) and sweeps right in the first ~12% of the cycle, then parks off-screen via `overflow: hidden` on the parent. No layer teardown during the idle phase. `will-change: transform` pre-promotes the layer. Hover uses `opacity: 0` instead of `animation: none`; the promoted layer stays up and no flash occurs.
+**After**: Animate `transform: translateX()` instead. The gradient strip starts off-screen left (`inset: 0 0 0 -40%; width: 40%`) and sweeps right in the first ~12% of the cycle, then parks off-screen via `overflow: hidden` on the parent. No layer teardown during the idle phase. Hover uses `opacity: 0` instead of `animation: none`; the promoted layer stays up and no flash occurs.
+
+Note: `will-change: transform` is intentionally absent from `#memory-list .memory-item::after`. A continuously running `transform` animation auto-promotes the composited layer; adding `will-change` is redundant for visible items and forces GPU backing texture allocation for off-screen items throughout the scrollable list. The browser promotes the layer lazily when an item is animating, which is the correct behavior for a scroll container.
 
 ---
 

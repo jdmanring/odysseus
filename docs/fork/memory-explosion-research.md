@@ -1222,11 +1222,16 @@ Replace each main-thread animation pattern with compositor-promoted equivalents:
 - Patterns A and D: animate `transform: translateX()` instead. The strip starts
   off-screen and sweeps into view. `overflow: hidden` on the parent parks it off-screen
   between cycles without an opacity toggle; the compositor layer stays promoted
-  continuously. `will-change: transform` pre-promotes the layer.
+  continuously.
 - Pattern B: animate `opacity` only. `opacity` is compositor-promoted; the drop-shadow
   at the animation endpoints (0.85 opacity) is effectively invisible anyway.
 - Pattern C: use `animation-play-state: paused` instead of `animation: none`. The
   animation freezes at the current keyframe; the compositor layer is not removed.
+
+Note: `will-change: transform` was initially added to `#memory-list .memory-item::after`
+but removed in a follow-up commit. A continuously running `transform` animation
+auto-promotes the composited layer; `will-change` is redundant for visible items and
+forces GPU backing texture allocation for off-screen items in the scrollable list.
 
 ### Branch and tests
 
@@ -1234,4 +1239,68 @@ Branch: `fix/brain-panel-oom` (from `upstream-mirror`)
 Tests: `tests/test_brain_panel_oom_css.py` — 13 regression tests, all 4 patterns  
 PR draft: `docs/fork/upstream/pr-drafts/fix-brain-panel-oom.md`
 
-The fixes are also cherry-picked onto `develop` (commits `7fd77b4f` and `2ea46264`).
+The fixes are also cherry-picked onto `develop`.
+
+---
+
+## Session 7 Findings — 2026-06-22 (Scroll-Hover Raster-Tile Accumulation)
+
+**Trigger:** User reported ~1 GB RSS growth from repeatedly scrolling the mouse up and
+down over the Brain memory list. Growth was absent during idle and appeared only during
+active scroll-over-items behavior.
+
+### Root cause: transition: all on .memory-item
+
+The base `.memory-item` class carries `transition: all 0.15s`. In the `#memory-list`
+scroll context, as the cursor moves over list items during scroll each item cycles through
+enter-hover and leave-hover state. The hover rule changes `background` and `border-color`.
+Neither property is compositor-promoted; each transition fires at 60 fps for ~9 frames
+(0.15 s). Every hover entry/exit cycle per item deposits approximately 9 raster tile
+frames. Qt does not forward OS memory pressure to the renderer; these tiles accumulate
+without eviction.
+
+This is a separate mechanism from the idle-animation patterns in Session 6. Those were
+caused by continuously animating CSS properties. This is caused by the browser producing
+raster tiles for paint transitions triggered by scroll interaction. The accumulation is
+unbounded because there is no eviction signal and no session-level cap on tile memory.
+
+**Distinction from Session 6:** The Session 6 patterns deposit tiles continuously at
+60 fps regardless of user action. The Session 7 pattern deposits tiles only during active
+scroll-over behavior, but the rate is proportional to scroll speed and item count. At
+high scroll speeds with 20+ items, the tile generation rate can rival idle animation.
+
+### Secondary factor: will-change: transform on all list items
+
+As noted in Session 6: `will-change: transform` on `#memory-list .memory-item::after`
+pre-promotes GPU backing textures for every item in the DOM, including those off-screen.
+For a scrollable list, this allocates textures for items that never enter the viewport
+during a given session. This is fixed memory overhead (not unbounded growth) proportional
+to item count, but it compounds the overall memory pressure.
+
+### Fix
+
+Override `transition: all 0.15s` in the `#memory-list .memory-item` context:
+
+```css
+#memory-list .memory-item {
+  transition: opacity 0.15s;  /* overrides transition: all from base class */
+}
+```
+
+`opacity` is compositor-promoted and safe to transition without main-thread paint.
+`background` and `border-color` changes in this context take effect immediately
+(no transition). The animated sweep on `::after` remains the primary hover-interactive
+visual, so the loss of background/border transitions is not perceptible.
+
+The `will-change: transform` removal was covered in the Session 6 fix update above.
+
+### Branch and tests
+
+Branch: `fix/memory-list-scroll-oom` (from `upstream-mirror`)  
+Tests: `tests/test_memory_list_scroll_oom_css.py` — 4 regression tests  
+Issue: jdmanring/odysseus#88  
+PR draft: `docs/fork/upstream/pr-drafts/fix-memory-list-scroll-oom.md`
+
+Cherry-picked to `develop` (commit `7e9a2203`). The `will-change` change is a separate
+commit on `fix/brain-panel-oom` (commit `18dbbd25`), also cherry-picked to `develop`
+(`91082bca`).
