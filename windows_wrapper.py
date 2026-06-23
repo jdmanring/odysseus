@@ -31,6 +31,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--enable-logging=stderr --log-level=1",
     "--remote-debugging-port=9222",
     "--js-flags=--expose-gc --max-old-space-size=512",
+    "--enable-low-end-device-mode",  # caps cc::TileManager raster tile budget ~96 MB
 ])
 
 import ctypes
@@ -332,6 +333,7 @@ class OdysseusWindow(QMainWindow):
         self.setWindowTitle(WINDOW_TITLE)
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
+        self._page = page  # held for lifecycle management in changeEvent
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
@@ -382,6 +384,29 @@ class OdysseusWindow(QMainWindow):
         # Periodic renderer memory snapshot (every 60s).
         # Polls tasklist for RSS and CDP Memory.getDOMCounters for Oilpan node counts.
         # Triggers a proactive CDP purge when node count exceeds threshold.
+        def _rss_from_tasklist():
+            total = 0
+            try:
+                r = subprocess.run(
+                    ['tasklist', '/FI', 'IMAGENAME eq QtWebEngineProcess.exe',
+                     '/FO', 'CSV', '/NH'],
+                    capture_output=True, text=True)
+                for line in r.stdout.strip().split('\n'):
+                    if 'QtWebEngineProcess' in line:
+                        parts = [p.strip('"') for p in line.split('","')]
+                        if len(parts) >= 5:
+                            try:
+                                mem_kb = int(
+                                    parts[4].replace('\xa0', '')
+                                             .replace(',', '')
+                                             .replace(' K', ''))
+                                total += mem_kb
+                            except ValueError:
+                                pass
+            except Exception:
+                pass
+            return total
+
         def _log_renderer_memory():
             try:
                 r = subprocess.run(
@@ -397,6 +422,7 @@ class OdysseusWindow(QMainWindow):
                             print(f'[MEM] pid={pid} VmRSS:\t{mem_kb} kB', flush=True)
             except Exception as e:
                 print(f'[MEM] error: {e}', flush=True)
+            rss_before = _rss_from_tasklist()
             counts = _cdp_call('Memory.getDOMCounters')
             if counts:
                 nodes = counts.get('nodes', 0)
@@ -426,10 +452,19 @@ class OdysseusWindow(QMainWindow):
                 f'[MEM] critical tile eviction: {"ok" if result is not None else "FAILED"}',
                 flush=True,
             )
+            # Telemetry: measure actual RSS freed by the eviction call.
+            if rss_before:
+                rss_after = _rss_from_tasklist()
+                delta = rss_before - rss_after
+                print(
+                    f'[MEM] RSS after eviction: {rss_after} kB'
+                    f' (delta={delta:+d} kB)',
+                    flush=True,
+                )
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
-        self._mem_timer.start(10_000)
+        self._mem_timer.start(30_000)
         _start_windows_memory_monitor()
 
         self._idle_evict_timer = QTimer(self)
@@ -458,13 +493,23 @@ class OdysseusWindow(QMainWindow):
         self.resize(1280, 800)
 
     def changeEvent(self, event):
-        if event.type() == QEvent.Type.WindowDeactivate:
-            # Window lost focus — the compositor is not painting, so it is safe to
-            # run GC now. Use CDP in a daemon thread so the Qt event loop is not
-            # blocked by the WebSocket handshake; the renderer is idle anyway.
-            _threading.Thread(
-                target=_cdp_purge_memory, daemon=True, name='focus-loss-gc',
-            ).start()
+        if event.type() == QEvent.Type.WindowStateChange:
+            if self.isMinimized():
+                # Freeze halts rendering and releases compositor tile memory.
+                # Risk: active SSE streams pause during freeze — acceptable for
+                # short minimizes; the stream resumes when the page is thawed.
+                self._page.setLifecycleState(QWebEnginePage.LifecycleState.Frozen)
+                print('[LIFECYCLE] page frozen (minimized)', flush=True)
+            else:
+                self._page.setLifecycleState(QWebEnginePage.LifecycleState.Active)
+                print('[LIFECYCLE] page active (restored)', flush=True)
+        elif event.type() == QEvent.Type.WindowDeactivate:
+            # Minimize fires both WindowStateChange and WindowDeactivate; skip the
+            # GC call here to avoid running CDP on a frozen page.
+            if not self.isMinimized():
+                _threading.Thread(
+                    target=_cdp_purge_memory, daemon=True, name='focus-loss-gc',
+                ).start()
         super().changeEvent(event)
 
     def closeEvent(self, event):
@@ -497,6 +542,9 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
+    # App serves from localhost — HTTP cache is almost entirely idle but grows
+    # without bound by default. Cap at 50 MB.
+    profile.setHttpCacheMaximumSize(50_000_000)
 
     win = OdysseusWindow(profile)
     win.show()
