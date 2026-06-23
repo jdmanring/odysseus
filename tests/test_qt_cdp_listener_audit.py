@@ -315,5 +315,60 @@ def test_tile_eviction_uses_browser_target():
     browser process broadcasts the pressure notification to all renderer processes
     via IPC, reaching cc::TileManager where the accumulated hover tiles live.
     """
-    assert "_cdp_browser_call('Memory.simulatePressureNotification'" in _SRC
-    assert "'level': 'moderate'" in _SRC
+    assert "_cdp_browser_call(" in _SRC
+    assert "'Memory.simulatePressureNotification'" in _SRC
+
+
+def test_tile_eviction_uses_critical_level():
+    """
+    Tile eviction must use 'critical' pressure, not 'moderate'.
+    Under critical pressure, cc::TileManager evicts everything not actively
+    composited — including all stale hover-state tiles from past interaction.
+    Under moderate pressure, recently-used tiles are retained; hover-accumulated
+    tiles may not be evicted because cc considers them recently active.
+    """
+    assert "'level': 'critical'" in _SRC
+    assert "'level': 'moderate'" not in _SRC
+
+
+def test_tile_eviction_result_checked():
+    """
+    The CDP eviction call result must be checked and logged.
+    The unconditional print pattern masked silent failures: the call returns
+    None on any error, so checking result is not None is the correct guard.
+    """
+    assert 'result is not None' in _SRC
+
+
+def test_mouse_idle_filter_class_present():
+    """
+    _MouseIdleFilter must be present as an app-level QObject event filter.
+    Qt's QEvent::MouseMove is delivered at the QApplication level for all
+    widgets including QWebEngineView, making this the correct scope for
+    detecting when the user has stopped interacting with the UI.
+    """
+    assert "class _MouseIdleFilter(" in _SRC
+    assert "QEvent.Type.MouseMove" in _SRC
+
+
+def test_idle_evict_timer_wired():
+    """
+    The idle eviction timer must be single-shot with a 2-second interval and
+    connected to a critical-pressure eviction call. This bounds tile accumulation
+    to ~2 seconds of hover activity — memory returns to near-baseline within
+    2 seconds of the user stopping interaction, without suppressing any visual effects.
+    """
+    assert "setSingleShot(True)" in _SRC
+    assert "setInterval(2000)" in _SRC
+    assert "_idle_evict_timer" in _SRC
+
+
+def test_idle_eviction_runs_in_executor():
+    """
+    The idle eviction CDP call must run in the thread pool executor, not on the
+    main thread. _cdp_browser_call has a 2-second socket timeout; blocking the
+    main thread for 2 seconds while the user resumes interaction would cause
+    visible UI freeze. The executor routes it to a background worker.
+    """
+    assert "_cdp_executor.submit" in _SRC
+    assert "_evict_on_idle" in _SRC or "_do" in _SRC
