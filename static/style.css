@@ -10863,8 +10863,6 @@ textarea.memory-add-input {
 #memory-list .memory-item {
   position: relative;
   overflow: hidden;
-  isolation: isolate; /* stacking context: contains ::before at z-index:-1 above
-                         item background but below static flow content */
   /* Override the base .memory-item transition: all. When the cursor moves over
      items during scroll, background and border-color change as each item enters
      and leaves hover state. Both properties require main-thread painting; 9
@@ -10873,31 +10871,10 @@ textarea.memory-add-input {
      opacity — the only compositor-promoted property hover rules use here. */
   transition: opacity 0.15s;
 }
-/* Hover overlay: opacity is compositor-promoted — the GPU handles the 0→1
-   fade without rasterizing new tiles. The ::before sits at z-index:-1 within
-   the isolation stacking context: above the item's own background layer, below
-   static content children, below the ::after sweep (positioned, z-index:auto).
-   Color is 2% fg; alpha-composited over the base 3% it produces ≈5% total,
-   matching the original .memory-item:hover background exactly. */
-#memory-list .memory-item::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--fg) 2%, transparent);
-  opacity: 0;
-  transition: opacity 0.15s;
-  will-change: opacity;
-  pointer-events: none;
-  z-index: -1;
-}
-#memory-list .memory-item:hover::before {
-  opacity: 1;
-}
 /* Suppress paint-inducing background/border-color changes from the base
-   .memory-item:hover rule by setting them to the same computed values as the
-   non-hover state. Chromium's paint-invalidation check skips repaint when
-   computed values are unchanged — zero tiles generated on hover entry/exit. */
+   .memory-item:hover rule. Setting them to the same computed values as the
+   non-hover state causes Chromium's paint-invalidation check to skip repaint —
+   zero tiles generated on hover entry/exit. */
 #memory-list .memory-item:hover {
   background: color-mix(in srgb, var(--fg) 3%, transparent);
   border-color: var(--border);
@@ -10939,23 +10916,24 @@ textarea.memory-add-input {
 }
 @media (prefers-reduced-motion: reduce) {
   #memory-list .memory-item::after { animation: none; opacity: 0; }
-  #memory-list .memory-item::before { transition: none; }
 }
-/* Pre-promote opacity-animated descendants to compositor layers at load time.
-   Without will-change, each hover cycle creates and destroys a compositor layer,
-   leaving orphaned raster tiles in the Qt tile cache (no OS memory pressure
-   signal reaches cc::TileManager, so tiles accumulate without bound).
-   will-change: opacity keeps the layers alive between hovers — zero tile
-   allocation per hover after initial load. */
+/* Always show action buttons and menu button in the list context.
+   The base rules hide them at opacity:0 and reveal on :hover — each
+   opacity 0→1→0 cycle creates and destroys a compositor layer in Qt's
+   embedded Chromium, which never receives OS memory pressure signals.
+   Orphaned raster tiles from the destroyed layers accumulate without eviction.
+   Fixing opacity at 1 makes the hover rule a no-op (1→1 = no change) —
+   Chromium detects identical computed values and skips rasterization entirely. */
 #memory-list .memory-item-actions {
-  will-change: opacity;
+  opacity: 1;
+  transition: none;
 }
 /* Suppress the paint-inducing background and border-color transitions on
    .memory-menu-btn inside the list. The base rule carries
    transition: opacity, background, border-color; in this context only
-   opacity changes on item hover — the other two trigger repaint needlessly. */
+   opacity could change — and it no longer does. */
 #memory-list .memory-menu-btn {
-  will-change: opacity;
+  opacity: 1;
   transition: opacity 0.15s;
 }
 /* Pause all item animations while the Brain panel is not visible. Qt does
