@@ -1,13 +1,8 @@
-import base64 as _cdp_b64
 import json
 import os
 import re as _re
-import socket as _cdp_sock
-import struct as _cdp_struct
 import sys
-import threading as _threading
 import time as _time
-import urllib.request as _cdp_req
 
 # ==============================================================================
 # CRITICAL: Logging setup must happen BEFORE any PyQt6/QtWebEngine imports.
@@ -101,7 +96,12 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
 
 import concurrent.futures as _futures
 import signal
+import socket as _cdp_sock
+import struct as _cdp_struct
+import base64 as _cdp_b64
+import urllib.request as _cdp_req
 import subprocess
+import threading as _threading
 import time
 from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -457,6 +457,23 @@ class OdysseusPage(QWebEnginePage):
         return page
 
 
+class _MouseIdleFilter(QObject):
+    """App-level event filter that restarts a single-shot timer on every mouse move.
+
+    Qt WebEngine handles mouse events internally, but Qt's QEvent::MouseMove is still
+    delivered at the QApplication level before Chromium sees it. Installing this filter
+    on QApplication.instance() catches all mouse movement over any widget or the web
+    content area, which is the correct scope for idle-based tile eviction.
+    """
+    def __init__(self, timer: QTimer, parent=None):
+        super().__init__(parent)
+        self._timer = timer
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.MouseMove:
+            self._timer.start()
+        return False
+
 
 class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
@@ -566,12 +583,19 @@ class OdysseusWindow(QMainWindow):
             # renderer processes via IPC. On a page target it is either rejected
             # or fires only in the browser process, leaving cc::TileManager in the
             # renderer unaffected.
-            _cdp_browser_call('Memory.simulatePressureNotification', {'level': 'moderate'})
-            print('[MEM] moderate memory pressure simulated (tile eviction)', flush=True)
+            # critical level: cc::TileManager evicts everything not actively composited,
+            # including all stale hover-state tiles from the last interaction burst.
+            result = _cdp_browser_call(
+                'Memory.simulatePressureNotification', {'level': 'critical'}
+            )
+            print(
+                f'[MEM] critical tile eviction: {"ok" if result is not None else "FAILED"}',
+                flush=True,
+            )
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
-        self._mem_timer.start(60_000)
+        self._mem_timer.start(10_000)
         _start_psi_monitor()
 
         # Focus-loss GC timer: 500 ms single-shot debounce started on WindowDeactivate,
@@ -602,6 +626,33 @@ class OdysseusWindow(QMainWindow):
         self._gc_drain_timer = QTimer()
         self._gc_drain_timer.timeout.connect(_drain_gc_requests)
         self._gc_drain_timer.start(250)
+
+        # Mouse-idle tile eviction: when the mouse has been still for 2 seconds,
+        # fire critical memory pressure so cc::TileManager evicts all stale hover
+        # tiles from the last interaction burst. Runs in the executor so the socket
+        # I/O doesn't block the main thread while the user is inactive.
+        # The periodic mem_timer (10 s) handles the continuous-interaction case where
+        # the mouse never fully stops; this timer handles the common stop-and-rest case
+        # and returns memory to near-baseline within 2 seconds of the last hover.
+        self._idle_evict_timer = QTimer(self)
+        self._idle_evict_timer.setSingleShot(True)
+        self._idle_evict_timer.setInterval(2000)
+
+        def _evict_on_idle():
+            def _do():
+                result = _cdp_browser_call(
+                    'Memory.simulatePressureNotification', {'level': 'critical'}
+                )
+                print(
+                    f'[MEM] critical tile eviction (idle): '
+                    f'{"ok" if result is not None else "FAILED"}',
+                    flush=True,
+                )
+            _cdp_executor.submit(_do)
+
+        self._idle_evict_timer.timeout.connect(_evict_on_idle)
+        self._idle_filter = _MouseIdleFilter(self._idle_evict_timer, self)
+        QApplication.instance().installEventFilter(self._idle_filter)
 
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
@@ -652,9 +703,6 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
-    # Disable HTTP cache — app serves local files that change on restart;
-    # caching causes stale JS to load after updates.
-    profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
 
     win = OdysseusWindow(profile)
     win.show()
