@@ -1156,3 +1156,82 @@ session switch. One line added, no new API surface.
   (currently uncoordinated with prune), and ~200 LOC for <1% of measured RSS. Not worth it.
 - **`--gc-interval=N`:** Not a real V8 user-facing flag. Internal build-time constant only.
 - **`--max-semi-space-size`:** Overridden by `--minor-mc` (different memory layout). Excluded.
+
+---
+
+## Session 6 Findings — 2026-06-22 (CSS Animation Raster-Tile Accumulation)
+
+**Trigger:** User reported 14–18 GB RSS while using the Brain panel (mousing over memory
+entries). Accompanied by a gray-frame flash on hover. Symptoms were distinct from the
+streaming OOM (no active agent session; growth appeared immediately on panel open).
+
+### Root cause: main-thread CSS animations in Qt
+
+The Oilpan/DOM findings above describe garbage from detached DOM nodes (streaming). This
+is a separate mechanism: raster tiles produced by CSS animations that require main-thread
+painting. The same Qt limitation applies — the renderer receives no OS memory pressure
+signals — so the compositor's tile manager never evicts tiles either.
+
+Any animation that triggers per-frame style recalculation or gradient repaint deposits
+fresh raster tiles that accumulate for the lifetime of the session, regardless of how
+well the Oilpan and V8 GC are tuned.
+
+**Key distinction from Oilpan:** Raster tiles are compositor-managed (cc::TileManager).
+They are not Oilpan C++ objects and are not collected by `gc()`. The only remediation is
+to eliminate per-frame main-thread painting by switching to compositor-promoted properties
+(`transform`, `opacity`).
+
+### Four patterns found (all in static/style.css)
+
+**Pattern A — @property --sweep (memory-synapse-sweep, Brain panel):**
+
+The memory item sweep animation used `@property --sweep { syntax: '<percentage>'; }` to
+animate gradient stop positions. Typed registered CSS custom properties participate in
+computed-value cascading: every frame `--sweep` changed forced a style recalculation for
+every element using `var(--sweep)` in a computed value. At 60 fps with N memories visible,
+that is 60 * N style recalculations per second, each producing a raster tile. The
+`-webkit-mask` on the same pseudo-element added a second compositor pass per item per frame.
+
+Secondary: hover suppression used `animation: none`, destroying the promoted compositor
+layer. It was recreated on mouse-leave, causing the gray-frame flash users reported.
+
+**Pattern B — filter: drop-shadow() in note-ai-shine (Notes panel):**
+
+Every `.note-card-ai-chip svg` element runs `note-ai-shine`. Animating `filter:
+drop-shadow()` requires the compositor to reapply the filter every frame as values change,
+preventing frame elision. With many note cards visible the per-frame filter work deposits
+raster tiles that are never evicted.
+
+**Pattern C — animation: none on hover/focus (notes-quick-add):**
+
+`.notes-quick-add:hover` and `.notes-quick-add:focus-within` set `animation: none`,
+destroying the compositor layer promoted for `notes-quick-pulse`. Recreated on mouse-leave
+and focus-leave, causing a flash on every interaction.
+
+**Pattern D — background-position animation (notes-drag-shimmer):**
+
+The drag shimmer animated `background-position` across a 250%-wide gradient on every
+`.note-card::after` during drag. `background-position` is not compositor-promoted; each
+frame re-rasterizes the gradient on every visible card. With 30 cards visible during
+drag: 30 gradient repaints per frame.
+
+### Fix
+
+Replace each main-thread animation pattern with compositor-promoted equivalents:
+
+- Patterns A and D: animate `transform: translateX()` instead. The strip starts
+  off-screen and sweeps into view. `overflow: hidden` on the parent parks it off-screen
+  between cycles without an opacity toggle; the compositor layer stays promoted
+  continuously. `will-change: transform` pre-promotes the layer.
+- Pattern B: animate `opacity` only. `opacity` is compositor-promoted; the drop-shadow
+  at the animation endpoints (0.85 opacity) is effectively invisible anyway.
+- Pattern C: use `animation-play-state: paused` instead of `animation: none`. The
+  animation freezes at the current keyframe; the compositor layer is not removed.
+
+### Branch and tests
+
+Branch: `fix/brain-panel-oom` (from `upstream-mirror`)  
+Tests: `tests/test_brain_panel_oom_css.py` — 13 regression tests, all 4 patterns  
+PR draft: `docs/fork/upstream/pr-drafts/fix-brain-panel-oom.md`
+
+The fixes are also cherry-picked onto `develop` (commits `7fd77b4f` and `2ea46264`).
