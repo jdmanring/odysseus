@@ -1290,10 +1290,11 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
       let _nextIsError = false;
       let _streamSawDone = false;
-      // Throttle live DOM renders. With in-place tail patching in streamingRenderer
-      // renders are cheap; 30/sec gives smooth streaming with minimal Oilpan pressure.
+      // Throttle live DOM renders to one per display frame. With in-place tail patching
+      // in streamingRenderer, renders are cheap enough to run at 60 fps without
+      // measurable Oilpan pressure.
       let _lastRenderMs = 0;
-      const _RENDER_INTERVAL = 33; // ~30 fps
+      const _RENDER_INTERVAL = 16; // 60 fps (one frame at 60 Hz)
       const _throttledRenderStream = () => {
         const now = performance.now();
         if (now - _lastRenderMs < _RENDER_INTERVAL) return;
