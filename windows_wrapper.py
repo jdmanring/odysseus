@@ -314,6 +314,18 @@ class OdysseusPage(QWebEnginePage):
         return page
 
 
+class _MouseIdleFilter(QObject):
+    """App-level event filter that restarts a single-shot idle timer on every mouse move."""
+    def __init__(self, timer: QTimer, parent=None):
+        super().__init__(parent)
+        self._timer = timer
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.MouseMove:
+            self._timer.start()
+        return False
+
+
 class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
         super().__init__()
@@ -340,48 +352,6 @@ class OdysseusWindow(QMainWindow):
         qwc_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
         qwc_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         page.scripts().insert(qwc_script)
-
-        _hover_css = (
-            "*, *::before, *::after"
-            "{ transition: none !important; }"
-        )
-        tile_script = QWebEngineScript()
-        tile_script.setSourceCode(
-            "(function(){var s=document.createElement('style');"
-            "s.id='qt-transition-suppress';"
-            f"s.textContent={repr(_hover_css)};"
-            "document.head.appendChild(s);})()"
-        )
-        tile_script.setName("qt-transition-suppress")
-        tile_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
-        tile_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
-        page.scripts().insert(tile_script)
-
-        _paint_skip_js = (
-            "(function(){"
-            "var seen=new WeakSet(),n=0,sh=new CSSStyleSheet();"
-            "document.adoptedStyleSheets=document.adoptedStyleSheets.concat([sh]);"
-            "document.addEventListener('mouseleave',function(e){"
-            "var el=e.target;"
-            "if(el.nodeType!==1||seen.has(el))return;"
-            "seen.add(el);"
-            "var cs=getComputedStyle(el),id='q'+(n++);"
-            "el.dataset.qths=id;"
-            "try{sh.insertRule("
-            "'[data-qths=\"'+id+'\"]:hover{'"
-            "+'background-color:'+cs.backgroundColor+'!important;'"
-            "+'border-color:'+cs.borderColor+'!important;'"
-            "+'box-shadow:'+cs.boxShadow+'!important}'"
-            ");}catch(_){}"
-            "},{capture:true,passive:true});"
-            "})()"
-        )
-        paint_skip_script = QWebEngineScript()
-        paint_skip_script.setSourceCode(_paint_skip_js)
-        paint_skip_script.setName("qt-paint-skip")
-        paint_skip_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
-        paint_skip_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
-        page.scripts().insert(paint_skip_script)
 
         # Native bridge — held as instance attrs to prevent GC
         self._bridge = NativeBridge()
@@ -447,18 +417,40 @@ class OdysseusWindow(QMainWindow):
                     _threading.Thread(
                         target=_cdp_purge_memory, daemon=True, name='threshold-gc',
                     ).start()
-            # Qt WebEngine doesn't forward OS memory-pressure signals to
-            # cc::TileManager; hover events rasterize tiles that are never evicted.
-            # Moderate pressure simulation fires the same MemoryPressureListener
-            # path the OS would use, causing the tile manager to evict non-visible
-            # accumulated tiles.
-            _cdp_browser_call('Memory.simulatePressureNotification', {'level': 'moderate'})
-            print('[MEM] moderate memory pressure simulated (tile eviction)', flush=True)
+            # critical pressure: cc::TileManager evicts everything not actively
+            # composited, including all stale hover-state tiles from past interaction.
+            result = _cdp_browser_call(
+                'Memory.simulatePressureNotification', {'level': 'critical'}
+            )
+            print(
+                f'[MEM] critical tile eviction: {"ok" if result is not None else "FAILED"}',
+                flush=True,
+            )
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
-        self._mem_timer.start(60_000)
+        self._mem_timer.start(10_000)
         _start_windows_memory_monitor()
+
+        self._idle_evict_timer = QTimer(self)
+        self._idle_evict_timer.setSingleShot(True)
+        self._idle_evict_timer.setInterval(2000)
+
+        def _evict_on_idle():
+            def _do():
+                result = _cdp_browser_call(
+                    'Memory.simulatePressureNotification', {'level': 'critical'}
+                )
+                print(
+                    f'[MEM] critical tile eviction (idle): '
+                    f'{"ok" if result is not None else "FAILED"}',
+                    flush=True,
+                )
+            _cdp_executor.submit(_do)
+
+        self._idle_evict_timer.timeout.connect(_evict_on_idle)
+        self._idle_filter = _MouseIdleFilter(self._idle_evict_timer, self)
+        QApplication.instance().installEventFilter(self._idle_filter)
 
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
