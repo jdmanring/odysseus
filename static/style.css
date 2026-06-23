@@ -11337,25 +11337,25 @@ textarea.memory-add-input {
   overflow: hidden;
 }
 #memory-list .memory-item::after {
-  /* Sweep highlight rides the border ring only — gradient-fill + mask cutout
-     keeps the bright pulse on the 1px stroke instead of washing the body. */
+  /* Sweep highlight — compositor-only: transform+opacity only so the GPU
+     handles every frame. The @property gradient approach forced main-thread
+     style recalculation each frame for every item, filling Oilpan with
+     raster tiles that QtWebEngine never GCs. overflow:hidden on the parent
+     clips the strip while it waits off-screen, so no opacity trick is needed
+     for the idle phase. */
   content: '';
   position: absolute;
-  inset: 0;
+  inset: 0 0 0 -40%;
+  width: 40%;
   border-radius: inherit;
-  padding: 1px;
   pointer-events: none;
   background: linear-gradient(
-    to right,
+    90deg,
     transparent 0%,
-    transparent calc(var(--sweep, -20%) - 8%),
-    color-mix(in srgb, var(--red) 85%, transparent) var(--sweep, -20%),
-    transparent calc(var(--sweep, -20%) + 8%),
+    color-mix(in srgb, var(--red) 25%, transparent) 50%,
     transparent 100%
   );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
+  will-change: transform;
   animation: memory-synapse-sweep 6.2s linear infinite;
   animation-delay: 0.4s;
 }
@@ -11363,18 +11363,16 @@ textarea.memory-add-input {
 #memory-list .memory-item:nth-child(3n)::after { animation-duration: 8.8s; animation-delay: 3.2s; }
 #memory-list .memory-item:nth-child(5n)::after { animation-duration: 9.3s; animation-delay: 4.7s; }
 #memory-list .memory-item:nth-child(7n)::after { animation-duration: 5.5s; animation-delay: 2.3s; }
-#memory-list .memory-item:hover::after { animation: none; opacity: 0; }
-@property --sweep {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: -20%;
-}
+/* Fade on hover without stopping the animation — stopping it destroys the
+   compositor layer and recreates it on mouse-leave, causing a gray-frame flash. */
+#memory-list .memory-item:hover::after { opacity: 0; }
 @keyframes memory-synapse-sweep {
-  /* Sweep traverses left → right in the first ~12% of the cycle (≈0.7s of
-     a 6.2s loop), then waits offscreen. */
-  0%   { --sweep: -20%; }
-  12%  { --sweep: 120%; }
-  13%, 100% { --sweep: 120%; }
+  /* Strip starts off-screen left, sweeps right in the first 12% of the
+     cycle (≈0.7s), then idles off-screen right until the next loop.
+     Only transform is animated — GPU-composited, no main-thread work. */
+  0%   { transform: translateX(0%); }
+  12%  { transform: translateX(350%); }
+  100% { transform: translateX(350%); }
 }
 @media (prefers-reduced-motion: reduce) {
   #memory-list .memory-item::after { animation: none; opacity: 0; }
@@ -33238,17 +33236,23 @@ body.notes-drag-mode .note-card {
               opacity 0.18s ease;
 }
 body.notes-drag-mode .note-card::after {
+  /* Shimmer strip — compositor-only: only transform is animated so the GPU
+     handles every frame. background-position animation forces a gradient
+     repaint on every card every frame; with 30 cards visible during drag
+     that fills Oilpan with raster tiles that QtWebEngine never GCs.
+     overflow:hidden on the parent clips the strip while it is off-screen. */
   content: '';
   position: absolute;
-  inset: 0;
+  inset: 0 0 0 -60%;
+  width: 60%;
   pointer-events: none;
   background: linear-gradient(
     115deg,
-    transparent 30%,
+    transparent 0%,
     color-mix(in srgb, var(--fg) 14%, transparent) 50%,
-    transparent 70%
+    transparent 100%
   );
-  background-size: 250% 100%;
+  will-change: transform;
   animation: notes-drag-shimmer 2.1s linear infinite;
   border-radius: inherit;
   z-index: 1;
@@ -33265,8 +33269,8 @@ body.notes-drag-mode .note-card::after {
   }
 }
 @keyframes notes-drag-shimmer {
-  0%   { background-position: 250% 0; }
-  100% { background-position: -150% 0; }
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(270%); }
 }
 /* The grabbed card lifts above its siblings; suppress the shimmer on
    it so it reads as the "live" element being moved. */
@@ -34372,8 +34376,8 @@ body.notes-mobile-mode.notes-drag-mode .note-card-pin.active {
   animation: note-ai-shine 2.4s ease-in-out infinite;
 }
 @keyframes note-ai-shine {
-  0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 0 transparent); }
-  50%      { opacity: 1;    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent, var(--red)) 60%, transparent)); }
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
 }
 .note-card-ai-solving {
   cursor: default;
@@ -34602,13 +34606,13 @@ body.notes-mobile-mode.notes-drag-mode .note-card-pin.active {
 .notes-quick-add:hover {
   border-color: color-mix(in srgb, var(--accent, var(--red)) 55%, var(--border));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--red)) 18%, transparent);
-  animation: none;
+  animation-play-state: paused;
 }
 .notes-quick-add:focus-within {
   border-color: var(--accent, var(--red));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--red)) 25%, transparent);
   background: color-mix(in srgb, var(--fg) 3%, var(--panel));
-  animation: none;
+  animation-play-state: paused;
 }
 .notes-quick-input {
   flex: 1;
