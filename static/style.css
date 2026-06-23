@@ -11359,6 +11359,7 @@ textarea.memory-add-input {
   background: color-mix(in srgb, var(--fg) 2%, transparent);
   opacity: 0;
   transition: opacity 0.15s;
+  will-change: opacity;
   pointer-events: none;
   z-index: -1;
 }
@@ -11416,6 +11417,29 @@ textarea.memory-add-input {
 @media (prefers-reduced-motion: reduce) {
   #memory-list .memory-item::after { animation: none; opacity: 0; }
   #memory-list .memory-item::before { transition: none; }
+}
+/* Pre-promote opacity-animated descendants to compositor layers at load time.
+   Without will-change, each hover cycle creates and destroys a compositor layer,
+   leaving orphaned raster tiles in the Qt tile cache (no OS memory pressure
+   signal reaches cc::TileManager, so tiles accumulate without bound).
+   will-change: opacity keeps the layers alive between hovers — zero tile
+   allocation per hover after initial load. */
+#memory-list .memory-item-actions {
+  will-change: opacity;
+}
+/* Suppress the paint-inducing background and border-color transitions on
+   .memory-menu-btn inside the list. The base rule carries
+   transition: opacity, background, border-color; in this context only
+   opacity changes on item hover — the other two trigger repaint needlessly. */
+#memory-list .memory-menu-btn {
+  will-change: opacity;
+  transition: opacity 0.15s;
+}
+/* Pause all item animations while the Brain panel is not visible. Qt does
+   not evict raster tiles under memory pressure; pausing stops the compositor
+   from accumulating tiles for a panel the user is not looking at. */
+#memory-modal.hidden #memory-list .memory-item::after {
+  animation-play-state: paused;
 }
 .memory-pinned:hover {
   background: color-mix(in srgb, var(--red) 4%, transparent);
