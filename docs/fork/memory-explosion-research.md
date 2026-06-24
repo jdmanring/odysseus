@@ -1452,3 +1452,196 @@ Issue: jdmanring/odysseus#89
 PR draft: `docs/fork/upstream/pr-drafts/fix-memory-panel-listener-leak.md`
 
 Cherry-picked to `develop`: `fd646bce` (primary), `ac70b23f` (abort-on-close fix).
+
+---
+
+## Session 9 Findings — 2026-06-24 (Global Hover Memory Accumulation)
+
+**Trigger:** After all prior fixes (Sessions 1–8), user reported memory growing from
+~320 MiB to ~607 MiB just from mousing over the splash screen, left menu, chat input,
+settings icon, and other display elements — without opening Brain or any modal. Memory
+did not recover. No active agent session.
+
+This is distinct from the Session 6/7 patterns (Brain-panel-specific animations and
+memory list scroll-over). This is global: any element in the primary UI layout triggers
+growth.
+
+### Live process data at investigation time
+
+```
+Renderer (PID 28783):  851 MB RSS  (--type=renderer)
+Python/Qt (PID 28518): 853 MB RSS
+Zygote processes:      ~124 MB each (×2)
+GPU process:           none — GPU is in-process with browser/renderer
+```
+
+Confirmed from `/proc/28783/cmdline`: renderer is running with `--js-flags=--expose-gc`
+only. All other V8 flags (`--initial-old-space-size=128`, `--max-old-space-size=512`,
+`--optimize-for-size`, `--minor-mc`) are absent.
+
+### Root cause 1 (CRITICAL): `--js-flags` space-splitting bug
+
+Qt's `QTWEBENGINE_CHROMIUM_FLAGS` environment variable is parsed by splitting on spaces
+at the OS level, with no quoting support. The current entry in qt_wrapper.py:
+
+```python
+"--js-flags=--expose-gc --initial-old-space-size=128 --max-old-space-size=512 --optimize-for-size --minor-mc",
+```
+
+Qt sees 5 separate tokens:
+1. `--js-flags=--expose-gc` → passed to V8 correctly
+2. `--initial-old-space-size=128` → treated as a Chromium flag; ignored by renderer
+3. `--max-old-space-size=512` → same; ignored
+4. `--optimize-for-size` → same; ignored
+5. `--minor-mc` → same; ignored
+
+**Effect:** V8 runs with default heap limits, which on a 16+ GB system can be 1.5–2 GB
+before triggering GC. The V8 heap can grow to ~850 MB from interactive hover without
+being compelled to collect. The `cc::TileManager` tile budget (`--enable-low-end-device-mode`,
+~96 MB) bounds compositor tiles but does not bound V8 heap growth from JS activity
+triggered by hover events (style observers, event handlers, animation frame callbacks).
+
+**Fix:** Pass each V8 flag as a separate Chromium `--js-flags` token — but this doesn't
+work with multiple `--js-flags` entries (only the last is honoured). The correct solution
+is to use `--js-flags` with a value that contains no spaces, passing only
+`--expose-gc`, and use separate Chromium-level flags for heap sizing:
+- `--enable-low-end-device-mode` (already present) — bounds cc::TileManager
+- `--js-flags=--expose-gc` (existing, must be kept as the only js-flags entry)
+- For V8 heap sizing: evaluate `--js-flags=--expose-gc,--initial-old-space-size=128`
+  using the V8 comma-separated multi-flag syntax, which avoids spaces.
+
+Alternatively, pass `--max-old-space-size` as a standalone Chromium switch if Qt WebEngine
+forwards it, bypassing the `--js-flags` concatenation entirely.
+
+### Root cause 2: `email-notif-breathe` infinite box-shadow animation
+
+`email-notif-breathe` is a `2.2s ease-in-out infinite` animation that animates
+`box-shadow` on the email notification badge. `box-shadow` is not compositor-promoted:
+every frame in the 2.2-second cycle requires main-thread rasterization and deposits a
+new raster tile. With no eviction signal in Qt, these tiles accumulate at 60 fps
+indefinitely — not just during hover but for as long as the app is open.
+
+Unlike the Session 6 patterns (which affected Brain/Notes panels), this animation runs
+on the main chat UI at all times, making it a continuous global tile producer.
+
+**Fix:** Replace `box-shadow` animation with `opacity` animation. The visual effect
+(a pulsing glow) is achieved equivalently with opacity; the compositor can promote the
+element and perform the animation with zero raster cost.
+
+### Root cause 3: 77 occurrences of `transition: all` in style.css
+
+`transition: all 0.15s` (or variations) appears on 77 rule blocks in `static/style.css`.
+When the cursor moves over any affected element, the transition fires for every CSS
+property — including non-compositor-promoted ones (background-color, border-color,
+color, box-shadow). Each hover entry/exit cycle at 60fps deposits raster tiles for
+~9 frames per property per element. With no eviction signal, tiles from past interactions
+accumulate indefinitely.
+
+The Session 7 fix overrode `transition: all` specifically in the `#memory-list` context.
+The global pattern remains on all icon rail buttons, input buttons, section headers,
+tab buttons, and other interactive elements throughout the primary layout.
+
+Key selectors with `transition: all` that cover frequently-hovered primary-layout elements:
+- `.icon-rail-btn` — sidebar navigation icons (hovered on every navigation)
+- `.input-icon-btn` — chat input bar icons (hovered constantly during chat use)
+- `.section-header-btn` — all section header toggle buttons
+- `.tab-btn`, `.tab-btn-sm` — tab controls throughout the UI
+
+**Fix:** Replace `transition: all 0.15s` with specific compositor-safe properties only
+(`transform`, `opacity`, or `none`) on these selectors.
+
+### Root cause 4: No CSS containment on major layout regions
+
+Without `contain: layout paint style` on major structural elements (`.sidebar`,
+`#chat-container`, `.chat-input-bar`), a repaint triggered by hover on a child element
+propagates up through all ancestors before being bounded by the viewport. In a complex
+layout with many siblings, a single hover can trigger the browser to walk the full
+layout tree calculating whether any ancestor's paint region needs to be updated.
+
+This is not as high-impact as causes 1–3 but contributes to the "every hover event
+costs CPU" pattern.
+
+**Fix:** Add `contain: layout paint style` to the major structural containers.
+
+### Fix plan (4 phases, ordered by impact)
+
+#### Phase 1 — V8 heap telemetry (diagnostic foundation)
+
+Add `Runtime.getHeapUsage` CDP call to `_log_renderer_memory` in `qt_wrapper.py`:
+
+```python
+heap = _cdp_call('Runtime.getHeapUsage', {})
+if heap:
+    used = heap.get('usedSize', 0) // (1024 * 1024)
+    total = heap.get('totalSize', 0) // (1024 * 1024)
+    print(f'[V8] heap: used={used} MB total={total} MB', flush=True)
+```
+
+This distinguishes V8 heap growth from cc::TileManager tile growth. If V8 heap is
+stable and tiles are growing (RSS > V8 heap), the js-flags fix is lower priority.
+If V8 heap IS growing, the js-flags fix is critical.
+
+Branch: `feat/qt-native-linux-app` (extends issue #14)
+
+#### Phase 2A — Fix `--js-flags` space-splitting (critical)
+
+Switch from space-separated `--js-flags` value to comma-separated V8 multi-flag syntax:
+
+```python
+# Before (broken — Qt splits on spaces):
+"--js-flags=--expose-gc --initial-old-space-size=128 --max-old-space-size=512 --optimize-for-size --minor-mc",
+
+# After (correct — comma-separated, no spaces; V8 accepts this format):
+"--js-flags=--expose-gc,--initial-old-space-size=128,--max-old-space-size=512,--optimize-for-size,--minor-mc",
+```
+
+Also add `HeapProfiler.collectGarbage` CDP call to the idle eviction path alongside
+`Memory.simulatePressureNotification`, for synchronous V8+Oilpan GC when the user is
+idle:
+
+```python
+_cdp_call('HeapProfiler.collectGarbage', {})
+```
+
+Branch: new `fix/js-flags-v8-heap-limit` from `upstream-mirror` (affects all 3 platform
+wrappers: `qt_wrapper.py`, `mac_wrapper.py`, `windows_wrapper.py`)
+
+#### Phase 2B — CSS containment on major layout regions
+
+Add `contain: layout paint style` to `.sidebar`, `#chat-container`, `.chat-input-bar`,
+and the main content panel in `static/style.css`. Creates repaint boundaries so
+hover on any child cannot propagate repaints beyond the container boundary.
+
+Branch: new `fix/css-hover-raster-global` from `upstream-mirror`
+
+#### Phase 3 — Fix animations and transitions
+
+**3A — `email-notif-breathe`**: Replace box-shadow animation with opacity:
+```css
+@keyframes email-notif-breathe {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 1; }
+}
+/* Remove: box-shadow: 0 0 0 3px ... from keyframes */
+```
+
+**3B — `transition: all` replacements** on primary interactive selectors:
+Replace `transition: all 0.15s` with `transition: transform 0.15s, opacity 0.15s`
+on `.icon-rail-btn`, `.input-icon-btn`, `.section-header-btn`, `.tab-btn`, `.tab-btn-sm`.
+
+Branch: same `fix/css-hover-raster-global`
+
+#### Phase 4 — Track Python/Qt process RSS
+
+Extend `_log_renderer_memory` to also log the Python/Qt parent process RSS, so logs
+show the full memory picture (renderer + host process) at each 30-second interval.
+
+Branch: `feat/qt-native-linux-app` (extends issue #14)
+
+### Issues
+
+| Issue | Scope | Branch |
+|---|---|---|
+| #90 | `--js-flags` space-splitting fix | `fix/js-flags-v8-heap-limit` (from `upstream-mirror`) |
+| #91 | V8 heap telemetry + Python RSS + HeapProfiler | extends `feat/qt-native-linux-app` (#14) |
+| #92 | CSS containment + animation/transition fixes | `fix/css-hover-raster-global` (from `upstream-mirror`) |
