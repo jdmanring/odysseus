@@ -30,7 +30,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--enable-features=WebGPU,SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction",
     "--enable-logging=stderr --log-level=1",
     "--remote-debugging-port=9222",
-    "--js-flags=--expose-gc --max-old-space-size=512",
+    "--js-flags=--expose-gc,--max-old-space-size=512",
     "--enable-low-end-device-mode",  # caps cc::TileManager raster tile budget ~96 MB
 ])
 
