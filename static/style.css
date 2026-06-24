@@ -466,6 +466,7 @@ body.bg-pattern-sparkles {
       backdrop-filter: blur(10px);
       border: 1px solid color-mix(in srgb, var(--fg) 11%, transparent);
       position: relative;
+      contain: layout style;
     }
     .sidebar-resize-handle {
       position: absolute;
@@ -1910,6 +1911,7 @@ body.bg-pattern-sparkles {
       margin-bottom:8px;
       white-space:normal;
       min-height:0;
+      contain: layout style;
       --chat-max: 800px;
       padding-left: max(0px, calc((100% - var(--chat-max)) / 2));
       padding-right: max(12px, calc((100% - var(--chat-max)) / 2 + 12px));
