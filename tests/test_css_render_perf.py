@@ -54,20 +54,29 @@ def test_email_lib_fab_no_will_change():
 # 2. CSS containment added to high-churn containers
 # ---------------------------------------------------------------------------
 
-def test_sidebar_has_contain_content():
-    # contain: content scopes style recalculation from hover/navigation events
-    # to the sidebar subtree. Safe: .sidebar already has overflow: hidden.
+def test_sidebar_has_contain_layout_style():
+    # contain:layout style scopes style recalculation from hover/navigation
+    # events to the sidebar subtree. contain:paint is deliberately omitted:
+    # body.theme-frosted #sidebar adds backdrop-filter:blur(24px) and paint
+    # containment would composite the sidebar into its own layer, breaking the
+    # blur (backdrop reads from the empty layer, not the scene behind it).
     block = _block(".sidebar {")
     rule_end = block.index("}")
-    assert "contain: content" in block[:rule_end]
+    assert "contain: layout style" in block[:rule_end]
+    assert "contain: content" not in block[:rule_end]
 
 
-def test_chat_history_has_contain_content():
-    # Most impactful addition: every addMessage() append previously triggered a
-    # full-document style recalculation. contain: content scopes it to .chat-history.
+def test_chat_history_has_contain_layout_style():
+    # contain:layout style scopes addMessage() style recalculation to the chat
+    # area without creating paint isolation. .chat-history is transparent
+    # (no background); contain:paint would promote it to a compositor layer and
+    # with --enable-low-end-device-mode's small tile budget, evicted tiles
+    # render as solid colour instead of passing through to the body background,
+    # hiding the animated background behind the chat area.
     block = _block(".chat-history {")
     rule_end = block.index("}")
-    assert "contain: content" in block[:rule_end]
+    assert "contain: layout style" in block[:rule_end]
+    assert "contain: content" not in block[:rule_end]
 
 
 def test_modal_content_has_contain_layout_style():
