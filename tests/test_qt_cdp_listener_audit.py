@@ -277,6 +277,23 @@ def test_log_constants_match_app():
     assert "_LOG_BACKUP_COUNT = 5" in _SRC
 
 
+def test_js_flags_comma_separated():
+    """Qt splits QTWEBENGINE_CHROMIUM_FLAGS on whitespace before passing each
+    token to Chromium.  A space-separated --js-flags list becomes 5 separate
+    tokens; only the first token (--js-flags=--expose-gc) reaches V8 as a
+    V8 flag — the remaining tokens (--initial-old-space-size=..., etc.) are
+    silently dropped.  V8 accepts comma-separated multi-flag syntax, so all
+    flags must be combined into a single token with commas."""
+    assert "--js-flags=--expose-gc,--initial-old-space-size=128" in _SRC
+
+
+def test_js_flags_no_space_after_expose_gc():
+    """Guard: ensure the space-separated form that silently drops V8 flags is
+    not reintroduced. --expose-gc followed by a space means Qt will split and
+    discard everything after the first token."""
+    assert "--js-flags=--expose-gc --" not in _SRC
+
+
 def test_initial_old_space_size_set():
     assert "--initial-old-space-size=128" in _SRC
 
