@@ -58,7 +58,14 @@ on JS-created thumbnail/list images in `gallery.js`, `emailLibrary.js`, `documen
 and any list renderer. Off-screen images then decode near-viewport and off-thread.
 Pairs naturally with the existing `content-visibility:auto` work.
 
-### A2 — Editor undo snapshot peak  *(reviewed — premise corrected)*
+### A2 — Editor undo snapshot peak  *(reviewed — premise corrected)* — ✅ DONE (#99)
+
+> **Implemented** in `perf/editor-undo-compress` (#99): gzip-compress snapshots
+> outside a 3-deep raw window in idle, decode on demand for deep undo. Codec is
+> **gzip not PNG** (PNG-via-canvas premultiplies alpha → partial-alpha drift; gzip
+> is byte-exact, verified live). Recent undo stays sync; deep undo async + race-
+> guarded. Smoke-tested (4 edits + crop). The "lower the caps" option below was the
+> safe fallback; compression was chosen to keep full undo depth.
 
 **Investigation result (2026-06-25):** the original "grows linearly / unbounded" framing
 is **wrong**. Findings from reading the code:
