@@ -173,38 +173,17 @@ def test_prefers_reduced_motion_still_suppresses_sweep():
 # notes-quick-add hover/focus must not destroy the compositor layer
 # ---------------------------------------------------------------------------
 
-def test_notes_quick_pulse_hover_uses_paused_not_none():
-    """animation:none on hover destroys the compositor layer promoted for the
-    quick-add pulse animation. The layer is recreated on mouse-leave, causing
-    a gray flash. animation-play-state:paused freezes the animation at the
-    current keyframe without removing the promoted layer."""
-    idx = _CSS.find(".notes-quick-add:hover {")
-    assert idx >= 0, ".notes-quick-add:hover rule must exist"
-    block = _CSS[idx : idx + 300]
-    assert "animation: none" not in block, (
-        ".notes-quick-add:hover must not use animation:none. animation:none "
-        "destroys the promoted layer; recreation on mouse-leave causes a gray "
-        "flash. Use animation-play-state:paused instead."
-    )
-    assert "animation-play-state: paused" in block, (
-        ".notes-quick-add:hover must set animation-play-state:paused"
-    )
-
-
-def test_notes_quick_pulse_focus_uses_paused_not_none():
-    """animation:none on :focus-within has the same layer-teardown problem as
-    on :hover. Use animation-play-state:paused instead."""
-    idx = _CSS.find(".notes-quick-add:focus-within {")
-    assert idx >= 0, ".notes-quick-add:focus-within rule must exist"
-    block = _CSS[idx : idx + 300]
-    assert "animation: none" not in block, (
-        ".notes-quick-add:focus-within must not use animation:none. animation:none "
-        "destroys the promoted layer; recreation when focus leaves causes a gray "
-        "flash. Use animation-play-state:paused instead."
-    )
-    assert "animation-play-state: paused" in block, (
-        ".notes-quick-add:focus-within must set animation-play-state:paused"
-    )
+def test_notes_quick_pulse_paused_on_hover_and_focus():
+    """The idle pulse now lives on .notes-quick-add::after (opacity on a
+    pseudo-element layer). It must stop on hover/focus so it does not stack with
+    the box's own static interaction ring — via animation-play-state:paused, not
+    animation:none (animation:none tears down the promoted layer and flashes)."""
+    idx = _CSS.find(".notes-quick-add:hover::after")
+    assert idx >= 0, ".notes-quick-add:hover::after / :focus-within::after rule must exist"
+    block = _CSS[idx: _CSS.find("}", idx) + 1]  # just this rule (not the reduced-motion block after)
+    assert "animation: none" not in block, "must use animation-play-state:paused, not animation:none"
+    assert "animation-play-state: paused" in block
+    assert "focus-within::after" in block, "the focus-within ::after must share the pause rule"
 
 
 # ---------------------------------------------------------------------------
@@ -250,3 +229,21 @@ def test_notes_drag_shimmer_uses_transform_not_background_position():
         "@keyframes notes-drag-shimmer must animate transform: translateX() "
         "so the compositor owns every frame"
     )
+
+
+def test_notes_quick_pulse_is_compositor_promoted_not_box_shadow():
+    """notes-quick-pulse ran on the always-visible .notes-quick-add box animating
+    box-shadow (a paint property), re-rasterizing the box + blurred shadow ~60x/s
+    forever — measured ~2 MB/s of never-evicted tiles. It must animate opacity on
+    a pseudo-element layer (static box-shadow rasterized once) instead."""
+    kf_idx = _CSS.find("@keyframes notes-quick-pulse")
+    assert kf_idx >= 0
+    kf = _CSS[kf_idx: kf_idx + 200]
+    assert "box-shadow" not in kf, "notes-quick-pulse must not animate box-shadow"
+    assert "opacity" in kf
+    # The perpetual animation must run on ::after, not the base box.
+    decl_idx = _CSS.find("animation: notes-quick-pulse")
+    brace = _CSS.rfind("{", 0, decl_idx)
+    prev_close = _CSS.rfind("}", 0, brace)
+    selector = _CSS[prev_close + 1: brace].strip()
+    assert "::after" in selector, f"notes-quick-pulse must run on ::after, got: {selector[-60:]}"
