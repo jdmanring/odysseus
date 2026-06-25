@@ -105,15 +105,22 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
     avoiding `QTimer.singleShot` cross-thread hazards.
   - **Node-threshold** (> 50 000 Oilpan nodes): direct `page.runJavaScript()` call
     inside `_log_renderer_memory`, which already runs on the Qt main thread.
-- **Raster tile eviction:** `Memory.simulatePressureNotification(moderate)` is called
+- **Raster tile pressure:** `Memory.simulatePressureNotification(moderate)` is called
   at the end of each 60 s `_log_renderer_memory` cycle. Qt WebEngine does not forward
-  OS memory-pressure signals to Chromium's `cc::TileManager`; any hover event
-  rasterizes new tiles that are never evicted under normal conditions, causing
-  unbounded RSS growth. Simulating moderate pressure fires the
-  `base::MemoryPressureListener` path the OS would use, causing the tile manager to
-  evict non-visible accumulated tiles. `_cdp_call()` returns `None` silently on any
-  error, so the fix degrades gracefully if the CDP method is unavailable in a given
-  build.
+  OS memory-pressure signals to Chromium's `cc::TileManager`, so raster tiles are not
+  evicted on idle as they would be in a normal browser. Simulating moderate pressure
+  fires the `base::MemoryPressureListener` path the OS would use. `_cdp_call()` returns
+  `None` silently on any error, so it degrades gracefully if the CDP method is
+  unavailable in a given build.
+
+  **Scope correction (see jdmanring#96 / #97):** the dominant hover-driven RSS growth
+  is *not* raster tiles — it is transient Oilpan detached-DOM churn from CSS `:hover`
+  pseudo-elements, a separate memory pool. That is addressed by an idle-triggered
+  `gc()` (idle-GC, #97), not by tile pressure. An earlier attempt to bound it with the
+  `--enable-low-end-device-mode` flag was removed (#96): the flag caused a
+  lighter-rectangle raster tint on dark themes and did not touch the Oilpan pool. The
+  pressure-notification call is retained as belt-and-suspenders for genuine raster
+  accumulation, not as the hover-OOM fix it was originally framed as.
 - **Startup log rotation:** `_rotate_log(path)` rotates `wrapper_system.log` and
   `server_access.log` at startup if they exceed 10 MB, preserving 5 numbered
   backups (`path.1`–`path.5`) via the same shift algorithm used by
