@@ -54,10 +54,14 @@ def test_email_lib_fab_no_will_change():
 # 2. CSS containment — layout style scoping without paint isolation
 # ---------------------------------------------------------------------------
 
-def test_sidebar_has_contain_layout_style():
+def test_sidebar_no_contain():
+    # Sidebar is opaque with overflow:hidden — no scroll layer, no paint
+    # isolation needed. Adding contain:layout creates a stacking context that
+    # alters how its box-shadow renders in the compositor, producing a visually
+    # expanded separator. No contain is correct here.
     block = _block(".sidebar {")
     rule_end = block.index("}")
-    assert "contain: layout style" in block[:rule_end]
+    assert "contain" not in block[:rule_end]
     assert "contain: content" not in block[:rule_end]
 
 
