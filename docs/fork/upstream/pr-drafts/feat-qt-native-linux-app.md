@@ -138,7 +138,7 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   `--renderer-process-limit=1` (single renderer process — saves ~30–50 MB vs default
   multi-process behaviour in some Qt builds); `--disable-extensions` (removes extension
   loader overhead, ~1–5 MB, no downside for embedded app).
-- 48 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
+- 63 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
   import correctness, call-site presence, executor usage, log rotation
   structure (including that the shift loop and `_LOG_BACKUP_COUNT` are present
   and that constants match the app), `nodes` assigned before threshold comparison,

@@ -55,7 +55,7 @@ Remove "consult before doing domain work" mandate and "treat them as authoritati
 ## Files changed
 
 - `src/agent_loop.py` — 3 string literal changes (tool description, matched-skills header, skill index header)
-- `tests/test_agent_skill_prompt_language.py` — 6 new tests (NEW FILE)
+- `tests/test_agent_skill_prompt_language.py`: 12 new tests (6 absence + 6 presence) (NEW FILE)
 
 ## Tests
 

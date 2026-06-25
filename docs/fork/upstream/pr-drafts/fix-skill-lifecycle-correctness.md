@@ -72,26 +72,23 @@ When `auto_approve=False`, published skills and teacher-escalation drafts both i
 | `src/tool_implementations.py` | Remove pref check; always draft fallback |
 | `src/teacher_escalation.py` | Confidence 0.8→0.9 (two locations) |
 | `services/memory/skills.py` | Update design comment |
-| `tests/test_skill_lifecycle_correctness.py` | 11 new tests (NEW FILE) |
+| `tests/test_skill_lifecycle_correctness.py` | 8 new tests (NEW FILE) |
 
 ## Tests
 
-11 tests in `tests/test_skill_lifecycle_correctness.py`:
+8 tests in `tests/test_skill_lifecycle_correctness.py`:
 
 **Source-text assertions (4):**
-1. `auto_approve_skills` pref check NOT in `skill_extractor.py` (extraction decoupled)
-2. `agent_loop.py` injection path default is `True`
-3. `skills_routes.py` audit path default is `True`
-4. `tool_implementations.py` no auto-approve-True pattern in manage_skills add fallback
+1. `auto_approve_skills` pref check is not in `skill_extractor.py` (extraction decoupled).
+2. `agent_loop.py` injection path default is `True`.
+3. `skills_routes.py` audit path default is `True`.
+4. `tool_implementations.py` has no auto-approve-True pattern in the manage_skills add fallback.
 
-**Behavioral assertions (7):**
-5. Extraction with `auto_approve_skills=True` pref → status is `"draft"`
-6. Extraction with `auto_approve_skills=False` pref → status is `"draft"` (always draft)
-7. Extraction with no prefs → status is `"draft"`
-8. Pre-filter with `auto_approve=True` → all 3 skills pass through
-9. Pre-filter with `auto_approve=False` → learned draft excluded
-10. Pre-filter with `auto_approve=False` → teacher-escalation draft included
-11. Pre-filter with `auto_approve=False` → published skill always included
+**Behavioral assertions (4), exercising the source-aware injection pre-filter:**
+5. Pre-filter with `auto_approve=True`: all skills pass through.
+6. Pre-filter with `auto_approve=False`: a learned draft is excluded.
+7. Pre-filter with `auto_approve=False`: a teacher-escalation draft is included.
+8. Pre-filter with `auto_approve=False`: a published skill is always included.
 
 ## Target Branch
 
@@ -125,7 +122,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 5. Turn off "Auto-approve skills" in Brain > Skills. Trigger a new extraction. Confirm the new draft does NOT inject into agent context (unless it's source=teacher-escalation).
 6. With auto_approve off: trigger teacher escalation. Confirm the teacher draft still injects (the source-aware pre-filter allows it).
 7. Ask the agent to call `manage_skills add` with no explicit status. Confirm the new skill appears as **draft** in Brain > Skills.
-8. Run `pytest tests/test_skill_lifecycle_correctness.py -v` — 11 tests pass.
+8. Run `pytest tests/test_skill_lifecycle_correctness.py -v` (8 tests pass).
 9. Run `pytest tests/ -q` — full suite passes (minus pre-existing failures).
 
 ---
@@ -133,7 +130,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 ## Filing Notes
 
 - 1 commit on branch `fix/skill-lifecycle-correctness`:
-  - `126e1b62` — all 5 production file changes + 11 new tests
+  - `126e1b62`: all 5 production file changes plus 8 new tests
 - Branch built from `upstream-mirror` — clean, no fork-specific history.
 - **File upstream issue first**, then add the upstream issue number to `Fixes #` above.
 - ROADMAP context: "Agent prompt/context bloat" (removes spurious published skills that forced pre-task skill lookups) and "Skill/tool prompt-injection audit" (reduces unconditional trust paths in the skill pipeline).

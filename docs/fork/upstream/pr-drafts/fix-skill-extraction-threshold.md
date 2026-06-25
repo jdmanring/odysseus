@@ -80,25 +80,21 @@ Setting `min_conf = 2.0` blocks drafts only when `auto_approve_skills=False`. Wi
 - `routes/chat_helpers.py` — outer extraction gate condition
 - `src/agent_loop.py` — injection path `auto_approve_skills` default + comment
 - `routes/skills_routes.py` — audit-finalization `auto_approve_skills` default
-- `tests/test_skill_extraction_gate.py` — 10 tests (5 source-text, 5 behavioural) (NEW FILE)
+- `tests/test_skill_extraction_gate.py`: 5 source-text tests (NEW FILE)
 
 ## Tests
 
-**Source-text assertions** (verify constants are what the tests claim):
+5 source-text assertions in `tests/test_skill_extraction_gate.py`, verifying the
+constants and defaults the change introduces:
 
-1. `MIN_CONFIDENCE = 0.85` is present in `skill_extractor.py`
-2. `round_count < 2 or tool_count < 3` (AND gate) is present in `skill_extractor.py`
-3. `agent_rounds >= 2 and agent_tool_calls >= 3` (AND gate) is present in `chat_helpers.py`
-4. `auto_approve_skills", False` is present in `agent_loop.py` (injection path)
-5. `auto_approve_skills", False` is present in `skills_routes.py` (audit path)
+1. `MIN_CONFIDENCE = 0.85` is present in `skill_extractor.py`.
+2. `round_count < 2 or tool_count < 3` (the AND gate) is present in `skill_extractor.py`.
+3. `agent_rounds >= 2 and agent_tool_calls >= 3` (the AND gate) is present in `chat_helpers.py`.
+4. `auto_approve_skills", False` is present in `agent_loop.py` (injection path).
+5. `auto_approve_skills", False` is present in `skills_routes.py` (audit path).
 
-**Behavioural assertions** (mock LLM call, check gate behaviour):
-
-6. `rounds=1, tools=2` → skipped (rounds below threshold)
-7. `rounds=2, tools=2` → skipped (tools below new floor of 3)
-8. `rounds=2, tools=3` → proceeds to LLM extraction call
-9. `confidence=0.84` → dropped by `MIN_CONFIDENCE=0.85` floor
-10. `auto_approve default=False` → skill status is `"draft"`, not `"published"`
+Runtime behaviour (the gate skipping below-threshold sessions, the confidence floor, and
+draft-not-published status) is exercised by the manual steps under "How to Test".
 
 ## Target branch
 
@@ -129,7 +125,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 2. Run an agent task with 2 rounds and 3+ tool calls — confirm `[skill-extract]` log entry appears and skill is saved as `"draft"` (not `"published"`) in Brain > Skills.
 3. Open Brain > Skills — confirm no draft appears in the agent's injected context (send a simple request; agent should not call `manage_skills` to retrieve the draft).
 4. Publish a draft manually — confirm the published skill IS injected on subsequent relevant requests.
-5. Run `pytest tests/test_skill_extraction_gate.py -v` — 10 tests pass.
+5. Run `pytest tests/test_skill_extraction_gate.py -v` (5 tests pass).
 6. Run `pytest tests/ -q` — full suite passes (minus pre-existing failures in `test_model_context`, `test_tool_parsing_pycall`, `test_workspace_*`).
 
 ---
