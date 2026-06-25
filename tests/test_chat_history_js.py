@@ -878,3 +878,46 @@ def test_all_logs_use_consistent_prefix():
     assert not bad, (
         "These console calls are missing the '[chatHistory]' prefix: " + str(bad)
     )
+
+
+# ---------------------------------------------------------------------------
+# Scroll-down is the inverse of scroll-up, not a drain-to-bottom (#103)
+# ---------------------------------------------------------------------------
+
+def _load_newer_body() -> str:
+    """The _loadNewer prototype body (up to the next prototype assignment)."""
+    start = _SRC.index("MessageWindow.prototype._loadNewer = function ()")
+    end = _SRC.index("MessageWindow.prototype.", start + 1)
+    return _SRC[start:end]
+
+
+def test_load_newer_recursion_gated_on_draining_only():
+    # A scroll-driven load must process exactly one batch and stop; only the
+    # scroll-to-bottom button (_draining) may cascade. The old code recursed on
+    # `_draining || _isAtBottom()`, which made any scroll-down near the bottom
+    # drain to the end and behave like the scroll-to-bottom button.
+    body = _load_newer_body()
+    assert "self._draining || self._isAtBottom()" not in body, (
+        "scroll-down must not cascade on _isAtBottom() proximity; gate on _draining only"
+    )
+    assert "if (!self._draining) return;" in body, (
+        "non-draining (scroll) loads must early-return after one batch"
+    )
+
+
+def test_load_newer_end_snap_is_drain_only():
+    # The early `if (!self._draining) return;` precedes the reached-end snap and
+    # settle loop, so a scroll that reaches the newest message stops at the
+    # user's position instead of yanking to the bottom.
+    body = _load_newer_body()
+    gate = body.index("if (!self._draining) return;")
+    end_snap = body.index("scrollHeight - self._c.clientHeight", gate)
+    # The settle loop (drain-only re-snap) must come after the gate.
+    assert "_settle" in body[gate:], "settle loop must be inside the drain-only path"
+    assert gate < end_snap
+
+
+def test_bottom_sentinel_says_newer_not_earlier():
+    # Scroll-down loads newer messages; the bottom sentinel wording must reflect that.
+    assert "newer messages, scroll down to load" in _SRC
+    assert "earlier messages — scroll down" not in _SRC

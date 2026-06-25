@@ -224,7 +224,7 @@
     var remaining = this._all.length - this._endIdx;
     var s = document.createElement('div');
     s.className   = 'chat-history-bottom-sentinel';
-    s.textContent = '↓ ' + remaining + ' earlier messages — scroll down to load';
+    s.textContent = '↓ ' + remaining + ' newer messages, scroll down to load';
     s.style.cssText = (
       'text-align:center;padding:10px 0;color:var(--fg);opacity:0.5;' +
       'font-size:0.85rem;user-select:none;flex-shrink:0;cursor:pointer'
@@ -522,50 +522,53 @@
     requestAnimationFrame(function () {
       if (self._gen !== _ngen) { self._draining = false; return; }
       self._loading = false;
+
+      // A scroll-driven load (not draining) processes exactly ONE batch and
+      // stops, mirroring _loadOlder for scroll-up: the next batch loads when the
+      // user scrolls the bottom sentinel back into view, with position preserved.
+      // Only the scroll-to-bottom button (_draining) cascades through every
+      // remaining batch and snaps to the true bottom. Without this gate, a scroll
+      // that brings the sentinel within _isAtBottom()'s 120px proximity window
+      // recursed to the end and behaved like the scroll-to-bottom button.
+      if (!self._draining) return;
+
       if (self._endIdx < self._all.length) {
-        if (self._draining) {
-          // Drain mode (button press): snap before the continuity check so that
-          // hljs height inflation between batches cannot break the threshold test.
-          self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
-        }
-        if (self._draining || self._isAtBottom()) {
-          self._loadNewer();
-        }
-      } else {
-        self._draining = false;
-        // Snap after the final batch — the pre-batch snap only fires when there
-        // are more batches to load, so the last batch would otherwise leave
-        // scrollTop short by its own rendered height.
+        // Drain mode: snap before the continuity check so hljs height inflation
+        // between batches cannot break the threshold test, then load the next.
         self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
-        // Images in newly-loaded batches inflate scrollHeight after the snap.
-        // Drain was user-initiated (button press), so always re-snap on load.
-        var _rsGen = self._gen;
-        var _drainImgs = self._c.querySelectorAll('img');
-        for (var _di = 0; _di < _drainImgs.length; _di++) {
-          if (!_drainImgs[_di].complete) {
-            (function (img) {
-              img.addEventListener('load', function () {
-                if (self._gen !== _rsGen) return;
-                self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
-              }, { once: true });
-            })(_drainImgs[_di]);
-          }
-        }
-        // Settling loop: re-snap each frame while scrollHeight grows (fonts, images).
-        // No threshold: drain was user-initiated, always reach the true bottom.
-        (function _settle(remaining, prevH) {
-          requestAnimationFrame(function () {
-            if (self._gen !== _rsGen) return;
-            var h = self._c.scrollHeight;
-            if (h !== prevH) {
-              self._c.scrollTop = h - self._c.clientHeight;
-            }
-            if (remaining > 0 && h !== prevH) {
-              _settle(remaining - 1, h);
-            }
-          });
-        })(8, self._c.scrollHeight);
+        self._loadNewer();
+        return;
       }
+
+      // Drain reached the newest message: snap to the true bottom, then re-snap
+      // as images and fonts inflate scrollHeight after the snap.
+      self._draining = false;
+      self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
+      var _rsGen = self._gen;
+      var _drainImgs = self._c.querySelectorAll('img');
+      for (var _di = 0; _di < _drainImgs.length; _di++) {
+        if (!_drainImgs[_di].complete) {
+          (function (img) {
+            img.addEventListener('load', function () {
+              if (self._gen !== _rsGen) return;
+              self._c.scrollTop = self._c.scrollHeight - self._c.clientHeight;
+            }, { once: true });
+          })(_drainImgs[_di]);
+        }
+      }
+      // Settling loop: re-snap each frame while scrollHeight grows (fonts, images).
+      (function _settle(remaining, prevH) {
+        requestAnimationFrame(function () {
+          if (self._gen !== _rsGen) return;
+          var h = self._c.scrollHeight;
+          if (h !== prevH) {
+            self._c.scrollTop = h - self._c.clientHeight;
+          }
+          if (remaining > 0 && h !== prevH) {
+            _settle(remaining - 1, h);
+          }
+        });
+      })(8, self._c.scrollHeight);
     });
   };
 
