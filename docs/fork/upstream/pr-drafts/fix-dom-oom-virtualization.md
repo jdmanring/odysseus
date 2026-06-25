@@ -80,11 +80,27 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 - `tests/test_chat_history_js.py` — static-analysis tests
 - `tests/test_chat_history_playwright.py` — Playwright integration tests
 
+## Relationship to upstream #4644 / #4661
+
+This change and open upstream PR #4661 both target issue #4644 ("browser tab OOM during
+long agent interactions"), and they take different approaches to the same core problem: an
+unbounded chat-history DOM. #4661 keeps all messages and bounds the DOM by paginating
+history with a "show older messages" control. This change bounds the DOM by virtualizing
+it: a `MessageWindow` evicts off-window messages and reloads them on session switch.
+
+These are alternatives for the DOM-bounding mechanism, not complementary changes, so they
+should not both be merged as written. This needs maintainer coordination before filing:
+either align this virtualization with #4661's windowing, or present it explicitly as an
+alternative with the trade-offs stated (full virtualization versus load-older pagination).
+Note that #4661's `_trimChatHistoryDOM()` cannot be reused here, because it removes control
+elements this implementation depends on.
+
 ## Related
 
-- Companion PR: `fix/dom-oom-streaming-throttle` — fixes the remaining OOM vectors in `chat.js` (thinking-block O(n²) `mdToHtml`, rAF throttle, StreamRenderer teardown, background stream cleanup, GC yield)
-- Research: `docs/fork/memory-explosion-research.md`
-- Upstream PR #4661 — addresses causes 1 and 3 in `chat.js`; `_trimChatHistoryDOM()` cannot be used directly here (destroys control elements)
+- Companion branch `fix/dom-oom-streaming-throttle` fixes the remaining OOM vectors in
+  `chat.js` (thinking-block O(n^2) `mdToHtml`, rAF throttle, StreamRenderer teardown,
+  background-stream cleanup, GC yield). That one is complementary to #4661, not competing.
+- Research: `docs/fork/memory-explosion-research.md`.
 
 ## Filing order
 

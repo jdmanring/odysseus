@@ -70,7 +70,10 @@ After stream finalization, yield to idle via `scheduler.postTask(() => {}, { pri
 
 ## Linked Issue
 
-Fixes # <!-- [add upstream issue number before filing] -->
+Relates to #4644 ("browser tab OOM during long agent interactions"). This addresses
+several streaming-side causes of that OOM; open PR #4661 addresses overlapping causes (see
+the relationship note below). File a focused upstream issue if a distinct one is warranted,
+and link it here before submitting.
 
 ## Type of Change
 
@@ -102,8 +105,14 @@ Fixes # <!-- [add upstream issue number before filing] -->
 - 3 commits: fix (`d35f3819`), tests (`6cae1aad`), PR draft (`16e8bc16`).
 - Branch: `fix/dom-oom-streaming-throttle` — built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
-- **Relationship to upstream PR #4661**: The thinking-block textContent fix and background stream cleanup approach are adapted from PR #4661 (holden093). The rAF throttle, StreamRenderer teardown, and idle scheduler are independent additions. The DOM-cap portion of #4661 (`_trimChatHistoryDOM`, `_loadOlderMessages`) is NOT included — it is incompatible with the chatHistory.js virtualization system (`fix/dom-oom-virtualization`). File this PR before or after #4661; note the relationship in the PR body.
-- **Do not cherry-pick `_trimChatHistoryDOM` or `_loadOlderMessages` from #4661** during ingest — they conflict with our virtualization.
+- **Relationship to upstream PR #4661**: the thinking-block `textContent` fix and the
+  background-stream cleanup are adapted from PR #4661 (holden093), with attribution. The
+  rAF throttle, StreamRenderer teardown, and idle scheduler are independent additions. The
+  DOM-cap portion of #4661 (`_trimChatHistoryDOM`, `_loadOlderMessages`) is intentionally
+  not included; it conflicts with the separate `fix/dom-oom-virtualization` change, which
+  bounds the DOM by virtualization rather than pagination. These two streaming fixes are
+  complementary to #4661 and can land in either order; the DOM-bounding approach is the one
+  that needs coordination (tracked in the `fix/dom-oom-virtualization` draft).
 
 ## Visual / UI changes
 
