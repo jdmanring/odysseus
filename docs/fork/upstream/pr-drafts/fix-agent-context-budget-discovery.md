@@ -1,6 +1,6 @@
 # PR Draft: fix/agent-context-budget-discovery → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/agent-context-budget-discovery`
+**Branch:** `fix/agent-context-budget-discovery`
 **Issue:** [#54](https://github.com/jdmanring/odysseus/issues/54) (fork tracking)
 **Status:** Ready to file
 

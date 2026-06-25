@@ -1,6 +1,6 @@
 # PR Draft: fix/skill-agent-prompt-language → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/skill-agent-prompt-language`
+**Branch:** `fix/skill-agent-prompt-language`
 **Issue:** [#85](https://github.com/jdmanring/odysseus/issues/85)
 **Base:** `upstream-mirror` (latest upstream commit)
 **Status:** Ready to file

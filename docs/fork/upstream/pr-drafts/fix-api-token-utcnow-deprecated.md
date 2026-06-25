@@ -1,6 +1,6 @@
 # PR Draft: fix/api-token-utcnow-deprecated → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/api-token-utcnow-deprecated`
+**Branch:** `fix/api-token-utcnow-deprecated`
 **Fork issue:** [#51](https://github.com/jdmanring/odysseus/issues/51) (open)
 **Status:** Single clean commit. File upstream issue first, fill in `Fixes #___`, then open PR.
 **Context:** Follow-up to `790ef81b` ("fix: use aware UTC in health timestamp")

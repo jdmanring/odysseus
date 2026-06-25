@@ -1,6 +1,6 @@
 # PR Draft: perf/agent-finalize-in-place → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:perf/agent-finalize-in-place`
+**Branch:** `perf/agent-finalize-in-place`
 **Issue:** [#74](https://github.com/jdmanring/odysseus/issues/74) (fork tracking)
 **Status:** Ready to file
 

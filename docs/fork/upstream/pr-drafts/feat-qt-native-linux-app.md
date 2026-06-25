@@ -1,6 +1,6 @@
 # PR Draft: feat/qt-native-linux-app → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:feat/qt-native-linux-app`
+**Branch:** `feat/qt-native-linux-app`
 **Issue:** [#14](https://github.com/jdmanring/odysseus/issues/14) (fork tracking)
 **Screenshot:** `docs/fork/screenshots/qt-native-linux-app.png`
 **Status:** Ready to file

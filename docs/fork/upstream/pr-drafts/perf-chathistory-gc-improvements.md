@@ -1,6 +1,6 @@
 # PR Draft: perf/chathistory-gc-improvements → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:perf/chathistory-gc-improvements`
+**Branch:** `perf/chathistory-gc-improvements`
 **Issue:** [#83](https://github.com/jdmanring/odysseus/issues/83)
 **Base:** `upstream-mirror` (latest upstream commit)
 **Status:** Ready to file (depends on `fix/dom-oom-virtualization`)

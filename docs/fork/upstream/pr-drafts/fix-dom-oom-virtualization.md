@@ -3,6 +3,10 @@
 **Branch**: `fix/dom-oom-virtualization` (from `upstream-mirror`)
 **Issue**: jdmanring/odysseus#2
 **Upstream issue**: file before filing PR
+**Status**: HOLD. Do not file as-is. This competes with open upstream PR #4661 on the same
+problem (see "Relationship to upstream #4644 / #4661" below). Recommended: let #4661 land,
+then decide whether virtualization adds value over its pagination, and if so propose it as
+an enhancement rather than a replacement.
 
 ---
 

@@ -1,6 +1,6 @@
 # PR Draft: fix/searxng-json-docs → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/searxng-json-docs`
+**Branch:** `fix/searxng-json-docs`
 **Issue:** [#8](https://github.com/jdmanring/odysseus/issues/8) (fork tracking)
 **Status:** Ready to file
 

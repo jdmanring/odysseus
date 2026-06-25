@@ -1,6 +1,6 @@
 # PR Draft: fix/basicsr-python314-compat → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/basicsr-python314-compat`
+**Branch:** `fix/basicsr-python314-compat`
 **Issue:** [#9](https://github.com/jdmanring/odysseus/issues/9) (fork tracking)
 **Status:** Ready to file — file upstream issue first (draft in issue-drafts/fix-basicsr-python314-compat.md)
 

@@ -1,6 +1,6 @@
 # PR Draft: fix/provider-logo-ordering → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/provider-logo-ordering`
+**Branch:** `fix/provider-logo-ordering`
 **Fork issue:** [#59](https://github.com/jdmanring/odysseus/issues/59) (open)
 **Status:** Single clean commit (`a35b1b1d`). File upstream issue first, fill in `Fixes #___`, then open PR.
 

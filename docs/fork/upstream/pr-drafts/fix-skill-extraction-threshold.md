@@ -1,6 +1,6 @@
 # PR Draft: fix/skill-extraction-threshold → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/skill-extraction-threshold`
+**Branch:** `fix/skill-extraction-threshold`
 **Issue:** [#84](https://github.com/jdmanring/odysseus/issues/84)
 **Base:** `upstream-mirror` (latest upstream commit)
 **Status:** Ready to file

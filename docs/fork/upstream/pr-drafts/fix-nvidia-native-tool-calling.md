@@ -1,6 +1,6 @@
 # PR Draft: fix/nvidia-native-tool-calling → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/nvidia-native-tool-calling`
+**Branch:** `fix/nvidia-native-tool-calling`
 **Fork issue:** [#60](https://github.com/jdmanring/odysseus/issues/60) (open)
 **Status:** Single clean commit (`116bb913`). File upstream issue first, fill in `Fixes #___`, then open PR.
 

@@ -1,6 +1,6 @@
 # PR Draft: fix/untrusted-tool-result-header → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/untrusted-tool-result-header`
+**Branch:** `fix/untrusted-tool-result-header`
 **Fork issue:** [#48](https://github.com/jdmanring/odysseus/issues/48) (open)
 **Status:** Single clean commit. File upstream issue first, fill in `Fixes #___`, then open PR.
 **Introduced by:** upstream commit `4e477741` (#1629, merged 2026-06-16)

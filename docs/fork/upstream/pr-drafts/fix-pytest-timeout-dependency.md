@@ -1,6 +1,6 @@
 # PR Draft: fix/pytest-timeout-dependency → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/pytest-timeout-dependency`
+**Branch:** `fix/pytest-timeout-dependency`
 **Issue:** [#6](https://github.com/jdmanring/odysseus/issues/6) (fork tracking)
 **Status:** Ready to file
 

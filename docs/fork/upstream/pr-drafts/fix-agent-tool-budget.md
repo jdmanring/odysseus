@@ -1,6 +1,6 @@
 # PR Draft: fix/agent-tool-budget → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/agent-tool-budget`
+**Branch:** `fix/agent-tool-budget`
 **Issue:** [#10](https://github.com/jdmanring/odysseus/issues/10) (fork tracking)
 **Status:** Ready to file
 
