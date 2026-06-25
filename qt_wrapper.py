@@ -288,6 +288,15 @@ _RE_EVICT = _re.compile(r'\[chatHistory\] Phase 2 evict: removed (\d+) live node
 # Bounds CDP background work to eviction audit threads (5 s sleep each).
 _cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='cdp')
 
+# Renderer reclaim policy (issue #106). simulatePressureNotification is a no-op on
+# QtWebEngine; Memory.forciblyPurgeJavaScriptMemory actually reclaims the renderer
+# cache (measured 5.2 GB and 3.7 GB freed in single calls). The purge causes a ~1s
+# stutter, so it is only ever fired off the interaction path (mouse-idle,
+# focus-loss), gated by an RSS ceiling so light use never stutters, and rate-limited
+# so it cannot repeat back to back.
+_PURGE_RSS_CEILING_KB = 1_800_000   # ~1.8 GB; baseline after a purge is ~1.1 GB
+_PURGE_MIN_INTERVAL_S = 15
+
 # GC request cell — written by background threads (PSI monitor), read and drained
 # by a 250 ms QTimer on the Qt main thread.  CPython's GIL makes single-element
 # list assignment atomic so no explicit lock is needed.
@@ -487,6 +496,7 @@ class OdysseusWindow(QMainWindow):
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
         self._page = page  # held for lifecycle management in changeEvent
+        self._last_purge = 0.0  # monotonic ts of last forcible renderer purge
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
@@ -586,36 +596,13 @@ class OdysseusWindow(QMainWindow):
                         "if(typeof gc==='function')"
                         "gc({type:'major',execution:'async'});"
                     )
-            # Browser-target call required: simulatePressureNotification is a
-            # browser-level command that the browser process broadcasts to all
-            # renderer processes via IPC. On a page target it is either rejected
-            # or fires only in the browser process, leaving cc::TileManager in the
-            # renderer unaffected.
-            # critical level: cc::TileManager evicts everything not actively composited,
-            # including all stale hover-state tiles from the last interaction burst.
-            result = _cdp_browser_call(
-                'Memory.simulatePressureNotification', {'level': 'critical'}
-            )
-            print(
-                f'[MEM] critical tile eviction: {"ok" if result is not None else "FAILED"}',
-                flush=True,
-            )
-            # Telemetry: measure actual RSS freed by the eviction call.
-            if rss_before and pid:
-                try:
-                    with open(f'/proc/{pid}/status') as f:
-                        for line in f:
-                            if line.startswith('VmRSS'):
-                                rss_after = int(line.split()[1])
-                                delta = rss_before - rss_after
-                                print(
-                                    f'[MEM] RSS after eviction: {rss_after} kB'
-                                    f' (delta={delta:+d} kB)',
-                                    flush=True,
-                                )
-                                break
-                except OSError:
-                    pass
+            # This periodic timer is telemetry only. The renderer purge is NOT
+            # fired here: the timer runs regardless of interaction and a forcible
+            # purge causes a ~1s stutter. Reclaim happens strictly off the
+            # interaction path (mouse-idle and focus-loss) via _purge_renderer.
+            # The previous call here, simulatePressureNotification('critical'), was
+            # a no-op on QtWebEngine (measured: no RSS change) — issue #106.
+            del rss_before  # was only used by the removed eviction telemetry
 
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
@@ -631,6 +618,9 @@ class OdysseusWindow(QMainWindow):
                 "if(typeof gc==='function')"
                 "gc({type:'major',execution:'async'});"
             )
+            # Window is not focused: a reclaim stutter is invisible. Gated and
+            # rate-limited inside _purge_renderer.
+            self._purge_renderer('focus-loss')
         self._gc_focus_timer = QTimer()
         self._gc_focus_timer.setSingleShot(True)
         self._gc_focus_timer.timeout.connect(_on_focus_loss_gc)
@@ -651,28 +641,17 @@ class OdysseusWindow(QMainWindow):
         self._gc_drain_timer.timeout.connect(_drain_gc_requests)
         self._gc_drain_timer.start(250)
 
-        # Mouse-idle tile eviction: when the mouse has been still for 2 seconds,
-        # fire critical memory pressure so cc::TileManager evicts all stale hover
-        # tiles from the last interaction burst. Runs in the executor so the socket
-        # I/O doesn't block the main thread while the user is inactive.
-        # The periodic mem_timer (10 s) handles the continuous-interaction case where
-        # the mouse never fully stops; this timer handles the common stop-and-rest case
-        # and returns memory to near-baseline within 2 seconds of the last hover.
+        # Mouse-idle reclaim: when the mouse has been still for 2 seconds the user
+        # has paused, so a reclaim stutter is invisible. This is the primary trigger
+        # for the focused-but-idle case (reading a long response), which focus-loss
+        # does not cover. Gated by the RSS ceiling and rate-limited inside
+        # _purge_renderer, so it only fires when memory is actually over budget.
         self._idle_evict_timer = QTimer(self)
         self._idle_evict_timer.setSingleShot(True)
         self._idle_evict_timer.setInterval(2000)
 
         def _evict_on_idle():
-            def _do():
-                result = _cdp_browser_call(
-                    'Memory.simulatePressureNotification', {'level': 'critical'}
-                )
-                print(
-                    f'[MEM] critical tile eviction (idle): '
-                    f'{"ok" if result is not None else "FAILED"}',
-                    flush=True,
-                )
-            _cdp_executor.submit(_do)
+            self._purge_renderer('mouse-idle')
 
         self._idle_evict_timer.timeout.connect(_evict_on_idle)
         self._idle_filter = _MouseIdleFilter(self._idle_evict_timer, self)
@@ -682,6 +661,50 @@ class OdysseusWindow(QMainWindow):
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)
+
+    def _renderer_rss_kb(self) -> int:
+        page = getattr(self, '_page', None)
+        pid = page.renderProcessPid() if page else None
+        if not pid:
+            return 0
+        try:
+            with open(f'/proc/{pid}/status') as f:
+                for line in f:
+                    if line.startswith('VmRSS'):
+                        return int(line.split()[1])
+        except OSError:
+            return 0
+        return 0
+
+    def _purge_renderer(self, reason: str) -> None:
+        """Forcibly purge renderer caches: the multi-GB pool that
+        simulatePressureNotification does not touch on QtWebEngine (issue #106).
+
+        Only ever called off the interaction path (mouse-idle, focus-loss) because
+        the purge causes a ~1s stutter. Gated by an RSS ceiling so light use never
+        pays the stutter, and rate-limited so it cannot repeat back to back. The
+        purge itself runs in the CDP executor so the socket I/O is off the Qt main
+        thread.
+        """
+        import time
+        rss = self._renderer_rss_kb()
+        if rss and rss < _PURGE_RSS_CEILING_KB:
+            return  # below ceiling — not worth the stutter
+        now = time.monotonic()
+        if now - self._last_purge < _PURGE_MIN_INTERVAL_S:
+            return  # rate limit
+        self._last_purge = now
+
+        def _do():
+            res = _cdp_call('Memory.forciblyPurgeJavaScriptMemory')
+            after = self._renderer_rss_kb()
+            print(
+                f'[MEM] forcible purge ({reason}): '
+                f'{"ok" if res is not None else "FAILED"} '
+                f'RSS {rss} -> {after} kB (delta={rss - after:+d} kB)',
+                flush=True,
+            )
+        _cdp_executor.submit(_do)
 
     def changeEvent(self, event):
         if event.type() == QEvent.Type.WindowStateChange:
