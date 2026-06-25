@@ -3285,13 +3285,13 @@ function _buildEditor(container) {
       // the dataURL round-trip (which doubles peak memory). Pick JPEG for
       // photo sources so 24MP uploads don't balloon to 200MB+ PNG —
       // critical when the editor is accessed over Tailscale Funnel etc.
-      const flat = flatten();
+      const flat = _flattenForSave();
       const ext = (state.originalExt || 'png').toLowerCase();
       const isJpeg = ext === 'jpg' || ext === 'jpeg';
       const mime = isJpeg ? 'image/jpeg' : 'image/png';
       const quality = isJpeg ? 0.92 : undefined;
       blob = await new Promise((resolve, reject) => {
-        flat.toBlob(b => b ? resolve(b) : reject(new Error('Canvas encode failed')), mime, quality);
+        flat.toBlob(b => (b && b.size > 64) ? resolve(b) : reject(new Error('Save produced an empty image — not uploaded.')), mime, quality);
       });
       const fd = new FormData();
       fd.append('image', blob, `edited.${isJpeg ? 'jpg' : 'png'}`);
@@ -3598,6 +3598,19 @@ function flatten() {
   return out;
 }
 
+// Guard against saving an empty image (jdmanring#101). flatten() builds a
+// canvas of state.imgWidth × state.imgHeight; if those are 0/unset — a save
+// firing before the image finished loading, or after a state reset — the
+// result is a 0×0 canvas whose upload writes a broken 0-byte gallery entry.
+// Throw instead; the save handlers' catch surfaces the message as a toast.
+function _flattenForSave() {
+  const flat = flatten();
+  if (!flat.width || !flat.height) {
+    throw new Error('Nothing to save — the image is empty. Reopen it and try again.');
+  }
+  return flat;
+}
+
 // Build the union of all "foreground" visible-layer alphas (binary).
 // "Background" = the BOTTOMMOST visible layer (Harmonize's colour-match
 // reference). Everything visible ABOVE it = foreground that goes into
@@ -3677,13 +3690,13 @@ export async function exportToGallery() {
     // toBlob() avoids the 2x peak memory of dataURL → fetch → blob. JPEG
     // re-encode for camera photos keeps uploads small enough to make it
     // through remote tunnels.
-    const flat = flatten();
+    const flat = _flattenForSave();
     const ext = (state.originalExt || 'png').toLowerCase();
     const isJpeg = ext === 'jpg' || ext === 'jpeg';
     const mime = isJpeg ? 'image/jpeg' : 'image/png';
     const quality = isJpeg ? 0.92 : undefined;
     blob = await new Promise((resolve, reject) => {
-      flat.toBlob(b => b ? resolve(b) : reject(new Error('Canvas encode failed')), mime, quality);
+      flat.toBlob(b => (b && b.size > 64) ? resolve(b) : reject(new Error('Save produced an empty image — not uploaded.')), mime, quality);
     });
     const formData = new FormData();
     formData.append('file', blob, `edited.${isJpeg ? 'jpg' : 'png'}`);
