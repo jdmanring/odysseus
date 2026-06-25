@@ -3,10 +3,11 @@
 **Branch**: `fix/dom-oom-virtualization` (from `upstream-mirror`)
 **Issue**: jdmanring/odysseus#2
 **Upstream issue**: file before filing PR
-**Status**: Ready once the branch is cleaned (see Filing Notes). This is an independently
-developed, more complete alternative to open upstream PR #4661, which targets the same OOM.
-The two are parallel work (timeline and code-independence verified; see "Relationship to
-upstream #4661" below), so this is offered on its technical merits, not as a replacement of
+**Status**: Not yet submittable. This is a more complete alternative to open upstream PR
+#4661 with an **independent architecture** (timeline-verified, predates #4661), whose
+per-node teardown cleanup is **adapted from #4661 and extended** (see "Relationship to
+upstream #4661" below). Offered on its technical merits, with credit to #4661, not as a
+replacement of
 someone else's effort.
 
 ---
@@ -87,29 +88,34 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 
 ## Relationship to upstream #4661
 
-This change and open upstream PR #4661 (holden093, `fix/browser-memory-leak`) independently
-target the same problem, an unbounded chat-history DOM that causes the long-session OOM
-(#4644). They are parallel work, not derived from each other:
+This change and open upstream PR #4661 (holden093, `fix/browser-memory-leak`) target the
+same problem: an unbounded chat-history DOM that causes the long-session OOM (#4644). The
+relationship is precise, and stated honestly:
 
-- Timeline: this branch's first commit ("virtual message window and scroll fixes to prevent
-  renderer OOM") is 2026-06-20 01:42 UTC; #4661 was opened 2026-06-20 21:07 UTC, about 19
-  hours later. This implementation does not reference or reuse #4661's code.
-- #4661 is a focused trim (~145 lines of chat.js): a 150-node DOM cap, top-only removal, a
-  "load older" bar backed by server pagination, and cleanup that clears
-  `_waveInterval`/`_elapsedTicker` and nulls data-URL image sources.
-- This change is a fuller virtualization: bidirectional windowing (scroll back up to reload
-  evicted messages) plus more complete teardown. Beyond the two interval types #4661 clears,
-  it nulls `_streamRenderer` references, disconnects the IntersectionObserver (`_sObs`), and
+- **Architecture is independent and predates #4661.** This branch's first commit ("virtual
+  message window and scroll fixes to prevent renderer OOM") is 2026-06-20 01:42 UTC; #4661
+  was opened 2026-06-20 21:07 UTC, about 19 hours later. The `MessageWindow` design,
+  bidirectional windowing, and eviction model were developed before #4661 was visible.
+- **The per-node teardown cleanup is adapted from #4661, with attribution.** The pattern of
+  clearing `_waveInterval`/`_elapsedTicker` before removing each element mirrors the teardown
+  block in #4661's `_trimChatHistoryDOM()`. `_trimChatHistoryDOM()` itself is not used (it
+  destroys this implementation's control elements: sentinel, spacer, histSep).
+- **The teardown is extended beyond #4661.** In addition to those interval clears, this
+  releases `_streamRenderer` references, disconnects the IntersectionObserver (`_sObs`), and
   releases hljs-defer observer references via `hljsDeferForgetNode`. Those uncleaned
   observers and renderers were confirmed leak sources in the fork's OOM investigation
   (`docs/fork/memory-explosion-research.md`).
+- **The windowing is more complete.** #4661 is a focused top-only trim (~145 lines): a
+  150-node cap, removal from the top, and a "load older" bar backed by server pagination.
+  This adds bidirectional windowing so a user can scroll back up and reload evicted
+  messages in place.
 
-Trade-off, stated plainly: #4661 is smaller and lower review cost; this is larger but more
-thorough on teardown and adds scroll-up. A maintainer may reasonably prefer either. This is
-offered as an independently developed, more complete alternative, with full respect for
-#4661 as valid parallel work. If the maintainer prefers #4661's direction, the teardown
-improvements here (StreamRenderer, IntersectionObserver, hljs-defer release) can instead be
-contributed on top of it.
+Trade-off, stated plainly: #4661 is smaller and lower review cost; this is larger, with an
+independent architecture, a teardown that builds on and extends #4661's cleanup pattern, and
+scroll-up. A maintainer may reasonably prefer either. This is offered on its technical
+merits, with credit to #4661 where its teardown pattern was adapted, and full respect for it
+as parallel work. If the maintainer prefers #4661's direction, the extended teardown and
+windowing here can instead be contributed on top of it.
 
 ## Related
 
