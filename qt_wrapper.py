@@ -110,7 +110,7 @@ from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineS
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QColor
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
 VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "bin", "python")
@@ -483,6 +483,11 @@ class OdysseusWindow(QMainWindow):
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
         self._page = page  # held for lifecycle management in changeEvent
+        # Match the compositor clear colour to the default dark theme --bg so
+        # that root-layer tile evictions (caused by --enable-low-end-device-mode)
+        # fill at #282c34 instead of the Qt default, eliminating the visible
+        # lighter rectangle in the 30vh space below the welcome-screen input bar.
+        page.setBackgroundColor(QColor(0x28, 0x2c, 0x34))
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()

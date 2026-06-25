@@ -65,15 +65,14 @@ def test_sidebar_no_contain():
     assert "contain: content" not in block[:rule_end]
 
 
-def test_chat_history_no_contain():
-    # .chat-history has overflow-y:auto which already creates a scroll container
-    # boundary. Adding contain:layout style on top creates a stacking context
-    # that Qt's compositor renders at a different tile fill to the adjacent 30vh
-    # space (the area below the input bar in welcome-active state), producing a
-    # visible lighter rectangle. No contain is correct here.
+def test_chat_history_has_contain_layout_style():
+    # contain:layout style is required alongside background:var(--bg) for
+    # Chromium to associate the background with the scroll layer's
+    # SafeOpaqueBackgroundColor. Without it, the scroll layer tile-eviction
+    # fill reverts to the page background, making the chat area wrong shade.
     block = _block(".chat-history {")
     rule_end = block.index("}")
-    assert "contain" not in block[:rule_end]
+    assert "contain: layout style" in block[:rule_end]
     assert "contain: content" not in block[:rule_end]
 
 
