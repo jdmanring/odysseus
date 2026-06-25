@@ -3,10 +3,11 @@
 **Branch**: `fix/dom-oom-virtualization` (from `upstream-mirror`)
 **Issue**: jdmanring/odysseus#2
 **Upstream issue**: file before filing PR
-**Status**: HOLD. Do not file as-is. This competes with open upstream PR #4661 on the same
-problem (see "Relationship to upstream #4644 / #4661" below). Recommended: let #4661 land,
-then decide whether virtualization adds value over its pagination, and if so propose it as
-an enhancement rather than a replacement.
+**Status**: Ready once the branch is cleaned (see Filing Notes). This is an independently
+developed, more complete alternative to open upstream PR #4661, which targets the same OOM.
+The two are parallel work (timeline and code-independence verified; see "Relationship to
+upstream #4661" below), so this is offered on its technical merits, not as a replacement of
+someone else's effort.
 
 ---
 
@@ -84,20 +85,31 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 - `tests/test_chat_history_js.py` — static-analysis tests
 - `tests/test_chat_history_playwright.py` — Playwright integration tests
 
-## Relationship to upstream #4644 / #4661
+## Relationship to upstream #4661
 
-This change and open upstream PR #4661 both target issue #4644 ("browser tab OOM during
-long agent interactions"), and they take different approaches to the same core problem: an
-unbounded chat-history DOM. #4661 keeps all messages and bounds the DOM by paginating
-history with a "show older messages" control. This change bounds the DOM by virtualizing
-it: a `MessageWindow` evicts off-window messages and reloads them on session switch.
+This change and open upstream PR #4661 (holden093, `fix/browser-memory-leak`) independently
+target the same problem, an unbounded chat-history DOM that causes the long-session OOM
+(#4644). They are parallel work, not derived from each other:
 
-These are alternatives for the DOM-bounding mechanism, not complementary changes, so they
-should not both be merged as written. This needs maintainer coordination before filing:
-either align this virtualization with #4661's windowing, or present it explicitly as an
-alternative with the trade-offs stated (full virtualization versus load-older pagination).
-Note that #4661's `_trimChatHistoryDOM()` cannot be reused here, because it removes control
-elements this implementation depends on.
+- Timeline: this branch's first commit ("virtual message window and scroll fixes to prevent
+  renderer OOM") is 2026-06-20 01:42 UTC; #4661 was opened 2026-06-20 21:07 UTC, about 19
+  hours later. This implementation does not reference or reuse #4661's code.
+- #4661 is a focused trim (~145 lines of chat.js): a 150-node DOM cap, top-only removal, a
+  "load older" bar backed by server pagination, and cleanup that clears
+  `_waveInterval`/`_elapsedTicker` and nulls data-URL image sources.
+- This change is a fuller virtualization: bidirectional windowing (scroll back up to reload
+  evicted messages) plus more complete teardown. Beyond the two interval types #4661 clears,
+  it nulls `_streamRenderer` references, disconnects the IntersectionObserver (`_sObs`), and
+  releases hljs-defer observer references via `hljsDeferForgetNode`. Those uncleaned
+  observers and renderers were confirmed leak sources in the fork's OOM investigation
+  (`docs/fork/memory-explosion-research.md`).
+
+Trade-off, stated plainly: #4661 is smaller and lower review cost; this is larger but more
+thorough on teardown and adds scroll-up. A maintainer may reasonably prefer either. This is
+offered as an independently developed, more complete alternative, with full respect for
+#4661 as valid parallel work. If the maintainer prefers #4661's direction, the teardown
+improvements here (StreamRenderer, IntersectionObserver, hljs-defer release) can instead be
+contributed on top of it.
 
 ## Related
 
