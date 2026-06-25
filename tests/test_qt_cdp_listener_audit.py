@@ -118,6 +118,27 @@ def _log_renderer_memory_block() -> str:
     return _SRC[start:end]
 
 
+def test_theme_bg_color_function_exists():
+    # _theme_bg_color() reads the saved theme from user_prefs.json so that
+    # setBackgroundColor() uses the user's actual bg, not a hardcoded default.
+    assert "def _theme_bg_color()" in _SRC
+
+
+def test_set_background_color_uses_theme_function():
+    # Must not hardcode #282c34 — that breaks custom themes (e.g. Catppuccin
+    # #1e1e2e) by filling evicted compositor tiles at the wrong colour.
+    assert "setBackgroundColor(_theme_bg_color())" in _SRC
+    assert "setBackgroundColor(QColor(0x28, 0x2c, 0x34))" not in _SRC
+
+
+def test_theme_bg_reads_user_prefs():
+    idx = _SRC.index("def _theme_bg_color()")
+    end = _SRC.index("\ndef ", idx + 1)
+    block = _SRC[idx:end]
+    assert "user_prefs.json" in block
+    assert "_users" in block
+
+
 # --- Change A: renderProcessPid ---
 
 def test_render_process_pid_used():
