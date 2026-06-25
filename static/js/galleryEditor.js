@@ -207,6 +207,102 @@ function _registerDocClickAway(handler) {
 // Undo/Redo
 const MAX_HISTORY = 20;
 
+// ── Undo snapshot compression (jdmanring#99) ──────────────────────────────
+// _snapshotState() captures every layer's (and every mask's, and the wand
+// selection's) full raw ImageData on every mutating op, kept up to
+// MAX_HISTORY. The transient peak during a large multi-layer edit session can
+// reach hundreds of MB. To bound it WITHOUT losing undo depth, snapshots that
+// age out of a small "recent" window are gzip-compressed (lossless, byte-exact
+// over the raw ImageData) in idle time, and decoded on demand when a deep undo/
+// redo reaches them. The newest RAW_RECENT snapshots stay raw so the common
+// "undo the last action" is synchronous and instant; only a deep undo pays
+// decode latency. gzip/DEFLATE is exactly lossless, so undo restores identical
+// pixels — no corruption risk.
+const RAW_RECENT = 3;     // newest N snapshots kept raw (synchronous undo)
+let _restoreGen = 0;      // bumped per undo/redo; discards stale async decodes
+
+// Every ImageData-bearing slot in a snapshot: layers, their masks, and the
+// wand selection. Centralised so compress/decompress stay in sync with the
+// snapshot shape produced by _snapshotState().
+function _snapImageSlots(snap) {
+  const slots = [];
+  if (snap && snap.wand) slots.push(snap.wand);
+  for (const l of (snap && snap.layers || [])) {
+    slots.push(l);
+    for (const m of (l.masks || [])) slots.push(m);
+  }
+  return slots;
+}
+
+// Codec: gzip over the raw ImageData bytes. Chosen over PNG deliberately —
+// PNG via canvas (putImageData→toDataURL / drawImage→getImageData) round-trips
+// through the canvas's *premultiplied* alpha, which can drift partial-alpha
+// pixels by ±1/channel (soft brushes, feathered masks). gzip/DEFLATE on the
+// raw buffer is byte-EXACT (lossless), so undo restores identical pixels.
+// CompressionStream is async, which matches the deep-undo restore path.
+function _gzip(u8) {
+  const cs = new CompressionStream('gzip');
+  const w = cs.writable.getWriter(); w.write(u8); w.close();
+  return new Response(cs.readable).arrayBuffer().then(ab => new Uint8Array(ab));
+}
+function _gunzip(u8) {
+  const ds = new DecompressionStream('gzip');
+  const w = ds.writable.getWriter(); w.write(u8); w.close();
+  return new Response(ds.readable).arrayBuffer().then(ab => new Uint8ClampedArray(ab));
+}
+
+// Compress one snapshot: each slot's ImageData -> gzipped bytes, raw freed.
+// Async. Commits the raw->gz swap ATOMICALLY at the end (after all bytes are
+// encoded) so a restore that races in mid-compression still sees intact raw
+// imageData and takes the synchronous path. If CompressionStream is absent,
+// it no-ops (snapshots stay raw — undo still works, just no memory saving).
+async function _compressSnap(snap) {
+  if (!snap || snap._compressed || snap._compressing) return;
+  if (typeof CompressionStream !== 'function') return;   // safe no-op
+  snap._compressing = true;
+  try {
+    const packed = [];
+    for (const slot of _snapImageSlots(snap)) {
+      if (slot.imageData && !slot._gz) {
+        const id = slot.imageData;
+        packed.push([slot, await _gzip(id.data), id.width, id.height]);
+      }
+    }
+    // Atomic commit (synchronous — no interleaving with a restore).
+    for (const [slot, gz, w, h] of packed) {
+      slot._gz = gz; slot._gzW = w; slot._gzH = h; slot.imageData = null;
+    }
+    snap._compressed = true;
+  } catch (_) { /* leave raw — one un-shrunk step is harmless */ }
+  finally { snap._compressing = false; }
+}
+
+// Decode a compressed snapshot back to raw ImageData (async). The snapshot is
+// consumed by _applySnap then discarded, so we don't re-compress afterward.
+async function _decompressSnap(snap) {
+  for (const slot of _snapImageSlots(snap)) {
+    if (slot._gz && !slot.imageData) {
+      try {
+        const bytes = await _gunzip(slot._gz);
+        slot.imageData = new ImageData(bytes, slot._gzW, slot._gzH);
+      } catch (_) { /* leave null — _applySnap guards null imageData */ }
+    }
+  }
+}
+
+// After a push, compress any snapshot that has aged out of the raw window.
+// Deferred to idle so it never adds latency to the edit that triggered it.
+function _scheduleSnapCompression() {
+  const ric = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
+  ric(() => {
+    const cutoff = state.undoStack.length - RAW_RECENT;
+    for (let i = 0; i < cutoff; i++) {
+      const s = state.undoStack[i];
+      if (s && !s._compressed) { _compressSnap(s).catch(() => {}); }   // async, fire-and-forget
+    }
+  });
+}
+
 /** Get the selected AI endpoint+model. Returns { endpoint, model }.
  * Dropdown values are encoded as "<base_url>::<model_id>" so users can pick
  * a specific model on a multi-model endpoint (e.g. dall-e-2 vs gpt-image-1). */
@@ -738,6 +834,9 @@ function _saveState(label) {
   } catch (e) {
     console.error('[gallery] saveState snapshot failed (continuing without this undo step):', e);
   }
+  // Compress aged-out snapshots in idle time (bounds the edit-session peak
+  // without adding latency to this edit or losing undo depth — see #99).
+  try { _scheduleSnapCompression(); } catch (e) { console.error('[gallery] scheduleSnapCompression:', e); }
   try { _invalidateWandCache(); } catch (e) { console.error('[gallery] invalidateWandCache:', e); }
   try { _schedulePersist(); } catch (e) { console.error('[gallery] schedulePersist:', e); }
   try { _refreshHistoryPanelIfOpen(); } catch (e) { console.error('[gallery] refreshHistoryPanel:', e); }
@@ -932,7 +1031,24 @@ function _initCanvasFromDims(w, h) {
   state.maskCtx = state.maskCanvas.getContext('2d');
 }
 
+// Public restore entry point. A raw (recent) snapshot applies synchronously —
+// instant undo. A compressed (deep) snapshot is decoded first (async); a
+// _restoreGen check drops the result if a newer undo/redo started meanwhile,
+// so racing deep undos can't paint stale pixels.
 function _restoreState(snap) {
+  const gen = ++_restoreGen;
+  if (!snap || !snap._compressed) { _applySnap(snap); return; }
+  _decompressSnap(snap).then(() => {
+    if (gen !== _restoreGen) return;            // superseded by a newer restore
+    _applySnap(snap);
+    try { _refreshHistoryPanelIfOpen(); } catch (_) {}
+  }).catch((e) => {
+    console.error('[gallery] decompress on restore failed:', e);
+    if (gen === _restoreGen) { try { _applySnap(snap); } catch (_) {} }
+  });
+}
+
+function _applySnap(snap) {
   // Restore canvas dimensions first so layer imageData fits cleanly. This
   // is what makes Ctrl+Z work for crops (which change the main canvas
   // size) in addition to paint strokes.
