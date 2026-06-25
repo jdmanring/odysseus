@@ -58,21 +58,43 @@ on JS-created thumbnail/list images in `gallery.js`, `emailLibrary.js`, `documen
 and any list renderer. Off-screen images then decode near-viewport and off-thread.
 Pairs naturally with the existing `content-visibility:auto` work.
 
-### A2 — Editor undo/layer bitmap growth  *(needs review before sizing)*
+### A2 — Editor undo snapshot peak  *(reviewed — premise corrected)*
 
-**Evidence:** `static/js/editor/state.js:224 undoStack: []`; `state.js:68` notes cached
-layer pixel data ("getImageData is O(pixels) — expensive"); many `getImageData` /
-`toDataURL` sites across `editor/`. ~9k LOC editor subsystem.
+**Investigation result (2026-06-25):** the original "grows linearly / unbounded" framing
+is **wrong**. Findings from reading the code:
 
-**Why it matters:** image editors that snapshot the full canvas per undo step grow
-memory linearly with edit count (each step ≈ one full-res bitmap). Cached `ImageData`
-that isn't released compounds it.
+- Undo is **already capped**: `galleryEditor.js MAX_HISTORY = 20`; `notes.js
+  UNDO_LIMIT = 30` (both `shift()` the oldest off). Not unbounded.
+- The memory is **editor-session-scoped and freed on editor close** — so this is a
+  *transient peak during an active edit session*, NOT the "grows-with-use across the app"
+  axis (that was hover-OOM, fixed in #97).
+- **Per-step magnitude is the real cost:** `_snapshotState()` captures **every layer's
+  full raw `getImageData`** on *every* mutating op (`saveState` runs first in all of
+  them). One step = Σ(all layers' full RGBA bitmaps), ×20. Worst case bounded but large:
+  4000×3000 × 3 layers × 20 ≈ ~2.9 GB; 2000×1500 × 2 × 20 ≈ ~480 MB. The waste: most
+  edits touch one layer, yet unchanged layers are re-stored in every snapshot.
 
-**Recommendation:** review what `undoStack` stores per entry. If full-canvas snapshots:
-cap undo depth (e.g. last N), and/or store diffs/tiles instead of full frames; confirm
-cached `getImageData` buffers are released when layers change. **Not exhaustively
-audited here** — flagged as highest-potential growth item in the editor, gated on that
-review.
+**Why the obvious fix is gone and the clever one is risky:**
+
+- "Cap undo depth" — *already done*. The remaining knob is *lowering* the cap.
+- Dirty-flag instrumentation to skip unchanged layers is **not safe here**: ~200 diffuse
+  `getImageData`/`putImageData`/`drawImage` sites across a dozen files, no single paint
+  chokepoint. Miss one → silent wrong-pixels undo (data loss). A Proxy-wrapped context
+  doesn't save it — `canvas.getContext('2d')` returns the same underlying ctx, so any
+  site re-fetching it bypasses the wrapper.
+
+**Options (ranked by trade for a footprint pass):**
+
+| Option | Peak win | Cost | Risk |
+|--------|----------|------|------|
+| Lower `MAX_HISTORY` 20→~12, `notes` 30→~15 | ~40% | fewer undo steps (capability, not aesthetics) | **none** |
+| PNG-compress snapshots (lossless) | ~5–10× | undo *latency* (visible, recoverable) | low |
+| Structural-share unchanged layers (content-compare) | large | ~100ms stroke-end full-compare; correctness-critical | **high** (silent corruption if the no-in-place-mutation assumption breaks) |
+
+Since the prize is a *bounded, transient, freed-on-close* peak — not a leak — paying
+silent-corruption risk for it is a poor trade. **Recommended: lower the caps** (free,
+aesthetics-neutral); escalate to PNG-compression only if peak is still a problem.
+Structural-sharing is documented but **not recommended** for a footprint pass.
 
 ---
 
