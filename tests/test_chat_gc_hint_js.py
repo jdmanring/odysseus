@@ -126,3 +126,62 @@ def _check_bg_block() -> str:
 def test_check_background_stream_purges_stale():
     """checkBackgroundStream must purge stale Map entries on every session switch."""
     assert "_purgeStaleBackgroundStreams()" in _check_bg_block()
+
+
+# ---------------------------------------------------------------------------
+# Idle GC — reclaims transient hover/interaction DOM churn during idle use
+# ---------------------------------------------------------------------------
+
+def _idle_gc_block() -> str:
+    """Extract the _scheduleIdleGc function body."""
+    start = _SRC.index("function _scheduleIdleGc()")
+    end   = _SRC.index("_scheduleIdleGc();", start)
+    return _SRC[start:end]
+
+
+def test_idle_gc_scheduler_present():
+    # An idle-triggered GC must exist: the post-response GC alone does not fire
+    # during sustained hovering with no chat activity, so transient :hover
+    # pseudo-element churn would otherwise accumulate in embedded Chromium.
+    assert "function _scheduleIdleGc()" in _SRC
+    assert "[GC] idle major async dispatched" in _SRC
+
+
+def test_idle_gc_shares_pending_guard():
+    # Idle GC must share _gcPending so it never stacks with the post-response
+    # cycle (stacked cycles double overhead for no benefit).
+    body = _idle_gc_block()
+    guard_pos = body.index("!_gcPending")
+    gc_pos    = body.index("gc({ type: 'major'")
+    assert guard_pos < gc_pos, "idle gc() must be gated by !_gcPending"
+    assert "_gcPending = true" in body
+
+
+def test_idle_gc_is_async_major():
+    # Must use async execution (incremental, non-blocking) to avoid the
+    # gray-frame flicker a synchronous gc() causes.
+    body = _idle_gc_block()
+    assert "gc({ type: 'major', execution: 'async' })" in body
+
+
+def test_idle_gc_gated_on_visibility():
+    # A backgrounded tab must do no GC work.
+    body = _idle_gc_block()
+    assert "visibilityState !== 'visible'" in body
+
+
+def test_idle_gc_reset_on_user_input():
+    # The idle timer resets on pointer/keyboard activity so GC only fires after
+    # a quiet window, never mid-interaction.
+    assert "clearTimeout(_idleGcTimer)" in _SRC
+    for ev in ("pointermove", "keydown"):
+        assert ev in _SRC
+    # Listeners must be passive so they never block scrolling.
+    listen_pos = _SRC.index("_scheduleIdleGc, {")
+    assert "passive: true" in _SRC[listen_pos:listen_pos + 80]
+
+
+def test_idle_gc_feature_detected():
+    # No-op without --expose-gc (every regular browser) — guarded by typeof gc.
+    body = _idle_gc_block()
+    assert "typeof gc === 'function'" in body
