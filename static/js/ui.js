@@ -503,6 +503,34 @@ export function scrollHistoryInstant() {
   }
 }
 
+// Hold the view pinned to the bottom across a rapid layout transition (for
+// example the streaming "Thinking" box appearing and then being replaced by the
+// real message, a grow/shrink/grow within a few hundred ms). The throttled
+// smooth scroll drops re-snaps inside its 500ms window and stops once it reaches
+// the bottom, so it loses the attachment across the transition. This snaps to
+// the current bottom every frame for `ms`, tracking the moving bottom. Gated on
+// auto-follow so a user who has scrolled up is never yanked down.
+let _settleRaf = null;
+let _settleUntil = 0;
+function _now() { return (typeof performance !== 'undefined') ? performance.now() : Date.now(); }
+export function scrollHistorySettle(ms = 350) {
+  if (!autoScrollEnabled) return;
+  if (!_scrollBox) { _scrollBox = document.getElementById('chat-history'); }
+  if (!_scrollBox) return;
+  _settleUntil = _now() + ms;          // extend the deadline if already settling
+  if (_settleRaf) return;
+  const step = () => {
+    if (!autoScrollEnabled || !_scrollBox) { _settleRaf = null; return; }
+    _scrollBox.scrollTop = _scrollBox.scrollHeight - _scrollBox.clientHeight;
+    if (_now() < _settleUntil) {
+      _settleRaf = requestAnimationFrame(step);
+    } else {
+      _settleRaf = null;
+    }
+  };
+  _settleRaf = requestAnimationFrame(step);
+}
+
 /**
  * Enable/disable auto-scroll
  */
@@ -830,6 +858,7 @@ const uiModule = {
   styledConfirm,
   styledPrompt,
   scrollHistory,
+  scrollHistorySettle,
   scrollHistoryInstant,
   setAutoScroll,
   getAutoScroll,
