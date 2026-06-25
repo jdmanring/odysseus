@@ -27,6 +27,18 @@ user to run — do not execute it yourself.
 **Issue before branch.** Create the tracking issue on `jdmanring/odysseus` before
 creating any branch. No branch exists without a corresponding issue.
 
+**Search upstream prior art before staging.** Before opening the issue for any
+upstream-candidate work, search the upstream repo for the same problem area —
+issues, PRs, discussions, and `ROADMAP.md`:
+`gh issue list --repo pewdiepie-archdaemon/odysseus --search "<terms>" --state all`
+(and `gh pr list ...`). Record the result in the fork issue and the PR draft: link
+related items, and state plainly whether the work **duplicates**, **complements**, or
+**conflicts** with an in-flight PR (a conflict — e.g. two competing approaches to the
+same problem — needs maintainer coordination, not a parallel PR). Upstream's PR template
+requires "I searched open issues and open PRs"; the staged draft must honestly reflect
+that search, not just tick the box. Skipping this is how a contribution gets closed as a
+duplicate or lands next to a better existing proposal.
+
 **Never push to the `upstream` remote.** The `upstream` remote is
 `pewdiepie-archdaemon/odysseus` — read-only. Never push there under any circumstances.
 
