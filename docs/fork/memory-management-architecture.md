@@ -92,11 +92,21 @@ Concrete moves, in rough order of leverage:
 
 ### Layer 3: reclaim (synthesize the missing pressure signal)
 
-Because the OS signal never arrives, the app must generate it. The proper
-mechanism is the CDP `Memory.simulatePressureNotification('critical')`, which
-drives Chromium's real pressure path across all processes (this is what the
-forcible purge approximated in the measurement). Trigger it where a brief stall
-is invisible:
+Because the OS signal never arrives, the app must generate it.
+
+**Measured correction (2026-06-25):** the wrapper already wires the triggers
+below, but it calls `Memory.simulatePressureNotification('critical')`, which on
+this QtWebEngine build is a **no-op** — tested live, RSS 4861 to 4884 MB
+(unchanged) after the call. That is why memory climbs unbounded despite the
+existing "idle tile eviction": the triggers fire but the call reclaims nothing.
+The call that actually works is `Memory.forciblyPurgeJavaScriptMemory` (page
+target), measured reclaiming 5.2 GB and 3.7 GB in separate calls. The `gc()`
+calls already in the wrapper only collect the 43 MB JS/Oilpan pool, not the
+multi-GB renderer cache. So the fix is to replace the no-op call with the
+forcible purge, gated, at the triggers that already exist.
+
+Trigger it where a brief stall is invisible (a forcible purge does cause the
+~1 second stutter that is still present, so timing discipline is mandatory):
 
 - on window blur / deactivate, and on minimize (tie into the
   `setLifecycleState(Frozen)` work already drafted in the wrapper plans),
@@ -104,21 +114,25 @@ is invisible:
 - on an idle timer when no streaming or input is in flight,
 - on an RSS threshold (read renderer VmRSS; purge when it crosses a ceiling).
 
-**Central design constraint (do not regress Session 4).** Session 4 (2026-06-22)
-removed a synchronous CDP purge because it caused ~1 second input freezes, and
-replaced it with async `gc()`. A heavy renderer purge has the same stall risk.
-The rule that resolves the tension: never purge synchronously on the input path
-or mid-stream. Only purge when the user is demonstrably not interacting (blur,
-minimize, idle, post-close), and prefer the async pressure-notification call.
-This is the load-bearing detail of the reclaim layer, not a footnote.
+**Central design constraint (the ~1s stutter is still present).** A heavy
+renderer purge (`forciblyPurgeJavaScriptMemory`) causes a roughly 1 second
+stutter. This was never fixed (Session 4 fixed a different stutter). So the rule
+is mandatory: never purge while the user is interacting. Fire only when a stall
+is invisible (window blur, minimize, deep idle, post-panel-close), and only when
+it is worth it (renderer RSS above a ceiling), and rate-limited so it cannot
+repeat back to back. Run the purge off the main thread (in the CDP executor) so
+the socket I/O does not add to the stall. This timing discipline is the
+load-bearing detail of the reclaim layer, not a footnote.
 
 ## Sequencing and the single highest-leverage first step
 
-1. **First (highest leverage, smallest change): wire the real reclaim.** Replace
-   or supplement idle `gc()` with `Memory.simulatePressureNotification('critical')`
-   on blur / minimize / idle / threshold, under the no-stall rule. The
-   measurement proves this alone recovers most of the footprint (5.2 GB in one
-   call). This is the change that turns "climbs forever" into "bounded."
+1. **First (highest leverage, smallest change): fix the reclaim call.** The
+   triggers already exist in the wrapper (periodic, mouse-idle, focus-loss,
+   minimize); they call the no-op `simulatePressureNotification`. Replace it with
+   `Memory.forciblyPurgeJavaScriptMemory`, gated by an RSS ceiling + rate limit
+   and fired only off the interaction path. The measurement proves this alone
+   recovers most of the footprint (5.2 GB in one call). This is the change that
+   turns "climbs forever" into "bounded." (Issue #106.)
 2. **Second: residency.** Add teardown-on-close to the modal manager and apply it
    to the three heaviest panels, then virtualize the long lists. This lowers the
    ceiling the reclaim has to fight and reduces how often it must fire.
