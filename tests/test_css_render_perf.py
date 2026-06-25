@@ -65,6 +65,20 @@ def test_sidebar_no_contain():
     assert "contain: content" not in block[:rule_end]
 
 
+def test_html_element_has_explicit_bg():
+    # Chromium derives the root compositor layer's clear colour (the fill shown
+    # when tiles evict under --enable-low-end-device-mode) from the html
+    # element's background-color, NOT from body's. body { background: var(--bg) }
+    # fills the viewport via CSS paint records, but those records are what evict.
+    # Without an explicit background on html, the root layer is transparent and
+    # evicted tiles fall through to Qt's system-palette base colour (lighter than
+    # --bg), producing a visible lighter rectangle at the bottom of the main area.
+    idx = _CSS.index("html {")
+    block = _CSS[idx : idx + 300]
+    rule_end = block.index("}")
+    assert "background-color: var(--bg)" in block[:rule_end]
+
+
 def test_chat_history_has_contain_layout_style():
     # contain:layout style is required alongside background:var(--bg) for
     # Chromium to associate the background with the scroll layer's
