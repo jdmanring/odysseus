@@ -63,15 +63,24 @@ def test_sidebar_has_contain_layout_style():
 
 def test_chat_history_has_contain_layout_style():
     # contain:layout style scopes addMessage() style recalculation to the chat
-    # area without creating paint isolation. .chat-history is transparent
-    # (no background); contain:paint would promote it to a compositor layer and
-    # with --enable-low-end-device-mode's small tile budget, evicted tiles
-    # render as solid colour instead of passing through to the body background,
-    # hiding the animated background behind the chat area.
+    # area without creating paint isolation.
     block = _block(".chat-history {")
     rule_end = block.index("}")
     assert "contain: layout style" in block[:rule_end]
     assert "contain: content" not in block[:rule_end]
+
+
+def test_chat_history_has_explicit_bg():
+    # .chat-history has overflow-y:auto, which Qt/Chromium promotes to a
+    # compositor scroll layer. With --enable-low-end-device-mode (~96 MB tile
+    # budget), evicted tiles render as a solid fill colour — not as transparent
+    # — producing visible rectangles where the chat area sits. Setting
+    # background:var(--bg) ensures evicted tiles fill at the body background
+    # colour, making the scroll layer visually indistinguishable from its
+    # surroundings.
+    block = _block(".chat-history {")
+    rule_end = block.index("}")
+    assert "background: var(--bg)" in block[:rule_end]
 
 
 def test_modal_content_has_contain_layout_style():
