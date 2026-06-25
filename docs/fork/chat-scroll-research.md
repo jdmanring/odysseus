@@ -175,18 +175,18 @@ lerp) stays within the pin distance and the observer defers while it runs.
 
 ## Verification status
 
-- The Thinking/"Processing request"/"Generating response" transitions were
-  behaviourally confirmed to hold the bottom under the earlier
-  `scrollHistorySettle` pass. After folding that into the observer, those same
-  transitions need a **re-confirmation** under the consolidated mechanism, since
-  it is now the observer (not a timed settle) that holds them.
-- Stick-to-bottom observer + `isPinned`: **behavioural verification pending.**
-  Repro that does not require image generation (which is currently
-  inpaint-scoped only — see below): send a prompt whose reply ends in a large
-  code block (highlight reflow), or attach/paste an image into a message (decode
-  growth), and confirm the view stays pinned through the late growth; also
-  re-run an agent/tool turn to confirm the Thinking-box transition still holds.
-  Source-text guards only prevent silent deletion.
+- **Confirmed under the consolidated observer:** a long output with multiple
+  mid-stream "Thinking" popups stayed pinned to the bottom (in-app, 2026-06-25).
+  This exercises the `MutationObserver` path (childList shrink on box removal +
+  message growth while the loop is idle during the pause) and confirms the fold
+  from `scrollHistorySettle` into the observer holds behaviourally.
+- **Still to confirm:** the `ResizeObserver` child-resize path — a child element
+  growing *after* it is already in the DOM (image decode replacing a fixed-size
+  skeleton, syntax-highlight reflow). Cleanest repro that does **not** need image
+  generation (which is inpaint-scoped — see below): ask the model for a long
+  fenced **code block**; `deferHighlightAll` reflows it after render, so the
+  block grows post-stream and the view should stay pinned. An image *attachment*
+  on a sent message is the other repro.
 
 ## Aside: image generation is inpaint-scoped (separate issue)
 
