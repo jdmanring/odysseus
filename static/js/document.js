@@ -1192,6 +1192,11 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
       pageWrap.style.cssText = `position:relative;margin:0 auto 16px auto;width:${page.width}px;max-width:calc(100% - 24px);aspect-ratio:${page.width} / ${page.height};background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.4);container-type:size;`;
       const img = document.createElement('img');
       img.src = `${API_BASE}/api/document/${docId}/page/${page.page}.png`;
+      // A multi-page document renders as a tall vertical stack of full-page
+      // PNGs. Lazy-load + async-decode so pages below the fold don't decode
+      // into memory (or block the main thread) until scrolled near.
+      img.loading = 'lazy';
+      img.decoding = 'async';
       img.style.cssText = 'display:block;width:100%;height:100%;user-select:none;-webkit-user-drag:none;pointer-events:none;';
       img.draggable = false;
       pageWrap.appendChild(img);
