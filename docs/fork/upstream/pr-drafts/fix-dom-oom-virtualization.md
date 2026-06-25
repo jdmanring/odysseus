@@ -62,8 +62,9 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 
 ## Test plan
 
-- `tests/test_chat_history_js.py` — 489 static-analysis tests (original) + 16 new tests for Phase 2 eviction fix; 88 pass total
-- `tests/test_chat_history_playwright.py` — 572 Playwright integration tests (require a running server)
+- `tests/test_chat_history_js.py`: 109 static-analysis tests
+- `tests/test_chat_history_playwright.py`: 11 parametrized Playwright integration test
+  functions (require a running server)
 - Manual: run a long agent session (80+ exchanges) and confirm DOM child count stays bounded via `document.getElementById('chat-history').children.length` in the browser console
 - Manual: confirm the eviction notice appears after enough exchanges and the text is correct
 - Manual: confirm `scrollTop` does not jump when eviction fires
