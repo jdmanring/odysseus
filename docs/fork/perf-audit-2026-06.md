@@ -38,7 +38,11 @@ For a gallery + photo-editor + email-attachment app, **decoded bitmaps are very 
 the single largest renderer-memory category** and the clearest "grows as you use it"
 axis. A 4000×3000 photo is ~48 MB decoded regardless of file size.
 
-### A1 — Off-screen images decode eagerly  *(headline; aesthetics-neutral)*
+### A1 — Off-screen images decode eagerly  *(headline; aesthetics-neutral)* — ✅ DONE (#98)
+
+> **Implemented** in `perf/image-lazy-decode` (#98): `loading="lazy"` + `decoding="async"`
+> on the document page-stack and gallery draft-thumb renderers. Narrower than the raw
+> count suggested — gallery main grids were already lazy and chat images are virtualized.
 
 **Evidence:** 26 `<img>` elements created in JS, only 4 set `loading="lazy"`
 (`grep "new Image(|createElement('img')"` vs `loading=lazy`). Object-URL hygiene is
