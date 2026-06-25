@@ -1139,10 +1139,6 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
         if (el) {
           if (el._spinner) el._spinner.destroy();
           el.remove();
-          // The box shrinks here and the real message grows right after. Hold
-          // the view pinned to the bottom across that transition; the throttled
-          // smooth scroll otherwise drops the re-snap. Gated on auto-follow.
-          try { uiModule.scrollHistorySettle(); } catch (_) {}
         }
       };
 
