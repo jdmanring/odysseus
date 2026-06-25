@@ -51,30 +51,27 @@ def test_email_lib_fab_no_will_change():
 
 
 # ---------------------------------------------------------------------------
-# 2. CSS containment — only .modal-content carries contain: layout style
+# 2. CSS containment — layout style scoping without paint isolation
 # ---------------------------------------------------------------------------
 
-def test_sidebar_no_contain():
-    # Sidebar previously had contain:content (paint isolation) which blocked the
-    # animated background canvas from showing through in the frosted theme. Then
-    # contain:layout style, which also caused compositor-layer issues with
-    # --enable-low-end-device-mode. Removing contain entirely returns the sidebar
-    # to upstream-mirror baseline; overflow:hidden already provides BFC isolation.
+def test_sidebar_has_contain_layout_style():
     block = _block(".sidebar {")
     rule_end = block.index("}")
-    assert "contain" not in block[:rule_end]
+    assert "contain: layout style" in block[:rule_end]
+    assert "contain: content" not in block[:rule_end]
 
 
-def test_chat_history_no_contain():
-    # .chat-history previously had contain:content (paint isolation) and then
-    # contain:layout style, both of which, combined with --enable-low-end-device-mode's
-    # ~96 MB tile budget, caused compositor tiles to evict and render as solid colour
-    # instead of transparent — hiding the animated background canvas. Removing contain
-    # entirely lets the scroll layer remain part of the root layer stacking, correctly
-    # compositing the canvas behind the transparent chat area.
+def test_chat_history_has_contain_layout_style():
+    # contain:layout style scopes addMessage() style recalculation to the chat
+    # area without creating paint isolation. .chat-history is transparent
+    # (no background); contain:paint would promote it to a compositor layer and
+    # with --enable-low-end-device-mode's small tile budget, evicted tiles
+    # render as solid colour instead of passing through to the body background,
+    # hiding the animated background behind the chat area.
     block = _block(".chat-history {")
     rule_end = block.index("}")
-    assert "contain" not in block[:rule_end]
+    assert "contain: layout style" in block[:rule_end]
+    assert "contain: content" not in block[:rule_end]
 
 
 def test_modal_content_has_contain_layout_style():

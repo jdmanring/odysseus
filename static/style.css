@@ -398,6 +398,7 @@ body.bg-pattern-sparkles {
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       border: 1px solid color-mix(in srgb, var(--fg) 11%, transparent);
       position: relative;
+      contain: layout style;
     }
     .sidebar-resize-handle {
       position: absolute;
@@ -1817,6 +1818,7 @@ body.bg-pattern-sparkles {
       --chat-max: 800px;
       padding-left: max(0px, calc((100% - var(--chat-max)) / 2));
       padding-right: max(12px, calc((100% - var(--chat-max)) / 2 + 12px));
+      contain: layout style;
     }
     /* Sortable Cookbook column headers had no visual cue, so users couldn't tell
        a header was clickable (the Newest sort on the Model column was invisible).
