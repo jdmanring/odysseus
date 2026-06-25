@@ -4,11 +4,18 @@
  * ASCII Spinner Module for AI thinking/processing status
  */
 
-// Frames a whirlpool spinner may run before it has ever been visible before it
-// gives up and stops. Covers the synchronous gap between start() and the caller
-// appending the element (~2s at 60fps); past it, an unappended spinner is
-// treated as orphaned and terminates instead of looping forever (issue #107).
-const _WP_ORPHAN_GRACE_FRAMES = 120;
+// All three animated spinners (whirlpool, sinewave, ASCII) run a continuous loop
+// — two via requestAnimationFrame, the ASCII one via setInterval. A continuous
+// loop must stop when the spinner is not doing visible work, or an orphaned
+// spinner (start()ed but never appended, or one whose panel closed) runs forever;
+// on Qt WebEngine that wasted CPU/raster work is never reclaimed and accumulates.
+// _shouldKeepSpinning() is the shared guard. This is how long a never-yet-visible
+// spinner may keep going, covering the synchronous gap between start() and the
+// caller appending the element (issue #107).
+const _SPIN_ORPHAN_GRACE_MS = 2000;
+function _spinNow() {
+  return (typeof performance !== 'undefined') ? performance.now() : Date.now();
+}
 
 class Spinner {
   constructor(message = "AI is processing", style = "right", animation = "spinner") {
@@ -126,9 +133,27 @@ class Spinner {
     ctx.fillStyle = 'rgba(156, 222, 242, 0.9)';
     ctx.fill();
 
-    if (this.isRunning) {
+    if (this.isRunning && this._shouldKeepSpinning()) {
       this.rafId = requestAnimationFrame(() => this._drawSineWave());
+    } else {
+      this.isRunning = false;
     }
+  }
+
+  // Shared leak guard for all three animated spinners. Returns false once the
+  // spinner should stop: it was visible and then removed/hidden (display:none
+  // makes offsetParent null), or it was never made visible within the orphan
+  // grace window (start()ed but never appended). Gate on visibility, not mere
+  // isConnected, which stays true for a display:none element.
+  _shouldKeepSpinning() {
+    const el = this.element;
+    if (el && el.isConnected && el.offsetParent !== null) {
+      this._spinWasVisible = true;
+      return true;
+    }
+    if (this._spinWasVisible) return false;  // was visible, now hidden -> stop
+    if (this._spinStart == null) this._spinStart = _spinNow();
+    return (_spinNow() - this._spinStart) < _SPIN_ORPHAN_GRACE_MS;
   }
 
   _createWhirlpoolElement() {
@@ -252,23 +277,10 @@ class Spinner {
 
     this._wpFrame++;
     if (!this.isRunning) return;
-    // Leak-safe self-terminate. Stop the rAF loop whenever the spinner is not
-    // doing visible work, so an orphaned or hidden spinner cannot burn CPU and
-    // churn canvas garbage forever:
-    //   (a) it became visible and was then removed or hidden (a loading row
-    //       replaced by results, or its panel closed — display:none makes
-    //       offsetParent null), or
-    //   (b) it was never made visible within a short grace window — the caller
-    //       start()ed it (start() runs synchronously, before the element is
-    //       inserted) but then discarded it without ever appending it.
-    // Gate on visibility, not mere isConnected: isConnected stays true for a
-    // display:none element, which would keep a hidden-panel spinner running.
-    const el = this.element;
-    const visible = !!(el && el.isConnected && el.offsetParent !== null);
-    if (visible) this._wpWasVisible = true;
-    const withinGrace = !this._wpWasVisible
-      && (this._wpFrame - 60) < _WP_ORPHAN_GRACE_FRAMES;
-    if (visible || withinGrace) {
+    // Leak-safe self-terminate via the shared visibility guard: stop when the
+    // spinner is orphaned or hidden so the rAF loop cannot run forever on a
+    // detached/invisible canvas.
+    if (this._shouldKeepSpinning()) {
       this.rafId = requestAnimationFrame(() => this._drawWhirlpool());
     } else {
       this.isRunning = false;
@@ -316,6 +328,9 @@ class Spinner {
 
     this.currentFrame = 0;
     this.intervalId = setInterval(() => {
+      // Same shared leak guard: an ASCII spinner that was never appended or whose
+      // panel closed must stop, not tick updateDisplay() forever.
+      if (!this._shouldKeepSpinning()) { this.stop(); return; }
       this.currentFrame++;
       this.updateDisplay();
     }, speed);
