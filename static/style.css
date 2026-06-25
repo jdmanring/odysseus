@@ -1818,6 +1818,7 @@ body.bg-pattern-sparkles {
       --chat-max: 800px;
       padding-left: max(0px, calc((100% - var(--chat-max)) / 2));
       padding-right: max(12px, calc((100% - var(--chat-max)) / 2 + 12px));
+      contain: layout style;
       background: var(--bg);
     }
     /* Pattern and frosted themes project a canvas behind the chat area.
