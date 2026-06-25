@@ -144,7 +144,9 @@ Reset 2:
 
 ## Linked Issue
 
-Fixes # <!-- [add upstream issue number before filing] -->
+Relates to #4644 ("browser tab OOM during long agent interactions"). This avoids
+discarding and rebuilding the streamed DOM tree on each multi-round agent tool-call. File a
+focused upstream issue if warranted and link it here before submitting.
 
 ## Type of Change
 

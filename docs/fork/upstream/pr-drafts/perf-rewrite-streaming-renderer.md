@@ -114,7 +114,9 @@ Heap allocation reduced from O(n²) intermediate trees to O(n) live nodes.
 
 ## Linked Issue
 
-Fixes # <!-- [add upstream issue number before filing] -->
+Relates to #4644 ("browser tab OOM during long agent interactions"). This removes an
+O(n^2) markdown rebuild that ran on every SSE delta in the rewrite path. File a focused
+upstream issue if warranted and link it here before submitting.
 
 ## Type of Change
 

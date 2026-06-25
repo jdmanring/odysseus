@@ -80,7 +80,9 @@ effective for plain prose responses, which constitute the majority of agent outp
 
 ## Linked Issue
 
-Fixes # <!-- [add upstream issue number before filing] -->
+Relates to #4644 ("browser tab OOM during long agent interactions"). This trims one source
+of streaming allocation: it skips holder-div creation for plain-prose token appends. File a
+focused upstream issue if warranted and link it here before submitting.
 
 ## Type of Change
 

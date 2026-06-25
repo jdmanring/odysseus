@@ -106,7 +106,11 @@ export function checkBackgroundStream(sessionId) {
 
 ## Linked Issue
 
-Fixes #82
+Relates to #4644 ("browser tab OOM during long agent interactions"). This reduces GC and
+allocation pressure during streaming (a `squashOutsideCode` fast path and deferred
+highlighting). File a focused upstream issue if warranted and link it here before
+submitting. (Do not use the bare number from the fork tracker as an upstream issue
+reference.)
 
 ## Type of Change
 
