@@ -1805,7 +1805,8 @@ body.bg-pattern-sparkles {
       margin-bottom: 0;
       background: var(--bg);
       transition: margin-left 160ms cubic-bezier(0.22, 0.61, 0.36, 1),
-                  margin-right 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
+                  margin-right 160ms cubic-bezier(0.22, 0.61, 0.36, 1),
+                  padding-bottom 0.3s ease;
     }
     .chat-meta { font-size:12px; color:color-mix(in srgb, var(--fg) 60%, transparent); margin-bottom:6px; }
     .chat-history {
@@ -1969,24 +1970,23 @@ body.bg-pattern-sparkles {
       font-weight: 500;
       letter-spacing: 0.3px;
     }
-    /* When welcome is active, push input bar up toward center */
+    /* When welcome is active, push input bar up toward center.
+       padding-bottom on the container (not margin-bottom on the input bar)
+       keeps the 30vh gap on the container's own paint layer. margin-bottom
+       on the input bar was leaking into the compositor layer promoted by
+       container-type:inline-size, causing a lighter tile-eviction fill in
+       the space below the input bar under --enable-low-end-device-mode. */
     .chat-container .chat-input-bar {
-      transition: margin 0.3s ease, max-width 0.3s ease;
+      transition: max-width 0.3s ease;
     }
-    .chat-container.welcome-active .chat-input-bar {
-      margin-bottom:30vh;
-      margin-left:auto;
-      margin-right:auto;
-      max-width: 800px;
-      width: 100%;
+    .chat-container.welcome-active {
+      padding-bottom: 30vh;
     }
     @media (max-width:768px) {
       #welcome-screen .welcome-name { font-size:1.8rem; }
       #welcome-screen .welcome-sub { font-size:0.8rem; }
-      .chat-container.welcome-active .chat-input-bar {
-        margin-bottom:0;
-        margin-left:0;
-        margin-right:0;
+      .chat-container.welcome-active {
+        padding-bottom: 0;
       }
     }
     .msg {
