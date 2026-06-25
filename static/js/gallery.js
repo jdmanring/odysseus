@@ -911,7 +911,7 @@ function _draftsPaint() {
     const updated = d.updated_at ? _humanRelativeDate(new Date(d.updated_at)) : '';
     const dims = (d.width && d.height) ? `${d.width}×${d.height}` : '';
     const thumb = d.thumbnail
-      ? `<img class="gallery-editor-draft-thumb" src="${_esc(d.thumbnail)}" alt="" />`
+      ? `<img class="gallery-editor-draft-thumb" src="${_esc(d.thumbnail)}" alt="" loading="lazy" decoding="async" />`
       : '<div class="gallery-editor-draft-thumb gallery-editor-draft-thumb-empty"></div>';
     const checked = _draftsSelected.has(d.id);
     const checkbox = _draftsSelectMode
