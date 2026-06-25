@@ -142,6 +142,7 @@ pre, code, .hljs {
 html {
   scrollbar-color: var(--red) var(--panel);
   scrollbar-width: thin;
+  background-color: var(--bg);
 }
 
 /* Utility */
