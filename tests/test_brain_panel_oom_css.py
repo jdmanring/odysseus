@@ -95,21 +95,20 @@ def test_memory_sweep_keyframe_does_not_animate_background_position():
 # Hover rule must not cause compositor layer teardown
 # ---------------------------------------------------------------------------
 
-def test_memory_sweep_hover_uses_opacity_not_animation_none():
-    """animation:none on hover destroys the promoted compositor layer.
-    When the cursor leaves, the layer is recreated, causing a gray flash.
-    The fix uses opacity:0 to hide the sweep without stopping the animation."""
-    idx = _CSS.find("#memory-list .memory-item:hover::after")
-    assert idx >= 0, "hover rule for sweep suppression must exist"
-    rule = _CSS[idx : idx + 200]
-    assert "animation: none" not in rule, (
-        "hover must not use animation:none. animation:none destroys the promoted "
-        "layer; recreation on mouse-leave produces a gray-frame flash. "
-        "Use opacity:0 to suppress the sweep without layer teardown."
-    )
-    assert "opacity: 0" in rule or "opacity:0" in rule, (
-        "hover rule must set opacity:0 to suppress the sweep visually"
-    )
+def test_memory_sweep_is_hover_triggered_not_perpetual():
+    """The sweep must not run perpetually on every row. ~20 rows each running an
+    `infinite` animation generated raster tiles continuously, and Qt does not
+    evict tiles under pressure, so it was a steady contributor to the idle climb
+    (measured ~1.7 MB/s). At rest the base ::after declares no animation (the
+    strip is parked off-screen); the hover rule triggers a single sweep."""
+    base_idx = _CSS.find("#memory-list .memory-item::after {")
+    hover_idx = _CSS.find("#memory-list .memory-item:hover::after")
+    assert base_idx >= 0 and hover_idx > base_idx
+    base = _CSS[base_idx:hover_idx]  # base rule + any comment, up to the hover rule
+    assert "animation:" not in base, "base ::after must declare no animation; it is hover-triggered"
+    hover = _CSS[hover_idx : hover_idx + 200]
+    assert "animation: memory-synapse-sweep" in hover, "hover must trigger one sweep"
+    assert "infinite" not in hover, "the hover sweep must run once, not infinitely"
 
 
 # ---------------------------------------------------------------------------
