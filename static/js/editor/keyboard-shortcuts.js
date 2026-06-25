@@ -85,7 +85,9 @@ export function wireKeyboardShortcuts(deps) {
     // still act — AltGr+5 / AltGr+8 stay as the [ ] brush-size shortcut on
     // AZERTY / QWERTZ.
     if ((e.ctrlKey || e.metaKey) && !isAltGrEvent(e)) {
-      if (e.key === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+      // Accept both 'z' and 'Z': with Shift held, e.key is the uppercase 'Z',
+      // so a lowercase-only check silently kills Ctrl+Shift+Z (redo).
+      if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
       // Ctrl+Shift+D = Deselect: clears the wand selection (and
       // lasso if active) without affecting layers.
       if (e.shiftKey && (e.key === 'D' || e.key === 'd')) {
