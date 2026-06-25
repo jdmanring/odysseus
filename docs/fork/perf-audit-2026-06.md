@@ -38,11 +38,20 @@ For a gallery + photo-editor + email-attachment app, **decoded bitmaps are very 
 the single largest renderer-memory category** and the clearest "grows as you use it"
 axis. A 4000×3000 photo is ~48 MB decoded regardless of file size.
 
-### A1 — Off-screen images decode eagerly  *(headline; aesthetics-neutral)* — ✅ DONE (#98)
+### A1 — Off-screen images decode eagerly  *(partly superseded — see correction)* — ✅ DONE (#98)
 
 > **Implemented** in `perf/image-lazy-decode` (#98): `loading="lazy"` + `decoding="async"`
 > on the document page-stack and gallery draft-thumb renderers. Narrower than the raw
 > count suggested — gallery main grids were already lazy and chat images are virtualized.
+>
+> **Correction (upstream #4852):** the "headline gallery win" framing was wrong. Upstream
+> #4852 shows the real gallery-grid cost is that each *visible* tile downloads + decodes
+> the **full-resolution original**, which client-side `loading="lazy"`/`decoding="async"`
+> *cannot* fix (the bytes still transfer + decode). The proper fix is **server-side cached
+> thumbnails** (~400px WebP; cf. Immich) — not done here. #98's real value is the
+> **document multi-page PNG stack** (a client-side win #4852 doesn't cover); its
+> gallery-draft-thumb part is harmless but marginal. Treat #4852 as the primary
+> gallery-memory fix.
 
 **Evidence:** 26 `<img>` elements created in JS, only 4 set `loading="lazy"`
 (`grep "new Image(|createElement('img')"` vs `loading=lazy`). Object-URL hygiene is

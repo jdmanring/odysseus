@@ -118,13 +118,29 @@ coordinator handles collection automatically. The `typeof gc === 'function'` gua
 - `perf/rendertail-text-only-path` (#75) — skips holder-div creation for plain-prose
   tokens; directly reduces the Oilpan node volume that GC must collect
 
+## Relationship to upstream #4644 / #4661
+
+Issue #4644 ("browser tab OOM and freeze during long agent interactions") is the symptom
+this and several sibling fork changes target. Open PR #4661 addresses it by reducing DOM
+*production* during agent sessions — server-paginated history (`?limit=400`), a
+"Show N older messages" bar, and plain-text thinking-block streaming.
+
+This change is **complementary, not overlapping**. It reclaims transient Oilpan *garbage*
+— short-lived CSS `:hover` pseudo-element nodes — that accumulates during idle UI
+interaction even with no agent activity, a source #4661 does not touch. Idle GC and DOM
+windowing coexist cleanly; neither supersedes the other. (A separate fork change, DOM
+virtualization, *does* overlap #4661's windowing and needs maintainer coordination before
+filing — that is tracked elsewhere and does not affect this idle-GC change.)
+
 ## Target branch
 
 - [x] This PR targets **`dev`**, not `main`.
 
 ## Linked Issue
 
-Fixes # <!-- [add upstream issue number before filing] -->
+Relates to #4644 — a complementary memory-pressure fix (open PR #4661 is the primary fix
+for that issue; this reduces a different, idle-interaction memory source). File a focused
+upstream issue for the idle-GC behaviour and link it here before submitting.
 
 ## Type of Change
 
