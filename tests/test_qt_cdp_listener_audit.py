@@ -347,7 +347,8 @@ def test_reclaim_gated_by_rss_ceiling_and_rate_limit():
 def test_reclaim_fired_off_interaction_path_only():
     """The purge fires only where a stutter is invisible: mouse-idle and
     focus-loss. It must NOT be fired from the blind periodic mem timer."""
-    assert "_purge_renderer('mouse-idle')" in _SRC
+    assert "_purge_renderer('post-interaction-idle')" in _SRC
+    assert "_purge_renderer('sustained-idle')" in _SRC
     assert "_purge_renderer('focus-loss')" in _SRC
 
 
@@ -356,36 +357,50 @@ def test_reclaim_result_checked():
     assert 'res is not None' in _SRC
 
 
-def test_mouse_idle_filter_class_present():
-    """
-    _MouseIdleFilter must be present as an app-level QObject event filter.
-    Qt's QEvent::MouseMove is delivered at the QApplication level for all
-    widgets including QWebEngineView, making this the correct scope for
-    detecting when the user has stopped interacting with the UI.
-    """
-    assert "class _MouseIdleFilter(" in _SRC
+def test_input_idle_filter_tracks_keyboard_and_mouse():
+    """The idle filter must track keyboard as well as mouse, so that typing defers
+    the reclaim purge (a forcible purge causes a ~1s stutter and must never fire
+    mid-typing). Installed at the QApplication level to see all input."""
+    assert "class _InputIdleFilter(" in _SRC
     assert "QEvent.Type.MouseMove" in _SRC
+    assert "QEvent.Type.KeyPress" in _SRC
 
 
-def test_idle_evict_timer_wired():
-    """
-    The idle eviction timer must be single-shot with a 2-second interval and
-    connected to a critical-pressure eviction call. This bounds tile accumulation
-    to ~2 seconds of hover activity — memory returns to near-baseline within
-    2 seconds of the user stopping interaction, without suppressing any visual effects.
-    """
+def test_post_interaction_idle_timer_wired():
+    """The single-shot post-interaction timer gives a fast reclaim ~2s after the
+    user stops interacting."""
     assert "setSingleShot(True)" in _SRC
     assert "setInterval(2000)" in _SRC
     assert "_idle_evict_timer" in _SRC
 
 
-def test_idle_eviction_runs_in_executor():
-    """
-    The idle eviction CDP call must run in the thread pool executor, not on the
-    main thread. _cdp_browser_call has a 2-second socket timeout; blocking the
-    main thread for 2 seconds while the user resumes interaction would cause
-    visible UI freeze. The executor routes it to a background worker.
-    """
+def test_sustained_idle_reclaim_is_periodic():
+    """The single-shot timer only re-arms on input, so a user who walks away gets
+    exactly one purge and the renderer then climbs unbounded (it filled all RAM in
+    testing). A repeating timer must drive sustained-idle reclaim, gated on no input
+    for _IDLE_RECLAIM_AFTER_S."""
+    assert "_idle_reclaim_timer" in _SRC
+    assert "_maybe_idle_purge" in _SRC
+    assert "_IDLE_RECLAIM_AFTER_S" in _SRC
+    # Must be repeating, not single-shot: started without setSingleShot(True) on it.
+    idx = _SRC.index("_idle_reclaim_timer = QTimer(")
+    block = _SRC[idx:idx + 300]
+    assert ".start()" in block
+    assert "setSingleShot" not in block
+
+
+def test_idle_purge_gated_on_no_recent_input():
+    """The periodic reclaim must check time since last input before purging, so it
+    never fires while the user is interacting."""
+    idx = _SRC.index("def _maybe_idle_purge(")
+    block = _SRC[idx:idx + 600]
+    assert "_last_input" in block
+    assert "_IDLE_RECLAIM_AFTER_S" in block
+    assert "_purge_renderer(" in block
+
+
+def test_idle_reclaim_runs_in_executor():
+    """The purge CDP call must run in the thread pool executor, not the main thread."""
     assert "_cdp_executor.submit" in _SRC
     assert "_evict_on_idle" in _SRC or "_do" in _SRC
 
