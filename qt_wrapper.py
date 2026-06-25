@@ -91,7 +91,11 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--js-flags=--expose-gc,--initial-old-space-size=128,--max-old-space-size=512,--optimize-for-size,--minor-mc",
     "--renderer-process-limit=1",
     "--disable-extensions",
-    "--enable-low-end-device-mode",  # caps cc::TileManager raster tile budget ~96 MB
+    # NB: --enable-low-end-device-mode is deliberately NOT set. It caused a
+    # lighter-rectangle raster tint on dark themes (its low-fidelity raster path,
+    # tile-aligned, ~+4/+4/+5 lighter than --bg), and did not bound the actual
+    # OOM — which is Oilpan detached-DOM growth (e.g. transient CSS :hover
+    # pseudo-element churn), a separate pool from the raster tile budget.
     *_gpu_flags,
 ])
 
