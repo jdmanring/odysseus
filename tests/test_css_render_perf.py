@@ -103,6 +103,21 @@ def test_chat_history_has_explicit_bg():
     assert "background: var(--bg)" in block[:rule_end]
 
 
+def test_welcome_active_uses_container_padding_not_input_bar_margin():
+    # padding-bottom on .chat-container.welcome-active (not margin-bottom on
+    # .chat-input-bar) keeps the 30vh gap on the container's own paint layer.
+    # margin-bottom on the input bar leaked into the compositor layer promoted
+    # by container-type:inline-size, showing lighter tile-eviction fill below
+    # the input bar under --enable-low-end-device-mode.
+    welcome_block = _block(".chat-container.welcome-active {")
+    rule_end = welcome_block.index("}")
+    assert "padding-bottom: 30vh" in welcome_block[:rule_end]
+    # margin-bottom:30vh must not appear on the input bar override — that was
+    # the rule that created the problematic compositor layer extension.
+    assert "margin-bottom:30vh" not in _CSS
+    assert "margin-bottom: 30vh" not in _CSS
+
+
 def test_modal_content_has_contain_layout_style():
     # Conservative variant (not paint) because provider picker menus can overflow
     # the modal boundary visually. Scopes layout without introducing clipping.
