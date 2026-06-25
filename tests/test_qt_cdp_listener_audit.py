@@ -414,11 +414,13 @@ def test_idle_eviction_runs_in_executor():
 
 # --- P1–P5: professional tile budget + lifecycle management ---
 
-def test_low_end_device_mode_flag():
-    """--enable-low-end-device-mode caps cc::TileManager raster budget at ~96 MB,
-    causing automatic eviction when the budget is hit. This is the primary bounding
-    mechanism — self-regulating via the engine's own memory management."""
-    assert "--enable-low-end-device-mode" in _SRC
+def test_low_end_device_mode_flag_absent():
+    """--enable-low-end-device-mode must NOT be passed to Chromium: it caused a
+    lighter-rectangle raster tint on dark themes and did not bound the actual OOM
+    (Oilpan detached-DOM churn, a separate pool from the raster tile budget).
+    Checks the active quoted-flag entry is absent — prose/comments may still
+    reference the flag to explain why it was removed."""
+    assert '"--enable-low-end-device-mode"' not in _SRC
 
 
 def test_http_cache_capped():
