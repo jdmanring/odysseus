@@ -31,7 +31,10 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--enable-logging=stderr --log-level=1",
     "--remote-debugging-port=9222",
     "--js-flags=--expose-gc,--max-old-space-size=512",
-    "--enable-low-end-device-mode",  # caps cc::TileManager raster tile budget ~96 MB
+    # NB: low-end-device-mode (the Chromium flag) is deliberately NOT set. It
+    # caused a lighter-rectangle raster tint on dark themes and did not bound the
+    # actual OOM — Oilpan detached-DOM churn, a separate pool from the raster
+    # tile budget. See jdmanring/odysseus#96.
 ])
 
 import signal
