@@ -176,7 +176,7 @@ the subprocess return code.
 - **CPython issue #118888** — verified: exists, describes the exec/locals scoping change,
   closed as expected behavior per PEP 667. Cite confidently.
 - **PR #3741 scope** — verified: patches exec/locals in `cookbook_helpers.py` and
-  `cookbook_routes.py` only; does not touch `shell_routes.py`. Our PR's additional
+  `cookbook_routes.py` only; does not touch `shell_routes.py`. This PR's additional
   coverage claim is accurate.
 - **basicsr 1.4.2 collections imports** — verified against the actual sdist
   (SHA256: `b89b595a87ef964cda9913b4d99380ddb6554c965577c0c10cb7b78e31301e87`): every
