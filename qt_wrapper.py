@@ -296,6 +296,10 @@ _cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='c
 # so it cannot repeat back to back.
 _PURGE_RSS_CEILING_KB = 1_800_000   # ~1.8 GB; baseline after a purge is ~1.1 GB
 _PURGE_MIN_INTERVAL_S = 15
+# Seconds of no user input (mouse OR keyboard) before the renderer counts as idle
+# and the periodic reclaim is allowed to fire. Short enough to catch a walk-away,
+# long enough that a brief reading pause does not trigger a purge mid-glance.
+_IDLE_RECLAIM_AFTER_S = 3.0
 
 # GC request cell — written by background threads (PSI monitor), read and drained
 # by a 250 ms QTimer on the Qt main thread.  CPython's GIL makes single-element
@@ -471,20 +475,32 @@ class OdysseusPage(QWebEnginePage):
         return page
 
 
-class _MouseIdleFilter(QObject):
-    """App-level event filter that restarts a single-shot timer on every mouse move.
+class _InputIdleFilter(QObject):
+    """App-level event filter that records the last user-input time and restarts the
+    post-interaction idle timer.
 
-    Qt WebEngine handles mouse events internally, but Qt's QEvent::MouseMove is still
-    delivered at the QApplication level before Chromium sees it. Installing this filter
-    on QApplication.instance() catches all mouse movement over any widget or the web
-    content area, which is the correct scope for idle-based tile eviction.
+    Qt WebEngine handles input internally, but Qt delivers these events at the
+    QApplication level before Chromium consumes them, so installing this filter on
+    QApplication.instance() catches all interaction over any widget or the web
+    content area. It tracks keyboard as well as mouse so that typing defers the
+    reclaim purge: a forcible purge causes a ~1s stutter, so it must never fire
+    mid-typing.
     """
-    def __init__(self, timer: QTimer, parent=None):
+    _INPUT_EVENTS = frozenset((
+        QEvent.Type.MouseMove,
+        QEvent.Type.MouseButtonPress,
+        QEvent.Type.KeyPress,
+        QEvent.Type.Wheel,
+    ))
+
+    def __init__(self, on_input, timer: QTimer, parent=None):
         super().__init__(parent)
+        self._on_input = on_input
         self._timer = timer
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.Type.MouseMove:
+        if event.type() in self._INPUT_EVENTS:
+            self._on_input()
             self._timer.start()
         return False
 
@@ -497,6 +513,7 @@ class OdysseusWindow(QMainWindow):
         page = OdysseusPage(profile, self.browser)
         self._page = page  # held for lifecycle management in changeEvent
         self._last_purge = 0.0  # monotonic ts of last forcible renderer purge
+        self._last_input = time.monotonic()  # ts of last mouse/keyboard activity
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
@@ -641,21 +658,34 @@ class OdysseusWindow(QMainWindow):
         self._gc_drain_timer.timeout.connect(_drain_gc_requests)
         self._gc_drain_timer.start(250)
 
-        # Mouse-idle reclaim: when the mouse has been still for 2 seconds the user
-        # has paused, so a reclaim stutter is invisible. This is the primary trigger
-        # for the focused-but-idle case (reading a long response), which focus-loss
-        # does not cover. Gated by the RSS ceiling and rate-limited inside
+        # Post-interaction reclaim: when input has been still for 2 seconds the user
+        # has paused, so a reclaim stutter is invisible. This gives a fast reclaim
+        # right after the user stops, for the focused-but-idle case (reading a long
+        # response) that focus-loss does not cover. Gated and rate-limited inside
         # _purge_renderer, so it only fires when memory is actually over budget.
         self._idle_evict_timer = QTimer(self)
         self._idle_evict_timer.setSingleShot(True)
         self._idle_evict_timer.setInterval(2000)
 
         def _evict_on_idle():
-            self._purge_renderer('mouse-idle')
+            self._purge_renderer('post-interaction-idle')
 
         self._idle_evict_timer.timeout.connect(_evict_on_idle)
-        self._idle_filter = _MouseIdleFilter(self._idle_evict_timer, self)
+        self._idle_filter = _InputIdleFilter(
+            self._mark_input, self._idle_evict_timer, self)
         QApplication.instance().installEventFilter(self._idle_filter)
+
+        # Sustained-idle reclaim: the post-interaction timer is single-shot and only
+        # re-arms on input, so a user who walks away gets exactly one purge and then
+        # the renderer climbs unbounded (it filled all RAM in testing). This repeating
+        # timer fixes that: every few seconds, if there has been no input for
+        # _IDLE_RECLAIM_AFTER_S, attempt a purge. _purge_renderer is gated by the RSS
+        # ceiling and rate-limited, so an idle-but-present user sees a reclaim only
+        # every few minutes (when RSS climbs back over the ceiling), never mid-input.
+        self._idle_reclaim_timer = QTimer(self)
+        self._idle_reclaim_timer.setInterval(4000)
+        self._idle_reclaim_timer.timeout.connect(self._maybe_idle_purge)
+        self._idle_reclaim_timer.start()
 
         self.browser.setPage(page)
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
@@ -705,6 +735,18 @@ class OdysseusWindow(QMainWindow):
                 flush=True,
             )
         _cdp_executor.submit(_do)
+
+    def _mark_input(self) -> None:
+        """Record the time of the latest user input (mouse or keyboard)."""
+        self._last_input = time.monotonic()
+
+    def _maybe_idle_purge(self) -> None:
+        """Repeating sustained-idle reclaim. Purges only after the user has been
+        idle for _IDLE_RECLAIM_AFTER_S; _purge_renderer adds the RSS-ceiling gate
+        and rate limit, so this bounds memory on walk-away without stuttering an
+        active user."""
+        if time.monotonic() - self._last_input >= _IDLE_RECLAIM_AFTER_S:
+            self._purge_renderer('sustained-idle')
 
     def changeEvent(self, event):
         if event.type() == QEvent.Type.WindowStateChange:
