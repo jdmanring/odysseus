@@ -256,6 +256,9 @@ function generateHarmonyColors(accentHex, harmonyType, mode) {
 export function applyColors(colors) {
   const s = document.documentElement.style;
   s.setProperty('--bg', colors.bg);
+  // Keep html.style.backgroundColor in sync so the ROOT compositor layer's
+  // SafeOpaqueBackgroundColor tracks the new theme on live theme changes.
+  if (colors.bg) s.backgroundColor = colors.bg;
   s.setProperty('--fg', colors.fg);
   s.setProperty('--panel', colors.panel);
   s.setProperty('--border', colors.border);

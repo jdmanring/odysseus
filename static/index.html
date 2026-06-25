@@ -22,6 +22,12 @@
         var s = document.documentElement.style;
         var c = t.colors;
         s.setProperty('--bg', c.bg);
+        // Set html.style.backgroundColor directly so the ROOT compositor layer's
+        // SafeOpaqueBackgroundColor is established before any CSS file loads.
+        // var(--bg) in the CSS rule has a timing window where the author-sheet
+        // default (#282c34) wins before the inline --bg is committed; a direct
+        // inline backgroundColor has no such dependency.
+        if (c.bg) s.backgroundColor = c.bg;
         s.setProperty('--fg', c.fg);
         s.setProperty('--panel', c.panel);
         s.setProperty('--border', c.border);

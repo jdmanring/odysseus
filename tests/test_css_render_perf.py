@@ -8,12 +8,15 @@ Locks in the five categories of CSS changes made by the render performance pass:
   4. touch-action: manipulation added to interactive elements
   5. filter:brightness hover rules wrapped in @media (hover: hover) and (pointer: fine)
 
-No browser required — all checks are static assertions on style.css.
+No browser required — all checks are static assertions on style.css, index.html,
+and theme.js.
 """
 from pathlib import Path
 import re
 
 _CSS = (Path(__file__).resolve().parents[1] / "static" / "style.css").read_text(encoding="utf-8")
+_IDX = (Path(__file__).resolve().parents[1] / "static" / "index.html").read_text(encoding="utf-8")
+_THEME_JS = (Path(__file__).resolve().parents[1] / "static" / "js" / "theme.js").read_text(encoding="utf-8")
 
 
 def _block(anchor: str, window: int = 700) -> str:
@@ -66,13 +69,12 @@ def test_sidebar_no_contain():
 
 
 def test_html_element_has_explicit_bg():
-    # Chromium derives the root compositor layer's clear colour (the fill shown
-    # when tiles evict under --enable-low-end-device-mode) from the html
-    # element's background-color, NOT from body's. body { background: var(--bg) }
-    # fills the viewport via CSS paint records, but those records are what evict.
-    # Without an explicit background on html, the root layer is transparent and
-    # evicted tiles fall through to Qt's system-palette base colour (lighter than
-    # --bg), producing a visible lighter rectangle at the bottom of the main area.
+    # The html element carries an explicit background-color: var(--bg) so the
+    # root layer is never transparent and never falls through to Qt's
+    # system-palette base colour (lighter than --bg) during any paint gap.
+    # Cheap, harmless theming hygiene — kept independent of any Chromium flag.
+    # (The earlier "tile-eviction fill" rationale was disproven: the lighter
+    # rectangle was --enable-low-end-device-mode's raster path, since removed.)
     idx = _CSS.index("html {")
     block = _CSS[idx : idx + 300]
     rule_end = block.index("}")
@@ -80,10 +82,9 @@ def test_html_element_has_explicit_bg():
 
 
 def test_chat_history_has_contain_layout_style():
-    # contain:layout style is required alongside background:var(--bg) for
-    # Chromium to associate the background with the scroll layer's
-    # SafeOpaqueBackgroundColor. Without it, the scroll layer tile-eviction
-    # fill reverts to the page background, making the chat area wrong shade.
+    # contain: layout style (NOT contain: paint/content) — paint containment
+    # broke backdrop-filter on the frosted sidebar and made the transparent
+    # chat-history render opaque in the Qt compositor. See jdmanring#93.
     block = _block(".chat-history {")
     rule_end = block.index("}")
     assert "contain: layout style" in block[:rule_end]
@@ -91,24 +92,22 @@ def test_chat_history_has_contain_layout_style():
 
 
 def test_chat_history_has_explicit_bg():
-    # .chat-history has overflow-y:auto, which Qt/Chromium promotes to a
-    # compositor scroll layer. With --enable-low-end-device-mode (~96 MB tile
-    # budget), evicted tiles render as a solid fill colour — not as transparent
-    # — producing visible rectangles where the chat area sits. Setting
-    # background:var(--bg) ensures evicted tiles fill at the body background
-    # colour, making the scroll layer visually indistinguishable from its
-    # surroundings.
+    # .chat-history carries an explicit background: var(--bg) so the scroll
+    # area paints the theme background directly rather than relying on the
+    # body showing through. Simple theming correctness; not tied to any
+    # Chromium raster flag.
     block = _block(".chat-history {")
     rule_end = block.index("}")
     assert "background: var(--bg)" in block[:rule_end]
 
 
 def test_welcome_active_uses_container_padding_not_input_bar_margin():
-    # padding-bottom on .chat-container.welcome-active (not margin-bottom on
-    # .chat-input-bar) keeps the 30vh gap on the container's own paint layer.
-    # margin-bottom on the input bar leaked into the compositor layer promoted
-    # by container-type:inline-size, showing lighter tile-eviction fill below
-    # the input bar under --enable-low-end-device-mode.
+    # The 30vh welcome gap is expressed as padding-bottom on
+    # .chat-container.welcome-active rather than margin-bottom on
+    # .chat-input-bar, so the spacing stays inside the container's own box
+    # rather than the container-type:inline-size compositor layer of the input
+    # bar. (Originally framed as a tile-eviction fix; kept because container
+    # padding is the cleaner place for the gap regardless.)
     welcome_block = _block(".chat-container.welcome-active {")
     rule_end = welcome_block.index("}")
     assert "padding-bottom: 30vh" in welcome_block[:rule_end]
@@ -124,6 +123,25 @@ def test_modal_content_has_contain_layout_style():
     block = _block(".modal-content {")
     rule_end = block.index("}")
     assert "contain: layout style" in block[:rule_end]
+
+
+def test_init_script_sets_html_background_color_inline():
+    # The init script sets document.documentElement.style.backgroundColor
+    # directly (not only via the --bg custom property) so html paints the theme
+    # background immediately, before the author stylesheet loads — avoiding a
+    # first-paint flash of the CSS default (#282c34). Harmless base-colour sync.
+    start = _IDX.index("s.setProperty('--bg', c.bg)")
+    block = _IDX[start : start + 700]
+    assert "s.backgroundColor = c.bg" in block
+
+
+def test_apply_colors_sets_html_background_color_inline():
+    # applyColors mirrors the init-script approach so live theme changes also
+    # update html.style.backgroundColor, keeping the root background in sync
+    # with the new theme. Harmless base-colour sync.
+    start = _THEME_JS.index("s.setProperty('--bg', colors.bg)")
+    block = _THEME_JS[start : start + 300]
+    assert "s.backgroundColor = colors.bg" in block
 
 
 # ---------------------------------------------------------------------------

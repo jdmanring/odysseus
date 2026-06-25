@@ -101,3 +101,6 @@ gha-creds-*.json
 
 # Fork‑only scripts
 /scripts/fork/
+
+# Local CDP forensics (not committed; value captured as proper tests)
+diagnose_*.py

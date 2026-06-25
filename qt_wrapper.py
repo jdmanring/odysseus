@@ -126,12 +126,11 @@ PROFILE_NAME = "odysseus"
 def _theme_bg_color() -> QColor:
     """Read the saved theme background from data/user_prefs.json.
 
-    setBackgroundColor() sets the compositor base-background-color — the fill
-    shown when tiles evict under --enable-low-end-device-mode.  Hardcoding
-    #282c34 (the default theme) causes evicted tiles to appear lighter than the
-    actual background on any custom dark theme (e.g. Catppuccin #1e1e2e).
-    Reading the persisted bg at startup keeps eviction fill in sync with the
-    user's real theme colour.
+    setBackgroundColor() sets the QWebEnginePage compositor base-background
+    colour — what shows in any brief gap before content paints. Hardcoding
+    #282c34 (the default theme) would flash lighter than the actual background
+    on a custom dark theme (e.g. Catppuccin #1e1e2e); reading the persisted bg
+    at startup keeps the base colour in sync with the user's real theme.
     """
     try:
         prefs_path = os.path.join(INSTALL_DIR, 'data', 'user_prefs.json')
@@ -511,9 +510,6 @@ class OdysseusWindow(QMainWindow):
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
         self._page = page  # held for lifecycle management in changeEvent
-        # Set compositor base-background-colour to the user's saved theme bg.
-        # This is the fill shown when tiles evict under --enable-low-end-device-mode.
-        page.setBackgroundColor(_theme_bg_color())
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
@@ -706,6 +702,10 @@ class OdysseusWindow(QMainWindow):
         QApplication.instance().installEventFilter(self._idle_filter)
 
         self.browser.setPage(page)
+        # Set compositor base-background-colour AFTER setPage() so it is not
+        # discarded during page initialisation. Shows in any brief pre-paint
+        # gap; must match --bg so there is no flash of a lighter base colour.
+        page.setBackgroundColor(_theme_bg_color())
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)
