@@ -130,3 +130,58 @@ runtime; the behavioural proofs are the measurements above and the sawtooth.
 - The #107 and #108 fixes are verified by tests and reasoning, not yet by a live
   before/after slope. Re-run the row-4 cancel-test and the row-5 rAF capture after
   a restart to confirm the slope drops.
+
+## Lessons learned: the animation cost model + an audit (2026-06-25)
+
+### Why a continuous animation can grow memory (the recurring question)
+
+"Wouldn't it just get cached once?" — correct for *compositor* animations, wrong
+for *paint* ones. Three tiers:
+
+- **Compositor (cheap, cacheable):** `transform`, `opacity`. The element is
+  rasterized **once** into a layer; each frame the GPU just re-positions or fades
+  that one cached texture. Near-zero ongoing cost — fine to loop forever.
+- **Paint (expensive, NOT cacheable):** `box-shadow`, `filter`, `background`,
+  `background-position`, `color`, `border-color`, `clip-path`, `-webkit-mask`.
+  Computed *during rasterization*. Every step of the loop is a different bitmap, so
+  there is no single frame to cache — the engine re-rasterizes ~60x/s forever.
+- **Layout (worst):** `top`/`left`/`width`/`height`/`inset`. Re-runs layout *and*
+  paint every frame.
+
+A normal browser keeps even the expensive tiers bounded (buffers recycled, old
+tiles evicted under pressure). On **Qt WebEngine eviction never fires** (no OS
+pressure signal — the root defect of this whole investigation), so paint output
+**accumulates**. Cost ≈ repaint area × frame rate × persistence. Proof case:
+`notes-quick-pulse` animated `box-shadow` on the always-visible ~200×46px
+`.notes-quick-add` box → ~200×46×4×60fps ≈ **2.2 MB/s**, matching the measured idle
+climb. Fixed by baking the glow into a `::after` layer (rasterized once) and
+pulsing its **opacity**.
+
+### Standard (apply going forward)
+
+1. Continuous/`infinite` animations may animate **only** `transform`/`opacity`.
+2. If a paint effect must loop, render it on a **pseudo-element rasterized once**
+   and animate that layer's opacity (see `.notes-quick-add::after`).
+3. Prefer **gating** decorative animation behind state/hover so it is not perpetual.
+4. Cost scales with **area** and **persistence**: a paint animation on a large,
+   always-visible element is the worst case; on a tiny dot or a transient state it
+   is usually fine.
+
+### Audit: are we doing this elsewhere? (checked all 56 infinite animations)
+
+18 animate a paint/layout property. Categorised:
+
+- **Always-on + large (the real cost):** `notes-quick-pulse` only. **Fixed.**
+- **State-gated (transient — run only during loading/unread/running/streaming/
+  notification, then stop):** `gallery-skeleton-shimmer`, `notes-skeleton-shimmer`,
+  `ge-canvas-spin`, `task-log-pulse`, `thread-pulse`, `synapse-travel/-capped`,
+  `research-dot-pulse`, `stream-complete-pulse`, `skill-audit-pulse`. Acceptable.
+- **State-gated but can persist on small elements (low per-instance cost,
+  candidate cleanup):** `cookbook-srv-glow-ok`, `email-card-unread-breathe`,
+  `cookbook-notif-pulse`, `research-badge-breathe`, `note-reminder-glow`,
+  `rail-notes-badge.fired`. Tiny (dots/badges); convert to opacity-on-pseudo-element
+  only if a future measurement implicates one.
+
+Net: the one always-on, large offender is fixed; the rest are transient or tiny.
+The standard above plus the brain-panel-oom keyframe tests prevent reintroducing
+the always-on case.
