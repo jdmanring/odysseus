@@ -1,7 +1,7 @@
 # PR Draft: perf(chat): improve GC scheduling for agent sessions
 
 **Branch**: `perf/agent-gc-catchup`
-**Issue**: jdmanring/odysseus#80
+**Issue**: jdmanring/odysseus#80 (agent-session catch-up), jdmanring/odysseus#97 (idle GC for hover churn)
 **Base**: upstream-mirror (clean, no fork-specific history)
 
 ---
@@ -53,17 +53,54 @@ and does not block the renderer thread. A 3s window is sufficient for a full swe
 50k–200k Oilpan nodes (typical long-session node count). The shorter window reduces the
 window in which agent responses go uncollected from 5s to 3s.
 
+### Idle GC for transient hover churn (chat.js) — jdmanring#97
+
+The catch-up above only fires *after a chat response*. But the renderer also accumulates
+Oilpan garbage during pure idle interaction: hovering interactive UI (the Brain memory
+list, sidebar nav, etc.) creates short-lived CSS `:hover` pseudo-elements — real
+Oilpan-managed DOM `Node`s, created on hover-enter and orphaned on leave. With no chat
+activity, nothing collects them and RSS climbs.
+
+`_scheduleIdleGc()` fires one async-major `gc()` after ~8 s (`_IDLE_GC_MS`) of no
+pointer/keyboard input. It:
+- shares `_gcPending`, so it never stacks with the post-response cycle;
+- is gated on `document.visibilityState === 'visible'` (a backgrounded tab does no work);
+- is feature-detected (no-op without `--expose-gc`, i.e. every regular browser, where the
+  engine's own idle GC already handles this);
+- resets its timer on `pointermove`/`pointerdown`/`keydown`/`wheel` via passive + capture
+  listeners (allocation-free per event; never blocks scrolling).
+
+**Diagnosis** (controlled experiments): region isolation showed the churn tracks
+interactive elements; `gc()` fully reclaims it; the V8 allocation profiler is empty
+(native Blink nodes, no JS producer); disabling author CSS collapses the churn
+(+1676 → +182 nodes/800 moves) — confirming CSS `:hover` pseudo-elements. **Validated
+live**: hovering grew the node count +2536; the idle GC reclaimed it to baseline at ~10 s
+with no chat activity.
+
+> Note: this bounds growth after an *inactivity* pause; a continuous multi-minute hover
+> with no pause would still accumulate until the user stops. A periodic GC during
+> sustained activity is a possible follow-up.
+
 ## Files changed
 
-- `static/js/chat.js` — `_gcMissed` declaration, updated GC block with catch-up logic
-- `tests/test_chat_gc_hint_js.py` — 14 static-analysis tests (NEW FILE)
+- `static/js/chat.js` — `_gcMissed` declaration + catch-up logic; `_scheduleIdleGc()`
+  idle-GC scheduler and its input listeners (#97)
+- `tests/test_chat_gc_hint_js.py` — source-text contract tests (NEW FILE)
+- `tests/test_idle_gc_integration.py` — behavioral integration test for the idle GC
+  (NEW FILE; skips when no CDP endpoint on :9222)
 
 ## Test coverage
 
-14 source-text contract tests in `tests/test_chat_gc_hint_js.py`:
+20 source-text contract tests in `tests/test_chat_gc_hint_js.py`:
 - Guard variable declarations (`_gcPending`, `_gcMissed`)
 - Primary GC block: feature detection, ordering guards, delay, fallback
 - Catch-up mechanism: blocked-path flag set, log line, catch-up dispatch, ordering guard
+- Idle GC: scheduler present, shares `_gcPending`, async-major, visibility-gated,
+  timer-reset-on-input + passive listeners, feature-detected
+
+1 behavioral integration test in `tests/test_idle_gc_integration.py` (skip-if-no-CDP):
+hover-storms the memory list, sits idle, and asserts the node count is reclaimed with no
+chat activity — testing the idle GC's *behavior*, not just its source shape.
 
 ## Embedding context
 
