@@ -299,7 +299,7 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
 1. **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-qt-native-linux-app.md`. Add the issue number to `Fixes #` above before opening the PR.
 2. The screenshot in the description uses a repo-relative path. Attach the image directly in the GitHub PR text box via drag-and-drop; do not rely on the fork's file paths being visible to upstream reviewers.
 3. Upstream issue #3528 (Windows desktop wrapper) shows the maintainer is receptive to native desktop wrappers. Reference it as a parallel effort in the issue or PR if asked about motivation.
-4. Our fork issue #7 (HF token persistence) overlaps with upstream PR #3459. Monitor; if #3459 merges, verify after next sync whether the issue is fully resolved before filing separately.
+4. Fork issue #7 (HF token persistence) overlaps with upstream PR #3459; monitor it, and after the next sync re-verify whether the issue is fully resolved before filing separately.
 5. **Port:** `qt_wrapper.py` now reads `APP_PORT` from the environment (`.env` is
    loaded automatically), defaulting to `7000` — the project's canonical upstream default
    (`docker-compose.yml`, `src/constants.py`, `launch-windows.ps1`). The previous
