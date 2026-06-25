@@ -35148,25 +35148,44 @@ body.notes-mobile-mode.notes-drag-mode .note-card-pin.active {
   margin-top: 2px;
   margin-bottom: 8px;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-  /* Subtle idle glow so the field reads as "you can type here" without
-     the user having to click it first. Fades out the moment the user
-     hovers or focuses it. */
+  position: relative;  /* anchor for the ::after idle-glow layer */
+}
+/* Idle glow that reads as "you can type here". Rendered as a pseudo-element
+   whose 3px ring is rasterized ONCE into its own compositor layer; only the
+   layer's opacity pulses, so one cached frame is reused (no per-frame repaint).
+   Animating box-shadow directly (the previous approach) re-rasterizes the box +
+   blurred shadow ~60x/s forever, and Qt never evicts those tiles — a steady
+   ~2 MB/s of pure churn on an always-visible element. See lessons-learned in
+   docs/fork/memory-investigation-evidence.md. */
+.notes-quick-add::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--red)) 14%, transparent);
   animation: notes-quick-pulse 2.8s ease-in-out infinite;
 }
 @keyframes notes-quick-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, var(--red)) 0%, transparent); }
-  50%      { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--red)) 14%, transparent); }
+  /* Opacity only — compositor-promoted, zero raster tiles. */
+  0%, 100% { opacity: 0; }
+  50%      { opacity: 1; }
 }
 .notes-quick-add:hover {
   border-color: color-mix(in srgb, var(--accent, var(--red)) 55%, var(--border));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--red)) 18%, transparent);
-  animation-play-state: paused;
 }
 .notes-quick-add:focus-within {
   border-color: var(--accent, var(--red));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--red)) 25%, transparent);
   background: color-mix(in srgb, var(--fg) 3%, var(--panel));
-  animation-play-state: paused;
+}
+/* On hover/focus the box shows its own stronger static ring; stop the idle
+   pulse so they don't stack. */
+.notes-quick-add:hover::after,
+.notes-quick-add:focus-within::after { opacity: 0; animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .notes-quick-add::after { animation: none; opacity: 0; }
 }
 .notes-quick-input {
   flex: 1;
