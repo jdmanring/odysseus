@@ -113,6 +113,40 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
   let _gcPending = false;      // True while an async major GC cycle is still running
   let _gcMissed  = false;      // True if a response completed while GC was running
 
+  // ---- Idle GC: reclaim transient hover/interaction DOM churn ----
+  // Hovering interactive UI (the Brain memory list, sidebar nav, etc.) creates
+  // short-lived CSS :hover pseudo-elements — real Oilpan-managed DOM Nodes that
+  // are created on hover-enter and orphaned on leave. In a regular browser the
+  // engine collects them on idle under OS memory-pressure; embedded Chromium
+  // (PyQt/Electron/native wrappers) receives no such signal, so this transient
+  // garbage accumulates. The post-response GC below only fires after a chat
+  // reply, so sustained hovering with no chat activity would grow RSS unbounded
+  // until the next response. Fire one async major GC after a window of pointer/
+  // keyboard inactivity. Shares _gcPending so it never stacks with the
+  // post-response cycle, and is gated on document visibility so a backgrounded
+  // tab does no work. Feature-detected: a no-op without --expose-gc (i.e. in
+  // every regular browser, where the engine's own idle GC already handles this).
+  let _idleGcTimer = null;
+  const _IDLE_GC_MS = 8000;  // reclaim ~8 s after the last user input
+  function _scheduleIdleGc() {
+    if (_idleGcTimer) clearTimeout(_idleGcTimer);
+    _idleGcTimer = setTimeout(function () {
+      if (document.visibilityState !== 'visible') return;
+      if (typeof gc === 'function' && !_gcPending) {
+        _gcPending = true;
+        console.log('[GC] idle major async dispatched');
+        gc({ type: 'major', execution: 'async' });
+        setTimeout(function () { _gcPending = false; }, 3000);
+      }
+    }, _IDLE_GC_MS);
+  }
+  // Resetting the timer per input event is allocation-free; passive + capture so
+  // it never blocks scrolling or interferes with app handlers.
+  ['pointermove', 'pointerdown', 'keydown', 'wheel'].forEach(function (ev) {
+    document.addEventListener(ev, _scheduleIdleGc, { passive: true, capture: true });
+  });
+  _scheduleIdleGc();
+
   /** Check if an SSE reader is still actively connected for a session. */
   function hasActiveStream(sessionId) {
     return _streamSessionId === sessionId || _backgroundStreams.has(sessionId) ||
