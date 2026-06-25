@@ -4,6 +4,12 @@
  * ASCII Spinner Module for AI thinking/processing status
  */
 
+// Frames a whirlpool spinner may run before it has ever been visible before it
+// gives up and stops. Covers the synchronous gap between start() and the caller
+// appending the element (~2s at 60fps); past it, an unappended spinner is
+// treated as orphaned and terminates instead of looping forever (issue #107).
+const _WP_ORPHAN_GRACE_FRAMES = 120;
+
 class Spinner {
   constructor(message = "AI is processing", style = "right", animation = "spinner") {
     // Different animation frames
@@ -246,13 +252,23 @@ class Spinner {
 
     this._wpFrame++;
     if (!this.isRunning) return;
-    // Leak-safe self-terminate: stop once our element WAS in the DOM and then
-    // got removed (e.g. a loading row replaced by results). But keep spinning
-    // before it's first appended — start() runs synchronously, before the
-    // caller inserts the element, so it isn't connected on frame 1.
-    const connected = !!(this.element && this.element.isConnected);
-    if (connected) this._wpWasConnected = true;
-    if (connected || !this._wpWasConnected) {
+    // Leak-safe self-terminate. Stop the rAF loop whenever the spinner is not
+    // doing visible work, so an orphaned or hidden spinner cannot burn CPU and
+    // churn canvas garbage forever:
+    //   (a) it became visible and was then removed or hidden (a loading row
+    //       replaced by results, or its panel closed — display:none makes
+    //       offsetParent null), or
+    //   (b) it was never made visible within a short grace window — the caller
+    //       start()ed it (start() runs synchronously, before the element is
+    //       inserted) but then discarded it without ever appending it.
+    // Gate on visibility, not mere isConnected: isConnected stays true for a
+    // display:none element, which would keep a hidden-panel spinner running.
+    const el = this.element;
+    const visible = !!(el && el.isConnected && el.offsetParent !== null);
+    if (visible) this._wpWasVisible = true;
+    const withinGrace = !this._wpWasVisible
+      && (this._wpFrame - 60) < _WP_ORPHAN_GRACE_FRAMES;
+    if (visible || withinGrace) {
       this.rafId = requestAnimationFrame(() => this._drawWhirlpool());
     } else {
       this.isRunning = false;
