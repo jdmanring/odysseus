@@ -124,6 +124,37 @@ repeat back to back. Run the purge off the main thread (in the CDP executor) so
 the socket I/O does not add to the stall. This timing discipline is the
 load-bearing detail of the reclaim layer, not a footnote.
 
+## 2026-06-25 follow-up: idle climb is real, two producers, reclaim made periodic
+
+After the first reclaim fix landed, the app still climbed while idle with panels
+open and eventually filled all RAM. Two findings:
+
+1. **The reclaim was single-shot.** The mouse-idle trigger fired once when the
+   mouse stopped and only re-armed on the next mouse move. A user who walked away
+   got exactly one purge, then unbounded climb. Fixed: a repeating sustained-idle
+   timer (every 4s, purge if no input for 3s), keyboard-aware so typing defers it.
+   `_purge_renderer` keeps the RSS-ceiling + rate-limit, so an idle-but-present
+   user sees a reclaim only every few minutes. This bounds memory regardless of
+   the producer.
+
+2. **Two producers, measured (ev() parsing corrected this time).** With ~10
+   panels open and zero input, RSS climbed ~5 MB/s. Cancelling all 24 running CSS
+   animations (verified 0 running) dropped it to ~3.1 MB/s. So:
+   - ~1.7 MB/s from perpetual CSS animations. The dominant one is
+     `memory-synapse-sweep`, a decorative shimmer on every `#memory-list
+     .memory-item::after` (~21 instances). Already paused when the Brain panel is
+     hidden; still runs while it is open. Layer 1 target and an aesthetic decision.
+   - ~3.1 MB/s from a non-animation continuous repaint that also saturates the
+     renderer main thread (CDP went unresponsive under it: this is the CPU cost
+     too). Backdrop-filter ruled out (0 visible). **Not yet identified**;
+     candidates are a perpetual spinner/canvas (rAF) or interval-driven repaint.
+     Needs a clean live re-measure with the corrected method on next start, before
+     any fix (do not guess the producer).
+
+Net: memory is now **bounded** by the periodic reclaim. Reducing the two
+producers (Layer 1) and unloading hidden panels (Layer 2) lowers the steady-state
+footprint and the CPU, and cuts how often the purge must fire.
+
 ## Sequencing and the single highest-leverage first step
 
 1. **First (highest leverage, smallest change): fix the reclaim call.** The
