@@ -10,6 +10,15 @@ Companion docs: `memory-management-architecture.md` (the strategy),
 `plans/memory-management-plan.md` (the sequenced work), `memory-explosion-research.md`
 (earlier chat/agent-session findings).
 
+## Tooling
+
+`tooling/mem-probe.py` consolidates the read-only diagnostics used throughout this
+doc into one CLI (`counters`, `slope`, `animations`, `raf`, `mutations`,
+`producers`, `purge`). It correlates CDP metrics with the renderer's `/proc` RSS,
+the correlation no off-the-shelf CDP client library provides. Read-only by design
+(only `purge` mutates state); it never clears/pauses/cancels page state. Run with
+`venv/bin/python tooling/mem-probe.py <command>`.
+
 ## Method (how every number below was taken)
 
 - CDP is live whenever the app runs: `qt_wrapper.py` passes
