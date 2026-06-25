@@ -106,4 +106,4 @@ None visible when working correctly; tool calls execute silently. Previously the
 - File upstream issue first (draft: `docs/fork/upstream/issue-drafts/fix-tool-code-pycall-parsing.md`)
 - No screenshots required
 - Related discussion: #2095 (same symptom; raw tool call output instead of execution; reported for Qwen and Mistral; those are different parsers but the same general gap this PR closes for Gemma).
-- `pytest tests/test_tool_parsing_pycall.py`: 9 tests: bash/web_search parsing, MiniMax regression, strip universality, unknown function and malformed syntax rejection
+- `pytest tests/test_tool_parsing_pycall.py`: 10 tests: bash/web_search parsing, MiniMax regression, strip universality, unknown function and malformed syntax rejection

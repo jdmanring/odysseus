@@ -61,31 +61,27 @@ The action buttons and menu button are always visible in the list context. The `
 
 ## Files changed
 
-- `static/style.css` — phase 1 transition override; phase 2 hover suppression; phase 3 always-visible action buttons and menu button
-- `tests/test_memory_list_scroll_oom_css.py` — 11 regression tests (4 phase 1 + 3 phase 2 + 4 phase 3)
+- `static/style.css`: in the `#memory-list` context, `transition: all` is overridden with a compositor-promoted `transition: opacity` (the retained fix). An earlier paint-suppression approach (hover background/border suppression, always-visible action and menu buttons) was reverted to preserve hover UX, now that the tile budget and content-visibility work bound the memory.
+- `tests/test_memory_list_scroll_oom_css.py`: 8 regression tests (NEW FILE)
 
 ---
 
 ## Tests
 
-11 static-analysis tests in `tests/test_memory_list_scroll_oom_css.py`:
+8 static-analysis tests in `tests/test_memory_list_scroll_oom_css.py`:
 
-**Phase 1 (transition):**
-- `#memory-list .memory-item` block contains `transition: opacity`
-- Base `.memory-item` still has `transition: all` (non-list contexts unaffected)
-- `#memory-list .memory-item` block does not contain `transition: all` (comment-stripped)
-- `#memory-list .memory-item` block has no `transition: background` or `transition: border`
+**Transition override (the retained fix):**
+- `#memory-list .memory-item` overrides `transition: all` with `transition: opacity`.
+- Base `.memory-item` still has `transition: all` (non-list contexts unaffected).
+- The `#memory-list .memory-item` block does not contain `transition: all`.
+- The override is compositor-promoted (opacity, not `transition: background`/`border`).
+- Regression guard: the `#memory-list .memory-item` block does not re-add `isolation: isolate`.
 
-**Phase 2 (hover paint):**
-- `test_memory_list_item_no_isolation_isolate` — regression guard against re-adding `isolation: isolate`
-- `#memory-list .memory-item:hover` contains background at non-hover computed value
-- `#memory-list .memory-item:hover` contains `border-color: var(--border)`
-
-**Phase 3 (always-visible):**
-- `#memory-list .memory-item-actions` block has `opacity: 1`
-- `#memory-list .memory-item-actions` block has `transition: none`
-- `#memory-list .memory-menu-btn` block has `opacity: 1`
-- `#memory-list .memory-menu-btn` block has no `transition: background` or `transition: border` (comment-stripped)
+**Reverted-suppression guards:** the earlier paint-suppression approach was backed out;
+these assert it stays out, so hover UX is preserved:
+- No hover background/border suppression on `#memory-list .memory-item:hover`.
+- No always-visible `opacity: 1` override on `#memory-list .memory-item-actions`.
+- No always-visible `opacity: 1` override on `#memory-list .memory-menu-btn`.
 
 ---
 
@@ -94,9 +90,10 @@ The action buttons and menu button are always visible in the list context. The `
 1. Open the Brain panel with 20+ memories.
 2. Enable DevTools → Rendering → Paint flashing (green flash = repaint). Hover over list items — **no green flash** confirms zero paint on hover entry/exit.
 3. Move the cursor up and down over the list for 60 seconds, including repeated passes over the same items. Check RSS via `ps aux` or DevTools Task Manager. Growth should be flat.
-4. Confirm action buttons and menu button are always visible (no longer hidden until hover).
-5. Confirm sweep animation still appears on non-hovered items and suppresses on hover.
-6. `python -m pytest tests/test_memory_list_scroll_oom_css.py -v` — 11 passed.
+4. Confirm action buttons and the menu button reveal on hover normally (the earlier
+   always-visible behaviour was reverted).
+5. Confirm the sweep animation still appears on non-hovered items and suppresses on hover.
+6. `python -m pytest tests/test_memory_list_scroll_oom_css.py -v` (8 passed).
 
 ---
 
