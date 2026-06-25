@@ -117,6 +117,30 @@ VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "bin", "python")
 PORT = os.environ.get("APP_PORT", "7000")
 WINDOW_TITLE = "Odysseus"
 PROFILE_NAME = "odysseus"
+
+
+def _theme_bg_color() -> QColor:
+    """Read the saved theme background from data/user_prefs.json.
+
+    setBackgroundColor() sets the compositor base-background-color — the fill
+    shown when tiles evict under --enable-low-end-device-mode.  Hardcoding
+    #282c34 (the default theme) causes evicted tiles to appear lighter than the
+    actual background on any custom dark theme (e.g. Catppuccin #1e1e2e).
+    Reading the persisted bg at startup keeps eviction fill in sync with the
+    user's real theme colour.
+    """
+    try:
+        prefs_path = os.path.join(INSTALL_DIR, 'data', 'user_prefs.json')
+        with open(prefs_path, encoding='utf-8') as f:
+            prefs = json.load(f)
+        for user_data in prefs.get('_users', {}).values():
+            bg = user_data.get('theme', {}).get('colors', {}).get('bg', '')
+            if bg and bg.startswith('#') and len(bg) == 7:
+                r, g, b = int(bg[1:3], 16), int(bg[3:5], 16), int(bg[5:7], 16)
+                return QColor(r, g, b)
+    except Exception:
+        pass
+    return QColor(0x28, 0x2c, 0x34)  # default Odysseus dark theme
 DATA_DIR = os.path.expanduser("~/.local/share/odysseus/webengine")
 CACHE_DIR = os.path.expanduser("~/.cache/odysseus/webengine")
 
@@ -483,11 +507,9 @@ class OdysseusWindow(QMainWindow):
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
         self._page = page  # held for lifecycle management in changeEvent
-        # Match the compositor clear colour to the default dark theme --bg so
-        # that root-layer tile evictions (caused by --enable-low-end-device-mode)
-        # fill at #282c34 instead of the Qt default, eliminating the visible
-        # lighter rectangle in the 30vh space below the welcome-screen input bar.
-        page.setBackgroundColor(QColor(0x28, 0x2c, 0x34))
+        # Set compositor base-background-colour to the user's saved theme bg.
+        # This is the fill shown when tiles evict under --enable-low-end-device-mode.
+        page.setBackgroundColor(_theme_bg_color())
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
