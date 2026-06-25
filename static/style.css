@@ -11337,11 +11337,13 @@ textarea.memory-add-input {
   overflow: hidden;
 }
 #memory-list .memory-item::after {
-  /* Was @property --sweep animating gradient stop positions (typed custom
-     property, so style recalculation fires for every item every frame). Qt
-     does not forward OS memory pressure to the renderer; raster tiles from
-     the per-frame repaints are not evicted. Use transform instead;
-     overflow:hidden on the parent parks the strip off-screen while idle. */
+  /* Decorative "synapse sweep" strip. It is hover-triggered, NOT perpetual:
+     ~20 rows each running an infinite animation generated raster tiles
+     continuously, and Qt does not evict tiles under memory pressure, so it was
+     a steady, never-reclaimed contributor to the renderer's memory/CPU climb
+     (measured ~1.7 MB/s of the idle climb). At rest the strip is parked off the
+     left edge (inset:-40% + overflow:hidden on the parent), so removing the
+     animation leaves it invisible; the sweep runs once on hover only. */
   content: '';
   position: absolute;
   inset: 0 0 0 -40%;
@@ -11354,25 +11356,21 @@ textarea.memory-add-input {
     color-mix(in srgb, var(--red) 25%, transparent) 50%,
     transparent 100%
   );
-  animation: memory-synapse-sweep 6.2s linear infinite;
-  animation-delay: 0.4s;
 }
-#memory-list .memory-item:nth-child(2n)::after { animation-duration: 7.4s; animation-delay: 1.6s; }
-#memory-list .memory-item:nth-child(3n)::after { animation-duration: 8.8s; animation-delay: 3.2s; }
-#memory-list .memory-item:nth-child(5n)::after { animation-duration: 9.3s; animation-delay: 4.7s; }
-#memory-list .memory-item:nth-child(7n)::after { animation-duration: 5.5s; animation-delay: 2.3s; }
-/* Suppress with opacity, not animation:none. animation:none removes the promoted
-   layer; the compositor recreates it on mouse-leave, producing a gray flash. */
-#memory-list .memory-item:hover::after { opacity: 0; }
+/* One sweep when the pointer enters the row, then it stops (single iteration,
+   not perpetual). This is the cost: at most one short transform animation on the
+   single row the user is pointing at, instead of ~20 always-running ones. */
+#memory-list .memory-item:hover::after { animation: memory-synapse-sweep 6.2s linear; }
 @keyframes memory-synapse-sweep {
-  /* Sweeps right in the first ~12% of the loop (approx. 0.7s at the 6.2s base),
-     then parks off-screen via overflow:hidden until the next cycle. */
+  /* Sweeps right in the first ~12% (approx. 0.7s at the 6.2s base), then parks
+     off-screen via overflow:hidden for the rest of the single iteration. */
   0%   { transform: translateX(0%); }
   12%  { transform: translateX(350%); }
   100% { transform: translateX(350%); }
 }
 @media (prefers-reduced-motion: reduce) {
-  #memory-list .memory-item::after { animation: none; opacity: 0; }
+  #memory-list .memory-item::after,
+  #memory-list .memory-item:hover::after { animation: none; }
 }
 .memory-pinned:hover {
   background: color-mix(in srgb, var(--red) 4%, transparent);
