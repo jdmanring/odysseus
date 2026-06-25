@@ -8,12 +8,14 @@ never evicts tiles without OS memory pressure, so they accumulated without bound
 
 Fix: override with `transition: opacity 0.15s` in the list context. Opacity is
 compositor-promoted (zero raster cost); background and border-color transitions
-are eliminated. Primary bounding is done by the Chromium tile budget flag
-(--enable-low-end-device-mode) and content-visibility:auto on list items.
+are eliminated. content-visibility:auto on list items keeps off-screen rows from
+generating raster tiles at all.
 
 Previous suppression-based fixes (hover background/border-color matching,
-always-visible opacity:1 buttons, transition:none) have been reverted now that
-proper engine-level tile management is in place.
+always-visible opacity:1 buttons, transition:none) have been reverted in favour
+of these compositor-friendly equivalents. (Note: --enable-low-end-device-mode
+was NOT a real bounding mechanism here — the hover OOM is Oilpan detached-DOM
+churn, not raster tiles; the flag has been removed. See jdmanring#96/#97.)
 """
 
 import re
@@ -96,7 +98,8 @@ def test_hover_background_suppression_not_present():
     """
     The old approach of setting #memory-list .memory-item:hover background
     to match the non-hover value has been reverted. Hover UX is restored.
-    Primary tile bounding is now --enable-low-end-device-mode.
+    The transition is compositor-promoted (opacity), so hover deposits no
+    raster tile frames.
     """
     css = _css()
     assert "Suppress paint-inducing background/border-color" not in css
@@ -106,7 +109,7 @@ def test_action_buttons_opacity_suppression_not_present():
     """
     The old approach of fixing #memory-list .memory-item-actions opacity at 1
     and removing its transition has been reverted. Buttons now reveal on hover
-    normally; tile eviction is handled at the engine level.
+    normally via a compositor-promoted opacity transition.
     """
     css = _css()
     assert "#memory-list .memory-item-actions {\n  opacity: 1" not in css
