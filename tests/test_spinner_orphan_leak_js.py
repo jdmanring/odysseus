@@ -1,50 +1,55 @@
-"""Source-text guards for the whirlpool spinner orphan/hidden leak fix
-(jdmanring#107).
+"""Source-text guards for the spinner orphan/hidden leak fix (jdmanring#107).
 
-The whirlpool spinner runs a requestAnimationFrame loop. Its self-terminate
-guard previously kept looping forever while `!_wpWasConnected`, so a spinner that
-was started but never appended (or one inside a display:none panel) burned CPU
-and churned canvas allocations indefinitely. The loop must stop when the spinner
-is not doing visible work.
+All three animated spinners run a continuous loop: whirlpool and sinewave via
+requestAnimationFrame, the ASCII spinner via setInterval. Each previously kept
+looping regardless of whether its element was visible, so a spinner that was
+started but never appended (or one inside a display:none panel) burned CPU and
+churned allocations forever. A single shared guard, _shouldKeepSpinning(), stops
+all three when the spinner is not doing visible work.
 """
 from pathlib import Path
 
 _SRC = (Path(__file__).resolve().parents[1] / "static/js/spinner.js").read_text(encoding="utf-8")
 
 
-def _whirlpool_tail() -> str:
-    # The self-terminate region: from the frame increment to the end of the method.
-    start = _SRC.index("this._wpFrame++;")
+def _guard_body() -> str:
+    start = _SRC.index("_shouldKeepSpinning() {")
     end = _SRC.index("\n  }", start)
     return _SRC[start:end]
 
 
-def test_grace_frames_constant_defined():
-    assert "_WP_ORPHAN_GRACE_FRAMES" in _SRC
+def test_shared_guard_and_grace_constant_exist():
+    assert "_shouldKeepSpinning() {" in _SRC
+    assert "_SPIN_ORPHAN_GRACE_MS" in _SRC
 
 
-def test_terminate_gates_on_visibility_not_just_connected():
+def test_guard_gates_on_visibility_not_just_connected():
     # isConnected is true for display:none; the guard must require offsetParent.
-    tail = _whirlpool_tail()
-    assert "offsetParent" in tail
-    assert "isConnected" in tail
+    body = _guard_body()
+    assert "offsetParent" in body
+    assert "isConnected" in body
 
 
-def test_orphan_grace_window_is_bounded():
+def test_guard_bounds_the_never_visible_grace():
     # An unappended spinner must give up after the bounded grace window rather
-    # than looping forever on the old unbounded `!_wpWasConnected` branch.
-    tail = _whirlpool_tail()
-    assert "_WP_ORPHAN_GRACE_FRAMES" in tail
-    assert "withinGrace" in tail
+    # than looping forever.
+    body = _guard_body()
+    assert "_SPIN_ORPHAN_GRACE_MS" in body
+    assert "_spinWasVisible" in body  # was-visible-then-hidden -> stop
 
 
-def test_unbounded_never_connected_branch_removed():
-    # The old guard that looped forever when never connected must be gone.
-    assert "connected || !this._wpWasConnected" not in _SRC
+def test_all_three_loops_consult_the_guard():
+    # whirlpool (rAF), sinewave (rAF), and ASCII (setInterval) must all gate their
+    # continuation on the shared guard.
+    assert _SRC.count("_shouldKeepSpinning()") >= 4  # def + 3 call sites
+    # The ASCII setInterval path must stop() when the guard fails.
+    idx = _SRC.index("this.intervalId = setInterval(")
+    block = _SRC[idx: idx + 300]
+    assert "_shouldKeepSpinning()" in block
+    assert "this.stop()" in block
+
+
+def test_old_unbounded_guards_removed():
+    # The earlier per-loop guards that could loop forever must be gone.
     assert "_wpWasConnected" not in _SRC
-
-
-def test_loop_still_runs_while_visible():
-    tail = _whirlpool_tail()
-    assert "requestAnimationFrame(() => this._drawWhirlpool())" in tail
-    assert "this.isRunning = false;" in tail
+    assert "_WP_ORPHAN_GRACE_FRAMES" not in _SRC
