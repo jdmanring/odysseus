@@ -194,5 +194,5 @@ The Settings → Image Generation panel (`static/js/settings.js` `initImageSetti
 is scoped to **inpainting** only — it lists inpaint-compatible Stable Diffusion
 models and shows hardcoded fallbacks as "(not detected)" when none are served,
 with no general provider/model path for chat "generate an image" requests. This
-is why image generation cannot be used to test the scroll fix, and is a separate
-labelling/UX bug worth its own issue (not part of the scroll work).
+is why image generation cannot be used to test the scroll fix. Filed as its own
+issue: jdmanring/odysseus#105 (not part of the scroll work).
