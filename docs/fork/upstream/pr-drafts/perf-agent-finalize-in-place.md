@@ -80,7 +80,9 @@ The `else` branch preserves the existing full-render path for the non-streaming 
 
 ## Linked Issue
 
-Fixes # <!-- [add upstream issue number before filing] -->
+Relates to #4644 ("browser tab OOM during long agent interactions"). This finalizes the
+streamed agent reply in place instead of rebuilding it via `innerHTML`. File a focused
+upstream issue if warranted and link it here before submitting.
 
 ## Type of Change
 
