@@ -325,36 +325,35 @@ def test_cdp_browser_call_exists():
     assert "/json/version" in _SRC
 
 
-def test_tile_eviction_uses_browser_target():
-    """
-    The tile eviction call must use _cdp_browser_call, not _cdp_call.
-    Memory.simulatePressureNotification must be sent to the browser target so the
-    browser process broadcasts the pressure notification to all renderer processes
-    via IPC, reaching cc::TileManager where the accumulated hover tiles live.
-    """
-    assert "_cdp_browser_call(" in _SRC
-    assert "'Memory.simulatePressureNotification'" in _SRC
+def test_reclaim_uses_forcibly_purge_not_simulate_pressure():
+    """The renderer reclaim must call Memory.forciblyPurgeJavaScriptMemory.
+    simulatePressureNotification is a no-op on QtWebEngine (measured: RSS
+    unchanged after the call) while forciblyPurge reclaims multiple GB; the no-op
+    call must not be used as the reclaim path (issue #106). Its 'critical' level
+    parameter must be gone (it may survive only in explanatory comments)."""
+    assert "'Memory.forciblyPurgeJavaScriptMemory'" in _SRC
+    assert "'level': 'critical'" not in _SRC
 
 
-def test_tile_eviction_uses_critical_level():
-    """
-    Tile eviction must use 'critical' pressure, not 'moderate'.
-    Under critical pressure, cc::TileManager evicts everything not actively
-    composited — including all stale hover-state tiles from past interaction.
-    Under moderate pressure, recently-used tiles are retained; hover-accumulated
-    tiles may not be evicted because cc considers them recently active.
-    """
-    assert "'level': 'critical'" in _SRC
-    assert "'level': 'moderate'" not in _SRC
+def test_reclaim_gated_by_rss_ceiling_and_rate_limit():
+    """A forcible purge causes a ~1s stutter, so it must be gated: only above an
+    RSS ceiling (so light use never stutters) and rate-limited (no back-to-back
+    purges). Both the ceiling and the interval guard must be present."""
+    assert "_PURGE_RSS_CEILING_KB" in _SRC
+    assert "_PURGE_MIN_INTERVAL_S" in _SRC
+    assert "_last_purge" in _SRC
 
 
-def test_tile_eviction_result_checked():
-    """
-    The CDP eviction call result must be checked and logged.
-    The unconditional print pattern masked silent failures: the call returns
-    None on any error, so checking result is not None is the correct guard.
-    """
-    assert 'result is not None' in _SRC
+def test_reclaim_fired_off_interaction_path_only():
+    """The purge fires only where a stutter is invisible: mouse-idle and
+    focus-loss. It must NOT be fired from the blind periodic mem timer."""
+    assert "_purge_renderer('mouse-idle')" in _SRC
+    assert "_purge_renderer('focus-loss')" in _SRC
+
+
+def test_reclaim_result_checked():
+    """The purge result must be checked and logged (it returns None on error)."""
+    assert 'res is not None' in _SRC
 
 
 def test_mouse_idle_filter_class_present():
@@ -431,10 +430,13 @@ def test_periodic_timer_reduced_to_30s():
     assert "_mem_timer.start(30_000)" in _SRC
 
 
-def test_eviction_telemetry_present():
-    """RSS must be captured before and after the eviction CDP call so logs show
-    whether the call actually freed memory (positive delta) or was a no-op."""
-    block = _log_renderer_memory_block()
-    assert "rss_before" in block
-    evict_pos = block.index("_cdp_browser_call(")
-    assert "rss_after" in block[evict_pos:]
+def test_reclaim_telemetry_present():
+    """The purge must log RSS before and after so logs show how much it actually
+    freed (positive delta) rather than masking a no-op. The telemetry now lives in
+    _purge_renderer, around the forciblyPurge call."""
+    start = _SRC.index("def _purge_renderer(")
+    end = _SRC.index("\n    def ", start + 1)
+    block = _SRC[start:end]
+    purge_pos = block.index("forciblyPurgeJavaScriptMemory")
+    assert "delta=" in block[purge_pos:]
+    assert "_renderer_rss_kb()" in block
