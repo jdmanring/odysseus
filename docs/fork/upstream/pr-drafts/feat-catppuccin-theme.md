@@ -1,7 +1,7 @@
 # PR Draft: feat/catppuccin-theme → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:feat/catppuccin-theme`
-**Base:** `jdmanring/odysseus:dev`
+**Branch:** `feat/catppuccin-theme`
+**Base:** `dev`
 **Issue:** [#30](https://github.com/jdmanring/odysseus/issues/30)
 **Status:** Ready to file
 

@@ -1,6 +1,6 @@
 # PR Draft: fix/api-hosts-provider-gaps → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/api-hosts-provider-gaps`
+**Branch:** `fix/api-hosts-provider-gaps`
 **Fork issue:** [#62](https://github.com/jdmanring/odysseus/issues/62) (open)
 **Status:** Single clean commit (`4047e40a`). File upstream issue first, fill in `Fixes #___`, then open PR.
 

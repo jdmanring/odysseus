@@ -1,6 +1,6 @@
 # PR Draft: fix/tool-bubble-timer-leak → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/tool-bubble-timer-leak`
+**Branch:** `fix/tool-bubble-timer-leak`
 **Issue:** [#73](https://github.com/jdmanring/odysseus/issues/73)
 **Base:** `upstream-mirror` (latest upstream commit)
 **Status:** Ready to file

@@ -1,6 +1,6 @@
 # PR Draft: perf/round-finalize-inplace → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:perf/round-finalize-inplace`
+**Branch:** `perf/round-finalize-inplace`
 **Issue:** [#77](https://github.com/jdmanring/odysseus/issues/77) (fork tracking)
 **Status:** Ready to file
 

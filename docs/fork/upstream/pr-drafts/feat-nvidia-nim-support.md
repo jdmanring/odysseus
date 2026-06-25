@@ -1,6 +1,6 @@
 # PR Draft: feat/nvidia-nim-support → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:feat/nvidia-nim-support`
+**Branch:** `feat/nvidia-nim-support`
 **Issue:** [#56](https://github.com/jdmanring/odysseus/issues/56) (fork tracking)
 **Status:** Ready to file
 

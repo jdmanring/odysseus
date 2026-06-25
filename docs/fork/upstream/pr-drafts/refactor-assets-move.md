@@ -1,6 +1,6 @@
 # PR Draft: refactor/assets-move → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:refactor/assets-move`
+**Branch:** `refactor/assets-move`
 **Issue:** [#19](https://github.com/jdmanring/odysseus/issues/19) (fork tracking)
 **Status:** Ready to file
 

@@ -1,6 +1,6 @@
 # PR Draft: fix/continue-btn-weakref → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/continue-btn-weakref`
+**Branch:** `fix/continue-btn-weakref`
 **Issue:** [#78](https://github.com/jdmanring/odysseus/issues/78) (fork tracking)
 **Status:** Ready to file
 

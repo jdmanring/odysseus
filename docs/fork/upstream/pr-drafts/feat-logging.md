@@ -1,6 +1,6 @@
 # PR Draft: feat/logging → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:feat/logging`
+**Branch:** `feat/logging`
 **Issue:** [#31](https://github.com/jdmanring/odysseus/issues/31) (fork tracking)
 **Upstream Issues Addressed:**
 - [#3803](https://github.com/pewdiepie-archdaemon/odysseus/issues/3803); PII in logs, no audit trail for sensitive operations

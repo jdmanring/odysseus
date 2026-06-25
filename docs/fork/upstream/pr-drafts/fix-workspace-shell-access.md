@@ -1,6 +1,6 @@
 # PR Draft: fix/workspace-shell-access → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/workspace-shell-access`
+**Branch:** `fix/workspace-shell-access`
 **Issue:** [#47](https://github.com/jdmanring/odysseus/issues/47) (fork tracking, open — bash/python verified; web_search unverified)
 **Status:** Single clean commit. File upstream issue first, fill in `Fixes #___`, then open PR.
 

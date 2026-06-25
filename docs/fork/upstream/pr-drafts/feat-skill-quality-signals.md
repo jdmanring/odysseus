@@ -1,7 +1,7 @@
 # PR Draft: feat/skill-quality-signals → pewdiepie-archdaemon/odysseus
 
 **Fork issue:** [#87](https://github.com/jdmanring/odysseus/issues/87)
-**Branch:** `jdmanring/odysseus:feat/skill-quality-signals`
+**Branch:** `feat/skill-quality-signals`
 **Origin:** `upstream-mirror` (latest sync point)
 **File this after:** `fix/skill-lifecycle-correctness` (audit pipeline must be functional)
 

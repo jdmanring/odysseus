@@ -1,6 +1,6 @@
 # PR Draft: feat/longcat-provider → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:feat/longcat-provider`
+**Branch:** `feat/longcat-provider`
 **Issues:** [#58](https://github.com/jdmanring/odysseus/issues/58) (provider integration), [#61](https://github.com/jdmanring/odysseus/issues/61) (max_tokens + stream_options gaps)
 **Status:** 3 commits — ready to file. File upstream issue first.
 

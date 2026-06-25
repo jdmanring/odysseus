@@ -1,6 +1,6 @@
 # PR Draft: fix/stream-429-backoff → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/stream-429-backoff`
+**Branch:** `fix/stream-429-backoff`
 **Issue:** [#55](https://github.com/jdmanring/odysseus/issues/55) (fork tracking)
 **Status:** Ready to file
 

@@ -1,6 +1,6 @@
 # PR Draft: perf/rewrite-streaming-renderer → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:perf/rewrite-streaming-renderer`
+**Branch:** `perf/rewrite-streaming-renderer`
 **Issue:** [#79](https://github.com/jdmanring/odysseus/issues/79) (fork tracking)
 **Status:** Ready to file
 

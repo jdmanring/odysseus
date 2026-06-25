@@ -1,6 +1,6 @@
 # PR Draft: perf/rendertail-text-only-path → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:perf/rendertail-text-only-path`
+**Branch:** `perf/rendertail-text-only-path`
 **Issue:** [#75](https://github.com/jdmanring/odysseus/issues/75) (fork tracking)
 **Status:** Ready to file
 

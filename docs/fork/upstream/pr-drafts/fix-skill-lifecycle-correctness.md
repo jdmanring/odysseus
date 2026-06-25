@@ -1,6 +1,6 @@
 # PR Draft: fix/skill-lifecycle-correctness → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:fix/skill-lifecycle-correctness`
+**Branch:** `fix/skill-lifecycle-correctness`
 **Issue:** [#86](https://github.com/jdmanring/odysseus/issues/86)
 **Base:** `upstream-mirror` (latest upstream commit)
 **Status:** Ready to file

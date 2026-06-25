@@ -1,6 +1,6 @@
 # PR Draft: feat/ai-documentation-system → pewdiepie-archdaemon/odysseus:dev
 
-**Branch:** `jdmanring/odysseus:feat/ai-documentation-system`
+**Branch:** `feat/ai-documentation-system`
 **Issue:** [#18](https://github.com/jdmanring/odysseus/issues/18) (fork tracking)
 **Status:** Ready to file
 
