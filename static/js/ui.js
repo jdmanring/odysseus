@@ -12,6 +12,17 @@ import { nextToolWindowZ, topToolWindowZ } from './toolWindowZOrder.js';
 
 let toastEl = null;
 let autoScrollEnabled = true;
+// The view is "pinned" when it sits within the follow distance of the bottom.
+// This is the real auto-follow intent signal: set false only when the user
+// scrolls away by more than the follow distance, true again when they return.
+// The stick-to-bottom observer reads it so a user who has scrolled up is never
+// yanked back down. Updated on every scroll. (autoScrollEnabled is set true at
+// submit and never cleared, so it is not a user-intent signal on its own.)
+let isPinned = true;
+// Match the follow loop's distance bail (see _smoothScrollStep): the lerp
+// leaves transient gaps while catching up, so a tighter threshold would flip
+// isPinned false mid-stream and break following.
+function _followDistance(box) { return Math.max(300, box.clientHeight * 1.5); }
 let hoveredToggleCard = null;
 let hoveredToggleWindow = null;
 let hoveredDockChip = null;
@@ -501,6 +512,62 @@ export function scrollHistoryInstant() {
   if (_scrollBox) {
     _scrollBox.scrollTop = _scrollBox.scrollHeight;
   }
+}
+
+// Stick-to-bottom: the single source of truth for staying pinned. Re-pins the
+// view to the bottom on any geometry change while the view is pinned —
+// covering, with one mechanism: late async growth after the follow loop has
+// stopped (image decode replacing a fixed-size skeleton, syntax-highlight
+// reflow, the final streamed block) and the mid-stream "Thinking" box being
+// removed and replaced by the real message (a shrink then grow).
+//
+// Reads isPinned from the last scroll position (before the growth), so a single
+// large block that lands below the fold still re-pins — measuring distance
+// after the growth would defeat exactly that case. Defers only while the smooth
+// follow loop is actively animating (_scrollRafId set), so continuous streaming
+// keeps its gentle lerp; the loop stays armed while tokens flow and goes idle
+// during a pause, which is when the observer takes over.
+//
+// Design follows the mainstream stick-to-bottom pattern (ResizeObserver as the
+// single growth trigger, re-pin only when already at/near the bottom). See
+// docs/fork/chat-scroll-research.md for the prior art and citations. #chat-history
+// is a fixed-height scroll container whose messages are direct children with no
+// inner wrapper, so a ResizeObserver on the container alone never fires on
+// content growth; a MutationObserver catches DOM-driven growth and attaches a
+// ResizeObserver to each child for pure layout growth.
+let _stickRaf = null;
+function _initStickToBottom() {
+  const box = document.getElementById('chat-history');
+  if (!box) { setTimeout(_initStickToBottom, 500); return; }
+  _scrollBox = box;
+  box.addEventListener('scroll', () => {
+    isPinned = (box.scrollHeight - box.scrollTop - box.clientHeight) <= _followDistance(box);
+  }, { passive: true });
+  const repin = () => {
+    if (!isPinned || _scrollRafId || _stickRaf) return;
+    _stickRaf = requestAnimationFrame(() => {
+      _stickRaf = null;
+      if (!isPinned || _scrollRafId) return;
+      box.scrollTop = box.scrollHeight - box.clientHeight;
+    });
+  };
+  const ro = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(repin) : null;
+  if (ro) { for (const child of box.children) ro.observe(child); }
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver((records) => {
+      if (ro) {
+        for (const rec of records) {
+          rec.addedNodes && rec.addedNodes.forEach((n) => { if (n.nodeType === 1) ro.observe(n); });
+        }
+      }
+      repin();
+    }).observe(box, { childList: true, subtree: true, characterData: true });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initStickToBottom);
+} else {
+  _initStickToBottom();
 }
 
 /**
