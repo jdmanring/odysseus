@@ -1819,6 +1819,16 @@ body.bg-pattern-sparkles {
       padding-left: max(0px, calc((100% - var(--chat-max)) / 2));
       padding-right: max(12px, calc((100% - var(--chat-max)) / 2 + 12px));
       contain: layout style;
+      background: var(--bg);
+    }
+    /* Pattern and frosted themes project a canvas behind the chat area.
+       Restore transparency so the canvas shows through. */
+    body.theme-frosted .chat-history,
+    body.bg-pattern-dots .chat-history,
+    body.bg-pattern-synapse .chat-history,
+    body.bg-pattern-sparkles .chat-history,
+    body.bg-pattern-petals .chat-history {
+      background: transparent;
     }
     /* Sortable Cookbook column headers had no visual cue, so users couldn't tell
        a header was clickable (the Newest sort on the Model column was invisible).
