@@ -31,6 +31,32 @@ No evaluator ⇒ no pressure votes ⇒ no eviction. (ChromeOS/Chromecast have th
 separate components; desktop Linux was simply never given one.) This also explains why
 `Memory.simulatePressureNotification` is a measured no-op for us.
 
+## 1b. Prior art — is someone already doing this? (checked 2026-06-26)
+
+**Upstream (Chrome/Chromium desktop Linux): no landed project, and no owner.** The chromium-dev
+thread *"Memory pressure in an embedded linux environment"* (Igalia's Mario Sanchez Prada
+participating) discusses exactly this — Chromium reads `/proc/meminfo`, ignores cgroup limits, OOMs
+under constraint — but **concludes with no patch, no merged CL, no assigned owner**, only pointers
+to downstream work and the (now-defunct) "memory coordinator" idea. So an upstream PR would **not**
+duplicate existing work; the gap is real and unclaimed.
+
+**Downstream implementations exist — adapt, don't invent:**
+- **ChromeOS** — the canonical PSI `MemoryPressureMonitor` (the reference to port).
+- **Chromecast** — maintains its own under `chromecast/`.
+- **Endless OS** — *"a custom implementation based on ChromiumOS's MemoryPressureMonitor."* Most
+  relevant: a **desktop-Linux distro shipping Chromium** — almost exactly our case. Primary
+  reference to study (GPL/BSD Chromium licensing applies — check before lifting code).
+- The 2015 starter CL `crrev/1250093006` (ChromeCast-context polling evaluator).
+
+**Implication:** this lowers the build effort (port a known design, don't design one) **and**
+strengthens the contribution case (a wanted, unowned gap with proven downstream precedent).
+
+**Before writing code, still confirm nothing is mid-flight** on the live trackers (web search can't
+see these well): Chromium issue tracker (`issues.chromium.org`, search "Linux memory pressure" /
+"PSI evaluator"), Chromium Gerrit (`chromium-review.googlesource.com`), Qt (`bugreports.qt.io`,
+QtWebEngine), and consider pinging the chromium-dev thread / Igalia (they own the most embedded-Linux
+Chromium expertise and have already flagged it).
+
 ## 2. What an evaluator must do (small, well-defined interface)
 
 A `SystemMemoryPressureEvaluator` subclass (ref: `system_memory_pressure_evaluator_win.cc`,
