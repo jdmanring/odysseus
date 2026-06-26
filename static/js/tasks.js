@@ -3002,10 +3002,21 @@ export function openTasks(focusId, opts) {
     const now = new Date();
     const day = now.toLocaleDateString([], { weekday: 'long' });
     const date = now.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-    const local = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    el.textContent = `${day}, ${date} · ${local}`;
+    // Minute resolution (no seconds). Showing live seconds repainted the Tasks
+    // modal and churned a detached text node every second for no real benefit;
+    // since Qt does not evict tiles below memory pressure, that per-second churn
+    // accumulated. At minute resolution the string only changes once a minute, and
+    // the guard below skips the textContent write (and its repaint) on the other
+    // ~59 ticks — eliminating the producer. (The ::after layer isolation in CSS
+    // cut the per-repaint AREA but not the per-second FREQUENCY; this removes the
+    // frequency, which is what actually mattered.)
+    const local = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const next = `${day}, ${date} · ${local}`;
+    if (el.textContent !== next) el.textContent = next;
   }
   _tickClock();
+  // Tick every second only to land promptly on the minute boundary; the guard in
+  // _tickClock makes all but ~1 tick/min a no-op (no write, no repaint, no node).
   _clockInterval = setInterval(_tickClock, 1000);
 
   // Make draggable — shared helper handles drag + L/R dock + (none) fs.
