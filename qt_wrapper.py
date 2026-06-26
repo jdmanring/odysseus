@@ -593,6 +593,7 @@ class OdysseusWindow(QMainWindow):
         # Oilpan node counts. When node accumulation is high, triggers a CDP purge
         # so collection doesn't wait for the next focus-loss event.
         _last_vmpeak: list[int] = [0]  # mutable cell for closure capture
+        _last_host_rss: list[int] = [0]  # host-process RSS, previous sample
 
         def _log_renderer_memory():
             rss_before = 0
@@ -612,6 +613,25 @@ class OdysseusWindow(QMainWindow):
                                           flush=True)
                 except OSError as e:
                     print(f'[MEM] error: {e}', flush=True)
+            # Host-process RSS. This (qt_wrapper.py) embeds Chromium's browser
+            # process plus the in-process GPU thread (Chrome_InProcGPUThread) and
+            # the NetworkServiceInProcess2 / TracingServiceInProcess features — so
+            # it is the largest single consumer in the stack and is NOT covered by
+            # the renderer-pid reading above. We track it here to answer the open
+            # question of whether that footprint is a fixed baseline or climbs with
+            # use (issue #112). The per-sample delta makes growth visible directly.
+            try:
+                with open('/proc/self/status') as f:
+                    for line in f:
+                        if line.startswith('VmRSS'):
+                            host_rss = int(line.split()[1])
+                            delta = host_rss - _last_host_rss[0] if _last_host_rss[0] else 0
+                            _last_host_rss[0] = host_rss
+                            print(f'[MEM] host pid={os.getpid()} VmRSS: '
+                                  f'{host_rss} kB (delta={delta:+d} kB)', flush=True)
+                            break
+            except OSError as e:
+                print(f'[MEM] host error: {e}', flush=True)
             counts = _cdp_call('Memory.getDOMCounters')
             if counts:
                 nodes = counts.get('nodes', 0)
