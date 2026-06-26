@@ -141,14 +141,17 @@ def test_memory_sweep_animation_uses_transform():
 
 
 def test_memory_sweep_hover_does_not_use_animation_none():
-    # `animation: none` on hover destroys the compositor layer and recreates it
-    # on mouse-leave, causing a gray-frame flash. The hover rule must suppress
-    # the sweep with opacity only (compositor-friendly) instead.
+    # The sweep is now hover-TRIGGERED (a single iteration on hover; #108), not a
+    # perpetual animation suppressed on hover. The hover rule must still not use
+    # `animation: none` (which would destroy the promoted layer and gray-flash);
+    # it triggers the sweep animation instead.
     idx = _CSS.find("#memory-list .memory-item:hover::after")
     assert idx >= 0, "hover rule for sweep must exist"
-    rule = _CSS[idx : idx + 200]
+    rule = _CSS[idx : _CSS.find("}", idx) + 1]  # just this rule
     assert "animation: none" not in rule, (
-        "hover must not use animation:none — use opacity:0 to avoid "
-        "compositor layer teardown and the resulting gray-frame flash"
+        "hover must not use animation:none — it triggers a single sweep instead, "
+        "which avoids the compositor layer teardown / gray-frame flash"
     )
-    assert "opacity: 0" in rule or "opacity:0" in rule
+    assert "animation: memory-synapse-sweep" in rule, (
+        "hover must trigger the sweep (the sweep is hover-triggered, not perpetual)"
+    )
