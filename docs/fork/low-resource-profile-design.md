@@ -48,6 +48,25 @@ where we can read a more accurate signal directly:
   `llvmpipe` check we already proved out for the GPU incident).
 - **Renderer-side (for effects):** `navigator.deviceMemory` + `prefers-reduced-motion`.
 
+### Cross-platform — the signals are per-OS (the wrappers are separate)
+
+`/proc/meminfo` and `/dev/dri` are **Linux-only**. Odysseus ships **three separate wrappers**
+(`qt_wrapper.py` / `mac_wrapper.py` / `windows_wrapper.py`), so each implements the *same Rung-1
+logic* (the `_classify_resources` mapping is platform-agnostic) with its own native signal. The
+reclaim levers, env overrides, profile defaults, and the fail-safe are identical; only the two
+reader functions differ:
+
+| Platform (wrapper) | Total RAM | Software render |
+|---|---|---|
+| **Linux** (`qt_wrapper.py`) — **shipped** | `/proc/meminfo` `MemTotal` | `/dev/dri/renderD*` + sysfs `card*/device/driver` (framebuffer-only ⇒ software) |
+| **macOS** (`mac_wrapper.py`) — TODO | `sysctl -n hw.memsize` | rare on Metal; low value — rely on RAM (optionally `system_profiler SPDisplaysDataType`) |
+| **Windows** (`windows_wrapper.py`) — TODO | `GlobalMemoryStatusEx` via `ctypes` (`ullTotalPhys`) | WARP/DXGI adapter check (complex — defer; rely on RAM initially) |
+
+So **today the auto-detection is Linux-only**; macOS/Windows currently fall through to the standard
+profile (still safe — env overrides work everywhere). Bringing them up is mechanical: port the two
+reader functions per the table; `_classify_resources` and everything downstream is shared. Caveat:
+those readers can only be runtime-verified on their own OS.
+
 Threshold for "low-resource" (defensible, not arbitrary): align with `IsLowEndDevice()`'s history
 (≤512 MB originally, relaxed toward ≤1 GB) and `deviceMemory` buckets — treat **≤ ~2 GB total RAM
 or software rendering** as the constrained profile. Exact cutoff is an app judgment; the *pattern*
