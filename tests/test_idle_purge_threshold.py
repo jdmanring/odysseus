@@ -38,3 +38,11 @@ def test_prompt_reclaim_paths_exist_for_leaving():
     # The "user left" cases reclaim immediately, without the idle delay.
     assert "_purge_renderer('focus-loss')" in _SRC
     assert "_purge_renderer('minimized')" in _SRC
+
+
+def test_rss_ceiling_is_tunable_with_safe_floor():
+    # Adaptive-loading lever: low-RAM machines can tighten the ceiling. But the
+    # floor must stay above the ~430 MB working set or it would purge constantly.
+    assert "ODYSSEUS_PURGE_CEILING_MB" in _SRC
+    m = re.search(r"max\(512,\s*int\(float\(os\.environ\.get\('ODYSSEUS_PURGE_CEILING_MB'", _SRC)
+    assert m, "RSS ceiling must be env-tunable with a >=512 MB floor"
