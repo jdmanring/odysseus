@@ -116,42 +116,8 @@ def test_ge_transform_popup_retains_backdrop_filter():
     # 4% translucency — blur is faint but intentional. Kept.
     assert _near(".ge-transform-popup {", "backdrop-filter")
 
-
-# ---------------------------------------------------------------------------
-# Brain panel sweep animation — must use transform, not @property custom property
-# ---------------------------------------------------------------------------
-
-def test_memory_sweep_uses_no_css_property_registration():
-    # The @property --sweep registration forced per-item style recalculation
-    # every frame (typed custom properties invalidate computed styles on change).
-    # Qt does not forward OS memory pressure to the renderer; raster tiles from
-    # the per-frame repaints accumulated without eviction.
-    assert "@property --sweep {" not in _CSS
-    assert "syntax: '<percentage>'" not in _CSS
-
-
-def test_memory_sweep_animation_uses_transform():
-    # The memory-synapse-sweep keyframe must animate transform (GPU-composited),
-    # not the --sweep custom property (main-thread, triggers raster tile churn).
-    idx = _CSS.find("@keyframes memory-synapse-sweep {")
-    assert idx >= 0, "memory-synapse-sweep keyframe must exist"
-    block = _CSS[idx : idx + 400]
-    assert "transform" in block, "sweep must animate transform"
-    assert "--sweep" not in block, "sweep must not animate --sweep custom property"
-
-
-def test_memory_sweep_hover_does_not_use_animation_none():
-    # The sweep is now hover-TRIGGERED (a single iteration on hover; #108), not a
-    # perpetual animation suppressed on hover. The hover rule must still not use
-    # `animation: none` (which would destroy the promoted layer and gray-flash);
-    # it triggers the sweep animation instead.
-    idx = _CSS.find("#memory-list .memory-item:hover::after")
-    assert idx >= 0, "hover rule for sweep must exist"
-    rule = _CSS[idx : _CSS.find("}", idx) + 1]  # just this rule
-    assert "animation: none" not in rule, (
-        "hover must not use animation:none — it triggers a single sweep instead, "
-        "which avoids the compositor layer teardown / gray-frame flash"
-    )
-    assert "animation: memory-synapse-sweep" in rule, (
-        "hover must trigger the sweep (the sweep is hover-triggered, not perpetual)"
-    )
+# NOTE: memory-synapse-sweep tests intentionally live in
+# test_brain_panel_oom_css.py, not here. They were previously duplicated in this
+# file, which coupled the gpu-compositor-flicker (backdrop-filter) work to the
+# brain-panel-oom (#108) animation work — two unrelated concerns. Per "one thing
+# per PR", this file now guards only the backdrop-filter removals.
