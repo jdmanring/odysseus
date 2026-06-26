@@ -291,11 +291,19 @@ renderer's `--enable-features` flags). That explains the large host baseline.
   sawtooth sense), but the resting floor after heavy use is ~40% above fresh.
 
 **Severity: Medium, bounded — not a leak, not a blocker.** Does not climb while idle, so it
-won't OOM a left-open session. The lever is host/GPU-side, distinct from the renderer reclaim:
-Chromium GPU-memory flags (bound the command-buffer / transfer-buffer / tile cache), or the
-`--in-process-gpu` vs separate-GPU-process trade-off (separate process = the high-water lives in
-a killable/evictable process, at the cost of an IPC hop). Filed as **fork issue #114**; do not
-fold into the renderer reclaim work. Caveat: the controlled *repeat-identical-cycle* test
+won't OOM a left-open session. Filed as **fork issue #114**; do not fold into the renderer
+reclaim work.
+
+**Flag lever ruled out (verified 2026-06-25).** The legacy GPU/tile-memory cap switches are
+**removed from modern Chromium** (Qt6): `--max-tiles-for-interest-area` (gone from
+`cc/base/switches.cc`; it's a `chrome://flags` entry, not a switch — and was *empirically
+dropped* from the QtWebEngine renderer cmdline when trialed) and `--force-gpu-mem-available-mb`
+(gone from `gpu/config/gpu_switches.cc`). Modern Chromium computes the tile/GPU budget
+internally (≈ `IsLowEndDevice()` + system RAM) with no command-line cap. The only flag that
+lowers it is `--enable-low-end-device-mode`, which inseparably bundles the 16-bit-color
+downgrade (the lighter-rectangle regression). So there is **no surgical flag**. Remaining options
+(see #114): accept the bounded high-water (recommended), or investigate a separate GPU process
+(evictable) — neither is a quick flag. Caveat: the controlled *repeat-identical-cycle* test
 (does the floor rise on identical repeats, or only on new content?) was not cleanly isolated —
 the deceleration + idle-flat strongly indicate a complexity ceiling, but a long-session re-check
 would firm up "ceiling" vs "very slow ratchet."
