@@ -1469,7 +1469,19 @@ function _scanAndWire() {
     injectMinimizeButton(modal, id);
   }
 }
-const _scanTimer = setInterval(_scanAndWire, 1000);
+// Idle quiescence (#118): the auto-wire scan is a perpetual 1s timer. Behaviour
+// is unchanged while the window is visible, but pause it when the page is hidden
+// so a backgrounded app stops waking every second; resume (with one catch-up
+// scan) on return.
+let _scanTimer = setInterval(_scanAndWire, 1000);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (_scanTimer) { clearInterval(_scanTimer); _scanTimer = null; }
+  } else if (!_scanTimer) {
+    _scanAndWire();
+    _scanTimer = setInterval(_scanAndWire, 1000);
+  }
+});
 // First scan after DOM ready
 if (document.readyState !== 'loading') {
   setTimeout(_scanAndWire, 100);
