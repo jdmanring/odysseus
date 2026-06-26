@@ -90,11 +90,61 @@ the engine"):
 - No upstream PR proposes lazy/deferred MCP startup or process-footprint reduction.
 - Maps to open issues **#2140** (eager init blocks UI) and **#3824** (dynamic MCP lifecycle),
   neither with a maintainer-endorsed approach or linked PR.
-- ⚠ Open PR **#4812** ("retain startup tasks and reap the npx probe on cancel") edits the same
-  `register_builtin_servers` startup-task region — **rebase E1 around it before filing.**
 - Per [[feedback_initiative_absent_signal]]: neither buy-in nor rejection ⟹ research (done)
   and implement if worthy (it is). Stage as a clean candidate citing this prior art so a
   maintainer can bless the approach.
+
+## Reconciliation with open PR #4812 (reconciled 2026-06-25)
+
+**PR #4812** ("fix(mcp): retain startup tasks and reap the npx probe on cancel", Fixes #4592,
+OPEN, base `dev`, MERGEABLE) edits the *same* loop in `register_builtin_servers`. Its changes:
+1. Adds a module-level `_BG_TASKS: set` and a `_spawn_bg(coro)` helper that holds a **strong
+   reference** to a fire-and-forget task until it finishes (asyncio only weak-refs
+   `create_task` results, so the GC can collect a connect task mid-flight and the server
+   silently never registers).
+2. Routes both startup sites through it: `asyncio.create_task(_connect_python_server(...))` →
+   `_spawn_bg(_connect_python_server(...))`, and likewise for `_start_npx_servers()`.
+3. Adds a `CancelledError` reaper around the npx `--version` probe subprocess.
+
+**Conflict analysis — complementary, single shared line.**
+
+| | #4812 | E1 |
+|---|---|---|
+| Touches | the eager `create_task` line + npx probe | the eager `create_task` line (wraps it in eager/deferred branch) |
+| Logic | makes startup tasks GC-safe | defers 3 of 4 builtins; eager set = `{memory}` |
+| Test file | `tests/test_builtin_mcp_bg_tasks.py` | `tests/test_mcp_lazy_connect.py` (disjoint) |
+
+- **No semantic conflict.** #4812 hardens *how* an eager task is held; E1 changes *which*
+  servers are eager. E1's deferred branch spawns **no task**, so #4812's weak-ref fix simply
+  does not apply to it. E1 also *reduces* the eager task count 4 → 1, shrinking #4812's
+  surface. The npx-probe and `_start_npx_servers` parts of #4812 are untouched by E1.
+- **One textual conflict:** the shared `asyncio.create_task(_connect_python_server(...))` line.
+
+**Exact merged resolution** (keep #4812's `_spawn_bg`; E1's eager branch routes through it):
+
+```python
+for server_id, (script, name) in _BUILTIN_SERVERS.items():
+    script_path = os.path.join(base_dir, script)
+    if not os.path.exists(script_path):
+        logger.warning(f"Built-in MCP server script not found: {script_path}")
+        continue
+    if server_id in _EAGER_SERVERS:
+        _spawn_bg(_connect_python_server(server_id, script_path, name))   # #4812 helper
+    else:
+        mcp_manager.mark_deferred(server_id, name)                        # E1
+        logger.info(f"Built-in MCP server deferred (lazy): {name}")
+```
+
+**Filing order & action:**
+- **Prefer #4812 to merge first.** Then E1 branches/rebases from the synced `upstream-mirror`
+  (which now contains `_spawn_bg`) and the eager branch uses `_spawn_bg` — single clean commit.
+- If E1 were to land first, its lone eager `memory` connect keeps the bare `create_task`
+  (the pre-existing weak-ref behavior — **no worse than today**, and strictly better since 3
+  fewer eager tasks); whoever merges #4812 then wraps E1's eager branch with the same hunk.
+- **No code change to E1 now**, and **do not duplicate `_BG_TASKS`/`_spawn_bg`** in E1 (that
+  would manufacture the conflict and duplicate the mechanism — adopt #4812's primitive at
+  rebase time instead; see [[feedback_senior_consolidation]]). E1 cannot be rebased onto
+  #4812 today because #4812 is not yet in `upstream-mirror`.
 
 ## Verification
 - `tests/test_mcp_lazy_connect.py` (6): deferred status + idempotence; lazy spawn-on-first-
