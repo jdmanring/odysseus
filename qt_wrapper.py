@@ -751,17 +751,18 @@ class OdysseusWindow(QMainWindow):
     def changeEvent(self, event):
         if event.type() == QEvent.Type.WindowStateChange:
             if self.isMinimized():
-                # Freeze halts rendering and releases compositor tile memory.
-                # Risk: active SSE streams pause during freeze — acceptable for
-                # short minimizes; the stream resumes when the page is thawed.
-                self._page.setLifecycleState(QWebEnginePage.LifecycleState.Frozen)
-                print('[LIFECYCLE] page frozen (minimized)', flush=True)
-            else:
-                self._page.setLifecycleState(QWebEnginePage.LifecycleState.Active)
-                print('[LIFECYCLE] page active (restored)', flush=True)
+                # Reclaim renderer memory while minimized WITHOUT freezing the page.
+                # The lifecycle freeze released compositor memory but left the web
+                # content unresponsive to input after the Frozen->Active thaw — Qt
+                # documents that a non-Active page can lose HTML input, says
+                # "a visible page must remain in the Active state", and PyQt's
+                # lifecycle transitions are unreliable (issue #109). The gated purge
+                # frees memory without touching the lifecycle state; its ~1s stutter
+                # is invisible while minimized.
+                self._purge_renderer('minimized')
         elif event.type() == QEvent.Type.WindowDeactivate:
-            # Minimize fires both WindowStateChange and WindowDeactivate; skip the
-            # GC timer here to avoid queuing runJavaScript on a frozen page.
+            # Minimize fires both WindowStateChange and WindowDeactivate; only run
+            # the focus-loss GC when actually losing focus (not minimizing).
             if not self.isMinimized():
                 self._gc_focus_timer.start(500)
         elif event.type() == QEvent.Type.WindowActivate:
