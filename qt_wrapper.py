@@ -309,7 +309,13 @@ _PURGE_MIN_INTERVAL_S = 15
 # click — or dropping a mid-drag mouseup — left Chromium's left-button state stuck
 # ("can't left-click, right-click works"). The prompt-reclaim-on-leave cases are
 # handled separately and without this delay by the focus-loss and minimize purges.
-_IDLE_RECLAIM_AFTER_S = 45.0
+# Tunable via ODYSSEUS_IDLE_RECLAIM_S (lower = reclaims sooner but the ~1s purge
+# risks landing on an interaction; raise until no stutter is noticed). Floored at
+# 2 s; default 45 s is a safe away-from-keyboard gap.
+try:
+    _IDLE_RECLAIM_AFTER_S = max(2.0, float(os.environ.get('ODYSSEUS_IDLE_RECLAIM_S', '45')))
+except ValueError:
+    _IDLE_RECLAIM_AFTER_S = 45.0
 
 # GC request cell — written by background threads (PSI monitor), read and drained
 # by a 250 ms QTimer on the Qt main thread.  CPython's GIL makes single-element
