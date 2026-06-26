@@ -48,24 +48,33 @@ where we can read a more accurate signal directly:
   `llvmpipe` check we already proved out for the GPU incident).
 - **Renderer-side (for effects):** `navigator.deviceMemory` + `prefers-reduced-motion`.
 
-### Cross-platform — the signals are per-OS (the wrappers are separate)
+### Cross-platform — Rung-1's reclaim profile is Linux-specific *by necessity*
 
-`/proc/meminfo` and `/dev/dri` are **Linux-only**. Odysseus ships **three separate wrappers**
-(`qt_wrapper.py` / `mac_wrapper.py` / `windows_wrapper.py`), so each implements the *same Rung-1
-logic* (the `_classify_resources` mapping is platform-agnostic) with its own native signal. The
-reclaim levers, env overrides, profile defaults, and the fail-safe are identical; only the two
-reader functions differ:
+`/proc/meminfo` and `/dev/dri` are Linux-only, but the deeper reason Rung-1 doesn't simply "port"
+is **the reclaim mechanisms differ per platform, and Rung-1 tunes the Linux one**:
 
-| Platform (wrapper) | Total RAM | Software render |
-|---|---|---|
-| **Linux** (`qt_wrapper.py`) — **shipped** | `/proc/meminfo` `MemTotal` | `/dev/dri/renderD*` + sysfs `card*/device/driver` (framebuffer-only ⇒ software) |
-| **macOS** (`mac_wrapper.py`) — TODO | `sysctl -n hw.memsize` | rare on Metal; low value — rely on RAM (optionally `system_profiler SPDisplaysDataType`) |
-| **Windows** (`windows_wrapper.py`) — TODO | `GlobalMemoryStatusEx` via `ctypes` (`ullTotalPhys`) | WARP/DXGI adapter check (complex — defer; rely on RAM initially) |
+- **Linux** (`qt_wrapper.py`): Chromium provides **no** memory-pressure evaluator
+  (`CreateDefaultSystemEvaluator` → `nullptr` on Linux; `simulatePressureNotification` is a no-op —
+  verified). So Linux reclaims with the **blocking `forciblyPurgeJavaScriptMemory`**, which *must*
+  be idle-gated, and Rung-1 adapts that gating (idle threshold + RSS ceiling) to device capability.
+- **macOS / Windows** (`mac_wrapper.py` / `windows_wrapper.py`): Chromium **does** create a pressure
+  evaluator (`#if IS_APPLE / IS_WIN`), so these wrappers reclaim via periodic
+  **`simulatePressureNotification {critical}`** → graceful, native, *non-blocking* eviction — the
+  lazy reclaim Linux can't have. They have **no idle threshold / RSS ceiling** to tune, and they do
+  **not** have the blocking-purge stutter Rung-1 exists to manage.
 
-So **today the auto-detection is Linux-only**; macOS/Windows currently fall through to the standard
-profile (still safe — env overrides work everywhere). Bringing them up is mechanical: port the two
-reader functions per the table; `_classify_resources` and everything downstream is shared. Caveat:
-those readers can only be runtime-verified on their own OS.
+**Conclusion: Rung-1's reclaim profile is Linux-only on purpose — there is nothing for it to drive
+on mac/Windows, and the problem it solves (a disruptive blocking purge) does not exist there.** A
+mechanical "port the two readers" would be **dead code**. The `_classify_resources` mapping is still
+reusable, but only once there is a *cross-platform consumer* (the renderer-side **reduced-effects**
+mode — `prefers-reduced-motion` + a `low-power` class — which is platform-agnostic and the natural
+place to apply `deviceMemory`/RAM detection on all three).
+
+**Open question (needs on-device verification):** the research notes pressure handling is "hit and
+miss on Windows, terrible/late on macOS." So mac/Windows reclaim *should* work but is **unverified by
+us** (no mac/Windows hardware). If it proves inadequate on a real machine, those wrappers would need
+the Linux blocking-purge approach *and then* Rung-1 — but that's a per-platform investigation, not a
+port. Until then, mac/Windows are correct as-is on their native pressure path.
 
 Threshold for "low-resource" (defensible, not arbitrary): align with `IsLowEndDevice()`'s history
 (≤512 MB originally, relaxed toward ≤1 GB) and `deviceMemory` buckets — treat **≤ ~2 GB total RAM
