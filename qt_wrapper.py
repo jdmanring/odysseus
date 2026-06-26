@@ -328,10 +328,16 @@ _PURGE_RSS_CEILING_KB = 1_200_000   # ~1.2 GB ceiling; measured working set afte
 # renderer rarely approaches it; lower further for a tighter cap on modest hardware
 # (purges then fire a little more often, off the interaction path).
 _PURGE_MIN_INTERVAL_S = 15
-# Seconds of no user input (mouse OR keyboard) before the renderer counts as idle
-# and the periodic reclaim is allowed to fire. Short enough to catch a walk-away,
-# long enough that a brief reading pause does not trigger a purge mid-glance.
-_IDLE_RECLAIM_AFTER_S = 3.0
+# Seconds of no input (mouse OR keyboard) before the *sustained-idle* reclaim may
+# fire. The purge blocks the renderer ~1s and there is NO lazy/async purge on
+# QtWebEngine (the only CDP reclaim is the synchronous OOM-intervention; Linux
+# memory-pressure eviction is a no-op — see research). So this must only fire on a
+# genuine away-from-keyboard gap: a short reading/thinking pause must NOT trigger
+# it. At 3 s it fired constantly during normal use, and a ~1s freeze landing on a
+# click — or dropping a mid-drag mouseup — left Chromium's left-button state stuck
+# ("can't left-click, right-click works"). The prompt-reclaim-on-leave cases are
+# handled separately and without this delay by the focus-loss and minimize purges.
+_IDLE_RECLAIM_AFTER_S = 45.0
 
 # GC request cell — written by background threads (PSI monitor), read and drained
 # by a 250 ms QTimer on the Qt main thread.  CPython's GIL makes single-element
@@ -799,10 +805,12 @@ class OdysseusWindow(QMainWindow):
         self._last_input = time.monotonic()
 
     def _maybe_idle_purge(self) -> None:
-        """Repeating sustained-idle reclaim. Purges only after the user has been
-        idle for _IDLE_RECLAIM_AFTER_S; _purge_renderer adds the RSS-ceiling gate
-        and rate limit, so this bounds memory on walk-away without stuttering an
-        active user."""
+        """Repeating sustained-idle reclaim — the safety net for a user who stays in
+        the (focused) window but walks away from the keyboard. Only fires after a
+        genuine away-from-keyboard gap (_IDLE_RECLAIM_AFTER_S) so the ~1s blocking
+        purge never lands on an interaction; the switched-away / minimized cases are
+        reclaimed immediately by the focus-loss and minimize purges instead.
+        _purge_renderer still adds the RSS-ceiling gate and rate limit."""
         if time.monotonic() - self._last_input >= _IDLE_RECLAIM_AFTER_S:
             self._purge_renderer('sustained-idle')
 
