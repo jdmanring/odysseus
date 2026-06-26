@@ -322,6 +322,54 @@ _cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='c
 # stutter, so it is only ever fired off the interaction path (mouse-idle,
 # focus-loss), gated by an RSS ceiling so light use never stutters, and rate-limited
 # so it cannot repeat back to back.
+
+# ── Capability detection: Rung 1 (docs/fork/low-resource-profile-design.md) ────────
+# Pick the DEFAULT reclaim profile from device capability. LINUX-ONLY signals — this
+# is the Linux wrapper; mac_wrapper.py / windows_wrapper.py carry their own platform
+# equivalents. An explicit ODYSSEUS_* env var always overrides this (Rung 0). FAIL-
+# SAFE: any read error yields the STANDARD (capable) profile, so a glitch never
+# degrades a good machine; a misread low-RAM box is covered by the env override.
+_LOW_RAM_GB = 2.0  # ≤ this ⇒ constrained (aligns with Android isLowRamDevice / IsLowEndDevice)
+
+def _classify_resources(mem_total_gb, software_render):
+    """Pure mapping: (mem_total_gb|None, software_render) -> (is_low_resource, reason)."""
+    reasons = []
+    if mem_total_gb is not None and mem_total_gb <= _LOW_RAM_GB:
+        reasons.append(f'RAM {mem_total_gb:.1f} GB')
+    if software_render:
+        reasons.append('software render')
+    return (bool(reasons), ', '.join(reasons) or 'capable')
+
+def _linux_total_ram_gb():
+    try:
+        with open('/proc/meminfo') as f:
+            for line in f:
+                if line.startswith('MemTotal:'):
+                    return int(line.split()[1]) / (1024 * 1024)  # kB -> GB
+    except (OSError, ValueError):
+        pass
+    return None
+
+def _linux_software_render():
+    """True when no hardware GPU render node exists (no /dev/dri/renderD*, or every
+    card is bound only to the EFI framebuffer), so Chromium falls back to llvmpipe
+    software raster — detected pre-launch from devfs/sysfs (the GPU-incident signal)."""
+    import glob as _glob
+    try:
+        if not _glob.glob('/dev/dri/renderD*'):
+            return True  # no render node => no GPU acceleration
+        drivers = set()
+        for drv in _glob.glob('/sys/class/drm/card*/device/driver'):
+            try:
+                drivers.add(os.path.basename(os.path.realpath(drv)))
+            except OSError:
+                pass
+        return bool(drivers) and drivers <= {'simple-framebuffer', 'simpledrm'}
+    except Exception:
+        return False
+
+_low_resource, _profile_reason = _classify_resources(_linux_total_ram_gb(), _linux_software_render())
+
 # RSS ceiling: the renderer is only purged above this. Measured working set after a
 # purge is ~430 MB, so the off-interaction reclaim sawtooth stays ~0.43 GB → ceiling.
 # Default ~1.2 GB (a safety net — with producers eliminated the renderer rarely
@@ -332,7 +380,8 @@ _cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='c
 # low-resource-profile-design.md). Floored at 512 MB (just above the working set, so
 # the ceiling can never sit below it and cause constant purging).
 try:
-    _PURGE_RSS_CEILING_KB = max(512, int(float(os.environ.get('ODYSSEUS_PURGE_CEILING_MB', '1200')))) * 1024
+    _PURGE_RSS_CEILING_KB = max(512, int(float(os.environ.get(
+        'ODYSSEUS_PURGE_CEILING_MB', '700' if _low_resource else '1200')))) * 1024
 except ValueError:
     _PURGE_RSS_CEILING_KB = 1_200_000
 _PURGE_MIN_INTERVAL_S = 15
@@ -353,9 +402,16 @@ _PURGE_MIN_INTERVAL_S = 15
 # Tunable via ODYSSEUS_IDLE_RECLAIM_S for users who deliberately want more
 # aggressive reclaim (lower) and accept the stutter risk. Floored at 2 s.
 try:
-    _IDLE_RECLAIM_AFTER_S = max(2.0, float(os.environ.get('ODYSSEUS_IDLE_RECLAIM_S', '60')))
+    _IDLE_RECLAIM_AFTER_S = max(2.0, float(os.environ.get(
+        'ODYSSEUS_IDLE_RECLAIM_S', '20' if _low_resource else '60')))
 except ValueError:
     _IDLE_RECLAIM_AFTER_S = 60.0
+
+# Log the selected profile once (diagnosable; notes when an env var overrode it).
+_profile_overridden = bool({'ODYSSEUS_IDLE_RECLAIM_S', 'ODYSSEUS_PURGE_CEILING_MB'} & os.environ.keys())
+print(f"[PROFILE] {'low-resource' if _low_resource else 'standard'} ({_profile_reason}): "
+      f"idle={_IDLE_RECLAIM_AFTER_S:.0f}s ceiling={_PURGE_RSS_CEILING_KB // 1024}MB"
+      f"{' [env override]' if _profile_overridden else ''}", flush=True)
 
 # GC request cell — written by background threads (PSI monitor), read and drained
 # by a 250 ms QTimer on the Qt main thread.  CPython's GIL makes single-element
