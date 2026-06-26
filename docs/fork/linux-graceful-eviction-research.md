@@ -161,7 +161,7 @@ a Chromium-side patch can provide.
 | Detection source | What it is | Pros | Cons |
 |---|---|---|---|
 | **In-process PSI** (Helmut's CL, ChromeOS) | evaluator reads `/proc/pressure/memory` itself | **zero runtime deps** (matters on Arch, headless, containers); self-contained; CQ-passing code to start from | re-implements PSI parsing; we own the thresholds |
-| **Desktop signal** (`org.freedesktop.LowMemoryMonitor` via GLib `GMemoryMonitor`) | evaluator subscribes to the existing D-Bus `LowMemoryWarning` signal | reuses a maintained daemon; the standard GNOME/Endless desktop signal; smaller detection code; thresholds tuned by the daemon | **adds a runtime dependency** (daemon installed + running — not default on Arch); D-Bus call from the browser process; no signal at all if absent |
+| **Desktop signal** (`org.freedesktop.LowMemoryMonitor` via Chromium `dbus::Bus` — **not** GIO/`GMemoryMonitor`, see §4b note) | evaluator subscribes to the existing D-Bus `LowMemoryWarning` signal | reuses a maintained daemon; the standard GNOME/Endless desktop signal; thresholds tuned by the daemon | **adds a runtime dependency** (daemon installed + running — not default on Arch); no signal at all if absent; GIO path doesn't work in QtWebEngine |
 
 **Key facts established this session:**
 - Endless OS `psi-monitor`, `systemd-oomd`, `nohang` all *detect* pressure but *respond by
@@ -174,10 +174,34 @@ a Chromium-side patch can provide.
 - Therefore **no external project removes the need for a Chromium patch** — the graceful-eviction
   response lives inside Chromium. The desktop signal only changes the detector's *source*.
 
-A **hybrid** is natural: prefer the `GMemoryMonitor`/`LowMemoryMonitor` signal when the daemon is
-present, fall back to in-process PSI when it isn't — best fidelity on GNOME/Endless, zero-dep on
-Arch. This is the design decision to settle before writing the evaluator (left open — the repo
-charter was paused pending more evaluation).
+### Nailed down 2026-06-26 — the "D-Bus from sandbox" worry was misframed; the real catch is the main loop
+
+Two questions had to be settled before picking a source. Both now resolved from source/spec:
+
+1. **Sandbox is a non-issue.** The pressure monitor + evaluator run in the **browser process**, which
+   is the *privileged, unsandboxed* process (only renderers/GPU are sandboxed; they request resources
+   via IPC). Chromium's browser process **already opens session-bus connections** today (secret
+   service / GNOME-keyring / KWallet, xdg portals, proxy config). So there is **no sandbox barrier**
+   to a D-Bus subscription from the evaluator — the original "can it reach the bus under the sandbox?"
+   framing doesn't apply, because the code path isn't sandboxed.
+
+2. **The real catch is GIO needs a GLib main loop QtWebEngine doesn't run.** `GMemoryMonitor` is
+   GIO/GDBus, and GDBus signals are only dispatched when a **`GMainContext` is being iterated**
+   (GLib main-loop docs, confirmed). Chromium's desktop-Linux GLib pump (`MessagePumpGlib`) exists
+   for GTK — but **QtWebEngine replaces the browser-process UI pump with Qt's event loop**, so no
+   `GMainContext` is iterated there. A `GMemoryMonitor` subscription would compile and then **silently
+   never fire**. ⇒ **Do not use GIO/`GMemoryMonitor` in QtWebEngine.** If we want the desktop signal,
+   subscribe to `org.freedesktop.LowMemoryMonitor.LowMemoryWarning` via **Chromium's own `dbus::Bus`**
+   (`components/dbus`, a dedicated libdbus thread with its own watch/timeout integration — **no GLib
+   dependency**), which is how Chromium already does keyring/bluez D-Bus.
+
+**Decision this tips:** in-process PSI is the clean primary source — **zero runtime deps, no D-Bus, no
+main-loop coupling**, and it's the CQ-passing code (Helmut's CL / ChromeOS) we'd start from. The
+desktop-signal path is viable but only via `dbus::Bus` (never GIO), and it buys us a *maintained
+threshold* at the cost of a runtime daemon dependency not present on Arch. **Recommendation: ship
+in-process PSI; treat the `dbus::Bus` `LowMemoryMonitor` subscription as an optional Rung-2-style
+enhancement (prefer the daemon's signal when present, else PSI) — not the foundation.** This settles
+the source decision that gated the repo charter.
 
 ## 5. Contribution paths (and which to pick)
 
@@ -237,12 +261,15 @@ working prototype** (path C), **1–3 months** to land upstream (path A). One pe
 ## 9. Open questions to resolve before coding
 - ~~Does QtWebEngine instantiate the memory-pressure monitor at all?~~ ✅ **Resolved (§4): yes,
   in content/ for `IS_LINUX`. Only the evaluator is missing.**
-- **Detection source (§4b): in-process PSI vs. subscribe to `GMemoryMonitor`/`LowMemoryMonitor`
-  vs. hybrid** — the main remaining design decision; gates the repo charter (currently paused).
-- PSI host vs cgroup for a desktop app — which budget do we trust?
+- ~~Detection source (§4b): PSI vs `GMemoryMonitor` vs hybrid~~ ✅ **Resolved (§4b): in-process PSI
+  is the primary source; the desktop `LowMemoryMonitor` signal, if added, goes via Chromium
+  `dbus::Bus` (never GIO/`GMemoryMonitor`) as an optional enhancement.**
+- ~~D-Bus from the QtWebEngine browser process under its sandbox~~ ✅ **Resolved (§4b): no sandbox
+  barrier (evaluator runs in the unsandboxed browser process); the actual constraint is that GIO
+  needs a GLib main loop QtWebEngine doesn't run, so use `dbus::Bus`, not `GMemoryMonitor`.**
+- PSI host vs cgroup for a desktop app — which budget do we trust? *(still open — measurement)*
 - Threshold defaults that don't thrash across swap/zram/cgroup configs (tie to Rung-1 RAM detection).
-- D-Bus from the QtWebEngine browser process under its sandbox — confirm the browser process can
-  reach the session bus for the `GMemoryMonitor` path (renderer cannot; browser process should).
+  *(still open — needs real low-RAM hardware)*
 
 ## Sources
 - CDP no-op + `nullptr` proof: `idle-reclaim-threshold-research.md` (this fork).
@@ -250,3 +277,6 @@ working prototype** (path C), **1–3 months** to land upstream (path A). One pe
 - Evaluator reference: `components/memory_pressure/system_memory_pressure_evaluator_win.cc`
   (Chromium); the 2015 Linux starter crrev/1250093006; ChromeOS PSI evaluator.
 - Community: chromium-dev "Memory pressure in an embedded linux environment" (Igalia).
+- GLib main-loop / GDBus dispatch requires `GMainContext` iteration: <https://docs.gtk.org/glib/main-loop.html>.
+- Chromium browser process is the privileged/unsandboxed process (renderers sandboxed, request via IPC):
+  Chromium `docs/linux/sandboxing.md`; `components/dbus` (libdbus on a dedicated thread, no GLib).
