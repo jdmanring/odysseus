@@ -129,15 +129,18 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 |-------|--------|-------|
 | [#15 Upstream sync pipeline](https://github.com/jdmanring/odysseus/issues/15) | `feat/upstream-sync-pipeline` | Manages fork/upstream relationship — not applicable upstream |
 
-## Filing-time reconciliation notes (cross-branch couplings)
+## Branch-hygiene notes
 
-- **`fix/brain-panel-oom` (#108) ↔ memory-synapse-sweep tests.** #108 made the
-  sweep hover-triggered. Two tests guard that CSS: `test_brain_panel_oom_css.py`
-  (on the branch) and `test_gpu_compositor_flicker_css.py` (**develop-only** — not
-  on any branch, including `fix/gpu-compositor-flicker`). The develop-only test was
-  reconciled on develop (commit `55037cd6`) to assert the hover-trigger. When
-  filing #108 upstream, ensure any upstream copy of the gpu-flicker memory-sweep
-  assertion is updated to the hover-triggered behaviour, or it will fail.
+- **`fix/brain-panel-oom` (#108) ↔ `fix/gpu-compositor-flicker` — coupling RESOLVED.**
+  `test_gpu_compositor_flicker_css.py` had duplicated three memory-synapse-sweep
+  tests (a `fix/brain-panel-oom` concern, already covered by
+  `test_brain_panel_oom_css.py`), which coupled the two unrelated contributions
+  (changing the sweep in #108 broke a test in the gpu-flicker file). Fixed: the
+  duplicated tests were removed (develop `a1c5d594`) so the file guards only the
+  backdrop-filter removals, and the now single-concern test was placed on its own
+  branch (`fix/gpu-compositor-flicker` `c5cb6366`) so that PR is self-contained.
+  The branches are cleanly disjoint (backdrop-filter removal vs animation OOM) and
+  must stay separate — one thing per PR.
 - **`tooling/mem-probe.py`** is fork tooling (develop-only by design); it depends
   on the Qt wrapper (port 9222) and would ship with the wrapper feature if offered
   upstream.
