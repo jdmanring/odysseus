@@ -737,11 +737,13 @@ class OdysseusWindow(QMainWindow):
         """Forcibly purge renderer caches: the multi-GB pool that
         simulatePressureNotification does not touch on QtWebEngine (issue #106).
 
-        Only ever called off the interaction path (mouse-idle, focus-loss) because
-        the purge causes a ~1s stutter. Gated by an RSS ceiling so light use never
-        pays the stutter, and rate-limited so it cannot repeat back to back. The
-        purge itself runs in the CDP executor so the socket I/O is off the Qt main
-        thread.
+        Called only where a ~1s stutter is invisible: post-interaction mouse-idle,
+        sustained idle (no input for a few seconds), focus-loss, and minimize.
+        Gated by an RSS ceiling so light use never pays the stutter, and
+        rate-limited so it cannot repeat back to back. The purge runs in the CDP
+        executor so the socket I/O is off the Qt main thread. Logs the reason and
+        the RSS delta on each purge; gated skips are intentionally silent (the
+        idle timer would otherwise spam the log every few seconds).
         """
         import time
         rss = self._renderer_rss_kb()
@@ -786,6 +788,8 @@ class OdysseusWindow(QMainWindow):
                 # lifecycle transitions are unreliable (issue #109). The gated purge
                 # frees memory without touching the lifecycle state; its ~1s stutter
                 # is invisible while minimized.
+                print('[LIFECYCLE] minimized — page kept Active, reclaim requested',
+                      flush=True)
                 self._purge_renderer('minimized')
         elif event.type() == QEvent.Type.WindowDeactivate:
             # Minimize fires both WindowStateChange and WindowDeactivate; only run
