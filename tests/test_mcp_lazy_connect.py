@@ -55,6 +55,32 @@ def test_lazy_connect_spawns_on_first_call():
     assert not m._is_deferred("email")  # now connected; future calls reuse it
 
 
+def test_failed_lazy_connect_re_defers_for_retry():
+    m = MCPManager()
+    m.mark_deferred("email", "Built-in: Email")
+
+    async def fake_reconnect(server_id):
+        return False  # spawn failed
+
+    m._reconnect_builtin = fake_reconnect
+    result = asyncio.run(m.call_tool("mcp__email__send_email", {"to": "x"}))
+    assert result["exit_code"] == 1
+    # Must remain deferred so a later call retries (not stuck in 'error').
+    assert m._is_deferred("email")
+
+
+def test_deferred_builtin_write_tools_still_blocked_in_plan_mode():
+    """Safety invariant: deferring a builtin connection must NOT open a plan-mode
+    write bypass. Builtin write tools are gated by the static plan-mode denylist
+    (independent of the MCP connection / self._tools), so they stay blocked even
+    when their server has not been spawned yet."""
+    from src.tool_security import plan_mode_disabled_tools
+    blocked = plan_mode_disabled_tools()
+    # Cold-server (image_gen / email) write tools, invoked by their legacy names:
+    for write_tool in ("send_email", "reply_to_email", "delete_email", "generate_image"):
+        assert write_tool in blocked, f"{write_tool} must be blocked in plan mode"
+
+
 def test_no_lazy_connect_when_already_connected():
     m = MCPManager()
     m._sessions["memory"] = object()
