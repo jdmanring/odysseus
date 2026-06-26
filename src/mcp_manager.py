@@ -446,7 +446,17 @@ class McpManager:
 
         session = self._sessions.get(server_id)
         if not session:
-            return {"error": f"MCP server not connected: {server_id}", "exit_code": 1}
+            # Lazy-connect: a deferred builtin (registered via mark_deferred but
+            # not spawned at startup) is connected on its first tool call. This is
+            # the established MCP lazy-loading pattern — spawn the subprocess, do
+            # the handshake, then cache the session so subsequent calls reuse it.
+            # See docs/fork/mcp-lazy-connect-research.md.
+            if self.is_builtin(server_id) and self._is_deferred(server_id):
+                logger.info(f"MCP lazy-connect on first use: {server_id}")
+                if await self._reconnect_builtin(server_id):
+                    session = self._sessions.get(server_id)
+            if not session:
+                return {"error": f"MCP server not connected: {server_id}", "exit_code": 1}
 
         _call_start = time.monotonic()
         try:
@@ -621,6 +631,21 @@ class McpManager:
             "rag",
             "email",
         }
+
+    def mark_deferred(self, server_id: str, name: str) -> None:
+        """Register a builtin server as deferred (lazy) without spawning it.
+
+        The process is started on the first tool call (see call_tool). The status
+        is exposed so the UI can show the server as available-but-not-yet-running.
+        Idempotent and a no-op if the server is already connected/connecting.
+        """
+        cur = self._connections.get(server_id, {})
+        if cur.get("status") in ("connected", "connecting"):
+            return
+        self._connections[server_id] = {"status": "deferred", "name": name}
+
+    def _is_deferred(self, server_id: str) -> bool:
+        return self._connections.get(server_id, {}).get("status") == "deferred"
 
     def get_server_status(self, server_id: str) -> Dict:
         """Get connection status for a server."""

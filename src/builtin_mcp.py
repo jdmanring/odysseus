@@ -88,6 +88,12 @@ _BUILTIN_NPX_SERVERS = {
 # Global flag to disable MCP if there are compatibility issues
 MCP_DISABLED = os.environ.get("ODYSSEUS_DISABLE_MCP", "").lower() in ("1", "true", "yes")
 
+# Built-in servers connected eagerly at startup. Everything else in
+# _BUILTIN_SERVERS is connected lazily on first tool call (see
+# register_builtin_servers). `memory` is hot in nearly every session, so it is
+# not worth deferring; the feature-gated servers (image_gen, rag, email) are.
+_EAGER_SERVERS = {"memory"}
+
 
 async def register_builtin_servers(mcp_manager):
     """Connect all built-in MCP servers to the manager."""
@@ -123,7 +129,23 @@ async def register_builtin_servers(mcp_manager):
         if not os.path.exists(script_path):
             logger.warning(f"Built-in MCP server script not found: {script_path}")
             continue
-        asyncio.create_task(_connect_python_server(server_id, script_path, name))
+        if server_id in _EAGER_SERVERS:
+            # Hot path: connect at startup. `memory` is used in (nearly) every
+            # session, so deferring it would only add first-query latency.
+            asyncio.create_task(_connect_python_server(server_id, script_path, name))
+        else:
+            # Cold path: register the server as deferred without spawning the
+            # interpreter. Each builtin holds ~50 MB RSS, and image_gen / rag /
+            # email are feature-gated — only used if the user opens email, runs a
+            # RAG query, or generates an image. The manager spawns the process on
+            # the first tool call (see MCPManager.call_tool). The model still sees
+            # these tools: builtin tool descriptions are static in the agent prompt
+            # (get_tool_descriptions_for_prompt skips builtin Python servers), so a
+            # deferred connection does not hide them. This mirrors the established
+            # MCP lazy-loading pattern (mcp-gateway, lazy-mcp); see
+            # docs/fork/mcp-lazy-connect-research.md.
+            mcp_manager.mark_deferred(server_id, name)
+            logger.info(f"Built-in MCP server deferred (lazy): {name}")
 
     # Register NPX-based servers in the background (they take longer to start)
     npx_path = _find_npx()
