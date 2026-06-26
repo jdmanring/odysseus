@@ -300,10 +300,27 @@ reclaim work.
 dropped* from the QtWebEngine renderer cmdline when trialed) and `--force-gpu-mem-available-mb`
 (gone from `gpu/config/gpu_switches.cc`). Modern Chromium computes the tile/GPU budget
 internally (≈ `IsLowEndDevice()` + system RAM) with no command-line cap. The only flag that
-lowers it is `--enable-low-end-device-mode`, which inseparably bundles the 16-bit-color
-downgrade (the lighter-rectangle regression). So there is **no surgical flag**. Remaining options
-(see #114): accept the bounded high-water (recommended), or investigate a separate GPU process
-(evictable) — neither is a quick flag. Caveat: the controlled *repeat-identical-cycle* test
+lowers the tile budget is `--enable-low-end-device-mode`. So there is **no surgical flag**.
+
+**Empirical trial of `--enable-low-end-device-mode --disable-rgba-4444-textures` (2026-06-25):**
+- Sub-finding (useful): the 16-bit-color downgrade **is separable** — `--disable-rgba-4444-textures`
+  (gating `kDisableRGBA4444Textures`) opts out of RGBA4444 tiles, and on this Qt6 build the
+  lighter-rectangle tint **did not reappear** with low-end mode on. Both switches landed on the
+  renderer cmdline (accepted, not inert). No scroll jank; more aggressive reclaim (Δ up to −49 MB).
+- **But it does not help:** the host high-water still settled at **~905–925 MB — statistically
+  identical to the ~900–940 MB baseline**. The host high-water is dominated by **GPU
+  command/transfer/compositor buffers**, not the *raster tile* budget low-end mode caps, so the
+  net host benefit is ≈ 0 — not worth low-end mode's subtle global fidelity change in an
+  image-centric app. **Abandoned; nothing shipped.**
+
+**Separate GPU process: infeasible** — QtWebEngine runs GPU in-process by design (Android-style
+`Chrome_InProcGPUThread`); no switch relocates it to an evictable process (would need patching Qt).
+
+**Resolution: accept the bounded high-water** (idle-flat, partial reclaim, no OOM — already
+rock-solid). #114 → WONTFIX-by-design unless a future Qt exposes a GPU-memory budget knob or an
+evictable GPU process. Caveat: the controlled *repeat-identical-cycle* test
+(does the floor rise on identical repeats, or only on new content?) was not cleanly isolated —
+the deceleration + idle-flat strongly indicate a complexity ceiling, but a long-session re-check Caveat: the controlled *repeat-identical-cycle* test
 (does the floor rise on identical repeats, or only on new content?) was not cleanly isolated —
 the deceleration + idle-flat strongly indicate a complexity ceiling, but a long-session re-check
 would firm up "ceiling" vs "very slow ratchet."
