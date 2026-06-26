@@ -53,6 +53,29 @@ Threshold for "low-resource" (defensible, not arbitrary): align with `IsLowEndDe
 or software rendering** as the constrained profile. Exact cutoff is an app judgment; the *pattern*
 and *signals* are standard.
 
+## Detection fidelity — a ladder, not a single number
+
+A static RAM threshold is the **entry rung**, not the last word. The known failure mode (from the
+games world, where this is most mature) is that a fixed heuristic **mis-detects** — e.g. it can
+flag newer-than-the-heuristic hardware as "low" or miss a fast-CPU/low-RAM box. So treat detection
+as a ladder of increasing fidelity, and always keep the user override above all of it.
+
+| Rung | Signal | Fidelity | Cost | Prior art |
+|---|---|---|---|---|
+| **0. Override** | explicit `ODYSSEUS_*` env vars | exact (user knows) | none | config-precedence best practice |
+| **1. Static threshold** (ship this) | `/proc/meminfo` MemTotal + software-render check, at startup | good 80/20 | trivial | **Android `isLowRamDevice()`** ([docs](https://learn.microsoft.com/en-us/dotnet/api/android.app.activitymanager.islowramdevice)); **Chromium `IsLowEndDevice()`**; **`react-adaptive-hooks` `useMemoryStatus`** ([GoogleChromeLabs](https://github.com/GoogleChromeLabs/react-adaptive-hooks)) |
+| **2. Runtime PSI downgrade** (natural next rung) | the existing `/proc/pressure/memory` monitor demotes the profile when *real* pressure appears | adapts to actual conditions, not a guess | low — **we already have the monitor** | OS memory-pressure adaptation (Android low-memory callbacks; Chrome Memory Saver) |
+| **3. Benchmark / hw database** | a quick CPU/GPU micro-benchmark → performance index, or match against a config database | highest | high (complexity, a benchmark hitch at startup) | **Unreal Engine auto-detect** ([Tom Looman](https://tomlooman.com/unreal-engine-optimal-graphics-settings/)); **NVIDIA App Game Optimizer** |
+
+**Our plan:** ship **Rung 1** (matches Android/Chrome/react-adaptive-hooks — the standard 80/20)
+with **Rung 0** override always winning. **Rung 2** is the natural follow-up and cheap for us
+because the PSI monitor already exists — it turns "guess from a number at startup" into "react to
+real pressure," which is strictly better. **Rung 3** (benchmark/database) is the games-grade
+ceiling; only worth it if Rungs 1–2 prove insufficient on real hardware. Honest caveat: none of
+this is validated against real low-end devices yet — the threshold is reasoned from the cited
+standards, not measured, so Rung-0 override and Rung-2 runtime correction are what keep a
+mis-detect from being painful.
+
 ## Response — the levers (most already exist)
 
 | Lever | Capable default | Low-resource profile |
