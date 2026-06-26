@@ -128,3 +128,16 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 | Issue | Branch | Notes |
 |-------|--------|-------|
 | [#15 Upstream sync pipeline](https://github.com/jdmanring/odysseus/issues/15) | `feat/upstream-sync-pipeline` | Manages fork/upstream relationship — not applicable upstream |
+
+## Filing-time reconciliation notes (cross-branch couplings)
+
+- **`fix/brain-panel-oom` (#108) ↔ memory-synapse-sweep tests.** #108 made the
+  sweep hover-triggered. Two tests guard that CSS: `test_brain_panel_oom_css.py`
+  (on the branch) and `test_gpu_compositor_flicker_css.py` (**develop-only** — not
+  on any branch, including `fix/gpu-compositor-flicker`). The develop-only test was
+  reconciled on develop (commit `55037cd6`) to assert the hover-trigger. When
+  filing #108 upstream, ensure any upstream copy of the gpu-flicker memory-sweep
+  assertion is updated to the hover-triggered behaviour, or it will fail.
+- **`tooling/mem-probe.py`** is fork tooling (develop-only by design); it depends
+  on the Qt wrapper (port 9222) and would ship with the wrapper feature if offered
+  upstream.
