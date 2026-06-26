@@ -123,8 +123,10 @@ the bulk of the ~1.7 MB/s. Fix: issue #108 — hover-triggered, single iteration
 |---|---|---|---|
 | #106 | `forciblyPurgeJavaScriptMemory`, gated (RSS ceiling 1.8 GB, 15 s rate limit, off-interaction-path) | `perf/renderer-memory-reclaim` | **In-app: sawtooth confirmed** (user saw memory climb then drop repeatedly after restart) |
 | #106 follow-up | periodic sustained-idle reclaim (single-shot re-armed only on mouse move -> filled all RAM on walk-away; now repeating, keyboard-aware) | same | bounds memory; sawtooth is the evidence |
-| #107 | whirlpool spinner terminates when never-visible-within-grace or hidden (was unbounded `!_wpWasConnected`) | `fix/spinner-orphan-leak` | source-text tests; in-app re-measure pending |
-| #108 | `memory-synapse-sweep` hover-triggered, not perpetual | `fix/brain-panel-oom` | source-text tests; in-app re-measure pending |
+| #107 | whirlpool spinner terminates when never-visible-within-grace or hidden (was unbounded `!_wpWasConnected`); later broadened to a shared `_shouldKeepSpinning()` guard covering all three spinner loops (whirlpool/sinewave rAF + ASCII setInterval) | `fix/spinner-orphan-leak` | source-text tests; in-app re-measure pending |
+| #108 | `memory-synapse-sweep` hover-triggered, not perpetual; `notes-quick-pulse` box-shadow glow moved to an opacity pseudo-element (box-shadow is a paint property → ~2 MB/s on the always-visible quick-add box) | `fix/brain-panel-oom` | source-text tests; in-app re-measure pending |
+| #109 | minimize no longer freezes the page (`setLifecycleState(Frozen)` left the UI unresponsive after the Frozen→Active thaw — Qt: a visible page must stay Active, a non-Active page can lose input); keep Active, reclaim via the gated purge | `perf/renderer-memory-reclaim` | source-text test; verify minimize/restore in-app |
+| #110 | `#tasks-clock` isolated to its own compositor layer (`transform: translateZ(0)` + `contain: layout paint`) so its 1/sec repaint stops re-rastering the whole draggable Tasks-modal layer (~600×848 → ~578×26, ~30×) | `fix/tasks-clock-repaint` | **confirmed by the user**: closing Tasks stopped the climb and memory settled; verify the isolated version with `mem-probe slope` |
 
 Each fix is cherry-picked to `develop` (`-x`). Source-text tests pass
 (`test_qt_cdp_listener_audit.py`, `test_spinner_orphan_leak_js.py`,
