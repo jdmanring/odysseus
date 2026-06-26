@@ -174,10 +174,17 @@ layout/paint props touched on hover) animate through non-compositor frames.
 are identical (same visible transitions). **Per-site judgment, not a global find-replace**
 — some sites legitimately transition multiple props; medium effort. Roll into #92.
 
-> **Triaged 2026-06-25 → DEFERRED (low priority).** Transitions are **transient** (fire only on
-> a state change, never perpetual), so there is no measured idle/quiescence waste here — unlike
-> the perpetual producers, this is a code-quality cleanup. 78 sites × per-site judgment = real
-> effort for low, intermittent benefit. Not worth prioritising now; roll into #92 opportunistically.
+> **Investigated 2026-06-25 → NO actionable waste (like C1/C3).** The `transition: all` footgun
+> only bites when a state change animates a **layout/paint** property. Checked every site: of 78,
+> only **8** state rules change a layout prop at all, and **all 8 are intentional or trivial** —
+> `cal-search-input:focus` deliberately *expands* its width; the one explicit `max-height`
+> transition is an expand/collapse (with `content-visibility`); slider thumbs grow on `:active`
+> (transient, while dragging); a hamburger reveals on hover. The other ~70 animate only
+> compositor/paint-cheap props (background/color/opacity/border-color/transform); the layout
+> values in those rules are **static** (set once, never animated). So no accidental layout thrash
+> is occurring. Converting all 78 to specific properties = pure style churn + visual-regression
+> risk + **zero measured benefit** → not done, by the same evidence-first standard that resolved
+> C1 and C3. (A genuinely-accidental layout transition, if one is ever added, is a one-off fix.)
 
 ### C3 — Off-screen infinite animations
 
