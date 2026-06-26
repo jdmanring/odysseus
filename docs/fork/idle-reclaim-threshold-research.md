@@ -35,6 +35,38 @@ There is **no lazy/async purge on QtWebEngine**:
 So the heavy reclaim is unavoidably blocking. The fix is therefore **when**, not **how**: only
 fire it when the user is genuinely away, so the unavoidable ~1 s freeze never lands on input.
 
+### Is there a Chromium *flag* to enable native lazy (pressure-based) eviction? — No (source-confirmed)
+
+Source dive into Chromium's `components/memory_pressure`: the monitor is created via
+`SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(...)`, whose platform dispatch is:
+
+```cpp
+#if   BUILDFLAG(IS_FUCHSIA)   return …Fuchsia evaluator;
+#elif BUILDFLAG(IS_APPLE)     return …mac evaluator;
+#elif BUILDFLAG(IS_WIN)       return …win evaluator;
+#else                         return nullptr;   // ← Linux desktop: NO evaluator
+#endif
+```
+
+On **desktop Linux, Chromium creates no system memory-pressure evaluator at all** — it returns
+`nullptr`. This is **not behind a base::Feature or a command-line switch**; the capability is
+simply *absent* for desktop Linux (the Linux evaluators that exist were for ChromeOS / Chromecast,
+in separate components). So **no `--enable-features=…` / flag can enable it** — there is nothing to
+enable. (Source: `components/memory_pressure/system_memory_pressure_evaluator.cc`,
+`multi_source_memory_pressure_monitor.cc`.)
+
+Consequences:
+- This is an **upstream Chromium gap, not a QtWebEngine-specific bug** — stock Chrome on desktop
+  Linux also does no pressure-based eviction (a known reason Chrome balloons on Linux).
+- It explains the measured no-op of `simulatePressureNotification`: there is no Linux dispatch
+  path wired up, so the renderer's listeners never receive a real pressure signal.
+- The **only** way to get native lazy eviction here is to *add* a Linux evaluator in Chromium/Qt
+  (a C++ change + upstream contribution) — there is no flag shortcut. Not worth it; the app-side
+  60 s-gated purge is the correct, deployable solution.
+- Note: Odysseus already does **more than stock Chrome** on Linux — it runs its own PSI monitor
+  (`/proc/pressure/memory`). The gap is only that the sole *lever* it can pull is the blocking
+  purge; the lazy lever does not exist on the platform.
+
 ## The standard (the citable source)
 
 "Genuinely away / idle" has an **established web standard**, not a number to guess: the
