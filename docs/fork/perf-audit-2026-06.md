@@ -30,7 +30,7 @@ profiling — impact estimates are reasoned, not measured.
 | D2 | Always-on network polls run regardless of panel visibility | CPU/network | Low | Low | Low | None |
 | D3 | `dataUrl` caches (`_sigCache`, `_libListCache`) — base64 in memory, no eviction | growth | Low | Low | Low | None |
 | E1 | 4 built-in MCP servers eagerly spawned at launch; 3 are feature-gated/cold | footprint | **Med–High** | Med | Med | **None** |
-| E2 | Host process (556 MB PSS) growth at idle is **unmeasured** — in-process GPU+net+tracing | footprint/growth | **TBD** | Low (measure) | Low | None |
+| E2 | Host process **content-driven high-water mark** (657→934 MB under use, idle-flat, partial reclaim) — in-proc GPU not reclaimed by renderer purge | footprint | **Med (bounded)** | Med | Med | None |
 | E3 | uvicorn `--access-log` writes one log line per HTTP request (D2 polls feed it) | CPU/IO churn | Low | Low | Low | None |
 | E4 | uvicorn backend 216 MB private — eager import of full `src/` + heavy deps | footprint | Low–Med | Med | Med | None |
 
@@ -265,21 +265,40 @@ interpreter spawn + import (~hundreds of ms) — acceptable for a user-initiated
 action, surface a "starting…" state. (3) Optional idle-unload (stop a server unused for N
 minutes) reclaims more but adds re-spawn latency — defer unless measured worthwhile.
 
-### E2 — Host process growth is unmeasured (blocking question, not yet a finding)
+### E2 — Host process: partially-reclaimed content-driven high-water mark (MEASURED 2026-06-25)
 
-**Evidence:** there is **no separate `--type=gpu` process** (`ps` confirms) — so GPU/compositor
+**Composition:** there is **no separate `--type=gpu` process** (`ps` confirms) — GPU/compositor
 runs *in* the host, alongside `NetworkServiceInProcess2` + `TracingServiceInProcess` (per the
-renderer's `--enable-features` flags). That composition explains the 556 MB PSS baseline.
+renderer's `--enable-features` flags). That explains the large host baseline.
 
-**What's missing:** whether that 556 MB is a **fixed baseline** or **climbs with use** is
-unmeasured — the existing `[MEM]` telemetry tracks the *renderer* RSS, not the host. A single
-idle sample (`VmRSS 673936 kB`) is not a time series.
+**Gate run (host `VmRSS` telemetry + 30 s `/proc` sampler, single heavy session):**
 
-**Next step before any fix:** add host `VmRSS` to the existing `[MEM]` log line (one extra
-`/proc/self/status` read in `_log_renderer_memory`) and watch it across an aggressive-use
-session. If flat → it's baseline footprint (in-process GPU command-buffer + net cache; address
-via Chromium flags, separate finding). If climbing → it's a second leak locus and ranks above
-everything here. **Do not propose a host fix until this is measured.**
+| Phase | Host VmRSS | Behaviour |
+|---|---|---|
+| Fresh, idle | **657 MB** | flat (delta ≈ 0) |
+| Open all panels (first time) | 657 → **867 MB** | +210 MB step |
+| Continued heavy use (~10 min) | 867 → **934 MB** | spikes (+56/+33/+27 MB) **interleaved with real reclaim** (−50/−22 MB); growth **decelerating** |
+| Stop interacting | **934 MB, flat** | 5+ consecutive ticks at `delta=+0` |
+
+**Verdict — neither of the two hypotheses; the third:**
+- **Not a flat fixed baseline** — it grew **657 → 934 MB (+277 MB, +42%)** with use.
+- **Not a runaway / idle leak** — idle is **flat at both ends** (657 fresh, 934 after); reclaim
+  is active (large negative deltas); growth **decelerates toward a plateau**.
+- It is a **partially-reclaimed, content-driven high-water mark**: the in-process GPU/compositor
+  allocates buffers for peak content complexity and holds most of them. The renderer
+  `forciblyPurge` reclaim (already landed) does **not** touch host-side GPU memory, so the host
+  floor ratchets up to a complexity ceiling and stays there. Bounded (rock-solid in the
+  sawtooth sense), but the resting floor after heavy use is ~40% above fresh.
+
+**Severity: Medium, bounded — not a leak, not a blocker.** Does not climb while idle, so it
+won't OOM a left-open session. The lever is host/GPU-side, distinct from the renderer reclaim:
+Chromium GPU-memory flags (bound the command-buffer / transfer-buffer / tile cache), or the
+`--in-process-gpu` vs separate-GPU-process trade-off (separate process = the high-water lives in
+a killable/evictable process, at the cost of an IPC hop). **Open a separate follow-up issue**;
+do not fold into the renderer reclaim work. Caveat: the controlled *repeat-identical-cycle* test
+(does the floor rise on identical repeats, or only on new content?) was not cleanly isolated —
+the deceleration + idle-flat strongly indicate a complexity ceiling, but a long-session re-check
+would firm up "ceiling" vs "very slow ratchet."
 
 ### E3 — `--access-log` writes one line per HTTP request
 
