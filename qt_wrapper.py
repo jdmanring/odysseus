@@ -317,7 +317,11 @@ _cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='c
 # stutter, so it is only ever fired off the interaction path (mouse-idle,
 # focus-loss), gated by an RSS ceiling so light use never stutters, and rate-limited
 # so it cannot repeat back to back.
-_PURGE_RSS_CEILING_KB = 1_800_000   # ~1.8 GB; baseline after a purge is ~1.1 GB
+_PURGE_RSS_CEILING_KB = 1_200_000   # ~1.2 GB ceiling; measured working set after a
+# purge is ~430 MB, so the off-interaction reclaim sawtooth stays ~0.43–1.2 GB.
+# This is a safety net, not the primary mechanism — with producers eliminated the
+# renderer rarely approaches it; lower further for a tighter cap on modest hardware
+# (purges then fire a little more often, off the interaction path).
 _PURGE_MIN_INTERVAL_S = 15
 # Seconds of no user input (mouse OR keyboard) before the renderer counts as idle
 # and the periodic reclaim is allowed to fire. Short enough to catch a walk-away,
