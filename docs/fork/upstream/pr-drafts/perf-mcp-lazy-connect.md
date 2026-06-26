@@ -3,8 +3,12 @@
 **Branch:** `perf/mcp-lazy-connect` (from `upstream-mirror`)
 **Target:** `pewdiepie-archdaemon/odysseus:dev`
 **Fixes:** #_ (file issue-drafts/perf-mcp-lazy-connect.md first, or link #2140)
-**Filing notes:** Rebase onto current `dev` and **reconcile with open PR #4812**, which edits
-the same `register_builtin_servers` startup-task region. Single concern; one squashed commit.
+**Filing notes:** Single concern; one squashed commit. **Reconciled with open PR #4812**
+(retains startup tasks via a strong-ref `_spawn_bg` helper) — complementary, sharing one line.
+**Prefer #4812 to merge first**, then rebase so the eager branch routes through `_spawn_bg`.
+Exact merged hunk + full conflict analysis: `docs/fork/mcp-lazy-connect-research.md` →
+"Reconciliation with open PR #4812". Test files are disjoint
+(`test_builtin_mcp_bg_tasks.py` vs `test_mcp_lazy_connect.py`).
 
 ---
 
