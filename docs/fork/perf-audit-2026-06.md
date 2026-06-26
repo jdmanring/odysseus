@@ -305,6 +305,54 @@ care and is the least urgent item here.
 
 ---
 
+## Upstream alignment & external validation (researched 2026-06-25)
+
+Findings cross-checked against the upstream repo (`pewdiepie-archdaemon/odysseus`:
+issues, discussions, ROADMAP) and Qt/Chromium primary docs. Performance work is an
+**actively welcomed** upstream direction, and several findings map onto open upstream items
+— which means they are contribution-worthy, not fork-local quirks.
+
+**Upstream items this audit maps onto:**
+
+- **#3276 — "Proposal: Performance Update for Front-end part"** *(open)*. Upstream explicitly
+  worries about front-end weight (`static/js` 5.6 MB, `static/style.css` 1 MB+) *specifically
+  for non-localhost / Raspberry / remote-host deployment*. This is the natural **umbrella for
+  the A/B/C/D front-end findings**. ⚠️ **Strategic caveat:** the proposal floats a possible
+  React/Vue front-end framework + a bundler/minifier step. If upstream adopts a bundler, the
+  B1 "eager module load" finding is partly subsumed by code-splitting; if it adopts a
+  framework rewrite, fine-grained CSS/JS micro-fixes (C2/C3/D1) risk being mooted. **The E
+  process-stack findings are framework-independent and carry no such risk.**
+- **#2140 — "Docker startup can block UI while initializing local embeddings/RAG"** *(open)*.
+  Directly validates **E1/E4**: eager initialization of heavy subsystems at startup is an
+  *acknowledged upstream pain point*. Lazy/deferred init is wanted, not novel.
+- **#3824 — "manage_mcp does not dynamically disconnect/reconnect live MCP servers"** *(open)*.
+  Dynamic MCP lifecycle is a known upstream gap. **E1's lazy-connect-on-demand** intersects
+  this — a fix here should be designed to also satisfy dynamic (re)connect, not fight it.
+- **ROADMAP — "Email performance audit"** item. `email_server` is one of the cold MCP servers
+  in **E1**; deferring it aligns with an item already on the roadmap.
+- **Discussion #4879 — "Constant Crashes"**; **#2744 — orphaned `llama-server` holding
+  port/VRAM** *(closed)*. Corroborating user-facing symptoms that unbounded
+  memory/process growth is a real, reported problem class — not a fork-only concern.
+
+**Qt/Chromium primary-source validation of E2:**
+
+- Qt's own debugging docs confirm GPU runs as an **in-process thread**
+  (`Chrome_InProcGPUThread`) in the application/browser process when hardware-accelerated;
+  when unavailable, renderers fall back to Skia software raster copied to the browser process
+  via shared memory. This **confirms the 556 MB host composition** (in-process GPU + the
+  `NetworkServiceInProcess2` / `TracingServiceInProcess` features in our launch flags), and
+  means host-side levers are documented Chromium flags (`--in-process-gpu`,
+  `--single-process`, network-service placement) — to be weighed only *after* E2's
+  growth measurement, since each trades isolation/sandbox for footprint.
+
+*Sources:* [Qt 6 WebEngine Debugging & Profiling](https://doc.qt.io/qt-6/qtwebengine-debugging.html),
+[QtWebEngine/Rendering wiki](https://wiki.qt.io/QtWebEngine/Rendering),
+upstream issues [#3276](https://github.com/pewdiepie-archdaemon/odysseus/issues/3276),
+[#2140](https://github.com/pewdiepie-archdaemon/odysseus/issues/2140),
+[#3824](https://github.com/pewdiepie-archdaemon/odysseus/issues/3824).
+
+---
+
 ## Scope / honesty notes
 
 - **Static survey only** — no live heap/CPU profiling. Impact estimates are reasoned from
