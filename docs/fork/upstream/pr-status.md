@@ -50,6 +50,13 @@ contaminates the branch:
 | [#112](https://github.com/jdmanring/odysseus/issues/112) host VmRSS telemetry | `qt_wrapper.py` (**not** on `upstream-mirror`) | **folded into `perf/renderer-memory-reclaim`** (the telemetry owner; done, cherry-picked to develop) | No — **depends on #14** | rides the Qt-wrapper stack |
 | [#113](https://github.com/jdmanring/odysseus/issues/113) `--no-access-log` | `qt_wrapper.py` / `mac_wrapper.py` / `windows_wrapper.py` (**not** on `upstream-mirror`) | **DONE** on each `feat/qt-native-{linux,macos,windows}-app` branch; cherry-picked to develop (guard test on develop) | No — **rides each platform PR** | folds into #14 (linux) + macos/windows PRs. Real fix is `--no-access-log` (uvicorn default is ON) |
 
+### Idle-quiescence candidates (audit C3 / #117, 2026-06-25)
+
+| Fork issue | Branch | Touches | Status |
+|--------|--------|---------|--------|
+| [#117](https://github.com/jdmanring/odysseus/issues/117) (notes instance) | `fix/notes-quick-idle-quiescence` | `static/js/ui.js`, `static/style.css` | **DONE** — from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged; adds reusable `html.app-blurred` primitive. Independent. |
+| [#115](https://github.com/jdmanring/odysseus/issues/115) | `fix/research-orbit-quiescence` | `static/js/research/panel.js` | **DONE** — from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. JS-only, single concern. Independent. |
+
 **⚠ Pre-existing staging gap surfaced:** `perf/renderer-memory-reclaim` (the bulk of this
 cycle's memory work: #106 forciblyPurge, idle-purge, GC catch-up, and now #112 host telemetry)
 is **stacked on `feat/qt-native-linux-app` (#14)** and has **no `pr-status` row, no draft
