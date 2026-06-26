@@ -29,6 +29,10 @@ profiling — impact estimates are reasoned, not measured.
 | D1 | `modalManager` 1 s perpetual scan timer | idle power | Low | Low | Low–Med | None |
 | D2 | Always-on network polls run regardless of panel visibility | CPU/network | Low | Low | Low | None |
 | D3 | `dataUrl` caches (`_sigCache`, `_libListCache`) — base64 in memory, no eviction | growth | Low | Low | Low | None |
+| E1 | 4 built-in MCP servers eagerly spawned at launch; 3 are feature-gated/cold | footprint | **Med–High** | Med | Med | **None** |
+| E2 | Host process (556 MB PSS) growth at idle is **unmeasured** — in-process GPU+net+tracing | footprint/growth | **TBD** | Low (measure) | Low | None |
+| E3 | uvicorn `--access-log` writes one log line per HTTP request (D2 polls feed it) | CPU/IO churn | Low | Low | Low | None |
+| E4 | uvicorn backend 216 MB private — eager import of full `src/` + heavy deps | footprint | Low–Med | Med | Med | None |
 
 ---
 
@@ -217,12 +221,99 @@ memory-heavy per entry.
 
 ---
 
+## E — Process stack (backend / host / MCP)
+
+*This section is **measured**, not a static survey. Numbers are PSS and Private from
+`/proc/<pid>/smaps_rollup` on a live idle session (2026-06-25). PSS (proportional set
+size) splits shared copy-on-write pages fairly across sharers; **Private** is what you
+actually reclaim by stopping a process. RSS is reported too — note how badly it
+double-counts.*
+
+| Process | RSS | PSS | Private | Verdict |
+|---|---|---|---|---|
+| `qt_wrapper.py` host (browser+GPU+net+tracing, in-process) | 674 | 556 | 495 | **Elephant; mostly private; growth unmeasured (E2)** |
+| QtWebEngineProc `--type=renderer` | 281 | 240 | 213 | Already bounded this cycle (reclaim slate) |
+| QtWebEngineProc `--type=zygote` ×2 | 68 + 68 | 18 + 24 | 0.9 + 13.5 | **Nearly free — shared COW fork templates. Leave alone.** |
+| uvicorn `app:app` backend | 240 | 220 | 216 | Large, mostly private (E3/E4) |
+| `email_server` (MCP) | 73 | 56 | 53 | Cold unless email used (E1) |
+| `memory_server` (MCP) | 67 | 50 | 48 | **Hot — persistent memory; keep eager** |
+| `image_gen_server` (MCP) | 67 | 50 | 48 | Cold unless image-gen used (E1) |
+| `rag_server` (MCP) | 67 | 50 | 48 | Cold unless RAG used (E1) |
+
+**Stack total ≈ 1.26 GB PSS.** The two zygotes the user sees as "small" are confirmed
+small (PSS 18/24 MB, ~all shared) — correct intuition; not a target.
+
+### E1 — Built-in MCP servers eagerly spawned at launch
+
+**Evidence:** `src/builtin_mcp.py:128` `register_builtin_servers` loops `_BUILTIN_SERVERS`
+(`image_gen`, `memory`, `rag`, `email`) and `asyncio.create_task(_connect_python_server(...))`
+for **all four** unconditionally at startup (`app.py:980`). Each is a full venv interpreter
+with its own imports — **~48–53 MB private each** (measured; they share little heap because
+imports land in each interpreter's own heap, not shared `.so` pages).
+
+**Why it matters:** `memory_server` is genuinely hot (persistent memory, every session).
+But `email`/`rag`/`image_gen` are **feature-gated** — only exercised if the user opens email,
+runs a RAG query, or generates an image. For a typical session that's **~150 MB private
+resident for features that may never be touched**.
+
+**Fix (with cautions):** lazy-connect the three cold servers on first tool-call demand —
+`src/mcp_manager.py` already has `connect_server`, so the manager can spawn on first use of a
+tool that routes to that server. Keep `memory` eager. **Cautions:** (1) `task_scheduler` /
+background jobs can invoke tools without UI interaction — deferral must key off *actual tool
+demand*, not UI panel state, or a scheduled email task breaks. (2) First-use latency = one
+interpreter spawn + import (~hundreds of ms) — acceptable for a user-initiated email/image
+action, surface a "starting…" state. (3) Optional idle-unload (stop a server unused for N
+minutes) reclaims more but adds re-spawn latency — defer unless measured worthwhile.
+
+### E2 — Host process growth is unmeasured (blocking question, not yet a finding)
+
+**Evidence:** there is **no separate `--type=gpu` process** (`ps` confirms) — so GPU/compositor
+runs *in* the host, alongside `NetworkServiceInProcess2` + `TracingServiceInProcess` (per the
+renderer's `--enable-features` flags). That composition explains the 556 MB PSS baseline.
+
+**What's missing:** whether that 556 MB is a **fixed baseline** or **climbs with use** is
+unmeasured — the existing `[MEM]` telemetry tracks the *renderer* RSS, not the host. A single
+idle sample (`VmRSS 673936 kB`) is not a time series.
+
+**Next step before any fix:** add host `VmRSS` to the existing `[MEM]` log line (one extra
+`/proc/self/status` read in `_log_renderer_memory`) and watch it across an aggressive-use
+session. If flat → it's baseline footprint (in-process GPU command-buffer + net cache; address
+via Chromium flags, separate finding). If climbing → it's a second leak locus and ranks above
+everything here. **Do not propose a host fix until this is measured.**
+
+### E3 — `--access-log` writes one line per HTTP request
+
+**Evidence:** `qt_wrapper.py:165` launches uvicorn with `--access-log`; the D2 always-on polls
+(email 60 s, tasks 30 s, calendar 30 s) each generate a request → a formatted log line → a
+buffered write, **forever, even when idle/backgrounded**. The access log and the D2 polls are
+the same churn viewed from two ends.
+
+**Fix:** drop `--access-log` for the embedded (localhost, single-user) deployment — there is no
+operator reading per-request access logs for a desktop app; errors still surface via the app
+log. Pairs naturally with the D2 visibility-gating fix. Trivial, zero aesthetic impact.
+
+### E4 — uvicorn backend baseline (216 MB private)
+
+**Evidence:** the FastAPI app eagerly imports the full `src/` surface at module load
+(`app.py` top-level `from src... import` chain) plus heavy third-party deps. 216 MB private is
+the cost of that import graph resident for the whole session.
+
+**Fix (low priority, med effort/risk):** defer heavy optional imports (ML/embedding/HTTP
+stacks) behind first-use inside their route handlers, the same lazy-import discipline as B1 on
+the JS side. Med risk because import-time side effects can hide ordering assumptions — needs
+care and is the least urgent item here.
+
+---
+
 ## Scope / honesty notes
 
 - **Static survey only** — no live heap/CPU profiling. Impact estimates are reasoned from
   patterns, not measured. The image findings (A1/A2) in particular deserve a live
   `Memory.getDOMCounters` + GPU-memory check to size them.
-- **Not audited:** Python/uvicorn backend memory; font loading/subsetting; the full
-  `editor/` filter pipeline beyond the undo/layer signal; WebGL/WebGPU usage.
+- **Now audited (section E, measured PSS):** Python/uvicorn backend, host process, and MCP
+  server footprint. **Still open:** host-process growth-over-time (E2) is the one blocking
+  measurement — it gates whether the 556 MB host is baseline or a second leak.
+- **Still not audited:** font loading/subsetting; the full `editor/` filter pipeline beyond
+  the undo/layer signal; WebGL/WebGPU usage.
 - **Already addressed (not re-listed):** the large memory-fix slate in `active-work.md`.
 - Recommended order: **A1 (cheap, high) → A2 review → B1 (gated) → C1/C3 → C2/#92 → D\***.
