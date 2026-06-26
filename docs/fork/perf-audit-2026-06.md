@@ -181,6 +181,26 @@ and gate them with `animation-play-state: paused` (or `content-visibility`). **C
 is not yet a finding** — the actionable step is identifying the hidden-but-animating
 subset first.
 
+> **RESOLVED (investigated 2026-06-25).** The hidden-but-animating subset was identified and
+> handled; there is **no residual work** here. Evidence:
+> 1. **Idle = 0 running animations** (measured live via `tooling/mem-probe.py animations`).
+> 2. **Hidden/minimized panels are `display:none`** (`.modal.hidden { display:none }`,
+>    `.modal.modal-minimized { display:none !important }`), and the browser **stops CSS
+>    animations on `display:none` subtrees** — so a closed/minimized panel's animations are
+>    dormant at zero cost. The C3 'animates while hidden' concern does not apply to panels.
+> 3. The only **perpetual-while-visible** decorations were the notes quick-add pulse/caret
+>    (#117) and the Research orbit ring (#115) — both fixed.
+> 4. The remaining ~75 `infinite` animations are **activity-gated indicators** — spinners
+>    (`spin`, `*-spin`, skeleton shimmers) during loads, and state pulses tied to
+>    `.fired`/`.running`/`.pulsing`/`.unread`/streaming classes. They run only when **visible
+>    AND active**, conveying real status; pausing them would be wrong (a download spinner must
+>    keep spinning in an unfocused window). `swipe-hint-arrow` is a one-time touch hint
+>    (JS-created once, `localStorage`-gated), not perpetual.
+>
+> Net: C3's actionable subset = {notes, orbit}, both fixed; the headline count was never a
+> finding. No blanket gating — that would degrade legitimate status indicators for zero
+> measured benefit.
+
 > **Idle-quiescence principle (added 2026-06-25, tracked in #117).** A quiescent app should
 > generate ~zero frames. Several **ambient decorative animations run perpetually** to look
 > "alive" — the Research orbit ring (#115, full-area conic-gradient repaint), the notes
