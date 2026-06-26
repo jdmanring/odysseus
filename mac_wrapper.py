@@ -74,8 +74,13 @@ def kill_zombies():
 def start_server():
     global _server_proc
     print(f"Starting Odysseus server on port {PORT}...")
+    # --no-access-log: uvicorn's access log defaults to ON, emitting one log line
+    # per HTTP request. For this embedded, localhost, single-user deployment the
+    # always-on UI polls (email/tasks/calendar) would churn that log forever with
+    # no operator reading it; errors still surface via server.log. Startup banners
+    # and tracebacks still reach server_access.log via the subprocess stdout/stderr.
     cmd = [VENV_PYTHON, "-m", "uvicorn", "app:app",
-           "--host", "127.0.0.1", "--port", PORT, "--access-log"]
+           "--host", "127.0.0.1", "--port", PORT, "--no-access-log"]
     env = os.environ.copy()
     env["ODYSSEUS_LOG_FILE"] = os.path.join(LOG_DIR, "server.log")
     _access_log = open(os.path.join(LOG_DIR, "server_access.log"), "a", buffering=1)
