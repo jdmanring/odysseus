@@ -3,34 +3,16 @@
 **Branch:** `fix/research-orbit-quiescence` (from `upstream-mirror`)
 **Target:** `pewdiepie-archdaemon/odysseus:dev`
 **Fixes:** #_ (file issue-drafts/fix-research-orbit-quiescence.md first)
-**Filing notes:** Single concern, one commit. JS-only (the conic-gradient visual is unchanged).
-
----
+**Filing notes:** Net diff vs `dev` = remove the orbit ring (the branch's interim throttle/compositor commits were exploration; squash on filing).
 
 ## Title
-
-`perf(research): run orbit ring only during active jobs; throttle + quiesce`
+`perf(research): remove the animated orbit border ring`
 
 ## Description
-
-`--research-orbit-angle` feeds a conic-gradient + mask on `.research-pane::after`, so advancing
-it every frame is a full-pane **repaint**. The old rAF loop ran perpetually while the panel was
-open — even idle with no job — a continuous paint producer (invisible on a GPU, but a CPU fire
-under software rendering).
-
-**Change** (`static/js/research/panel.js`):
-- Loop runs only while a research job is active (`_orbitActive = running > 0`).
-- Pauses on `document.hidden` and `prefers-reduced-motion` (`_orbitShouldRun`).
-- Throttles the repaint to ~30fps (the orbit is slow; halves re-raster work).
-- Re-evaluates on `visibilitychange` so a job's orbit stops in the background and resumes on
-  return. When inactive the ring holds a static angle — still visible, zero cost.
-
-Visual unchanged (same conic-gradient ring); only the drive frequency changes.
+The orbit ring was a perpetual full-pane repaint (conic-gradient + mask driven by an rAF). Throttling/compositing it only moved the cost around: a compositor version needs a dedicated GPU layer (~32 MB texture on a hi-res pane). Odysseus runs local models, where VRAM is the scarce resource (it's the model's context), so a border effect should not hold a GPU layer. Removed it; job activity is still shown by the rail pulse / running dots / round counter.
 
 ## Tests
-
-`tests/test_research_orbit_quiescence.py` (5 static guards): job-gated; visibility/reduced-motion
-gate; repaint throttle; visibilitychange re-eval; clean `cancelAnimationFrame` stop.
+`tests/test_research_orbit_quiescence.py` — guards that the orbit DOM/CSS and any `will-change` layer in the research pane stay removed.
 
 ## Risk
-Low — JS-only, single caller, falls back to a static ring when inactive.
+None functional — pure decoration removed; the pane and its other indicators are unchanged.
