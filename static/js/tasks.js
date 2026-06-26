@@ -2894,6 +2894,9 @@ export function isTasksOpen() { return _open; }
 let _notifInterval = null;
 
 async function _pollTaskNotifications() {
+  // Idle quiescence (#118): skip the poll while the tab is hidden (matches
+  // calendar.js); the next visible tick catches up on notifications.
+  if (document.visibilityState !== 'visible') return;
   try {
     const res = await fetch(`${API_BASE}/api/tasks/notifications`, { credentials: 'same-origin' });
     if (!res.ok) return;

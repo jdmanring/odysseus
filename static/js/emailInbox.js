@@ -322,6 +322,10 @@ function _urgencyColor(score) {
 }
 
 async function _refreshUnreadCount() {
+  // Idle quiescence (#118): skip the network poll while the tab is hidden — no
+  // one is watching the unread dot in a backgrounded window. Matches the pattern
+  // calendar.js already uses; the next visible tick refreshes it.
+  if (document.visibilityState !== 'visible') return;
   // Default the dot to hidden — only the verified "new mail above threshold"
   // path below should turn it on. Without this, a fetch error or a backend
   // returning malformed data left a stale dot from a previous account/session.
