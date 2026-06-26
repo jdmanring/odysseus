@@ -144,12 +144,22 @@ open and eventually filled all RAM. Two findings:
      `memory-synapse-sweep`, a decorative shimmer on every `#memory-list
      .memory-item::after` (~21 instances). Already paused when the Brain panel is
      hidden; still runs while it is open. Layer 1 target and an aesthetic decision.
-   - ~3.1 MB/s from a non-animation continuous repaint that also saturates the
+   - ~3.1 MB/s from a non-animation continuous repaint that also saturated the
      renderer main thread (CDP went unresponsive under it: this is the CPU cost
-     too). Backdrop-filter ruled out (0 visible). **Not yet identified**;
-     candidates are a perpetual spinner/canvas (rAF) or interval-driven repaint.
-     Needs a clean live re-measure with the corrected method on next start, before
-     any fix (do not guess the producer).
+     too). Backdrop-filter ruled out (0 visible). **Later identified** by a
+     read-only rAF caller-stack capture as a **leaked whirlpool spinner**
+     (`Spinner._drawWhirlpool`) looping forever on a detached canvas (the
+     unbounded `!_wpWasConnected` grace). Fixed in #107 (a shared visibility guard
+     for all three spinner loops). A further ~1.7 MB/s producer was then found
+     when Tasks was open: the `#tasks-clock` 1/sec repaint re-rastering the whole
+     draggable Tasks-modal layer — fixed in #110 by isolating the clock to its own
+     layer. Lesson: name the producer (rAF/mutation capture, `tooling/mem-probe.py`)
+     before fixing; do not guess.
+
+Also fixed in this pass: the minimize page-freeze (`setLifecycleState(Frozen)`)
+left the UI unresponsive after restore (Qt: a visible page must stay Active; a
+non-Active page can lose input). Removed; minimize now keeps the page Active and
+reclaims via the gated purge instead (#109).
 
 Net: memory is now **bounded** by the periodic reclaim. Reducing the two
 producers (Layer 1) and unloading hidden panels (Layer 2) lowers the steady-state
