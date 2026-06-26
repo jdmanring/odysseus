@@ -32194,6 +32194,13 @@ body.notes-mobile-mode.notes-drag-mode .note-card-pin.active {
 @media (prefers-reduced-motion: reduce) {
   .notes-quick-add::after { animation: none; opacity: 0; }
 }
+/* Idle quiescence (#117): a backgrounded/unfocused window should not animate.
+   html.app-blurred is toggled in ui.js on window blur / page hide. Covers the
+   element and both decorative pseudo-elements so the pulse pauses regardless of
+   which one carries it (the ::after variant lands via the #108 cherry-pick). */
+html.app-blurred .notes-quick-add,
+html.app-blurred .notes-quick-add::after,
+html.app-blurred .notes-quick-add::before { animation-play-state: paused; }
 .notes-quick-input {
   flex: 1;
   background: transparent;
