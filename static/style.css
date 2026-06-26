@@ -24236,6 +24236,14 @@ a.chat-link[href^="#research-"] {
   opacity: 0.35;
   text-align: center;
   padding: 6px 0 8px;
+  /* The clock's textContent updates every second. The Tasks modal is draggable,
+     so it is its own compositor layer; without isolation the clock repaint
+     re-rasters the whole modal backing texture (~600x848) every tick — measured
+     ~1.7 MB/s of tiles Qt never evicts. Promote the clock to its own small layer
+     and contain its paint so only the clock box (~578x26) re-rasters (~30x less).
+     Non-visual; keeps the live seconds. Issue #110. */
+  transform: translateZ(0);
+  contain: layout paint;
 }
 
 .task-preset-grid {
