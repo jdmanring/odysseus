@@ -1309,3 +1309,22 @@ if (!window._odyEscExpandGuard) {
     else { try { topModal.classList.add('hidden'); } catch {} }
   }, true);
 }
+
+// ── Idle quiescence (#117) ──────────────────────────────────────────
+// A backgrounded app should not animate. Toggle `html.app-blurred` when the
+// window loses focus or the page is hidden; CSS pauses ambient decorative
+// animations under it (notes pulse/caret today, extensible to the class).
+// Cheap on a healthy GPU, but these perpetual producers keep the compositor
+// awake — a battery cost, and catastrophic under software rendering. This is
+// the reusable primitive; per-animation opt-in lives in the CSS.
+(function _initIdleQuiescence() {
+  const root = document.documentElement;
+  const update = () => {
+    const backgrounded = document.hidden || !document.hasFocus();
+    root.classList.toggle('app-blurred', backgrounded);
+  };
+  window.addEventListener('blur', update);
+  window.addEventListener('focus', update);
+  document.addEventListener('visibilitychange', update);
+  update();
+})();
