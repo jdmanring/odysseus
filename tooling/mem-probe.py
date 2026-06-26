@@ -238,16 +238,103 @@ def cmd_purge(cdp, args):
     print(f"forciblyPurgeJavaScriptMemory: RSS {before} -> {after} MB  (reclaimed {before - after} MB)")
 
 
+def odysseus_processes():
+    """Yield (pid, label, cmdline) for every process in the Odysseus stack.
+
+    Matches the host wrapper, the QtWebEngine children (renderer/zygote/gpu), the
+    uvicorn backend, and the built-in MCP servers. Read-only /proc scan; Linux only.
+    """
+    import re
+    # Order matters: QtWebEngine children carry --application-name=qt_wrapper.py
+    # in their cmdline, so they must be matched before the host pattern.
+    matchers = [
+        ("webengine", re.compile(r"QtWebEngineProcess")),
+        ("backend",  re.compile(r"uvicorn app:app")),
+        ("mcp",      re.compile(r"mcp_servers/(\w+)_server\.py")),
+        ("host",     re.compile(r"qt_wrapper\.py|mac_wrapper\.py|windows_wrapper\.py")),
+    ]
+    for d in glob.glob("/proc/*/"):
+        pid = d.split("/")[2]
+        if not pid.isdigit():
+            continue
+        try:
+            cl = open(d + "cmdline").read().replace("\x00", " ").strip()
+        except OSError:
+            continue
+        if not cl:
+            continue
+        for kind, rx in matchers:
+            m = rx.search(cl)
+            if not m:
+                continue
+            if kind == "mcp":
+                label = f"mcp:{m.group(1)}"
+            elif kind == "webengine":
+                tm = re.search(r"--type=(\S+)", cl)
+                label = f"webengine:{tm.group(1) if tm else 'browser'}"
+            else:
+                label = kind
+            yield pid, label, cl
+            break
+
+
+def _smaps_rollup(pid):
+    """Return (rss, pss, private) in kB from /proc/<pid>/smaps_rollup, or None."""
+    rss = pss = priv = 0
+    try:
+        for ln in open(f"/proc/{pid}/smaps_rollup"):
+            f = ln.split()
+            if ln.startswith("Rss:"):
+                rss = int(f[1])
+            elif ln.startswith("Pss:"):
+                pss += int(f[1])
+            elif ln.startswith(("Private_Clean:", "Private_Dirty:")):
+                priv += int(f[1])
+    except OSError:
+        return None
+    return rss, pss, priv
+
+
+def cmd_stack(cdp, args):
+    """Per-process RSS / PSS / Private across the whole Odysseus stack.
+
+    PSS splits shared copy-on-write pages fairly; Private is what you actually
+    reclaim by stopping a process. RSS double-counts shared pages — compare the
+    columns to see how much (e.g. the QtWebEngine zygotes are almost all shared).
+    """
+    rows = sorted(odysseus_processes(), key=lambda r: r[1])
+    print(f"{'PID':>7}  {'LABEL':<20} {'RSS':>9} {'PSS':>9} {'PRIV':>9}  (kB)")
+    print("-" * 70)
+    t_rss = t_pss = t_priv = 0
+    for pid, label, _cl in rows:
+        m = _smaps_rollup(pid)
+        if m is None:
+            continue
+        rss, pss, priv = m
+        t_rss += rss; t_pss += pss; t_priv += priv
+        print(f"{pid:>7}  {label:<20} {rss:>9} {pss:>9} {priv:>9}")
+    print("-" * 70)
+    print(f"{'':>7}  {'TOTAL':<20} {t_rss:>9} {t_pss:>9} {t_priv:>9}")
+    print(f"\nStack PSS = {t_pss / 1024:.0f} MB   (what you'd reclaim ~ Private = "
+          f"{t_priv / 1024:.0f} MB). PSS is the honest footprint number.")
+
+
 def main():
     p = argparse.ArgumentParser(description="Read-only memory/CPU diagnostics for the Odysseus Qt wrapper.")
     p.add_argument("--port", type=int, default=9222, help="CDP port (default 9222)")
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name in ("counters", "animations", "purge"):
+    for name in ("counters", "animations", "purge", "stack"):
         sub.add_parser(name)
     for name in ("slope", "raf", "mutations", "producers"):
         sp = sub.add_parser(name)
         sp.add_argument("-d", "--duration", type=float, default=10.0, help="seconds (default 10)")
     args = p.parse_args()
+
+    # `stack` is a pure /proc reader — it needs no CDP connection, so it works
+    # even when the remote-debugging port is closed.
+    if args.cmd == "stack":
+        cmd_stack(None, args)
+        return
 
     cdp = CDP(port=args.port)
     try:
