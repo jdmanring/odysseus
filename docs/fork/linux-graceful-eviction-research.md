@@ -185,23 +185,25 @@ Two questions had to be settled before picking a source. Both now resolved from 
    to a D-Bus subscription from the evaluator — the original "can it reach the bus under the sandbox?"
    framing doesn't apply, because the code path isn't sandboxed.
 
-2. **The real catch is GIO needs a GLib main loop QtWebEngine doesn't run.** `GMemoryMonitor` is
-   GIO/GDBus, and GDBus signals are only dispatched when a **`GMainContext` is being iterated**
-   (GLib main-loop docs, confirmed). Chromium's desktop-Linux GLib pump (`MessagePumpGlib`) exists
-   for GTK — but **QtWebEngine replaces the browser-process UI pump with Qt's event loop**, so no
-   `GMainContext` is iterated there. A `GMemoryMonitor` subscription would compile and then **silently
-   never fire**. ⇒ **Do not use GIO/`GMemoryMonitor` in QtWebEngine.** If we want the desktop signal,
-   subscribe to `org.freedesktop.LowMemoryMonitor.LowMemoryWarning` via **Chromium's own `dbus::Bus`**
-   (`components/dbus`, a dedicated libdbus thread with its own watch/timeout integration — **no GLib
-   dependency**), which is how Chromium already does keyring/bluez D-Bus.
+2. **GIO/`GMemoryMonitor` is a main-loop question — UNVERIFIED, and moot for the primary path.**
+   `GMemoryMonitor` is GIO/GDBus, and GDBus signals only dispatch while a **`GMainContext` is being
+   iterated** (GLib main-loop docs, confirmed). The *open* question is whether QtWebEngine's
+   browser-process main thread iterates one. It plausibly **does**: Qt's default Linux event dispatcher
+   is `QEventDispatcherGlib` (iterates a `GMainContext` unless `QT_NO_GLIB=1`), and standard Chromium's
+   browser UI thread uses `MessagePumpGlib` (also GLib). For a `GMemoryMonitor` subscription to *fail*,
+   QtWebEngine's browser-process pump would have to be **neither** — which is **not confirmed**. ⇒ This
+   is **trivially checkable once a prototype Qt build exists**, and it does **not** affect the primary
+   path. If the desktop signal is ever used, the robust choice regardless of pump is Chromium's own
+   **`dbus::Bus`** (`components/dbus`, a dedicated libdbus thread — **no GLib dependency**), which is
+   how Chromium already does keyring/bluez D-Bus.
 
-**Decision this tips:** in-process PSI is the clean primary source — **zero runtime deps, no D-Bus, no
-main-loop coupling**, and it's the CQ-passing code (Helmut's CL / ChromeOS) we'd start from. The
-desktop-signal path is viable but only via `dbus::Bus` (never GIO), and it buys us a *maintained
-threshold* at the cost of a runtime daemon dependency not present on Arch. **Recommendation: ship
-in-process PSI; treat the `dbus::Bus` `LowMemoryMonitor` subscription as an optional Rung-2-style
-enhancement (prefer the daemon's signal when present, else PSI) — not the foundation.** This settles
-the source decision that gated the repo charter.
+**Decision this tips (independent of the unverified item above):** in-process PSI is the clean primary
+source — **zero runtime deps, no D-Bus, no main-loop coupling** — and it's the CQ-passing code
+(CL 7594942 / ChromeOS) we'd start from. The desktop-signal path is an *optional* enhancement; if
+added, prefer `dbus::Bus` over GIO to avoid the (unverified) pump dependency. **Recommendation: ship
+in-process PSI; treat a `LowMemoryMonitor` subscription as an optional Rung-2-style enhancement — not
+the foundation.** This settles the source decision that gated the repo charter; the canonical
+implementation record now lives in the `chromium-linux-mempressure` project folder.
 
 ## 5. Contribution paths (and which to pick)
 
@@ -265,8 +267,9 @@ working prototype** (path C), **1–3 months** to land upstream (path A). One pe
   is the primary source; the desktop `LowMemoryMonitor` signal, if added, goes via Chromium
   `dbus::Bus` (never GIO/`GMemoryMonitor`) as an optional enhancement.**
 - ~~D-Bus from the QtWebEngine browser process under its sandbox~~ ✅ **Resolved (§4b): no sandbox
-  barrier (evaluator runs in the unsandboxed browser process); the actual constraint is that GIO
-  needs a GLib main loop QtWebEngine doesn't run, so use `dbus::Bus`, not `GMemoryMonitor`.**
+  barrier — the evaluator runs in the unsandboxed browser process.** *(Sub-question still open: does
+  QtWebEngine's browser-process pump iterate a `GMainContext`? Matters only for a GIO path; avoidable
+  by using `dbus::Bus`. Checkable once a prototype Qt build exists.)*
 - PSI host vs cgroup for a desktop app — which budget do we trust? *(still open — measurement)*
 - Threshold defaults that don't thrash across swap/zram/cgroup configs (tie to Rung-1 RAM detection).
   *(still open — needs real low-RAM hardware)*
