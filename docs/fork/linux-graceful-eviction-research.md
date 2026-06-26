@@ -116,17 +116,68 @@ A `SystemMemoryPressureEvaluator` subclass (ref: `system_memory_pressure_evaluat
 Recommendation: **PSI**, with a `/proc/meminfo`-polling fallback for kernels without PSI — this
 matches ChromeOS (the closest existing reference) and is the senior choice.
 
-## 4. The TWO pieces (this is the part people miss)
+## 4. The pieces — RESOLVED 2026-06-26: it's the evaluator *only* (source-confirmed)
 
-Adding the evaluator is necessary but maybe not sufficient for **QtWebEngine specifically**:
+The earlier worry was that QtWebEngine might not even create the monitor (then no evaluator would
+run). **That is now settled by reading current Chromium source — the monitor IS created in
+`content/`, which QtWebEngine compiles:**
 
-1. **Evaluator** — add the Linux `SystemMemoryPressureEvaluator` (§2–3). Benefits *all*
-   Chromium-on-Linux.
-2. **Monitor instantiation** — *someone* must create the `MultiSourceMemoryPressureMonitor` in the
-   **browser process**. Chrome does this in its browser main parts. **QtWebEngine may not** — and if
-   it doesn't, the evaluator never runs. ⚠ **Unverified; first investigation step.** Our measured
-   no-op of `simulatePressureNotification` is a hint that the dispatch may not be wired in
-   QtWebEngine at all — pin this down before estimating the Qt side.
+```cpp
+// content/browser/browser_main_loop.cc — CreateMemoryPressureMonitor()
+#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_FUCHSIA) || \
+    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  monitor = std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
+#endif
+```
+
+`IS_LINUX` is in the guard, so QtWebEngine's browser process **does** instantiate the monitor, and
+the monitor's `MaybeStartPlatformVoter()` calls
+`SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(this)` — which returns **`nullptr`** on
+Linux (§1, re-verified verbatim from `system_memory_pressure_evaluator.cc`). So:
+
+- ✅ The **monitor** is wired (content/, runs in QtWebEngine).
+- ✅ The **response** machinery is wired: monitor → `MemoryPressureListener` fan-out → cc/V8/Skia
+  graceful eviction already exists and runs.
+- ❌ The **only** missing piece is the **evaluator** (the detector that calls
+  `voter_->SetVote(level)`), because `CreateDefaultSystemEvaluator` returns nullptr.
+
+**Consequence — the patch surface is ONE self-contained component, no `chrome/` changes.** The fix
+lives entirely in `components/memory_pressure/` (which QtWebEngine compiles): add a Linux evaluator
+and make `CreateDefaultSystemEvaluator` return it on Linux. Helmut's CL also edited
+`chrome/browser/chrome_browser_main_linux.cc`, `about_flags.cc`, `flag_descriptions.h`, etc. — those
+are **Chrome-UI flag plumbing we can drop**; QtWebEngine has no `chrome/` and can enable the
+evaluator via a build flag or unconditionally. This removes the previously-feared "monitor
+instantiation" piece and the `simulatePressureNotification` no-op is now fully explained: the
+listener fan-out works, but with no evaluator there is nothing to translate a simulated pressure
+call into a vote on Linux.
+
+## 4b. Detection source — PSI in-process vs. reuse the desktop `LowMemoryMonitor` signal
+
+The evaluator's *detection* half can be sourced two ways, and this is the only place the
+"why aren't we using what Endless OS has?" question actually bites. Both fit the same ~200 LOC slot;
+the **response** glue (vote → `MemoryPressureListener`) is identical either way and is the part only
+a Chromium-side patch can provide.
+
+| Detection source | What it is | Pros | Cons |
+|---|---|---|---|
+| **In-process PSI** (Helmut's CL, ChromeOS) | evaluator reads `/proc/pressure/memory` itself | **zero runtime deps** (matters on Arch, headless, containers); self-contained; CQ-passing code to start from | re-implements PSI parsing; we own the thresholds |
+| **Desktop signal** (`org.freedesktop.LowMemoryMonitor` via GLib `GMemoryMonitor`) | evaluator subscribes to the existing D-Bus `LowMemoryWarning` signal | reuses a maintained daemon; the standard GNOME/Endless desktop signal; smaller detection code; thresholds tuned by the daemon | **adds a runtime dependency** (daemon installed + running — not default on Arch); D-Bus call from the browser process; no signal at all if absent |
+
+**Key facts established this session:**
+- Endless OS `psi-monitor`, `systemd-oomd`, `nohang` all *detect* pressure but *respond by
+  killing/pausing whole processes* — wrong granularity; we want Chromium to **shrink**, not be
+  OOM-killed.
+- `low-memory-monitor` / `GMemoryMonitor` provide the *detection signal* (`LowMemoryWarning`, levels
+  0–255) but **delegate the response to each app**. Chromium **does not subscribe today**, and across
+  **all 37 review messages on CL 7594942 the Chromium memory team never raised this path** — it was
+  simply not considered there.
+- Therefore **no external project removes the need for a Chromium patch** — the graceful-eviction
+  response lives inside Chromium. The desktop signal only changes the detector's *source*.
+
+A **hybrid** is natural: prefer the `GMemoryMonitor`/`LowMemoryMonitor` signal when the daemon is
+present, fall back to in-process PSI when it isn't — best fidelity on GNOME/Endless, zero-dep on
+Arch. This is the design decision to settle before writing the evaluator (left open — the repo
+charter was paused pending more evaluation).
 
 ## 5. Contribution paths (and which to pick)
 
@@ -158,9 +209,9 @@ justify," not a drive-by patch.
 
 | Task | Effort |
 |---|---|
-| Verify QtWebEngine creates the monitor (§4) | 0.5–1 day (read Qt browser main parts; instrument a build) |
-| Linux PSI evaluator (adapt ChromeOS/Win) | ~200–350 LOC, **2–4 days** |
-| Wire into `CreateDefaultSystemEvaluator` (+ monitor if missing) | hours |
+| ~~Verify QtWebEngine creates the monitor (§4)~~ | ✅ **DONE** — source-confirmed it does (content/, `IS_LINUX`); only the evaluator is missing, no `chrome/` work |
+| Linux evaluator (adapt CL 7594942 / ChromeOS/Win; pick PSI vs `GMemoryMonitor` per §4b) | ~200–350 LOC, **2–4 days** |
+| Wire into `CreateDefaultSystemEvaluator` (evaluator only — monitor already exists) | hours |
 | **Build QtWebEngine from source** (the real time sink) | env setup **1–3 days**; ~100 GB disk; **hours per rebuild** |
 | Threshold tuning + measure on real low-RAM hardware | **3–7 days** (needs a constrained box) |
 | Upstream review (Qt Gerrit; or Chromium) | **weeks–months** elapsed, design pushback likely |
@@ -184,9 +235,14 @@ working prototype** (path C), **1–3 months** to land upstream (path A). One pe
    pre-PSI kernels); Rung-1's reclaim-profile becomes unnecessary on Linux (it becomes like mac/win).
 
 ## 9. Open questions to resolve before coding
-- Does QtWebEngine instantiate the memory-pressure monitor at all? (§4 — decides scope.)
+- ~~Does QtWebEngine instantiate the memory-pressure monitor at all?~~ ✅ **Resolved (§4): yes,
+  in content/ for `IS_LINUX`. Only the evaluator is missing.**
+- **Detection source (§4b): in-process PSI vs. subscribe to `GMemoryMonitor`/`LowMemoryMonitor`
+  vs. hybrid** — the main remaining design decision; gates the repo charter (currently paused).
 - PSI host vs cgroup for a desktop app — which budget do we trust?
 - Threshold defaults that don't thrash across swap/zram/cgroup configs (tie to Rung-1 RAM detection).
+- D-Bus from the QtWebEngine browser process under its sandbox — confirm the browser process can
+  reach the session bus for the `GMemoryMonitor` path (renderer cannot; browser process should).
 
 ## Sources
 - CDP no-op + `nullptr` proof: `idle-reclaim-threshold-research.md` (this fork).
