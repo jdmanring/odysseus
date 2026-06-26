@@ -46,7 +46,7 @@ contaminates the branch:
 
 | Fork issue | Touches | Origin / home | Independent? | Maps upstream to |
 |---|---|---|---|---|
-| [#111](https://github.com/jdmanring/odysseus/issues/111) lazy-connect cold MCP | `src/builtin_mcp.py`, `src/mcp_manager.py`, `app.py` (all on `upstream-mirror`) | **own branch from `upstream-mirror`** (not yet cut) | **Yes** | #2140, #3824; ROADMAP email-perf |
+| [#111](https://github.com/jdmanring/odysseus/issues/111) lazy-connect cold MCP | `src/builtin_mcp.py`, `src/mcp_manager.py` (both on `upstream-mirror`) | **`perf/mcp-lazy-connect`** (cut from `upstream-mirror`; implemented, cherry-picked to develop; draft issue+PR staged; research in `mcp-lazy-connect-research.md`) | **Yes** | #2140, #3824; ROADMAP email-perf. ⚠ reconcile with open PR #4812 |
 | [#112](https://github.com/jdmanring/odysseus/issues/112) host VmRSS telemetry | `qt_wrapper.py` (**not** on `upstream-mirror`) | **folded into `perf/renderer-memory-reclaim`** (the telemetry owner; done, cherry-picked to develop) | No — **depends on #14** | rides the Qt-wrapper stack |
 | [#113](https://github.com/jdmanring/odysseus/issues/113) drop `--access-log` | `qt_wrapper.py` / `mac_wrapper.py` / `windows_wrapper.py` (**not** on `upstream-mirror`) | **on the `feat/qt-native-*` family** (not yet applied) | No — **depends on #14** | rides the Qt-wrapper stack |
 
