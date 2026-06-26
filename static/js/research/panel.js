@@ -148,13 +148,6 @@ function _syncResearchRail() {
       wrap.remove();
     }
   }
-  // Orbiting edge highlight (#115): a STATIC conic-gradient rotated by a CSS
-  // compositor transform on .research-orbit-spin — no per-frame repaint, so it
-  // costs ~nothing even while running. We only toggle a class; CSS spins it while
-  // `.orbit-active` and freezes it (static ring) when idle, plus pauses it when
-  // backgrounded (html.app-blurred) or reduced-motion. No rAF, no paint loop.
-  const _rp = document.getElementById('research-pane');
-  if (_rp) _rp.classList.toggle('orbit-active', running > 0);
   if (window._syncRailDynamic) window._syncRailDynamic();
 }
 
@@ -245,15 +238,6 @@ export function openPanel(focusJobId) {
     ? 'width:100vw;max-width:100vw;height:90dvh;max-height:90dvh;border-radius:14px 14px 0 0;background:var(--bg);'
     : 'width:min(640px, 92vw);max-height:85vh;background:var(--bg);';
   pane.innerHTML = _buildPanelHTML();
-  // Compositor-driven orbit ring (#115): a static gradient on .research-orbit-spin
-  // rotated by a CSS transform, clipped to the 2px border by .research-orbit's
-  // static mask. Injected here because pseudo-elements can't host the rotating-
-  // child-inside-static-mask structure a compositor-only ring needs.
-  const _orbit = document.createElement('div');
-  _orbit.className = 'research-orbit';
-  _orbit.setAttribute('aria-hidden', 'true');
-  _orbit.innerHTML = '<div class="research-orbit-spin"></div>';
-  pane.insertBefore(_orbit, pane.firstChild);
 
   overlay.appendChild(pane);
   document.body.appendChild(overlay);
