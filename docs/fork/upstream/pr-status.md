@@ -48,7 +48,7 @@ contaminates the branch:
 |---|---|---|---|---|
 | [#111](https://github.com/jdmanring/odysseus/issues/111) lazy-connect cold MCP | `src/builtin_mcp.py`, `src/mcp_manager.py` (both on `upstream-mirror`) | **`perf/mcp-lazy-connect`** (cut from `upstream-mirror`; implemented, cherry-picked to develop; draft issue+PR staged; research in `mcp-lazy-connect-research.md`) | **Yes** | #2140, #3824; ROADMAP email-perf. ⚠ reconcile with open PR #4812 |
 | [#112](https://github.com/jdmanring/odysseus/issues/112) host VmRSS telemetry | `qt_wrapper.py` (**not** on `upstream-mirror`) | **folded into `perf/renderer-memory-reclaim`** (the telemetry owner; done, cherry-picked to develop) | No — **depends on #14** | rides the Qt-wrapper stack |
-| [#113](https://github.com/jdmanring/odysseus/issues/113) drop `--access-log` | `qt_wrapper.py` / `mac_wrapper.py` / `windows_wrapper.py` (**not** on `upstream-mirror`) | **on the `feat/qt-native-*` family** (not yet applied) | No — **depends on #14** | rides the Qt-wrapper stack |
+| [#113](https://github.com/jdmanring/odysseus/issues/113) `--no-access-log` | `qt_wrapper.py` / `mac_wrapper.py` / `windows_wrapper.py` (**not** on `upstream-mirror`) | **DONE** on each `feat/qt-native-{linux,macos,windows}-app` branch; cherry-picked to develop (guard test on develop) | No — **rides each platform PR** | folds into #14 (linux) + macos/windows PRs. Real fix is `--no-access-log` (uvicorn default is ON) |
 
 **⚠ Pre-existing staging gap surfaced:** `perf/renderer-memory-reclaim` (the bulk of this
 cycle's memory work: #106 forciblyPurge, idle-purge, GC catch-up, and now #112 host telemetry)

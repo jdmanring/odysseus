@@ -288,9 +288,12 @@ everything here. **Do not propose a host fix until this is measured.**
 buffered write, **forever, even when idle/backgrounded**. The access log and the D2 polls are
 the same churn viewed from two ends.
 
-**Fix:** drop `--access-log` for the embedded (localhost, single-user) deployment — there is no
-operator reading per-request access logs for a desktop app; errors still surface via the app
-log. Pairs naturally with the D2 visibility-gating fix. Trivial, zero aesthetic impact.
+**Fix (DONE — #113):** ⚠ correction — uvicorn's `access_log` **defaults to ON**, so dropping
+the `--access-log` flag alone does nothing; the embedded launch must pass **`--no-access-log`**
+explicitly. Applied to all three platform wrappers (qt/mac/windows); startup banners and
+tracebacks still reach `server_access.log` via the subprocess stdout/stderr, and errors surface
+via `server.log`. Guarded by `tests/test_wrapper_no_access_log.py`. Pairs naturally with the D2
+visibility-gating fix. Trivial, zero aesthetic impact.
 
 ### E4 — uvicorn backend baseline (216 MB private)
 
