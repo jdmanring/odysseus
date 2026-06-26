@@ -55,7 +55,7 @@ contaminates the branch:
 | Fork issue | Branch | Touches | Status |
 |--------|--------|---------|--------|
 | [#117](https://github.com/jdmanring/odysseus/issues/117) (notes instance) | `fix/notes-quick-idle-quiescence` | `static/js/ui.js`, `static/style.css` | **DONE** — from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged; adds reusable `html.app-blurred` primitive. Independent. |
-| [#115](https://github.com/jdmanring/odysseus/issues/115) | `fix/research-orbit-quiescence` | `static/js/research/panel.js` | **DONE** — from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. JS-only, single concern. Independent. |
+| [#115](https://github.com/jdmanring/odysseus/issues/115) | `fix/research-orbit-quiescence` | `static/js/research/panel.js`, `static/style.css` | **DONE — orbit ring REMOVED** (not just optimized): a compositor version needed a ~32 MB GPU layer for decoration, and VRAM is the model's context. From `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. Independent. |
 | [#118](https://github.com/jdmanring/odysseus/issues/118) (audit D1+D2) | `fix/timer-visibility-gating` | `modalManager.js`, `emailInbox.js`, `tasks.js` | **DONE** — visibility-gate background timers; from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. Independent. |
 | [#119](https://github.com/jdmanring/odysseus/issues/119) (audit D3) | `fix/sigcache-lru-bound` | `static/js/document.js` | **DONE** — LRU-bound `_sigCache`; from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. Independent. |
 

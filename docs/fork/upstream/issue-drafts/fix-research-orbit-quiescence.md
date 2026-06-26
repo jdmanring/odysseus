@@ -5,35 +5,12 @@
 **Branch:** `fix/research-orbit-quiescence`
 **Type:** Performance
 
----
-
 ## Title
-
-`perf(research): orbit ring repaints the whole pane every frame while idle (perpetual conic-gradient + mask raster)`
-
----
+`perf(research): remove the animated orbit border ring (perpetual repaint / VRAM cost)`
 
 ## Body
+The Research pane's animated accent ring (`_ensureOrbit` rAF driving a full-pane `conic-gradient` + mask on `.research-pane::after`) is a perpetual per-frame **repaint** while the panel is open — invisible on a fast GPU, but a CPU fire under software rendering (a GPU-driver fallback to llvmpipe pegged ~12 cores on it).
 
-**Area:** UI / Research panel / performance
+Making it a compositor transform instead fixes the CPU cost but trades it for a **dedicated GPU layer** — measured ~32 MB texture on a hi-res pane (it scales with screen size). For Odysseus specifically, which runs **local models**, video memory is the scarce resource: that VRAM is the model's context window, so spending ~20–32 MB on a border effect is the wrong trade on any device and can push a marginal model OOM.
 
-**Problem**
-
-The Research pane's animated accent ring is a perpetual per-frame **paint** producer.
-`static/js/research/panel.js:_ensureOrbit()` runs a `requestAnimationFrame` loop that rewrites
-`--research-orbit-angle` **every frame while the panel is open** — by design even when idle with
-no research job running. That variable feeds `.research-pane::after`, a `conic-gradient(from
-var(--research-orbit-angle), …)` over the full pane masked (`mask-composite: exclude`) to a 2px
-ring. So every frame the browser recomputes a full-pane conic-gradient + re-applies the mask +
-re-rasterizes — 60fps, forever.
-
-On a healthy GPU this is steady background cost; under software rendering (e.g. a GPU-driver
-failure → llvmpipe) a handful of such producers can saturate the CPU and freeze the UI.
-
-**Expected:** the ring animates only while it's conveying something (an active research job),
-and is quiescent otherwise.
-
-**Fix:** drive the loop only while a job is active; pause on `document.hidden` /
-`prefers-reduced-motion`; throttle the repaint. When idle, hold a static angle (still visible).
-
-**Affected:** `static/js/research/panel.js`.
+**Fix:** remove the effect. Research-job activity is already signalled by the rail pulse, the running dots, and the round counter — the ring is redundant decoration. Affected: `static/js/research/panel.js`, `static/style.css`.
