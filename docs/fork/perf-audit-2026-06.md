@@ -294,8 +294,8 @@ renderer's `--enable-features` flags). That explains the large host baseline.
 won't OOM a left-open session. The lever is host/GPU-side, distinct from the renderer reclaim:
 Chromium GPU-memory flags (bound the command-buffer / transfer-buffer / tile cache), or the
 `--in-process-gpu` vs separate-GPU-process trade-off (separate process = the high-water lives in
-a killable/evictable process, at the cost of an IPC hop). **Open a separate follow-up issue**;
-do not fold into the renderer reclaim work. Caveat: the controlled *repeat-identical-cycle* test
+a killable/evictable process, at the cost of an IPC hop). Filed as **fork issue #114**; do not
+fold into the renderer reclaim work. Caveat: the controlled *repeat-identical-cycle* test
 (does the floor rise on identical repeats, or only on new content?) was not cleanly isolated —
 the deceleration + idle-flat strongly indicate a complexity ceiling, but a long-session re-check
 would firm up "ceiling" vs "very slow ratchet."
