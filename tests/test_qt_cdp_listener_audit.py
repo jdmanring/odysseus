@@ -463,12 +463,17 @@ def test_page_stored_as_instance_attr():
     assert "self._page = page" in _SRC
 
 
-def test_lifecycle_freeze_on_minimize():
-    """On window minimize, setLifecycleState(Frozen) must be called to halt rendering
-    and release compositor tile memory. Must check isMinimized() to distinguish
-    minimize from other WindowStateChange events."""
+def test_minimize_purges_and_does_not_freeze():
+    """On minimize, the page must NOT be frozen: a frozen page loses HTML input and
+    PyQt's lifecycle transitions are unreliable, so the UI came back unresponsive
+    after restore (issue #109). Keep the page Active and reclaim memory with the
+    gated purge instead. Must check isMinimized() to distinguish minimize from other
+    WindowStateChange events."""
     block = _change_event_block()
-    assert "setLifecycleState" in block
+    assert "setLifecycleState" not in block, (
+        "must not freeze the page on minimize; Frozen->Active loses input on restore"
+    )
+    assert "_purge_renderer('minimized')" in block
     assert "isMinimized" in block
 
 
