@@ -38564,56 +38564,11 @@ body.research-panel-view #research-divider { display:none; }
   isolation: isolate;
   overflow: hidden;
 }
-/* Synapse signal traveling around the outer edge of the pane. The pane keeps a
-   flat background; only this thin border ring is animated — and it is driven by
-   a COMPOSITOR transform, not a per-frame repaint (#115). .research-orbit is the
-   static 2px ring mask; .research-orbit-spin is a static conic-gradient rotated
-   inside it. The mask never moves, so the bright arc travels the rounded-rect
-   border while the GPU just spins an already-rastered gradient. */
-.research-orbit {
-  position: absolute; inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  border-radius: inherit;
-  overflow: hidden;            /* bound the oversized spinner's raster to the pane */
-  padding: 2px;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-.research-orbit-spin {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 250%; height: 250%;   /* oversized + centered so rotation never gaps */
-  transform: translate(-50%, -50%) rotate(0deg);
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    transparent 300deg,
-    color-mix(in srgb, var(--accent, var(--red)) 70%, transparent) 335deg,
-    var(--accent, var(--red)) 350deg,
-    color-mix(in srgb, var(--accent, var(--red)) 70%, transparent) 358deg,
-    transparent 360deg
-  );
-  animation: research-orbit-spin 6s linear infinite;
-  animation-play-state: paused;  /* spins only during an active job */
-  will-change: transform;        /* keep it on its own GPU layer (compositor-only) */
-}
-@keyframes research-orbit-spin {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-/* Spin only while a research job is active; otherwise the ring is static. */
-.research-pane.orbit-active .research-orbit-spin { animation-play-state: running; }
-/* Idle quiescence (#117): a backgrounded window animates nothing. */
-html.app-blurred .research-orbit-spin { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) {
-  .research-orbit-spin { animation: none; }
-}
+/* The animated border "orbit" ring was removed (#115): it required a dedicated
+   compositor layer (~32 MB GPU texture on a hi-res pane) for pure decoration. In
+   an app that runs LOCAL models, video memory is the scarce resource — that VRAM
+   belongs to the model's context, not a border effect. Job activity is already
+   signalled by the rail pulse, the running dots, and the round counter. */
 .research-pane-header {
   display:flex; justify-content:space-between; align-items:center;
   margin-bottom:6px; cursor:grab; user-select:none;
