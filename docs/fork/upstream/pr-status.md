@@ -38,6 +38,27 @@ per-action authorization. Agents stage; you file.**
 | `fix/api-token-utcnow-deprecated` | [#51](https://github.com/jdmanring/odysseus/issues/51) | Bug | Ready to file — single clean commit, 2 lines changed. Follow-up to upstream 790ef81b (missed instance). File upstream issue first. See pr-drafts/fix-api-token-utcnow-deprecated.md |
 | `fix/chat-auto-scroll-threshold` | [#49](https://github.com/jdmanring/odysseus/issues/49) | Bug | Ready to file — single clean commit. Adaptive threshold replaces rigid 300px guard in _smoothScrollStep(). File upstream issue first. See pr-drafts/fix-chat-auto-scroll-threshold.md |
 
+## Process-stack perf candidates (audit section E, 2026-06-25)
+
+Three fork issues filed from `docs/fork/perf-audit-2026-06.md`. Their **branch origin
+differs by whether the touched files exist on `upstream-mirror`** — getting this wrong
+contaminates the branch:
+
+| Fork issue | Touches | Origin / home | Independent? | Maps upstream to |
+|---|---|---|---|---|
+| [#111](https://github.com/jdmanring/odysseus/issues/111) lazy-connect cold MCP | `src/builtin_mcp.py`, `src/mcp_manager.py`, `app.py` (all on `upstream-mirror`) | **own branch from `upstream-mirror`** (not yet cut) | **Yes** | #2140, #3824; ROADMAP email-perf |
+| [#112](https://github.com/jdmanring/odysseus/issues/112) host VmRSS telemetry | `qt_wrapper.py` (**not** on `upstream-mirror`) | **folded into `perf/renderer-memory-reclaim`** (the telemetry owner; done, cherry-picked to develop) | No — **depends on #14** | rides the Qt-wrapper stack |
+| [#113](https://github.com/jdmanring/odysseus/issues/113) drop `--access-log` | `qt_wrapper.py` / `mac_wrapper.py` / `windows_wrapper.py` (**not** on `upstream-mirror`) | **on the `feat/qt-native-*` family** (not yet applied) | No — **depends on #14** | rides the Qt-wrapper stack |
+
+**⚠ Pre-existing staging gap surfaced:** `perf/renderer-memory-reclaim` (the bulk of this
+cycle's memory work: #106 forciblyPurge, idle-purge, GC catch-up, and now #112 host telemetry)
+is **stacked on `feat/qt-native-linux-app` (#14)** and has **no `pr-status` row, no draft
+upstream issue, and no draft PR**. It cannot be a standalone `upstream-mirror` PR because
+`qt_wrapper.py` is introduced by #14. **Decision needed:** stage it as a PR stacked on #14
+(filed only after #14 lands upstream), or fold the Qt-side diagnostics into #14 itself. #112
+and #113 inherit the same decision. **Do not file any of these until #14's upstream fate is
+settled.**
+
 ## PR Drafts and Issue Drafts
 
 Staged PR descriptions live in `docs/fork/upstream/pr-drafts/`, one file per branch
