@@ -115,3 +115,9 @@ def test_ge_transform_popup_retains_backdrop_filter():
     # .ge-transform-popup has background: color-mix(in srgb, var(--panel) 96%, transparent).
     # 4% translucency — blur is faint but intentional. Kept.
     assert _near(".ge-transform-popup {", "backdrop-filter")
+
+# NOTE: memory-synapse-sweep tests intentionally live in
+# test_brain_panel_oom_css.py, not here. They were previously duplicated in this
+# file, which coupled the gpu-compositor-flicker (backdrop-filter) work to the
+# brain-panel-oom (#108) animation work — two unrelated concerns. Per "one thing
+# per PR", this file now guards only the backdrop-filter removals.
