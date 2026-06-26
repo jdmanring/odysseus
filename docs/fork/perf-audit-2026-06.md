@@ -156,6 +156,12 @@ recompute during background scroll). **Do NOT** reduce blur radius (24→12) as 
 CPU win — that's a *visible* change to the frosted look and violates the aesthetic
 constraint.
 
+> **Triaged 2026-06-25 → RESOLVED, no residual.** The invisible-blur subset (blur hidden
+> behind opaque fills) was already removed in `fix/gpu-compositor-flicker`. The 12 remaining
+> `backdrop-filter:blur` are on **legitimately-translucent *static* overlays** (confirm/prompt
+> dialogs, `.ge-frosted` FX menus) — not over perpetually scrolling/animating content, so they
+> paint on show, not continuously. No actionable instance.
+
 ### C2 — `transition: all` → specific properties  *(tie to #92)*
 
 **Evidence:** 78 `transition: all` in `style.css` + 15 in JS inline styles. Issue #92
@@ -167,6 +173,11 @@ layout/paint props touched on hover) animate through non-compositor frames.
 **Fix:** replace with the specific properties actually intended to transition. Aesthetics
 are identical (same visible transitions). **Per-site judgment, not a global find-replace**
 — some sites legitimately transition multiple props; medium effort. Roll into #92.
+
+> **Triaged 2026-06-25 → DEFERRED (low priority).** Transitions are **transient** (fire only on
+> a state change, never perpetual), so there is no measured idle/quiescence waste here — unlike
+> the perpetual producers, this is a code-quality cleanup. 78 sites × per-site judgment = real
+> effort for low, intermittent benefit. Not worth prioritising now; roll into #92 opportunistically.
 
 ### C3 — Off-screen infinite animations
 
@@ -234,6 +245,11 @@ win. The real cost is that a perpetual 1 s timer **prevents renderer idle quiesc
 (`childList` only). A `subtree` observer on `document.body` would fire thousands of times
 during chat streaming, which is *worse* than the poll. Frame as idle-power cleanup.
 
+> **DONE 2026-06-25 (#118).** Took the safe path (not the riskier observer rewrite): **pause the
+> 1 s interval when `document.hidden`, resume with a catch-up scan on `visibilitychange`.**
+> Behaviour is identical while visible (no modal-wiring regression risk); the 1 s wakeup stops
+> entirely when backgrounded — the actual idle-power win. `fix/timer-visibility-gating`.
+
 ### D2 — Always-on polls ignore visibility
 
 **Evidence:** `emailInbox.js:199` unread refresh every 60 s; `tasks.js:2716` notif poll
@@ -243,6 +259,10 @@ panel is open or the tab is visible.
 **Fix:** gate on `document.visibilityState === 'visible'` and/or panel-open state. Small
 CPU + network savings; keeps wakeups out of the idle/background path.
 
+> **DONE 2026-06-25 (#118).** email unread (60 s) and tasks notif (30 s) polls now early-return
+> when `document.visibilityState !== 'visible'`, matching the gate `calendar.js` already had.
+> No more background network/work when the tab is hidden. `fix/timer-visibility-gating`.
+
 ### D3 — base64 dataUrl caches without eviction
 
 **Evidence:** `document.js:1067 _sigCache = new Map()` stores signature `dataUrl`s (base64,
@@ -251,6 +271,10 @@ domain data size, no LRU.
 
 **Fix:** add a small LRU cap. Low impact (counts are small), but base64 image strings are
 memory-heavy per entry.
+
+> **DONE 2026-06-25 (#119).** `emailLibrary._libListCache` already had an LRU cap; `document.js
+> _sigCache` now does too — `_sigCacheSet` (max 200, refresh-on-write, evict-oldest), all four
+> write sites routed through it. `fix/sigcache-lru-bound`.
 
 ---
 

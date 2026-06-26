@@ -56,6 +56,8 @@ contaminates the branch:
 |--------|--------|---------|--------|
 | [#117](https://github.com/jdmanring/odysseus/issues/117) (notes instance) | `fix/notes-quick-idle-quiescence` | `static/js/ui.js`, `static/style.css` | **DONE** — from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged; adds reusable `html.app-blurred` primitive. Independent. |
 | [#115](https://github.com/jdmanring/odysseus/issues/115) | `fix/research-orbit-quiescence` | `static/js/research/panel.js` | **DONE** — from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. JS-only, single concern. Independent. |
+| [#118](https://github.com/jdmanring/odysseus/issues/118) (audit D1+D2) | `fix/timer-visibility-gating` | `modalManager.js`, `emailInbox.js`, `tasks.js` | **DONE** — visibility-gate background timers; from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. Independent. |
+| [#119](https://github.com/jdmanring/odysseus/issues/119) (audit D3) | `fix/sigcache-lru-bound` | `static/js/document.js` | **DONE** — LRU-bound `_sigCache`; from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. Independent. |
 
 **⚠ Pre-existing staging gap surfaced:** `perf/renderer-memory-reclaim` (the bulk of this
 cycle's memory work: #106 forciblyPurge, idle-purge, GC catch-up, and now #112 host telemetry)
