@@ -196,3 +196,33 @@ pulsing its **opacity**.
 Net: the one always-on, large offender is fixed; the rest are transient or tiny.
 The standard above plus the brain-panel-oom keyframe tests prevent reintroducing
 the always-on case.
+
+## Verified result (2026-06-25, in-app via mem-probe)
+
+After the producer fixes + the minute-resolution clock + the lowered ceiling, the
+user measured the full cycle with `tooling/mem-probe.py slope`:
+
+- **Idle: flat.** `431 -> 431 MB (+0.00 MB/s, +0 nodes/s)`, repeated. With the
+  per-second producers eliminated, doing nothing generates nothing.
+- **Active use: transient climb.** Clicking through windows: `+4 -> +16 -> +13
+  MB/s, +46 -> +140 nodes/s` — the cost of actually rendering UI.
+- **Stop interacting -> reclaim -> baseline.** `724 -> 432 MB (-36.5 MB/s, -306
+  nodes/s)` as the idle reclaim fired, then `432 -> 432 (+0.00)` settled flat at a
+  ~430 MB working set.
+
+Discriminator that proved there is no leak: one `forciblyPurgeJavaScriptMemory`
+reclaimed 9,811 nodes (38352 -> 28541) and 1,107 MB (1534 -> 427). The growth is
+reclaimable cache + detached-pending-GC nodes, not retained references.
+
+### Honest corrections recorded
+
+- **Goal framing.** "Flat memory, no GC, for years" is not how a Chromium renderer
+  works. Rock-solid = bounded working set + no user-visible stalls + no OOM. We
+  have all three. Memory rising-then-reclaimed is correct behavior; *unbounded*
+  growth would have been the bug, and it is gone.
+- **#110 CSS isolation alone did not reduce the climb.** It was shipped on a
+  compositor-internals theory; the per-second *frequency* (not the repaint *area*)
+  was the cost. The minute-resolution clock is what actually removed the producer.
+  Lesson: verify the *effect* of a fix, not just its plausibility.
+- **The node hunt was the wrong metric by magnitude.** +15 nodes/s ~ 15 KB/s sat
+  next to +1.75 MB/s of RSS (~200x larger). Prioritise by measured impact.
