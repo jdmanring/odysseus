@@ -181,6 +181,19 @@ and gate them with `animation-play-state: paused` (or `content-visibility`). **C
 is not yet a finding** — the actionable step is identifying the hidden-but-animating
 subset first.
 
+> **Idle-quiescence principle (added 2026-06-25, tracked in #117).** A quiescent app should
+> generate ~zero frames. Several **ambient decorative animations run perpetually** to look
+> "alive" — the Research orbit ring (#115, full-area conic-gradient repaint), the notes
+> quick-add pulse/caret — each keeping the compositor awake. Cheap on a healthy GPU, so they
+> hide; but a real battery cost, and **catastrophic under software rendering**: an accidental
+> llvmpipe fallback (no GPU driver after a kernel update) turned this handful of producers into
+> a **12-core idle CPU fire that froze the UI**. Rule: ambient/decorative animations must pause
+> when the window is blurred / page hidden / panel off-screen, and never animate paint-inducing
+> properties over large areas perpetually. **Primitive landed:** `ui.js` toggles
+> `html.app-blurred` on blur/visibilitychange; CSS pauses gated animations under it (first
+> consumer: notes quick-add). Related: #116 (force-GPU-rasterization made the software fallback
+> catastrophic — the safety net), #115 (orbit), #107/#108 (prior instances).
+
 ---
 
 ## D — Minor / power
