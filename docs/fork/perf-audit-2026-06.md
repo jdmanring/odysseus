@@ -305,6 +305,35 @@ care and is the least urgent item here.
 
 ---
 
+## Diagnostics added to gather more information (2026-06-25)
+
+A short audit of the existing testing/logging found two measurement gaps that block
+ranking the E findings — so the gaps were closed before any fix. *Measure first.*
+
+| What was missing | Added | Lets us answer |
+|---|---|---|
+| Host-process RSS was never logged — `[MEM]` tracked only the renderer | **Host VmRSS line** in `_log_renderer_memory` (`qt_wrapper.py`), with a per-sample delta — issue #112 | **E2:** is the 556 MB host a fixed baseline or climbing? |
+| The whole-stack PSS survey was a one-off, by-hand `smaps_rollup` read | **`mem-probe.py stack`** subcommand (read-only /proc, no CDP needed) | **E1/E4:** cold-MCP footprint and backend growth, repeatably |
+
+**Tests added** (static + smoke, no live app needed): `tests/test_host_rss_telemetry.py`
+(5 guards: tracking cell, `/proc/self` read, host line emitted, delta reported, host vs
+renderer pid distinct); `tests/test_mem_probe_cli.py` extended (+2: `stack` runs without CDP,
+`main()` short-circuits before building CDP). The read-only invariant test already guards that
+`stack` cannot mutate live page state.
+
+**How to use them to gather data:**
+1. Run a heavy-use session; `grep '\[MEM\] host' logs/wrapper_system.log` → watch the deltas.
+   Sustained positive deltas that the renderer purge does not reclaim = host-side growth (E2).
+2. `python tooling/mem-probe.py stack` at session start and after an hour → diff the MCP rows
+   to confirm the cold servers (E1) stay resident-but-idle, and the backend/host PSS trend (E4).
+
+**Logging hygiene note (not yet a finding):** `[MEM]`/`[CDP]` lines print on every tick
+unconditionally. If the host VmRSS turns out flat, consider down-sampling the steady-state
+lines (log on change / Nth tick) to keep `wrapper_system.log` churn low — consistent with the
+E3 access-log reasoning. Defer until E2 data says whether per-tick host logging is worth it.
+
+---
+
 ## Upstream alignment & external validation (researched 2026-06-25)
 
 Findings cross-checked against the upstream repo (`pewdiepie-archdaemon/odysseus`:
