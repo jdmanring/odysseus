@@ -148,67 +148,15 @@ function _syncResearchRail() {
       wrap.remove();
     }
   }
-  // Orbiting edge animation. It's a per-frame repaint (conic-gradient + mask),
-  // so it runs only while a research job is active — the ambient idle spin was a
-  // perpetual paint producer (#115). Frozen when idle/hidden/reduced-motion;
-  // ~30 fps when it does run. See _updateOrbit.
-  _orbitActive = running > 0;
-  _updateOrbit();
+  // Orbiting edge highlight (#115): a STATIC conic-gradient rotated by a CSS
+  // compositor transform on .research-orbit-spin — no per-frame repaint, so it
+  // costs ~nothing even while running. We only toggle a class; CSS spins it while
+  // `.orbit-active` and freezes it (static ring) when idle, plus pauses it when
+  // backgrounded (html.app-blurred) or reduced-motion. No rAF, no paint loop.
+  const _rp = document.getElementById('research-pane');
+  if (_rp) _rp.classList.toggle('orbit-active', running > 0);
   if (window._syncRailDynamic) window._syncRailDynamic();
 }
-
-// ── Orbit-angle rAF driver (#115) ──────────────────────────────────
-// --research-orbit-angle feeds a conic-gradient + mask on .research-pane::after,
-// so advancing it is a per-frame REPAINT over the whole pane (expensive paint,
-// not a cheap compositor transform). It therefore runs ONLY while a research job
-// is active; pauses when the tab is hidden or reduced-motion is set; and is
-// throttled to ~30 fps. When inactive the ring simply holds its last static
-// angle — still visible, zero cost. (The old loop ran perpetually even idle,
-// which is invisible work on a GPU but a 12-core fire under software rendering.)
-let _orbitRAF = null;
-let _orbitAngle = 0;
-let _orbitLastTs = 0;
-let _orbitLastPaintTs = 0;
-let _orbitActive = false;            // set from job state in _syncResearchRail
-let _orbitSpeedDegPerSec = 60;       // 6 s/rev while a job runs
-const _ORBIT_MIN_FRAME_MS = 33;      // ~30 fps cap on the repaint
-
-function _orbitShouldRun() {
-  if (!_orbitActive) return false;
-  if (document.hidden) return false;
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
-  return !!document.getElementById('research-pane');  // panel open
-}
-
-function _updateOrbit() {
-  if (!_orbitShouldRun()) {
-    if (_orbitRAF) { cancelAnimationFrame(_orbitRAF); _orbitRAF = null; }
-    return;
-  }
-  if (_orbitRAF) return;  // already running
-  _orbitLastTs = 0;
-  const tick = (ts) => {
-    if (!_orbitShouldRun()) { _orbitRAF = null; return; }  // job ended / hidden / pane gone
-    if (_orbitLastTs) {
-      const dt = (ts - _orbitLastTs) / 1000;
-      _orbitAngle = (_orbitAngle + _orbitSpeedDegPerSec * dt) % 360;
-      // Throttle the repaint to ~30 fps — the orbit is slow enough that this is
-      // smooth, and it halves the conic-gradient re-raster work.
-      if (ts - _orbitLastPaintTs >= _ORBIT_MIN_FRAME_MS) {
-        document.getElementById('research-pane')
-          .style.setProperty('--research-orbit-angle', _orbitAngle.toFixed(2) + 'deg');
-        _orbitLastPaintTs = ts;
-      }
-    }
-    _orbitLastTs = ts;
-    _orbitRAF = requestAnimationFrame(tick);
-  };
-  _orbitRAF = requestAnimationFrame(tick);
-}
-
-// Re-evaluate on tab show/hide so a running job's orbit stops in the background
-// and resumes on return, without waiting for the next job-state poll.
-document.addEventListener('visibilitychange', _updateOrbit);
 
 /** Fetch the count of saved research items and populate the header chip. */
 async function _updateResearchCount() {
@@ -297,6 +245,15 @@ export function openPanel(focusJobId) {
     ? 'width:100vw;max-width:100vw;height:90dvh;max-height:90dvh;border-radius:14px 14px 0 0;background:var(--bg);'
     : 'width:min(640px, 92vw);max-height:85vh;background:var(--bg);';
   pane.innerHTML = _buildPanelHTML();
+  // Compositor-driven orbit ring (#115): a static gradient on .research-orbit-spin
+  // rotated by a CSS transform, clipped to the 2px border by .research-orbit's
+  // static mask. Injected here because pseudo-elements can't host the rotating-
+  // child-inside-static-mask structure a compositor-only ring needs.
+  const _orbit = document.createElement('div');
+  _orbit.className = 'research-orbit';
+  _orbit.setAttribute('aria-hidden', 'true');
+  _orbit.innerHTML = '<div class="research-orbit-spin"></div>';
+  pane.insertBefore(_orbit, pane.firstChild);
 
   overlay.appendChild(pane);
   document.body.appendChild(overlay);
