@@ -294,11 +294,19 @@ _cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='c
 # stutter, so it is only ever fired off the interaction path (mouse-idle,
 # focus-loss), gated by an RSS ceiling so light use never stutters, and rate-limited
 # so it cannot repeat back to back.
-_PURGE_RSS_CEILING_KB = 1_200_000   # ~1.2 GB ceiling; measured working set after a
-# purge is ~430 MB, so the off-interaction reclaim sawtooth stays ~0.43–1.2 GB.
-# This is a safety net, not the primary mechanism — with producers eliminated the
-# renderer rarely approaches it; lower further for a tighter cap on modest hardware
-# (purges then fire a little more often, off the interaction path).
+# RSS ceiling: the renderer is only purged above this. Measured working set after a
+# purge is ~430 MB, so the off-interaction reclaim sawtooth stays ~0.43 GB → ceiling.
+# Default ~1.2 GB (a safety net — with producers eliminated the renderer rarely
+# approaches it). Tunable via ODYSSEUS_PURGE_CEILING_MB: lower it on RAM-constrained
+# machines for a tighter cap (purges fire sooner/more often — the right trade when
+# system swap/OOM is worse than an occasional off-interaction stutter; this is the
+# "adaptive loading" response to a low-resource device — see docs/fork/
+# low-resource-profile-design.md). Floored at 512 MB (just above the working set, so
+# the ceiling can never sit below it and cause constant purging).
+try:
+    _PURGE_RSS_CEILING_KB = max(512, int(float(os.environ.get('ODYSSEUS_PURGE_CEILING_MB', '1200')))) * 1024
+except ValueError:
+    _PURGE_RSS_CEILING_KB = 1_200_000
 _PURGE_MIN_INTERVAL_S = 15
 # Seconds of no input (mouse OR keyboard) before the *sustained-idle* reclaim may
 # fire. The purge blocks the renderer ~1s and there is NO lazy/async purge on
