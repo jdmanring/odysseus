@@ -15,14 +15,16 @@ from pathlib import Path
 _SRC = Path("qt_wrapper.py").read_text(encoding="utf-8")
 
 
-def test_idle_threshold_default_is_away_from_keyboard_not_a_reading_pause():
-    # Tunable via ODYSSEUS_IDLE_RECLAIM_S, but the shipped DEFAULT must be safe.
+def test_idle_threshold_default_meets_the_idle_detection_standard():
+    # The W3C/WICG Idle Detection API mandates a 60s MINIMUM to call a user idle;
+    # below that you are measuring a pause, not idle. Tunable via the env var, but
+    # the shipped DEFAULT must follow the standard, not a guessed number.
     m = re.search(r"os\.environ\.get\('ODYSSEUS_IDLE_RECLAIM_S',\s*'([\d.]+)'\)", _SRC)
     assert m, "ODYSSEUS_IDLE_RECLAIM_S default not found"
     secs = float(m.group(1))
-    assert secs >= 30.0, (
-        f"default {secs}s is a reading-pause window — the blocking purge would "
-        f"interrupt active use. The shipped default must be a real away gap (>=30s)."
+    assert secs >= 60.0, (
+        f"default {secs}s is below the Idle Detection API's 60s idle minimum — "
+        f"the blocking purge would fire on a pause, not a genuine away gap."
     )
 
 
