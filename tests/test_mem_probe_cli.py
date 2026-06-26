@@ -19,8 +19,25 @@ def test_tool_exists():
 def test_help_lists_all_subcommands():
     r = subprocess.run([sys.executable, str(_TOOL), "--help"], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
-    for cmd in ("counters", "slope", "animations", "raf", "mutations", "producers", "purge"):
+    for cmd in ("counters", "slope", "animations", "raf", "mutations", "producers", "purge", "stack"):
         assert cmd in r.stdout, f"subcommand {cmd} missing from --help"
+
+
+def test_stack_runs_without_cdp():
+    """`stack` is a pure /proc reader — it must not require the CDP port, so it
+    works even when the app (or its debug port) is down. It should exit 0 and
+    print the header regardless of what is running."""
+    r = subprocess.run([sys.executable, str(_TOOL), "stack"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert "PSS" in r.stdout and "PRIV" in r.stdout
+
+
+def test_stack_does_not_build_cdp():
+    """Guard that main() short-circuits `stack` before constructing CDP (which
+    would try to open a socket to the debug port)."""
+    src = _TOOL.read_text(encoding="utf-8")
+    assert 'if args.cmd == "stack":' in src
+    assert "cmd_stack(None, args)" in src
 
 
 def test_only_purge_mutates_state():
