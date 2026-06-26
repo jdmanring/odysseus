@@ -453,8 +453,14 @@ class McpManager:
             # See docs/fork/mcp-lazy-connect-research.md.
             if self.is_builtin(server_id) and self._is_deferred(server_id):
                 logger.info(f"MCP lazy-connect on first use: {server_id}")
+                name = self.get_server_status(server_id).get("name", server_id)
                 if await self._reconnect_builtin(server_id):
                     session = self._sessions.get(server_id)
+                if not session:
+                    # First lazy connect failed: re-mark deferred (rather than
+                    # leaving the 'error' status, which _is_deferred treats as
+                    # non-deferred and would never retry) so a later call retries.
+                    self.mark_deferred(server_id, name)
             if not session:
                 return {"error": f"MCP server not connected: {server_id}", "exit_code": 1}
 
