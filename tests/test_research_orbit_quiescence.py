@@ -1,41 +1,43 @@
-"""Research orbit ring quiescence (#115).
+"""Research orbit ring: compositor-driven + quiescent (#115).
 
---research-orbit-angle feeds a conic-gradient + mask on .research-pane::after, so
-advancing it every frame is a full-pane REPAINT. The driver must therefore run
-only while a research job is active, pause when hidden / reduced-motion, throttle
-the repaint, and freeze (not spin) when idle. Static assertions on the source.
+The orbit ring is a STATIC conic-gradient rotated by a CSS compositor transform
+(no per-frame repaint). JS only toggles `.orbit-active` from job state; CSS spins
+it while active and freezes/pauses it when idle, backgrounded, or reduced-motion.
+Static assertions on source.
 """
 from pathlib import Path
 
-_JS = (Path(__file__).resolve().parents[1] / "static" / "js" / "research" / "panel.js").read_text(encoding="utf-8")
+_ROOT = Path(__file__).resolve().parents[1]
+_JS = (_ROOT / "static" / "js" / "research" / "panel.js").read_text(encoding="utf-8")
+_CSS = (_ROOT / "static" / "style.css").read_text(encoding="utf-8")
 
 
-def test_orbit_runs_only_when_job_active():
-    # Driven by job state, not unconditionally on every sync.
-    assert "_orbitActive = running > 0" in _JS
-    # The old always-on call is gone.
-    assert "_ensureOrbit()" not in _JS
+def test_js_only_toggles_active_class_no_raf():
+    # Drive purely by a class toggle from job state…
+    assert "classList.toggle('orbit-active', running > 0)" in _JS
+    # …and the per-frame rAF repaint machinery is gone.
+    assert "requestAnimationFrame" not in _JS
+    assert "--research-orbit-angle" not in _JS
+    assert "_orbitRAF" not in _JS
 
 
-def test_orbit_gated_on_visibility_and_reduced_motion():
-    assert "function _orbitShouldRun" in _JS
-    block = _JS[_JS.index("function _orbitShouldRun"): _JS.index("function _orbitShouldRun") + 320]
-    assert "_orbitActive" in block
-    assert "document.hidden" in block
-    assert "prefers-reduced-motion" in block
+def test_js_injects_compositor_orbit_dom():
+    assert "research-orbit-spin" in _JS
+    assert "research-orbit" in _JS
 
 
-def test_orbit_repaint_is_throttled():
-    assert "_ORBIT_MIN_FRAME_MS" in _JS
-    # Throttle compares elapsed time before writing the CSS property.
-    assert "_orbitLastPaintTs" in _JS
-    assert "setProperty('--research-orbit-angle'" in _JS
+def test_css_orbit_is_transform_animation():
+    assert "@keyframes research-orbit-spin" in _CSS
+    block = _CSS[_CSS.index("@keyframes research-orbit-spin"):][:120]
+    assert "rotate(360deg)" in block  # compositor transform, not a gradient angle
+    assert "--research-orbit-angle" not in _CSS  # old per-frame paint var removed
 
 
-def test_orbit_reevaluates_on_visibility_change():
-    assert "addEventListener('visibilitychange', _updateOrbit)" in _JS
-
-
-def test_orbit_stops_loop_when_should_not_run():
-    # cancelAnimationFrame path so a finished job / background freezes cleanly.
-    assert "cancelAnimationFrame(_orbitRAF)" in _JS
+def test_css_spins_only_when_active_and_quiesces():
+    assert ".research-orbit-spin" in _CSS
+    # Paused by default, runs only on .orbit-active.
+    assert "animation-play-state: paused" in _CSS
+    assert ".research-pane.orbit-active .research-orbit-spin { animation-play-state: running" in _CSS
+    # Quiescence: backgrounded + reduced-motion.
+    assert "html.app-blurred .research-orbit-spin { animation-play-state: paused" in _CSS
+    assert "prefers-reduced-motion" in _CSS
