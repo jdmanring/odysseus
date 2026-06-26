@@ -1091,6 +1091,16 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
   // Cache of signature data URLs by id, populated lazily as the PDF view
   // renders inline signatures and as the user picks new ones.
   const _sigCache = new Map();
+  // Bound the cache (audit D3) — data URLs are base64 (~33% larger than binary),
+  // and without a cap it only grows. LRU: refresh on write, evict oldest over cap.
+  const _SIG_CACHE_MAX = 200;
+  function _sigCacheSet(id, dataUrl) {
+    _sigCache.delete(id);
+    _sigCache.set(id, dataUrl);
+    if (_sigCache.size > _SIG_CACHE_MAX) {
+      _sigCache.delete(_sigCache.keys().next().value);
+    }
+  }
 
   // Mirror of Python _encode_name in src/pdf_form_doc.py — keep in sync.
   // Percent-encode everything that's not A-Za-z0-9 _ . -
@@ -1233,7 +1243,7 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
                 if (!_sigCache.has(sigId)) {
                   const r = await fetch(`${API_BASE}/api/signatures`);
                   const data = await r.json();
-                  for (const s of data.signatures || []) _sigCache.set(s.id, s.data_url);
+                  for (const s of data.signatures || []) _sigCacheSet(s.id, s.data_url);
                 }
                 const dataUrl = _sigCache.get(sigId);
                 if (dataUrl) img.src = dataUrl;
@@ -1259,7 +1269,7 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
             ev.stopPropagation();
             const sig = await signatureModule.pick();
             if (sig) {
-              _sigCache.set(sig.id, sig.dataUrl);
+              _sigCacheSet(sig.id, sig.dataUrl);
               await renderSigUI(sig.id);
               _schedulePdfPaneSave();
             }
@@ -1508,7 +1518,7 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
           if (!_sigCache.has(sigId)) {
             const r = await fetch(`${API_BASE}/api/signatures`);
             const data = await r.json();
-            for (const s of data.signatures || []) _sigCache.set(s.id, s.data_url);
+            for (const s of data.signatures || []) _sigCacheSet(s.id, s.data_url);
           }
           const dataUrl = _sigCache.get(sigId);
           if (!dataUrl) throw new Error('not found');
@@ -1527,7 +1537,7 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
         const sig = await signatureModule.pick();
         if (sig) {
           _pushPdfUndoSnapshot();
-          _sigCache.set(sig.id, sig.dataUrl);
+          _sigCacheSet(sig.id, sig.dataUrl);
           await _renderSig(sig.id);
           ref.value = `signature:${sig.id}`;
           _schedulePdfPaneSave();
