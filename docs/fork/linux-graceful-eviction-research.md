@@ -31,14 +31,50 @@ No evaluator ⇒ no pressure votes ⇒ no eviction. (ChromeOS/Chromecast have th
 separate components; desktop Linux was simply never given one.) This also explains why
 `Memory.simulatePressureNotification` is a measured no-op for us.
 
-## 1b. Prior art — is someone already doing this? (checked 2026-06-26)
+## 1b. Prior art — YES, and it reframes everything (Gerrit-confirmed 2026-06-26)
 
-**Upstream (Chrome/Chromium desktop Linux): no landed project, and no owner.** The chromium-dev
-thread *"Memory pressure in an embedded linux environment"* (Igalia's Mario Sanchez Prada
-participating) discusses exactly this — Chromium reads `/proc/meminfo`, ignores cgroup limits, OOMs
-under constraint — but **concludes with no patch, no merged CL, no assigned owner**, only pointers
-to downstream work and the (now-defunct) "memory coordinator" idea. So an upstream PR would **not**
-duplicate existing work; the gap is real and unclaimed.
+**There was a near-complete Chromium CL, and it was abandoned for a structural reason — read this
+before writing any code.**
+
+**Chromium CL [7594942](https://chromium-review.googlesource.com/c/chromium/src/+/7594942)** — *"Add
+PSI-based memory pressure monitoring for Linux"* by **Helmut Januschka** (external contributor),
+created 2026-02-23, **abandoned by the author 2026-04-09** after 5 patch sets. It **passed CQ** and
+implements *exactly* our design:
+`components/memory_pressure/psi_memory_pressure_evaluator_linux.{cc,h}` +
+`pressure_stall_info_linux.{cc,h}` + unittests + `chrome/browser/chrome_browser_main_linux.cc`
+wiring + a `chrome_features` flag + histograms.
+
+**Why it was abandoned (the critical part — from the Chromium memory team in review):**
+- Code quality was fine — Benoit Lize: *"the PSI parsing code looks correct, quite close to the one
+  on CrOS."*
+- **Google already wants Linux PSI** — Patrick Monette: *"Using Linux PSI for memory pressure
+  monitoring is actually something that's been on our radar already."*
+- **They are mid-rewrite of the whole memory-pressure architecture** (MemoryPressureListener →
+  MemoryConsumer), so a new evaluator on the *old* architecture would be discarded. Design doc:
+  <https://docs.google.com/document/d/1HT-ii0_gVPjV12NoYlnWbXfTWL4szqWDGnP63ysvRwQ>.
+- **The hard part is tuning, not code** — Francois Doray: *"the main challenge is to tune the signal
+  to maximize speed and stability, which likely requires field experiments"* (A/B) — which an
+  external contributor cannot run.
+
+**Strategic implications (this changes the plan in §5/§7/§8):**
+1. **Do NOT attempt a from-scratch upstream Chromium PR** — Helmut had a CQ-passing CL *and* memory-
+   team engagement and still couldn't land it, for reasons (architecture revamp + Google-only field
+   experiments) that **we cannot overcome either**. We'd hit the same wall.
+2. **For Odysseus, his code is a ready-made patch.** The evaluator + PSI parser are BSD-licensed
+   Chromium code; we can **adapt CL 7594942 as a QtWebEngine patch** (path C: local patched Qt
+   build) to get lazy eviction *now*, independent of Google's revamp — crediting Helmut.
+3. **Upstream lands when Google's MemoryConsumer revamp does** — track that design doc + Patrick
+   Monette's work, rather than push our own. A Qt-side patch (path A) is the only "contribute it"
+   avenue worth pursuing, and even that competes with the in-flight rewrite.
+
+Downstream reference implementations also exist (ChromeOS PSI monitor — Lize even links the CrOS
+code; Chromecast; Endless OS), but **CL 7594942 is the best starting point** — it's the CrOS design
+already ported to the exact `components/memory_pressure` desktop-Linux structure.
+
+So the honest answer to "isn't someone already doing this?": **a complete attempt exists, abandoned
+not because it's wrong but because Google is rebuilding the subsystem and gates the tuning behind
+internal experiments.** Our realistic play is a **local/Qt patch reviving Helmut's code**, not an
+upstream Chromium PR.
 
 **Downstream implementations exist — adapt, don't invent:**
 - **ChromeOS** — the canonical PSI `MemoryPressureMonitor` (the reference to port).
