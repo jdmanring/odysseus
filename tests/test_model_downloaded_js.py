@@ -77,6 +77,28 @@ def test_nothing_downloaded_is_false():
     assert _is_downloaded({"name": "org/Model"}, ["other/Thing"]) is False
 
 
+@pytest.mark.parametrize("catalog_name, downloaded", [
+    # Real cases: a discovered catalog model (no gguf_sources) whose only link to
+    # the downloaded community quant is the base name. These are the ones that did
+    # not grey before.
+    ("meta-llama/Llama-3.2-11B-Vision-Instruct", "leafspark/Llama-3.2-11B-Vision-Instruct-GGUF"),
+    ("deepseek-ai/DeepSeek-V2-Lite-Chat", "legraphista/DeepSeek-V2-Lite-Chat-IMat-GGUF"),
+    ("Qwen/Qwen3-30B-A3B", "nvidia/Qwen3-30B-A3B-NVFP4"),
+    ("org/Qwen3-Coder-Next", "bullpoint/Qwen3-Coder-Next-AWQ-4bit"),
+])
+def test_base_model_match_for_discovered_quants(catalog_name, downloaded):
+    # No gguf_sources on the catalog entry, so this must match by base name.
+    assert _is_downloaded({"name": catalog_name}, [downloaded]) is True
+
+
+def test_base_match_does_not_cross_distinct_models():
+    # Different base (Instruct vs base, Coder vs base) must NOT match.
+    assert _is_downloaded({"name": "org/Llama-3-8B"},
+                          ["x/Llama-3-8B-Instruct-GGUF"]) is False
+    assert _is_downloaded({"name": "org/Qwen3-8B"},
+                          ["x/Qwen3-8B-Coder-AWQ"]) is False
+
+
 def test_string_and_array_inputs():
     # The serve gate passes a bare string; the row re-mark passes an id list.
     assert _is_downloaded("org/Model-7B", ["org/Model-7B"]) is True

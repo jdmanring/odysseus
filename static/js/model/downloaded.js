@@ -34,6 +34,20 @@ export function modelIdentities(model) {
   return { full, short };
 }
 
+// Reduce a repo id to its quant/format-independent base model name. A community
+// download carries the base plus a quant/format tag and a different org prefix
+// (bartowski/Meta-Llama-3.1-8B-Instruct-GGUF, org/Model-AWQ-4bit, org/Model-NVFP4),
+// while the discovered catalog entry carries only the base name and no
+// gguf_sources, so the base name is the only thing they share. Strip a trailing
+// run of known tags so the two sides line up.
+const _TAG = /[-_.](gguf|awq|gptq|nvfp4|fp8|fp16|bf16|int8|int4|imat|i1|exl2|exl3|mlx|hqq|\d+bit|i?q\d[a-z0-9_]*)$/i;
+export function baseModelId(id) {
+  let s = (typeof id === 'string' ? id : '').split('/').pop().toLowerCase();
+  let prev;
+  do { prev = s; s = s.replace(_TAG, ''); } while (s !== prev);
+  return s.replace(/[-_.]+$/, '');
+}
+
 // True if any of the model's identities is present in the downloaded-id set.
 // Full-id matches are preferred; the short-name (last path segment) match is a
 // guarded fallback for the cases where the cache and the catalog disagree on
@@ -48,6 +62,16 @@ export function isModelDownloaded(model, cachedIds) {
     if (cachedIds.has(s)) return true;
     for (const c of cachedIds) {
       if (c.endsWith('/' + s)) return true;
+    }
+  }
+  // Base-model fallback: a discovered catalog model has no gguf_sources, so a
+  // downloaded community quant of it shares only the base name. Match on the
+  // quant/format-stripped base. Guarded by a length floor so a tiny base can't
+  // match broadly.
+  const bases = new Set([...short].map(baseModelId).filter((b) => b.length >= 4));
+  if (bases.size) {
+    for (const c of cachedIds) {
+      if (bases.has(baseModelId(c))) return true;
     }
   }
   return false;
