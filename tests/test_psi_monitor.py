@@ -1,7 +1,7 @@
 """Unit tests for the PSI detection core (issue #120).
 
 The detection logic lives in qt_psi, a Qt-free module, so these run in any environment
-(the GUI PyQt6 stack is a stub in the server venv) — no importorskip, no silent skip.
+(the GUI PyQt6 stack is a stub in the server venv); no importorskip, no silent skip.
 """
 import os
 import sys

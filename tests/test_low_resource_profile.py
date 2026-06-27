@@ -2,7 +2,7 @@
 
 qt_wrapper.py can't be imported (PyQt + os.dup2 side effects at import), so the pure
 classifier is exec-extracted and unit-tested; the wiring is checked by static assertion.
-Linux-only signals here (this is the Linux wrapper) — fail-safe to the STANDARD profile.
+Linux-only signals here (this is the Linux wrapper); fail-safe to the STANDARD profile.
 """
 import re
 from pathlib import Path
@@ -14,7 +14,7 @@ def _load_classify():
     const = re.search(r"^_LOW_RAM_GB = [\d.]+", _SRC, re.M).group(0)
     func = re.search(r"^def _classify_resources\(.*?(?=\ndef _linux_total_ram_gb)", _SRC, re.M | re.S).group(0)
     ns = {}
-    exec(const + "\n\n" + func, ns)  # noqa: S102 — trusted in-repo source
+    exec(const + "\n\n" + func, ns)  # noqa: S102, trusted in-repo source
     return ns["_classify_resources"]
 
 

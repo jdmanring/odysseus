@@ -126,21 +126,21 @@ def test_theme_bg_color_function_exists():
 
 
 def test_set_background_color_uses_theme_function():
-    # Must not hardcode #282c34 — that breaks custom themes (e.g. Catppuccin
+    # Must not hardcode #282c34, which breaks custom themes (e.g. Catppuccin
     # #1e1e2e) by filling evicted compositor tiles at the wrong colour.
     assert "setBackgroundColor(_theme_bg_color())" in _SRC
     assert "setBackgroundColor(QColor(0x28, 0x2c, 0x34))" not in _SRC
 
 
 def test_set_background_color_called_after_set_page():
-    # setBackgroundColor must be called AFTER browser.setPage(page) — not before.
+    # setBackgroundColor must be called AFTER browser.setPage(page), not before.
     # Qt WebEngine may discard or reset the page background during setPage()
     # initialisation; calling it after ensures the base background colour sticks
     # on the fully-initialised page (avoids a flash of a lighter base colour).
     set_page_pos = _SRC.index("browser.setPage(page)")
     set_bg_pos = _SRC.index("page.setBackgroundColor(_theme_bg_color())")
     assert set_bg_pos > set_page_pos, (
-        "setBackgroundColor must come after setPage — got positions "
+        "setBackgroundColor must come after setPage, got positions "
         f"setPage={set_page_pos}, setBackgroundColor={set_bg_pos}"
     )
 
@@ -204,7 +204,7 @@ _PSI_SRC = Path("qt_psi.py").read_text(encoding="utf-8")
 def test_detection_core_is_qt_free():
     # The whole point of the split: the core must not import Qt, so it stays testable
     # without the GUI stack. Guard against a future Qt import creeping in (check for an
-    # import statement, not the word — the docstring legitimately mentions PyQt).
+    # import statement, not the word; the docstring legitimately mentions PyQt).
     assert "import PyQt" not in _PSI_SRC
     assert "from PyQt" not in _PSI_SRC
     assert "psi_event_pending: list = [None]" in _PSI_SRC
@@ -323,7 +323,7 @@ def test_js_flags_comma_separated():
     """Qt splits QTWEBENGINE_CHROMIUM_FLAGS on whitespace before passing each
     token to Chromium.  A space-separated --js-flags list becomes 5 separate
     tokens; only the first token (--js-flags=--expose-gc) reaches V8 as a
-    V8 flag — the remaining tokens (--initial-old-space-size=..., etc.) are
+    V8 flag; the remaining tokens (--initial-old-space-size=..., etc.) are
     silently dropped.  V8 accepts comma-separated multi-flag syntax, so all
     flags must be combined into a single token with commas."""
     assert "--js-flags=--expose-gc,--initial-old-space-size=128" in _SRC
@@ -453,7 +453,7 @@ def test_low_end_device_mode_flag_absent():
     """--enable-low-end-device-mode must NOT be passed to Chromium: it caused a
     lighter-rectangle raster tint on dark themes and did not bound the actual OOM
     (Oilpan detached-DOM churn, a separate pool from the raster tile budget).
-    Checks the active quoted-flag entry is absent — prose/comments may still
+    Checks the active quoted-flag entry is absent; prose/comments may still
     reference the flag to explain why it was removed."""
     assert '"--enable-low-end-device-mode"' not in _SRC
 
