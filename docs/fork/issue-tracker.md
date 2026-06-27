@@ -73,6 +73,7 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 | [#30](https://github.com/jdmanring/odysseus/issues/30) | feat: add Catppuccin Mocha theme with Odysseus color palette | upstream-candidate | `feat/catppuccin-theme` |
 | [#31](https://github.com/jdmanring/odysseus/issues/31) | World-class structured logging system | upstream-candidate | 2 PRs: `feat/logging-core`, `feat/logging-timing` |
 | [#120](https://github.com/jdmanring/odysseus/issues/120) | qt_wrapper graduated PSI monitor (some/full, tunable thresholds) | upstream-candidate | implemented on `perf/qt-psi-graduated-reclaim`; **folded into `feat/qt-native-linux-app` (#14)** 2026-06-26 — ships inside the #14 PR with the rest of the memory stack |
+| [#121](https://github.com/jdmanring/odysseus/issues/121) | Installed models don't grey out — duplicated downloaded-detection matcher (~16 sites, 3 files) | upstream-candidate | needs branch `fix/model-downloaded-detection` (from `upstream-mirror`). Root cause of a 3×-recurring regression; plan: `docs/fork/plans/model-downloaded-detection-consolidation.md` |
 
 For upstream filing status (which are ready, which need screenshots, blockers):
 `docs/fork/upstream/pr-status.md`
