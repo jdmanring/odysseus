@@ -185,6 +185,26 @@ footprint and the CPU, and cuts how often the purge must fire.
 Each of these is upstream-candidate (the platform gap affects all Odysseus
 users), and each should be its own issue and branch from `upstream-mirror`.
 
+### Status (shipped, 2026-06)
+
+Step 1 is done and has since grown into the full reclaim design now folded into the
+#14 native-app contribution:
+
+- **Reclaim call fixed (#106):** gated `forciblyPurgeJavaScriptMemory` (RSS ceiling +
+  rate limit, off-interaction only). `simulatePressureNotification` removed as the
+  measured no-op described above.
+- **Graduated pressure signal (#120):** the reclaim trigger is no longer a flat
+  `some > 5%` GC. A Qt-free detection core (`qt_psi.py`) reads `/proc/pressure/memory`
+  (`some` + `full` avg10), classifies NONE/MODERATE/CRITICAL (env-tunable, defaults
+  `some` 10/40, `full` 5), and drives MODERATE -> async GC, CRITICAL -> the gated purge,
+  emitting one structured `[PSI]` line per transition. `qt_wrapper.py` is the output
+  adapter. See `docs/fork/plans/psi-graduated-reclaim-plan.md`.
+- **Instrumentation (#112):** host VmRSS is logged alongside renderer counters.
+- **Low-resource profile (#116):** device-capability detection selects tighter reclaim
+  defaults; all knobs env-tunable.
+
+The Layer-2 residency and Layer-1 producer items remain follow-ups.
+
 ## Process change (the "and processes" part)
 
 - **Measure before fixing.** Attach to CDP (port 9222 is already exposed), read
