@@ -7,7 +7,9 @@ _SRC = Path("qt_wrapper.py").read_text(encoding="utf-8")
 def _cdp_audit_block() -> str:
     marker = "def _cdp_audit_listeners("
     start = _SRC.index(marker)
-    end = _SRC.index("\ndef ", start + 1)
+    # End at the next top-level def or class (whichever comes first).
+    ends = [_SRC.find(m, start + 1) for m in ("\ndef ", "\nclass ")]
+    end = min(e for e in ends if e != -1)
     return _SRC[start:end]
 
 
@@ -106,9 +108,8 @@ def test_log_renderer_memory_uses_cdp_call():
 
 
 def test_psi_monitor_called_not_just_defined():
-    # Verify _start_psi_monitor() is actually invoked, not only defined.
-    # Count occurrences: first is the def, second must be the call site.
-    assert _SRC.count("_start_psi_monitor") >= 2
+    # The Qt adapter must invoke the detection-core monitor (defined in qt_psi).
+    assert "qt_psi.start_psi_monitor()" in _SRC
 
 
 def _log_renderer_memory_block() -> str:
@@ -192,14 +193,21 @@ def _change_event_block() -> str:
     return _SRC[start:end]
 
 
-# --- Graduated-PSI dispatch machinery (issue #120) ---
-# The PSI monitor computes the level off-thread and hands a record to the main-thread
-# drain timer via the _psi_event_pending cell; the drain timer dispatches the action
-# and emits the [PSI] line. (Replaces the old _request_async_gc/_gc_request_pending
-# flag, which carried only a single boolean.)
+# --- Graduated-PSI dispatch wiring (issue #120) ---
+# The detection core lives in qt_psi (Qt-free, unit-tested in test_psi_monitor.py); this
+# adapter drains qt_psi.psi_event_pending on the Qt main thread, dispatches the action,
+# and emits the [PSI] line. (Replaces the old _request_async_gc/_gc_request_pending flag,
+# which carried only a single boolean.)
+_PSI_SRC = Path("qt_psi.py").read_text(encoding="utf-8")
 
-def test_psi_event_cell_defined():
-    assert "_psi_event_pending: list[dict | None] = [None]" in _SRC
+
+def test_detection_core_is_qt_free():
+    # The whole point of the split: the core must not import Qt, so it stays testable
+    # without the GUI stack. Guard against a future Qt import creeping in (check for an
+    # import statement, not the word — the docstring legitimately mentions PyQt).
+    assert "import PyQt" not in _PSI_SRC
+    assert "from PyQt" not in _PSI_SRC
+    assert "psi_event_pending: list = [None]" in _PSI_SRC
 
 
 def test_gc_drain_timer_defined():
@@ -208,8 +216,8 @@ def test_gc_drain_timer_defined():
 
 def test_gc_drain_reads_psi_event_cell():
     # The drain closure must read+clear the shared cell before dispatching.
-    assert "_psi_event_pending[0]" in _SRC
-    assert "_psi_event_pending[0] = None" in _SRC
+    assert "qt_psi.psi_event_pending[0]" in _SRC
+    assert "qt_psi.psi_event_pending[0] = None" in _SRC
 
 
 def test_gc_drain_calls_run_javascript():
@@ -217,18 +225,19 @@ def test_gc_drain_calls_run_javascript():
     assert "runJavaScript" in _SRC
 
 
-def test_psi_monitor_writes_event_cell():
-    psi_start = _SRC.index("def _start_psi_monitor(")
-    psi_block = _SRC[psi_start:_SRC.index("\nclass ", psi_start)]
-    assert "_psi_event_pending[0] =" in psi_block
+def test_adapter_starts_detection_core():
+    # The Qt adapter must actually start the qt_psi monitor.
+    assert "qt_psi.start_psi_monitor()" in _SRC
 
 
-def test_psi_monitor_has_cooldown():
+def test_detection_core_writes_event_cell():
+    psi_start = _PSI_SRC.index("def start_psi_monitor(")
+    assert "psi_event_pending[0] =" in _PSI_SRC[psi_start:]
+
+
+def test_detection_core_cooldown_matches_harness():
     # MODERATE re-emit cadence matches the harness kModeratePressureCooldown (10 s).
-    psi_start = _SRC.index("def _start_psi_monitor(")
-    psi_block = _SRC[psi_start:_SRC.index("\nclass ", psi_start)]
-    assert "_COOLDOWN" in psi_block
-    assert "_COOLDOWN = 10" in psi_block
+    assert "COOLDOWN = 10" in _PSI_SRC
 
 
 def test_change_event_debounces_focus_loss():
