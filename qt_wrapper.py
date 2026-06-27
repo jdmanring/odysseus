@@ -379,21 +379,11 @@ try:
 except ValueError:
     _IDLE_RECLAIM_AFTER_S = 60.0
 
-# PSI pressure thresholds (avg10 stall %). These mirror the level mapping validated in
-# the chromium-linux-mempressure harness (CalculatePressureLevel): CRITICAL if
-# some>=critical OR full>=full_critical; MODERATE if some>=moderate. The defaults are
-# the harness's "conservative, tune via field trials" values; this monitor's telemetry
-# is how we field-validate them on real hardware. Tunable so a run can sweep them.
-# Floored at 0 (a 0 threshold means "always at/above", harmless given the gating).
-def _psi_threshold(name: str, default: float) -> float:
-    try:
-        return max(0.0, float(os.environ.get(name, default)))
-    except ValueError:
-        return default
-
-_PSI_MODERATE = _psi_threshold('ODYSSEUS_PSI_MODERATE', 10.0)       # some_avg10
-_PSI_CRITICAL = _psi_threshold('ODYSSEUS_PSI_CRITICAL', 40.0)       # some_avg10
-_PSI_FULL_CRITICAL = _psi_threshold('ODYSSEUS_PSI_FULL_CRITICAL', 5.0)  # full_avg10
+# PSI pressure thresholds + the whole detection core live in qt_psi (a Qt-free module,
+# so the logic is unit-testable without the GUI stack and mirrors the chromium project's
+# detection-core/output-adapter split). This file is the output adapter: it drains
+# qt_psi.psi_event_pending on the Qt main thread and turns each event into an action.
+import qt_psi
 
 # Log the selected profile once (diagnosable; notes when an env var overrode it).
 _profile_overridden = bool(
@@ -402,20 +392,9 @@ _profile_overridden = bool(
     & os.environ.keys())
 print(f"[PROFILE] {'low-resource' if _low_resource else 'standard'} ({_profile_reason}): "
       f"idle={_IDLE_RECLAIM_AFTER_S:.0f}s ceiling={_PURGE_RSS_CEILING_KB // 1024}MB "
-      f"psi=some{_PSI_MODERATE:.0f}/{_PSI_CRITICAL:.0f} full{_PSI_FULL_CRITICAL:.0f}"
+      f"psi=some{qt_psi.PSI_MODERATE:.0f}/{qt_psi.PSI_CRITICAL:.0f}"
+      f" full{qt_psi.PSI_FULL_CRITICAL:.0f}"
       f"{' [env override]' if _profile_overridden else ''}", flush=True)
-
-# PSI event cell — written by the daemon PSI monitor on a level transition (or the
-# slow heartbeat), read and cleared by a 250 ms QTimer on the Qt main thread.  Single-
-# element list assignment is GIL-atomic so no lock is needed, which keeps the monitor
-# off the Qt main thread: it computes the level + FSM and hands a record across; the
-# drain timer adds renderer RSS, dispatches the action, and logs the [PSI] line. Using
-# a cell + poll also avoids QTimer.singleShot from a non-Qt daemon thread (no event
-# loop, the call would be silently dropped).
-# Record: {'level','some','full','mem_avail_mb','swap_mb','requested'} with
-# requested in {'none','async_gc','critical'}.
-_psi_event_pending: list[dict | None] = [None]
-
 
 def _cdp_audit_listeners(n_evicted: int) -> None:
     """Measure jsEventListeners delta 5 s after a Phase 2 eviction batch.
@@ -438,160 +417,6 @@ def _cdp_audit_listeners(n_evicted: int) -> None:
             f' delta={delta} nodes-evicted={n_evicted}',
             flush=True,
         )
-
-
-# PSI levels (graduated, matching the chromium-linux-mempressure harness).
-_PSI_NONE = 'NONE'
-_PSI_MODERATE_LVL = 'MODERATE'
-_PSI_CRITICAL_LVL = 'CRITICAL'
-
-
-def _psi_level(some, full, *, moderate, critical, full_critical) -> str:
-    """Map PSI avg10 stall percentages to a pressure level.
-
-    Direct transliteration of the harness CalculatePressureLevel: CRITICAL if the
-    'some' stall reaches `critical` OR the 'full' stall (every task stalled) reaches
-    `full_critical`; MODERATE if 'some' reaches `moderate`; else NONE. Pure, so the
-    boundaries are unit-tested without a running app.
-    """
-    if some >= critical or full >= full_critical:
-        return _PSI_CRITICAL_LVL
-    if some >= moderate:
-        return _PSI_MODERATE_LVL
-    return _PSI_NONE
-
-
-def _psi_should_emit(prev_level, level, now, last_emit, *, cooldown) -> bool:
-    """The harness CheckMemoryPressure notify discipline — three distinct arms.
-
-    One gate drives both *act* and *emit*, so the log is a faithful record of when
-    the harness policy would notify (the property being field-validated):
-      - NONE: only on the down-transition out of a pressure level (never while idle).
-      - MODERATE: on entry, then re-emit only every `cooldown` while sustained.
-      - CRITICAL: every poll (always notify) — acting is throttled downstream by the
-        purge rate-limit/ceiling, and dense telemetry during a rare CRITICAL episode
-        is exactly when the validation data is most wanted.
-    """
-    if level == _PSI_CRITICAL_LVL:
-        return True
-    if level == _PSI_MODERATE_LVL:
-        if level != prev_level:
-            return True
-        return (now - last_emit) >= cooldown
-    # level == NONE
-    return prev_level != _PSI_NONE
-
-
-def _read_meminfo_kb(*keys):
-    """Read the named /proc/meminfo rows (kB) in one pass; missing key -> None."""
-    out = {k: None for k in keys}
-    try:
-        with open('/proc/meminfo') as f:
-            for line in f:
-                field = line.split(':', 1)
-                if field[0] in out:
-                    out[field[0]] = int(field[1].split()[0])
-    except (OSError, ValueError, IndexError):
-        pass
-    return out
-
-
-def _read_system_mem_mb():
-    """One /proc/meminfo pass -> (mem_available_mb, swap_used_mb), either None.
-
-    PSI is a *system* signal; correlating it with renderer RSS alone is a category
-    error, so the telemetry pairs it with host MemAvailable. Swap used
-    (SwapTotal - SwapFree) reads the reclaim path PSI rides up.
-    """
-    m = _read_meminfo_kb('MemAvailable', 'SwapTotal', 'SwapFree')
-    avail = m['MemAvailable']
-    avail_mb = avail // 1024 if avail is not None else None
-    if m['SwapTotal'] is None or m['SwapFree'] is None:
-        swap_mb = None
-    else:
-        swap_mb = (m['SwapTotal'] - m['SwapFree']) // 1024
-    return avail_mb, swap_mb
-
-
-def _parse_psi_avg10(text):
-    """Parse 'some'/'full' avg10 from /proc/pressure/memory; missing -> 0.0."""
-    some = full = 0.0
-    for line in text.splitlines():
-        parts = line.split()
-        if not parts:
-            continue
-        try:
-            if parts[0] == 'some':
-                some = float(parts[1].split('=')[1])
-            elif parts[0] == 'full':
-                full = float(parts[1].split('=')[1])
-        except (IndexError, ValueError):
-            continue
-    return some, full
-
-
-def _start_psi_monitor():
-    """Background thread monitoring Linux /proc/pressure/memory (PSI).
-
-    PSI avg10 is the fraction of time tasks stalled waiting for memory over the last
-    10 s. This is the OS memory-pressure signal that is absent in embedded QtWebEngine
-    builds. The monitor classifies it into NONE/MODERATE/CRITICAL (the harness mapping,
-    thresholds env-tunable) and, on each level transition the harness policy would
-    notify on, hands a record to the main-thread drain timer: MODERATE -> async JS GC,
-    CRITICAL -> gated renderer purge. It also emits a slow heartbeat so a clean session
-    still records its NONE trajectory. Does no Qt work itself.
-
-    Skipped silently on kernels < 4.20 / non-Linux (no PSI file).
-    """
-    _PSI_PATH = '/proc/pressure/memory'
-    _POLL_INTERVAL = 5     # seconds
-    _COOLDOWN = 10         # MODERATE re-emit cadence — matches the harness
-                           # kModeratePressureCooldown (10 s) so the log faithfully
-                           # mirrors when its policy would re-notify under sustained
-                           # MODERATE pressure.
-    _HEARTBEAT = 60        # seconds between NONE heartbeat lines
-
-    if not os.path.exists(_PSI_PATH):
-        return
-
-    def _emit(level, some, full, requested):
-        avail_mb, swap_mb = _read_system_mem_mb()
-        _psi_event_pending[0] = {
-            'level': level, 'some': some, 'full': full,
-            'mem_avail_mb': avail_mb, 'swap_mb': swap_mb, 'requested': requested,
-        }
-
-    def _loop():
-        prev_level = _PSI_NONE
-        last_emit = 0.0
-        last_heartbeat = 0.0
-        while True:
-            try:
-                with open(_PSI_PATH) as f:
-                    some, full = _parse_psi_avg10(f.read())
-                level = _psi_level(
-                    some, full, moderate=_PSI_MODERATE,
-                    critical=_PSI_CRITICAL, full_critical=_PSI_FULL_CRITICAL)
-                now = _time.monotonic()
-                if _psi_should_emit(prev_level, level, now, last_emit,
-                                    cooldown=_COOLDOWN):
-                    requested = {
-                        _PSI_MODERATE_LVL: 'async_gc',
-                        _PSI_CRITICAL_LVL: 'critical',
-                    }.get(level, 'none')
-                    _emit(level, some, full, requested)
-                    last_emit = now
-                    last_heartbeat = now
-                elif level == _PSI_NONE and now - last_heartbeat >= _HEARTBEAT:
-                    _emit(_PSI_NONE, some, full, 'none')
-                    last_heartbeat = now
-                prev_level = level
-            except Exception:
-                pass
-            _time.sleep(_POLL_INTERVAL)
-
-    _threading.Thread(target=_loop, daemon=True, name='psi-monitor').start()
-    print('[MEM] PSI memory pressure monitor started (graduated)', flush=True)
 
 
 class NativeBridge(QObject):
@@ -852,7 +677,7 @@ class OdysseusWindow(QMainWindow):
         self._mem_timer = QTimer()
         self._mem_timer.timeout.connect(_log_renderer_memory)
         self._mem_timer.start(30_000)
-        _start_psi_monitor()
+        qt_psi.start_psi_monitor()
 
         # Focus-loss GC timer: 500 ms single-shot debounce started on WindowDeactivate,
         # cancelled on WindowActivate.  Skips transient focus shifts (notifications,
@@ -870,18 +695,19 @@ class OdysseusWindow(QMainWindow):
         self._gc_focus_timer.setSingleShot(True)
         self._gc_focus_timer.timeout.connect(_on_focus_loss_gc)
 
-        # PSI drain timer: polls _psi_event_pending every 250 ms on the main thread.
-        # QTimer.singleShot from a daemon Python thread (PSI monitor) has no event loop
-        # to fire on; this polling pattern is the correct cross-thread dispatch. The
-        # monitor produced the level + metrics off-thread; here we add renderer RSS,
-        # dispatch the graduated action, and emit the single greppable [PSI] line. The
-        # logged `action` is the synchronous *decision* — the realized purge result is
-        # the paired [MEM] forcible purge (psi-critical) line, joined by the reason.
+        # PSI drain timer: polls qt_psi.psi_event_pending every 250 ms on the main
+        # thread. QTimer.singleShot from a daemon Python thread (the qt_psi monitor) has
+        # no event loop to fire on; this polling pattern is the correct cross-thread
+        # dispatch. The monitor (detection core) produced the level + metrics off-thread;
+        # this adapter adds renderer RSS, dispatches the graduated action, and emits the
+        # single greppable [PSI] line. The logged `action` is the synchronous *decision*
+        # — the realized purge result is the paired [MEM] forcible purge (psi-critical)
+        # line, joined by the reason.
         def _drain_psi_events():
-            event = _psi_event_pending[0]
+            event = qt_psi.psi_event_pending[0]
             if event is None:
                 return
-            _psi_event_pending[0] = None
+            qt_psi.psi_event_pending[0] = None
             requested = event['requested']
             if requested == 'async_gc':
                 action = 'async_gc'
