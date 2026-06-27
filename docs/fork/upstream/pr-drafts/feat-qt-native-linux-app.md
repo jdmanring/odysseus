@@ -171,16 +171,21 @@ low-resource profile.
   `--renderer-process-limit=1` (single renderer process, saves ~30-50 MB vs default
   multi-process behaviour in some Qt builds); `--disable-extensions` (removes extension
   loader overhead, ~1-5 MB, no downside for embedded app).
-- **Tests.** `tests/test_qt_cdp_listener_audit.py` (70 static-analysis tests) verifies
-  import correctness, call-site presence, executor usage and shutdown, log-rotation
-  structure (shift loop, `_LOG_BACKUP_COUNT`, constants match the app), `nodes` assigned
-  before threshold comparison, the forcible-purge gating (RSS ceiling + rate limit) and
-  off-interaction-only firing, the PSI dispatch wiring (the adapter starts the `qt_psi`
-  monitor and drains its event cell), `changeEvent` debounce/cancel behaviour, and all
-  five memory flags. `tests/test_psi_monitor.py` (11 tests) unit-tests the Qt-free
-  detection core directly: level boundaries, the three-arm notify FSM, `/proc/meminfo`
-  and PSI parsing, and env-tunable thresholds. `tests/test_low_resource_profile.py`
-  (5 tests) covers the low-resource auto-detection and profile selection.
+- **Tests** (97 across six files). `tests/test_qt_cdp_listener_audit.py` (67 tests)
+  verifies import correctness, call-site presence, executor usage and shutdown,
+  log-rotation structure (shift loop, `_LOG_BACKUP_COUNT`, constants match the app),
+  `nodes` assigned before threshold comparison, the forcible-purge gating (RSS ceiling +
+  rate limit) and off-interaction-only firing, the PSI dispatch wiring (the adapter starts
+  the `qt_psi` monitor, drains its event cell, and routes CRITICAL to
+  `_purge_renderer('psi-critical')`), `changeEvent` debounce/cancel behaviour, and all five
+  memory flags. `tests/test_psi_monitor.py` (15 tests) unit-tests the Qt-free detection
+  core directly: level boundaries, the three-arm notify FSM, `dispatch_psi_action`
+  (including the CRITICAL purge path and its status mapping), the unavailable-PSI no-op,
+  `/proc/meminfo` and PSI parsing, and env-tunable thresholds.
+  `tests/test_low_resource_profile.py` (5) covers auto-detection and profile selection;
+  `tests/test_host_rss_telemetry.py` (5) the host VmRSS log line;
+  `tests/test_idle_purge_threshold.py` (4) the idle/ceiling defaults and gating; and
+  `tests/test_wrapper_no_access_log.py` (1) the uvicorn access-log default.
 
 **`qt_psi.py`**: the Qt-free Linux-PSI **detection core** (parse, level mapping,
 three-arm notify FSM, `/proc/meminfo` reads, the daemon monitor + event cell). Importing
