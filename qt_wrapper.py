@@ -7,7 +7,7 @@ import time as _time
 # ==============================================================================
 # CRITICAL: Logging setup must happen BEFORE any PyQt6/QtWebEngine imports.
 #
-# sys.stdout/stderr alone is not enough — Chromium renderer subprocesses inherit
+# sys.stdout/stderr alone is not enough; Chromium renderer subprocesses inherit
 # OS-level file descriptors (fd 1, fd 2), not Python's sys.stdout/stderr.
 # os.dup2 replaces the OS fds so all child process output lands in our log.
 # ==============================================================================
@@ -19,7 +19,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 # the process lives. Renaming before the open+dup2 avoids that constraint.
 # Constants match src/constants.py (LOG_MAX_BYTES, LOG_BACKUP_COUNT) so all
 # three log files follow the same retention policy.
-_LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB — matches app RotatingFileHandler
+_LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB, matches app RotatingFileHandler
 _LOG_BACKUP_COUNT = 5               # matches app LOG_BACKUP_COUNT
 
 
@@ -94,7 +94,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     # NB: --enable-low-end-device-mode is deliberately NOT set. It caused a
     # lighter-rectangle raster tint on dark themes (its low-fidelity raster path,
     # tile-aligned, ~+4/+4/+5 lighter than --bg), and did not bound the actual
-    # OOM — which is Oilpan detached-DOM growth (e.g. transient CSS :hover
+    # OOM, which is Oilpan detached-DOM growth (e.g. transient CSS :hover
     # pseudo-element churn), a separate pool from the raster tile budget.
     *_gpu_flags,
 ])
@@ -295,7 +295,7 @@ def _cdp_browser_call(method, params=None):
     """One-shot CDP call on the browser target via stdlib WebSocket.
 
     Browser-level commands (e.g. Memory.simulatePressureNotification) must be sent
-    to the browser target — they are not dispatched to renderer processes when called
+    to the browser target; they are not dispatched to renderer processes when called
     from a page target. The browser target URL is at /json/version rather than /json.
     Returns the CDP result dict or None on any error.
     """
@@ -324,7 +324,7 @@ _cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='c
 # so it cannot repeat back to back.
 
 # ── Capability detection: Rung 1 (docs/fork/low-resource-profile-design.md) ────────
-# Pick the DEFAULT reclaim profile from device capability. LINUX-ONLY signals — this
+# Pick the DEFAULT reclaim profile from device capability. LINUX-ONLY signals; this
 # is the Linux wrapper; mac_wrapper.py / windows_wrapper.py carry their own platform
 # equivalents. An explicit ODYSSEUS_* env var always overrides this (Rung 0). FAIL-
 # SAFE: any read error yields the STANDARD (capable) profile, so a glitch never
@@ -353,7 +353,7 @@ def _linux_total_ram_gb():
 def _linux_software_render():
     """True when no hardware GPU render node exists (no /dev/dri/renderD*, or every
     card is bound only to the EFI framebuffer), so Chromium falls back to llvmpipe
-    software raster — detected pre-launch from devfs/sysfs (the GPU-incident signal)."""
+    software raster, detected pre-launch from devfs/sysfs (the GPU-incident signal)."""
     import glob as _glob
     try:
         if not _glob.glob('/dev/dri/renderD*'):
@@ -372,11 +372,11 @@ _low_resource, _profile_reason = _classify_resources(_linux_total_ram_gb(), _lin
 
 # RSS ceiling: the renderer is only purged above this. Measured working set after a
 # purge is ~430 MB, so the off-interaction reclaim sawtooth stays ~0.43 GB → ceiling.
-# Default ~1.2 GB (a safety net — with producers eliminated the renderer rarely
+# Default ~1.2 GB (a safety net; with producers eliminated the renderer rarely
 # approaches it). Tunable via ODYSSEUS_PURGE_CEILING_MB: lower it on RAM-constrained
-# machines for a tighter cap (purges fire sooner/more often — the right trade when
+# machines for a tighter cap (purges fire sooner/more often, the right trade when
 # system swap/OOM is worse than an occasional off-interaction stutter; this is the
-# "adaptive loading" response to a low-resource device — see docs/fork/
+# "adaptive loading" response to a low-resource device; see docs/fork/
 # low-resource-profile-design.md). Floored at 512 MB (just above the working set, so
 # the ceiling can never sit below it and cause constant purging).
 try:
@@ -388,14 +388,14 @@ _PURGE_MIN_INTERVAL_S = 15
 # Seconds of no input (mouse OR keyboard) before the *sustained-idle* reclaim may
 # fire. The purge blocks the renderer ~1s and there is NO lazy/async purge on
 # QtWebEngine (the only CDP reclaim is the synchronous OOM-intervention; Linux
-# memory-pressure eviction is a no-op — see research). So this must only fire on a
+# memory-pressure eviction is a no-op; see research). So this must only fire on a
 # genuine away-from-keyboard gap: a short reading/thinking pause must NOT trigger
 # it. At 3 s it fired constantly during normal use, and a ~1s freeze landing on a
-# click — or dropping a mid-drag mouseup — left Chromium's left-button state stuck
+# click, or dropping a mid-drag mouseup, left Chromium's left-button state stuck
 # ("can't left-click, right-click works"). The prompt-reclaim-on-leave cases are
 # handled separately and without this delay by the focus-loss and minimize purges.
 # Default = 60 s, the established standard: the W3C/WICG Idle Detection API
-# restricts its idle threshold to a MINIMUM of 60 s — below that you are measuring
+# restricts its idle threshold to a MINIMUM of 60 s; below that you are measuring
 # a pause, not idle (short thresholds are unreliable for "idle" and even leak
 # typing cadence, hence the spec floor). Best-practice range is 30–120 s; 60 s is
 # the principled safe choice for a *disruptive* (blocking) reclaim.
@@ -511,7 +511,7 @@ class OdysseusPage(QWebEnginePage):
 
     def javaScriptConsoleMessage(self, level, message, line_number, source_id):
         # Chromium's --enable-logging=stderr captures the renderer's internal log but
-        # NOT JavaScript console.log() — those only reach Python via this override.
+        # NOT JavaScript console.log(); those only reach Python via this override.
         # Print without a prefix so structured [tag] messages sort cleanly in the log.
         label = level.name if hasattr(level, 'name') else str(level)
         if label in ('WARNING', 'ERROR', 'CRITICAL'):
@@ -519,7 +519,7 @@ class OdysseusPage(QWebEnginePage):
         else:
             print(message, flush=True)
         # When chatHistory.js evicts a Phase 2 batch, audit whether jsEventListeners
-        # drops proportionally — confirms that WeakRef fixes released the closures.
+        # drops proportionally; confirms that WeakRef fixes released the closures.
         m = _RE_EVICT.match(message)
         if m:
             _cdp_executor.submit(_cdp_audit_listeners, int(m.group(1)))
@@ -596,13 +596,13 @@ class OdysseusWindow(QMainWindow):
         qwc_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         page.scripts().insert(qwc_script)
 
-        # Native bridge — held as instance attrs to prevent GC
+        # Native bridge, held as instance attrs to prevent GC
         self._bridge = NativeBridge()
         self._channel = QWebChannel(page)
         self._channel.registerObject("bridge", self._bridge)
         page.setWebChannel(self._channel)
 
-        # Renderer crash recovery — auto-reload on OOM or hard crash
+        # Renderer crash recovery: auto-reload on OOM or hard crash
         self._crash_times = []
         def _on_renderer_crash(status, exit_code):
             label = {0: 'Normal', 1: 'Abnormal', 2: 'Crashed', 3: 'Killed(OOM)'}.get(
@@ -614,7 +614,7 @@ class OdysseusWindow(QMainWindow):
             now = _time.monotonic()
             self._crash_times = [t for t in self._crash_times if now - t < 10]
             if self._crash_times:
-                print('[RENDERER] Crash loop — not reloading', flush=True)
+                print('[RENDERER] Crash loop, not reloading', flush=True)
                 return
             self._crash_times.append(now)
             print('[RENDERER] Scheduling reload in 1s', flush=True)
@@ -649,7 +649,7 @@ class OdysseusWindow(QMainWindow):
                     print(f'[MEM] error: {e}', flush=True)
             # Host-process RSS. This (qt_wrapper.py) embeds Chromium's browser
             # process plus the in-process GPU thread (Chrome_InProcGPUThread) and
-            # the NetworkServiceInProcess2 / TracingServiceInProcess features — so
+            # the NetworkServiceInProcess2 / TracingServiceInProcess features, so
             # it is the largest single consumer in the stack and is NOT covered by
             # the renderer-pid reading above. We track it here to answer the open
             # question of whether that footprint is a fixed baseline or climbs with
@@ -672,7 +672,7 @@ class OdysseusWindow(QMainWindow):
                 listeners = counts.get('jsEventListeners', 0)
                 # listeners/node ratio should be roughly constant (~3–5× for a
                 # typical chat session). A rising ratio indicates a listener leak
-                # — either removeEventListener is being skipped or setInterval
+                # either removeEventListener is being skipped or setInterval
                 # closures are preventing GC of elements that still hold listeners.
                 ratio = f'{listeners / nodes:.1f}' if nodes else 'n/a'
                 print(
@@ -687,7 +687,7 @@ class OdysseusWindow(QMainWindow):
                 if nodes > 50_000:
                     print(
                         f'[GC] node-count threshold ({nodes} > 50000)'
-                        f' — async JS GC',
+                        f', async JS GC',
                         flush=True,
                     )
                     page.runJavaScript(
@@ -699,7 +699,7 @@ class OdysseusWindow(QMainWindow):
             # purge causes a ~1s stutter. Reclaim happens strictly off the
             # interaction path (mouse-idle and focus-loss) via _purge_renderer.
             # The previous call here, simulatePressureNotification('critical'), was
-            # a no-op on QtWebEngine (measured: no RSS change) — issue #106.
+            # a no-op on QtWebEngine (measured: no RSS change); issue #106.
             del rss_before  # was only used by the removed eviction telemetry
 
         self._mem_timer = QTimer()
@@ -711,7 +711,7 @@ class OdysseusWindow(QMainWindow):
         # cancelled on WindowActivate.  Skips transient focus shifts (notifications,
         # dropdowns) that would otherwise trigger unnecessary GC mid-typing.
         def _on_focus_loss_gc():
-            print('[GC] focus-loss — async JS GC', flush=True)
+            print('[GC] focus-loss: async JS GC', flush=True)
             page.runJavaScript(
                 "if(typeof gc==='function')"
                 "gc({type:'major',execution:'async'});"
@@ -729,7 +729,7 @@ class OdysseusWindow(QMainWindow):
         # dispatch. The monitor (detection core) produced the level + metrics off-thread;
         # this adapter adds renderer RSS, dispatches the graduated action, and emits the
         # single greppable [PSI] line. The logged `action` is the synchronous *decision*
-        # — the realized purge result is the paired [MEM] forcible purge (psi-critical)
+        # the realized purge result is the paired [MEM] forcible purge (psi-critical)
         # line, joined by the reason.
         def _drain_psi_events():
             event = qt_psi.psi_event_pending[0]
@@ -831,7 +831,7 @@ class OdysseusWindow(QMainWindow):
         import time
         rss = self._renderer_rss_kb()
         if rss and rss < _PURGE_RSS_CEILING_KB:
-            return 'skipped_ceiling'  # below ceiling — not worth the stutter
+            return 'skipped_ceiling'  # below ceiling, not worth the stutter
         now = time.monotonic()
         if now - self._last_purge < _PURGE_MIN_INTERVAL_S:
             return 'rate_limited'
@@ -854,7 +854,7 @@ class OdysseusWindow(QMainWindow):
         self._last_input = time.monotonic()
 
     def _maybe_idle_purge(self) -> None:
-        """Repeating sustained-idle reclaim — the safety net for a user who stays in
+        """Repeating sustained-idle reclaim, the safety net for a user who stays in
         the (focused) window but walks away from the keyboard. Only fires after a
         genuine away-from-keyboard gap (_IDLE_RECLAIM_AFTER_S) so the ~1s blocking
         purge never lands on an interaction; the switched-away / minimized cases are
@@ -868,13 +868,13 @@ class OdysseusWindow(QMainWindow):
             if self.isMinimized():
                 # Reclaim renderer memory while minimized WITHOUT freezing the page.
                 # The lifecycle freeze released compositor memory but left the web
-                # content unresponsive to input after the Frozen->Active thaw — Qt
+                # content unresponsive to input after the Frozen->Active thaw; Qt
                 # documents that a non-Active page can lose HTML input, says
                 # "a visible page must remain in the Active state", and PyQt's
                 # lifecycle transitions are unreliable (issue #109). The gated purge
                 # frees memory without touching the lifecycle state; its ~1s stutter
                 # is invisible while minimized.
-                print('[LIFECYCLE] minimized — page kept Active, reclaim requested',
+                print('[LIFECYCLE] minimized: page kept Active, reclaim requested',
                       flush=True)
                 self._purge_renderer('minimized')
         elif event.type() == QEvent.Type.WindowDeactivate:
@@ -913,7 +913,7 @@ if __name__ == "__main__":
     # pinned taskbar entry and shows the correct icon instead of the X logo.
     app.setDesktopFileName("odysseus")
 
-    # Named persistent profile — cookies, localStorage, and session data
+    # Named persistent profile: cookies, localStorage, and session data
     # survive between restarts. Without this the login is lost on every close.
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(CACHE_DIR, exist_ok=True)
@@ -923,7 +923,7 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
-    # App serves from localhost — HTTP cache is almost entirely idle but grows
+    # App serves from localhost; HTTP cache is almost entirely idle but grows
     # without bound by default. Cap at 50 MB.
     profile.setHttpCacheMaximumSize(50_000_000)
 
