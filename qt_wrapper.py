@@ -923,12 +923,9 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
-    # App serves its own files from localhost, where a disk HTTP cache buys
-    # nothing (a local read is instant) but persists stale JS/CSS across code
-    # updates, so changes only appear after a full restart and ES-module imports
-    # are not revalidated. Disable the HTTP cache entirely; the server already
-    # sends Cache-Control: no-cache (app.py _RevalidatingStatic).
-    profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
+    # App serves from localhost; HTTP cache is almost entirely idle but grows
+    # without bound by default. Cap at 50 MB.
+    profile.setHttpCacheMaximumSize(50_000_000)
 
     win = OdysseusWindow(profile)
     win.show()

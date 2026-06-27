@@ -458,12 +458,11 @@ def test_low_end_device_mode_flag_absent():
     assert '"--enable-low-end-device-mode"' not in _SRC
 
 
-def test_http_cache_disabled_for_localhost():
-    """HTTP cache is disabled (NoCache): the app serves its own files from
-    localhost, where a disk cache buys nothing but persists stale JS/CSS across
-    updates. Disabling it (not just capping the size) avoids that staleness."""
-    assert "setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)" in _SRC
-    assert "setHttpCacheMaximumSize" not in _SRC
+def test_http_cache_capped():
+    """HTTP cache must be explicitly bounded. Default is unlimited (0), which lets
+    the cache grow without bound even though the app serves from localhost and
+    rarely gets cache hits."""
+    assert "setHttpCacheMaximumSize" in _SRC
 
 
 def test_page_stored_as_instance_attr():
