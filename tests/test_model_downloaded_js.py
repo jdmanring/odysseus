@@ -91,6 +91,23 @@ def test_base_model_match_for_discovered_quants(catalog_name, downloaded):
     assert _is_downloaded({"name": catalog_name}, [downloaded]) is True
 
 
+def test_sibling_quant_of_a_tagged_entry_does_not_match():
+    # Catalog lists 4bit and 8bit as separate entries; only the 4bit is downloaded.
+    # The 8bit entry carries its own quant tag, so it must match exactly, not by base.
+    cached = ["cyankiwi/Qwen3-VL-8B-Thinking-AWQ-4bit"]
+    assert _is_downloaded(
+        {"name": "cyankiwi/Qwen3-VL-8B-Thinking-AWQ-4bit"}, cached) is True   # the one we have
+    assert _is_downloaded(
+        {"name": "cyankiwi/Qwen3-VL-8B-Thinking-AWQ-8bit"}, cached) is False  # the sibling we don't
+
+
+def test_untagged_base_entry_still_matches_a_downloaded_quant():
+    # The base-model catalog entry (no quant tag) still grays when any quant is held.
+    assert _is_downloaded(
+        {"name": "Qwen/Qwen3-VL-8B-Thinking"},
+        ["cyankiwi/Qwen3-VL-8B-Thinking-AWQ-4bit"]) is True
+
+
 def test_base_match_does_not_cross_distinct_models():
     # Different base (Instruct vs base, Coder vs base) must NOT match.
     assert _is_downloaded({"name": "org/Llama-3-8B"},
