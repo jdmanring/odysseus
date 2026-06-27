@@ -36,6 +36,7 @@ import uiModule from './ui.js';
 import spinnerModule from './spinner.js';
 import { _loadTasks, _tmuxGracefulKill, _nextAvailablePort, _taskPort } from './cookbookRunning.js';
 import { openCookbookDependencies } from './cookbook-diagnosis.js';
+import { isModelDownloaded, modelIdentities } from './model/downloaded.js';
 
 // Map a serve-backend code (vllm / sglang / llamacpp / mlx) → the package name
 // the Dependencies API reports. Used to look up "is this backend installed
@@ -744,8 +745,8 @@ export async function _hwfitFetch(fresh = false, opts = {}) {
         _setLastCacheHost(remoteKey);
         // Re-mark rows if already rendered
         list.querySelectorAll('.hwfit-row[data-model]').forEach(row => {
-          const name = row.dataset.model;
-          if (_cachedModelIds.has(name) || [..._cachedModelIds].some(id => id.endsWith('/' + name?.split('/').pop()))) {
+          const ids = (row.dataset.dlIds || row.dataset.model || '').split('|').filter(Boolean);
+          if (isModelDownloaded(ids, _cachedModelIds)) {
             const nameEl = row.querySelector('.hwfit-name');
             if (nameEl && !nameEl.querySelector('.hwfit-dl-dot')) {
               nameEl.insertAdjacentHTML('beforeend', '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>');
@@ -1335,8 +1336,11 @@ export function _hwfitRenderList(el, models) {
     const vramLabel = m.required_gb ? m.required_gb.toFixed(1) + 'G' : '?';
     const moeBadge = m.is_moe ? '<span class="hwfit-badge hwfit-moe">MoE</span>' : '';
     const imgBadge = m.is_image_gen ? '<span class="hwfit-badge" style="background:color-mix(in srgb, var(--red) 20%, transparent);color:var(--red);font-size:8px;padding:1px 4px;border-radius:3px;margin-left:4px;">IMG</span>' : '';
-    const dlDot = (_cachedModelIds && (_cachedModelIds.has(m.name) || [..._cachedModelIds].some(id => id === m.name?.split('/').pop()))) ? '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>' : '';
-    html += `<div class="hwfit-row" data-model="${esc(m.name)}">`;
+    const dlDot = isModelDownloaded(m, _cachedModelIds) ? '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>' : '';
+    // Carry the model's download identities on the row so the post-cache re-mark
+    // (which only has the DOM) stays gguf-aware, matching this initial render.
+    const _dlIds = esc([...modelIdentities(m).full].join('|'));
+    html += `<div class="hwfit-row" data-model="${esc(m.name)}" data-dl-ids="${_dlIds}">`;
     html += `<span class="hwfit-col hwfit-fit" style="color:${fitColor}">${esc(fitLabel)}</span>`;
     // Append quant to the title when it's not already in the repo name. The
     // suffix strips quant-parts the name already contains — e.g. for
@@ -1620,11 +1624,7 @@ export function _expandModelRow(row, modelData) {
       // gate on the cached-model list — mirror that here. When the model isn't
       // present, honor the button's "Download" half by kicking off the download
       // instead, then the user can Run again to serve once it finishes.
-      const _short = modelData.name.split('/').pop();
-      const _downloaded = _cachedModelIds && (
-        _cachedModelIds.has(modelData.name)
-        || [..._cachedModelIds].some(id => id === modelData.name || id.endsWith('/' + _short))
-      );
+      const _downloaded = isModelDownloaded(modelData, _cachedModelIds);
       if (_cachedModelIds && !_downloaded) {
         uiModule.showToast('Model not downloaded yet — starting download. Run again to serve once it finishes.');
         if (backend === 'ollama') {
@@ -1898,15 +1898,11 @@ export function _expandModelRow(row, modelData) {
   if (configBtn) {
     configBtn.addEventListener('click', async () => {
       const repo = modelData.name;
-      const short = repo?.split('/').pop();
-      // Use the same "downloaded" source as the dl-dot (_cachedModelIds), NOT a
-      // DOM lookup for .hwfit-cached-item — those only exist on the Serve tab, so
-      // from the What-Fits tab the old check always failed and falsely said
-      // "download first" even for models that ARE downloaded.
-      const downloaded = _cachedModelIds && (
-        _cachedModelIds.has(repo)
-        || [..._cachedModelIds].some(id => id === repo || id.endsWith('/' + short))
-      );
+      // Use the same canonical "downloaded" predicate as the dl-dot, NOT a DOM
+      // lookup for .hwfit-cached-item (those only exist on the Serve tab, so from
+      // the What-Fits tab the old check always failed and falsely said "download
+      // first" even for models that ARE downloaded).
+      const downloaded = isModelDownloaded(modelData, _cachedModelIds);
       if (_cachedModelIds && !downloaded) {
         uiModule.showToast('Download the model first, then configure from Serve tab');
         return;
