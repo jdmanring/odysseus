@@ -127,7 +127,7 @@ def _theme_bg_color() -> QColor:
     """Read the saved theme background from data/user_prefs.json.
 
     setBackgroundColor() sets the QWebEnginePage compositor base-background
-    colour — what shows in any brief gap before content paints. Hardcoding
+    colour, what shows in any brief gap before content paints. Hardcoding
     #282c34 (the default theme) would flash lighter than the actual background
     on a custom dark theme (e.g. Catppuccin #1e1e2e); reading the persisted bg
     at startup keeps the base colour in sync with the user's real theme.
