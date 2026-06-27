@@ -23,7 +23,7 @@ per-action authorization. Agents stage; you file.**
 | `feat/aria2c-downloader` | [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) | Feature | Verified (2026-06-12): pause/resume (single+multi-file), split-file size, menu toggle, clear-finished, zombie detection, resume spinner, cancel mid-download. Windows buffering fix implemented (untested, needs Windows machine). aria2c is now the default (`use_aria2c: bool = True` in schema); hf-download is the pre-flight fallback when aria2c binary unavailable. Added `tests/test_aria2c_circuit.py` with `@pytest.mark.slow` on network classes + 4 static contract tests. **File before `fix/gguf-quality-scored`** (introduces `HfUrlResolver` base class). See pr-drafts/ |
 | `feat/catppuccin-theme` | [#30](https://github.com/jdmanring/odysseus/issues/30) | Feature | Ready to file — see pr-drafts/feat-catppuccin-theme.md |
 | `feat/ai-documentation-system` | [#18](https://github.com/jdmanring/odysseus/issues/18) | Docs | Ready to file — see pr-drafts/ |
-| `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Ready to file — see pr-drafts/feat-qt-native-linux-app.md |
+| `feat/qt-native-linux-app` | [#14](https://github.com/jdmanring/odysseus/issues/14) | Feature | Ready to file — **now carries the full Qt-wrapper memory stack** (#106 forcible-purge + RSS-ceiling, #112 host telemetry, #116 low-resource profile, #120 graduated PSI / `qt_psi.py`), folded in 2026-06-26 because `qt_wrapper.py` is a *new* file: a new feature ships in its correct shape, not introduced naive then patched in the same series. Mechanics: 13 commits cherry-picked onto `feat/qt-native-linux-app` (clean, no conflicts; backup ref `backup/feat-qt-native-linux-app-prefold`). PR draft rewritten to the shipped design; obsolete simulatePressure/flat-PSI prose removed. See pr-drafts/feat-qt-native-linux-app.md |
 | `fix/gpu-compositor-flicker` | [#32](https://github.com/jdmanring/odysseus/issues/32) | Bug | Ready to file — see pr-drafts/fix-gpu-compositor-flicker.md |
 | `fix/css-render-perf` | [#33](https://github.com/jdmanring/odysseus/issues/33) | Perf | Ready to file — see pr-drafts/fix-css-render-perf.md |
 | `fix/hf-token-env-fallback` | [#34](https://github.com/jdmanring/odysseus/issues/34) | Bug | Superseded — upstream landed same fix in #3459 (synced 2026-06-12). Draft moved to `deprecated/`. Do not file. |
@@ -47,7 +47,7 @@ contaminates the branch:
 | Fork issue | Touches | Origin / home | Independent? | Maps upstream to |
 |---|---|---|---|---|
 | [#111](https://github.com/jdmanring/odysseus/issues/111) lazy-connect cold MCP | `src/builtin_mcp.py`, `src/mcp_manager.py` (both on `upstream-mirror`) | **`perf/mcp-lazy-connect`** (cut from `upstream-mirror`; implemented, cherry-picked to develop; draft issue+PR staged; research in `mcp-lazy-connect-research.md`) | **Yes** | #2140, #3824; ROADMAP email-perf. #4812 reconciled (complementary; file after #4812, route eager branch through its `_spawn_bg` — see research doc) |
-| [#112](https://github.com/jdmanring/odysseus/issues/112) host VmRSS telemetry | `qt_wrapper.py` (**not** on `upstream-mirror`) | **folded into `perf/renderer-memory-reclaim`** (the telemetry owner; done, cherry-picked to develop) | No — **depends on #14** | rides the Qt-wrapper stack |
+| [#112](https://github.com/jdmanring/odysseus/issues/112) host VmRSS telemetry | `qt_wrapper.py` (**not** on `upstream-mirror`) | **folded into `feat/qt-native-linux-app` (#14)** with the rest of the memory stack, 2026-06-26 | No — **part of #14** | ships inside the #14 PR |
 | [#113](https://github.com/jdmanring/odysseus/issues/113) `--no-access-log` | `qt_wrapper.py` / `mac_wrapper.py` / `windows_wrapper.py` (**not** on `upstream-mirror`) | **DONE** on each `feat/qt-native-{linux,macos,windows}-app` branch; cherry-picked to develop (guard test on develop) | No — **rides each platform PR** | folds into #14 (linux) + macos/windows PRs. Real fix is `--no-access-log` (uvicorn default is ON) |
 
 ### Idle-quiescence candidates (audit C3 / #117, 2026-06-25)
@@ -59,14 +59,21 @@ contaminates the branch:
 | [#118](https://github.com/jdmanring/odysseus/issues/118) (audit D1+D2) | `fix/timer-visibility-gating` | `modalManager.js`, `emailInbox.js`, `tasks.js` | **DONE** — visibility-gate background timers; from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. Independent. |
 | [#119](https://github.com/jdmanring/odysseus/issues/119) (audit D3) | `fix/sigcache-lru-bound` | `static/js/document.js` | **DONE** — LRU-bound `_sigCache`; from `upstream-mirror`, cherry-picked to develop; draft issue+PR staged. Independent. |
 
-**⚠ Pre-existing staging gap surfaced:** `perf/renderer-memory-reclaim` (the bulk of this
-cycle's memory work: #106 forciblyPurge, idle-purge, GC catch-up, and now #112 host telemetry)
-is **stacked on `feat/qt-native-linux-app` (#14)** and has **no `pr-status` row, no draft
-upstream issue, and no draft PR**. It cannot be a standalone `upstream-mirror` PR because
-`qt_wrapper.py` is introduced by #14. **Decision needed:** stage it as a PR stacked on #14
-(filed only after #14 lands upstream), or fold the Qt-side diagnostics into #14 itself. #112
-and #113 inherit the same decision. **Do not file any of these until #14's upstream fate is
-settled.**
+**✓ Staging gap RESOLVED (2026-06-26) — folded into #14.** The memory work
+(`perf/renderer-memory-reclaim` = #106 forcible-purge/idle-purge/GC-catchup + #112 host
+telemetry + #116 low-resource profile, and `perf/qt-psi-graduated-reclaim` = #120 graduated
+PSI / `qt_psi.py`) could not be a standalone `upstream-mirror` PR because `qt_wrapper.py` is
+introduced by #14. **Decision: fold all of it into #14** — `qt_wrapper.py` is a *new* file,
+so the feature must ship in its correct memory-managed shape rather than be introduced naive
+and patched by a follow-up series (which would also ask a reviewer to accept the
+simulatePressure no-op that #106's research disproved). 13 commits were cherry-picked onto
+`feat/qt-native-linux-app` (clean; backup `backup/feat-qt-native-linux-app-prefold`); the #14
+PR draft was rewritten to the shipped design. `develop` already carries all of this work via
+its own cherry-picks. The `perf/renderer-memory-reclaim` and `perf/qt-psi-graduated-reclaim`
+branches are now **superseded by #14** for upstream purposes (retained as history; safe to
+delete once #14 is filed). **#113** keeps its own row: the Linux part is in #14, the
+mac/windows parts ride their platform PRs. **Do not file #14 until its upstream fate is
+settled** (issue first, per CONTRIBUTING).
 
 ## PR Drafts and Issue Drafts
 

@@ -21,6 +21,15 @@ a `QWebEngineView` window. Users get a launcher/taskbar entry, desktop icon
 integration, and a standalone app experience without needing a separate browser
 tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle.
 
+Embedded QtWebEngine does not receive the OS memory-pressure signals a normal
+browser uses to bound its caches, so a long session's renderer RSS grows without
+ceiling (measured into the multi-GB range). The wrapper therefore ships with
+**disciplined renderer memory management** as a first-class part of the feature, not
+a follow-up: a gated forcible-purge reclaim fired only off the interaction path, a
+graduated Linux-PSI monitor that supplies the missing pressure signal, structured
+memory telemetry, and a low-resource device profile. These are described under
+*Memory management* below.
+
 <!-- Screenshot: drag `docs/fork/screenshots/qt-native-linux-app.png` into this text box when filing — the repo-relative path will not resolve upstream. -->
 
 ### New files
@@ -42,8 +51,9 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   system browser instead of navigating away inside the wrapper.
 - **Crash recovery:** `renderProcessTerminated` handler reloads the page on
   OOM or renderer crash, with a loop guard to avoid reload storms.
-- **Memory monitor:** `QTimer`-driven 60 s loop logs renderer heap usage via
-  `runJavaScript` for diagnostics.
+- **Memory telemetry:** a `QTimer`-driven 30 s loop logs renderer heap counters
+  (`Memory.getDOMCounters` via CDP) and host-process VmRSS to `[MEM]` lines for
+  diagnostics. See *Memory management* below for the reclaim architecture.
 - **Qt bridge:** `QWebChannel` exposes `window.qtBridge` to the page for
   features that require a native dialog.
 - **GPU flags:** sets `QTWEBENGINE_CHROMIUM_FLAGS` before importing Qt, with
@@ -88,39 +98,62 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   background work (post-eviction listener audit). Bounds concurrent thread count;
   prevents unbounded thread creation under heavy eviction load. Executor is shut down
   (`cancel_futures=True, wait=False`) in `stop_server()`.
-- **Async GC (non-blocking input):** Memory pressure events use
-  `gc({ type: 'major', execution: 'async' })` via `page.runJavaScript()` rather than
-  `Memory.forciblyPurgeJavaScriptMemory` via CDP. The CDP variant calls
-  `V8::LowMemoryNotification()` synchronously in the renderer, blocking the JS event
-  loop for 100 ms–1 s+ and causing visible input freezes during large-heap collections.
-  The async variant runs incremental GC slices during idle and does not block.
-  Three trigger paths:
-  - **Focus-loss** (`changeEvent(WindowDeactivate)`): 500 ms single-shot debounce
-    (`_gc_focus_timer`) so transient focus shifts (notifications, dropdown menus) are
-    skipped; `WindowActivate` within 500 ms cancels the GC.
-  - **PSI monitor** (`/proc/pressure/memory` avg10 > 5 %): 30 s cooldown
-    (`_COOLDOWN = 30`) prevents repeated GC bursts under sustained pressure. The PSI
-    loop is a daemon Python thread with no Qt event loop; a 250 ms main-thread drain
-    timer (`_gc_drain_timer`) polls `_gc_request_pending` and calls `runJavaScript`,
-    avoiding `QTimer.singleShot` cross-thread hazards.
-  - **Node-threshold** (> 50 000 Oilpan nodes): direct `page.runJavaScript()` call
-    inside `_log_renderer_memory`, which already runs on the Qt main thread.
-- **Raster tile pressure:** `Memory.simulatePressureNotification(moderate)` is called
-  at the end of each 60 s `_log_renderer_memory` cycle. Qt WebEngine does not forward
-  OS memory-pressure signals to Chromium's `cc::TileManager`, so raster tiles are not
-  evicted on idle as they would be in a normal browser. Simulating moderate pressure
-  fires the `base::MemoryPressureListener` path the OS would use. `_cdp_call()` returns
-  `None` silently on any error, so it degrades gracefully if the CDP method is
-  unavailable in a given build.
+#### Memory management
 
-  **Scope correction (see jdmanring#96 / #97):** the dominant hover-driven RSS growth
-  is *not* raster tiles — it is transient Oilpan detached-DOM churn from CSS `:hover`
-  pseudo-elements, a separate memory pool. That is addressed by an idle-triggered
-  `gc()` (idle-GC, #97), not by tile pressure. An earlier attempt to bound it with the
-  `--enable-low-end-device-mode` flag was removed (#96): the flag caused a
-  lighter-rectangle raster tint on dark themes and did not touch the Oilpan pool. The
-  pressure-notification call is retained as belt-and-suspenders for genuine raster
-  accumulation, not as the hover-OOM fix it was originally framed as.
+Embedded QtWebEngine never receives the OS memory-pressure signals a normal browser
+uses to bound its caches, so renderer RSS climbs without ceiling over a long session.
+Two complementary reclaim mechanisms address this, plus a Linux-PSI signal source and a
+low-resource profile.
+
+- **Forcible renderer purge (primary reclaim):** `_purge_renderer()` runs
+  `Memory.forciblyPurgeJavaScriptMemory` via CDP. This is the only call that releases the
+  multi-GB renderer working set on QtWebEngine. It is **gated** by an RSS ceiling
+  (`_PURGE_RSS_CEILING_KB`, default ~1.2 GB) and **rate-limited**
+  (`_PURGE_MIN_INTERVAL_S = 15 s`), and fired **only off the interaction path**, where its
+  ~1 s synchronous stutter is invisible: focus-loss, window minimize, post-interaction
+  mouse-idle (2 s), and sustained away-from-keyboard idle. The CDP call runs in the bounded
+  executor so socket I/O stays off the Qt main thread; it returns `None` on any error and
+  degrades gracefully. `_purge_renderer` returns a synchronous decision status
+  (`submitted` / `skipped_ceiling` / `rate_limited`) for telemetry.
+
+  > Earlier iterations used `Memory.simulatePressureNotification(moderate)` to fire
+  > `base::MemoryPressureListener`; on QtWebEngine that path was **measured to be a no-op**
+  > on the renderer working set, so it was removed in favour of the forcible purge above.
+  > Separately, `--enable-low-end-device-mode` was tried and removed: it caused a
+  > lighter-rectangle raster tint on dark themes and bounded the raster tile budget, not
+  > the Oilpan detached-DOM pool that actually grows.
+
+- **Async GC (non-blocking, lighter reclaim):** `gc({type:'major',execution:'async'})` via
+  `page.runJavaScript()` runs incremental collection without blocking the JS event loop —
+  used where a stutter would be visible or a full purge is excessive: focus-loss (500 ms
+  debounce via `_gc_focus_timer`, cancelled by `WindowActivate`), an Oilpan node-count
+  threshold (> 50 000 nodes), and PSI MODERATE pressure (below).
+
+- **Graduated Linux-PSI monitor (`qt_psi.py`):** supplies the missing OS pressure signal.
+  A daemon thread reads `/proc/pressure/memory` (`some` + `full` avg10) and classifies
+  NONE/MODERATE/CRITICAL via a notify FSM (thresholds env-tunable, defaults `some` 10/40,
+  `full` 5). **MODERATE → async GC; CRITICAL → the gated forcible purge.** The detection
+  logic is a **Qt-free module** (parse, level mapping, FSM, `/proc/meminfo` reads, the
+  daemon loop) so it is unit-tested without the GUI stack; `qt_wrapper.py` is the output
+  adapter — a 250 ms main-thread drain timer reads the monitor's event cell (GIL-atomic
+  hand-off, avoiding `QTimer.singleShot` cross-thread hazards), dispatches the action, and
+  emits one structured `[PSI]` line per transition carrying `level`, `some`, `full`, host
+  `mem_avail_mb`, renderer `rss_mb`, `swap_mb`, and the action taken. Skipped silently on
+  kernels without PSI (< 4.20). The same level mapping and notify discipline are shared
+  with a companion QtWebEngine/Chromium upstream effort; this telemetry field-validates
+  the thresholds on real hardware.
+
+- **Memory telemetry:** the 30 s `[MEM]` diagnostic loop logs renderer heap counters and
+  **host-process VmRSS** so renderer and host footprint are both visible.
+
+- **Low-resource device profile:** at startup the wrapper auto-detects a low-resource host
+  and selects tighter reclaim defaults (lower purge ceiling, shorter idle threshold); the
+  selection and any env override are logged once in a `[PROFILE]` line. All knobs are
+  env-tunable: `ODYSSEUS_PURGE_CEILING_MB`, `ODYSSEUS_IDLE_RECLAIM_S`, and
+  `ODYSSEUS_PSI_MODERATE` / `ODYSSEUS_PSI_CRITICAL` / `ODYSSEUS_PSI_FULL_CRITICAL`. The
+  60 s default for the disruptive sustained-idle purge follows the W3C/WICG Idle Detection
+  API floor (idle thresholds below 60 s measure a pause, not idle).
+
 - **Startup log rotation:** `_rotate_log(path)` rotates `wrapper_system.log` and
   `server_access.log` at startup if they exceed 10 MB, preserving 5 numbered
   backups (`path.1`–`path.5`) via the same shift algorithm used by
@@ -138,13 +171,21 @@ tab. The Odysseus server runs in-process; the wrapper manages its full lifecycle
   `--renderer-process-limit=1` (single renderer process — saves ~30–50 MB vs default
   multi-process behaviour in some Qt builds); `--disable-extensions` (removes extension
   loader overhead, ~1–5 MB, no downside for embedded app).
-- 63 static-analysis tests in `tests/test_qt_cdp_listener_audit.py` verify
-  import correctness, call-site presence, executor usage, log rotation
-  structure (including that the shift loop and `_LOG_BACKUP_COUNT` are present
-  and that constants match the app), `nodes` assigned before threshold comparison,
-  async GC machinery (`_request_async_gc`, `_gc_drain_timer`, `_gc_request_pending`),
-  PSI cooldown, `changeEvent` debounce/cancel behaviour, all five memory flags,
-  and `Memory.simulatePressureNotification` tile eviction call.
+- **Tests.** `tests/test_qt_cdp_listener_audit.py` (70 static-analysis tests) verifies
+  import correctness, call-site presence, executor usage and shutdown, log-rotation
+  structure (shift loop, `_LOG_BACKUP_COUNT`, constants match the app), `nodes` assigned
+  before threshold comparison, the forcible-purge gating (RSS ceiling + rate limit) and
+  off-interaction-only firing, the PSI dispatch wiring (the adapter starts the `qt_psi`
+  monitor and drains its event cell), `changeEvent` debounce/cancel behaviour, and all
+  five memory flags. `tests/test_psi_monitor.py` (11 tests) unit-tests the Qt-free
+  detection core directly — level boundaries, the three-arm notify FSM, `/proc/meminfo`
+  and PSI parsing, and env-tunable thresholds. `tests/test_low_resource_profile.py`
+  (5 tests) covers the low-resource auto-detection and profile selection.
+
+**`qt_psi.py`**: the Qt-free Linux-PSI **detection core** (parse, level mapping,
+three-arm notify FSM, `/proc/meminfo` reads, the daemon monitor + event cell). Importing
+no Qt keeps the pressure logic unit-testable without the GUI stack and cleanly separates
+detection from the `qt_wrapper.py` output adapter. See *Memory management* above.
 
 **`build-linux-app.sh`**: preflight check and launch script. Verifies that
 `PyQt6`, `PyQt6-WebEngine`, and `PyQt6-sip` are importable, prints an install
@@ -286,6 +327,12 @@ Fixes #___
 5. Open the sidebar, hover over items, open a dropdown, and open the Cookbook; confirm no black-screen flicker on any of these actions.
 6. Chrome DevTools: navigate to `http://localhost:9222` in a regular browser; confirm the remote debugging endpoint is accessible.
 7. Confirm standard features work: chat, session switching, model switching, Cookbook, Downloads, Settings.
+8. Memory management: `tail -f logs/wrapper_system.log`, then induce memory pressure
+   (e.g. `stress-ng --vm 4 --vm-bytes 6G --timeout 35s`). Confirm `[PSI]` lines appear with
+   the level rising (NONE→MODERATE→…) and `mem_avail_mb`/`swap_mb` tracking the stall, and
+   that a `[MEM] forcible purge` line follows a CRITICAL with a negative RSS delta. Switch
+   focus away or minimize the window and confirm an off-interaction purge fires while the
+   window is unfocused, never mid-interaction.
 
 Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Windows, touchscreen/tablet.
 
