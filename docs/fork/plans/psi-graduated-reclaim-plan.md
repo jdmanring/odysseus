@@ -9,7 +9,19 @@ Execution plan for the graduated PSI monitor in `qt_wrapper.py`. Related memory 
 #106 supplies `_purge_renderer`, the RSS-ceiling env knobs, `_renderer_rss_kb`, and the
 PSI monitor this reworks; #106 is a *sibling* of `feat/qt-native-linux-app`, not chained
 onto it, so the upstream-PR ordering must carry #14 → #106 → #120. Implemented; cherry-
-picked to develop (`9e6ca024`).**
+picked to develop (`9e6ca024`, then `1f85aaa6`).**
+
+**Implementation note (post-plan):** the detection logic was extracted into a Qt-free
+`qt_psi.py` module (parse, level mapping, three-arm FSM, meminfo reads, daemon monitor +
+event cell); `qt_wrapper.py` keeps the output adapter (drain timer → action + `[PSI]`
+line). This was forced by a real defect found during implementation: the unit tests were
+being *silently skipped* (`importorskip`) because `qt_wrapper` imports PyQt6, which is a
+stub in the server venv — so the logic had zero executing coverage. Post-extraction the
+tests run with no PyQt (`tests/test_psi_monitor.py`, no skip), and the split is the same
+detection-core/output-adapter separation the chromium project documents. **Verified
+end-to-end against live kernel PSI via `stress-ng`:** NONE→MODERATE→NONE with correlated
+`MemAvailable`/swap, `action=async_gc` on MODERATE. The ~15-line Qt drain closure
+(`runJavaScript` / `_purge_renderer` dispatch) remains inspection-verified.
 
 The wrapper's PSI monitor (`qt_wrapper.py:455`) today is a daemon thread that reads only
 `some` avg10 and, above a flat 5%, sets a module flag (`_request_async_gc`) drained on the
