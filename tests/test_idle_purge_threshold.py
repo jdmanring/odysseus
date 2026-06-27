@@ -19,7 +19,11 @@ def test_idle_threshold_default_meets_the_idle_detection_standard():
     # The W3C/WICG Idle Detection API mandates a 60s MINIMUM to call a user idle;
     # below that you are measuring a pause, not idle. Tunable via the env var, but
     # the shipped DEFAULT must follow the standard, not a guessed number.
-    m = re.search(r"os\.environ\.get\('ODYSSEUS_IDLE_RECLAIM_S',\s*'([\d.]+)'\)", _SRC)
+    # The default may be a plain literal or a low-resource conditional
+    # ('20' if _low_resource else '60'); in the latter case the standard-machine
+    # default is the else-branch, which is the one that must meet the 60s floor.
+    m = (re.search(r"ODYSSEUS_IDLE_RECLAIM_S',[^)]*?else\s*'([\d.]+)'", _SRC, re.DOTALL)
+         or re.search(r"ODYSSEUS_IDLE_RECLAIM_S',\s*'([\d.]+)'", _SRC, re.DOTALL))
     assert m, "ODYSSEUS_IDLE_RECLAIM_S default not found"
     secs = float(m.group(1))
     assert secs >= 60.0, (
@@ -44,5 +48,8 @@ def test_rss_ceiling_is_tunable_with_safe_floor():
     # Adaptive-loading lever: low-RAM machines can tighten the ceiling. But the
     # floor must stay above the ~430 MB working set or it would purge constantly.
     assert "ODYSSEUS_PURGE_CEILING_MB" in _SRC
-    m = re.search(r"max\(512,\s*int\(float\(os\.environ\.get\('ODYSSEUS_PURGE_CEILING_MB'", _SRC)
+    # \s* spans the line-wrap between get( and the key introduced by #116's reformat.
+    m = re.search(
+        r"max\(512,\s*int\(float\(os\.environ\.get\(\s*'ODYSSEUS_PURGE_CEILING_MB'",
+        _SRC)
     assert m, "RSS ceiling must be env-tunable with a >=512 MB floor"
