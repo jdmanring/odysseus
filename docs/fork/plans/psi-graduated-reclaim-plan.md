@@ -5,7 +5,11 @@ Execution plan for the graduated PSI monitor in `qt_wrapper.py`. Related memory 
 `docs/fork/plans/memory-management-plan.md`.
 
 **Issue #120. Branch `perf/qt-psi-graduated-reclaim` (stacks on
-`feat/qt-native-linux-app`). Not started.**
+`perf/renderer-memory-reclaim`, the #106 branch — not on `feat/qt-native-linux-app`).
+#106 supplies `_purge_renderer`, the RSS-ceiling env knobs, `_renderer_rss_kb`, and the
+PSI monitor this reworks; #106 is a *sibling* of `feat/qt-native-linux-app`, not chained
+onto it, so the upstream-PR ordering must carry #14 → #106 → #120. Implemented; cherry-
+picked to develop (`9e6ca024`).**
 
 The wrapper's PSI monitor (`qt_wrapper.py:455`) today is a daemon thread that reads only
 `some` avg10 and, above a flat 5%, sets a module flag (`_request_async_gc`) drained on the
