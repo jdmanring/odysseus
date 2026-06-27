@@ -192,51 +192,43 @@ def _change_event_block() -> str:
     return _SRC[start:end]
 
 
-def _request_async_gc_block() -> str:
-    start = _SRC.index("def _request_async_gc(")
-    end = _SRC.index("\n\n\n", start)
-    return _SRC[start:end]
+# --- Graduated-PSI dispatch machinery (issue #120) ---
+# The PSI monitor computes the level off-thread and hands a record to the main-thread
+# drain timer via the _psi_event_pending cell; the drain timer dispatches the action
+# and emits the [PSI] line. (Replaces the old _request_async_gc/_gc_request_pending
+# flag, which carried only a single boolean.)
 
-
-# --- Async GC machinery (replaces _cdp_purge_memory) ---
-
-def test_request_async_gc_defined():
-    assert "def _request_async_gc(" in _SRC
-
-
-def test_request_async_gc_sets_pending_flag():
-    # Must set the shared cell so the main-thread drain timer picks it up.
-    assert "_gc_request_pending[0] = True" in _request_async_gc_block()
+def test_psi_event_cell_defined():
+    assert "_psi_event_pending: list[dict | None] = [None]" in _SRC
 
 
 def test_gc_drain_timer_defined():
     assert "_gc_drain_timer" in _SRC
 
 
-def test_gc_drain_reads_pending_flag():
-    # The drain closure must guard on the pending flag before calling runJavaScript.
-    assert "_gc_request_pending[0]" in _SRC
+def test_gc_drain_reads_psi_event_cell():
+    # The drain closure must read+clear the shared cell before dispatching.
+    assert "_psi_event_pending[0]" in _SRC
+    assert "_psi_event_pending[0] = None" in _SRC
 
 
 def test_gc_drain_calls_run_javascript():
-    # Async GC is delivered via page.runJavaScript, not a CDP WebSocket call.
+    # MODERATE async GC is delivered via page.runJavaScript, not a CDP WebSocket call.
     assert "runJavaScript" in _SRC
 
 
-def test_psi_monitor_uses_request_async_gc():
+def test_psi_monitor_writes_event_cell():
     psi_start = _SRC.index("def _start_psi_monitor(")
-    psi_end = _SRC.index("\nclass ", psi_start)
-    psi_block = _SRC[psi_start:psi_end]
-    assert "_request_async_gc()" in psi_block
+    psi_block = _SRC[psi_start:_SRC.index("\nclass ", psi_start)]
+    assert "_psi_event_pending[0] =" in psi_block
 
 
-def test_psi_monitor_has_gc_cooldown():
-    # 30 s cooldown prevents GC spam under sustained memory pressure.
+def test_psi_monitor_has_cooldown():
+    # MODERATE re-emit cadence matches the harness kModeratePressureCooldown (10 s).
     psi_start = _SRC.index("def _start_psi_monitor(")
-    psi_end = _SRC.index("\nclass ", psi_start)
-    psi_block = _SRC[psi_start:psi_end]
+    psi_block = _SRC[psi_start:_SRC.index("\nclass ", psi_start)]
     assert "_COOLDOWN" in psi_block
-    assert "30" in psi_block
+    assert "_COOLDOWN = 10" in psi_block
 
 
 def test_change_event_debounces_focus_loss():
@@ -427,7 +419,7 @@ def test_idle_purge_gated_on_no_recent_input():
     """The periodic reclaim must check time since last input before purging, so it
     never fires while the user is interacting."""
     idx = _SRC.index("def _maybe_idle_purge(")
-    block = _SRC[idx:idx + 600]
+    block = _SRC[idx:_SRC.index("\n    def ", idx + 1)]
     assert "_last_input" in block
     assert "_IDLE_RECLAIM_AFTER_S" in block
     assert "_purge_renderer(" in block
