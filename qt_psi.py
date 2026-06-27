@@ -159,7 +159,7 @@ def dispatch_psi_action(requested, *, on_async_gc, on_critical) -> str:
 
 
 def start_psi_monitor():
-    """Start the daemon thread monitoring Linux PSI; no-op below kernel 4.20.
+    """Start the daemon thread monitoring Linux PSI; no-op when PSI is unavailable.
 
     PSI avg10 is the fraction of time tasks stalled waiting for memory over the last
     10 s — the OS memory-pressure signal absent in embedded QtWebEngine builds. The
@@ -167,9 +167,17 @@ def start_psi_monitor():
     harness policy would notify on, writes a record to psi_event_pending for the Qt
     adapter to act on: MODERATE -> async JS GC, CRITICAL -> gated renderer purge. A slow
     heartbeat records the NONE trajectory of a clean session. Does no Qt work.
+
+    Returns the started thread, or None when `/proc/pressure/memory` is absent (kernel
+    < 4.20, CONFIG_PSI=n, or hidden in a container) — in which case the wrapper simply
+    runs without the graduated signal.
     """
     if not os.path.exists(PSI_PATH):
-        return
+        # Log rather than fail silently: on a no-PSI kernel the operator should know the
+        # graduated monitor is off (reclaim then relies only on the idle/focus paths).
+        print(f'[MEM] PSI unavailable ({PSI_PATH} absent); '
+              f'graduated pressure monitor disabled', flush=True)
+        return None
 
     def _emit(level, some, full, requested):
         avail_mb, swap_mb = read_system_mem_mb()
@@ -182,6 +190,7 @@ def start_psi_monitor():
         prev_level = LEVEL_NONE
         last_emit = 0.0
         last_heartbeat = 0.0
+        error_logged = False
         while True:
             try:
                 with open(PSI_PATH) as f:
@@ -203,9 +212,19 @@ def start_psi_monitor():
                     _emit(LEVEL_NONE, some, full, 'none')
                     last_heartbeat = now
                 prev_level = level
-            except Exception:
-                pass
+                error_logged = False  # a clean poll clears the error latch
+            except Exception as exc:
+                # Don't die or spin silently: log the first failure (and the first after
+                # any recovery), then suppress repeats so a persistent fault is visible
+                # without flooding the log every POLL_INTERVAL.
+                if not error_logged:
+                    print(f'[MEM] PSI monitor poll error '
+                          f'({type(exc).__name__}: {exc}); retrying every '
+                          f'{POLL_INTERVAL}s', flush=True)
+                    error_logged = True
             time.sleep(POLL_INTERVAL)
 
-    threading.Thread(target=_loop, daemon=True, name='psi-monitor').start()
+    thread = threading.Thread(target=_loop, daemon=True, name='psi-monitor')
+    thread.start()
     print('[MEM] PSI memory pressure monitor started (graduated)', flush=True)
+    return thread

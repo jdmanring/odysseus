@@ -167,6 +167,20 @@ def test_dispatch_critical_invokes_purge_and_maps_status():
         assert calls == {"async_gc": 0, "critical": 1}
 
 
+# --- start_psi_monitor: graceful no-op when PSI is unavailable ---
+
+def test_monitor_noop_when_psi_absent(monkeypatch, capsys):
+    import threading
+    monkeypatch.setattr(qt_psi.os.path, "exists", lambda p: False)
+    before = {t.name for t in threading.enumerate()}
+    result = qt_psi.start_psi_monitor()
+    after = {t.name for t in threading.enumerate()}
+    assert result is None
+    assert "psi-monitor" not in (after - before)   # no daemon thread spun up
+    out = capsys.readouterr().out
+    assert "PSI unavailable" in out and "disabled" in out
+
+
 # --- env-tunable thresholds ---
 
 def test_threshold_defaults():
