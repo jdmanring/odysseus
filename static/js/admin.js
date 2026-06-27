@@ -883,7 +883,14 @@ function initEndpointForm() {
   }
   function _renderPickerMenu() {
     if (!pickerMenu) return;
-    pickerMenu.innerHTML = Array.from(provider.options).map(o => {
+    // Sort alphabetically by label at render time so the list stays A-Z no matter
+    // what order providers were appended to the <select>. Keep the blank "Custom
+    // URL" option pinned first.
+    const _opts = Array.from(provider.options);
+    const _ordered = _opts.filter(o => !o.value).concat(
+      _opts.filter(o => o.value).sort((a, b) =>
+        a.textContent.localeCompare(b.textContent, undefined, { sensitivity: 'base' })));
+    pickerMenu.innerHTML = _ordered.map(o => {
       const logo = o.dataset.logo ? (providerLogo(o.dataset.logo) || '') : '';
       const active = o.value === provider.value ? ' active' : '';
       return `<div class="adm-provider-item${active}" role="option" data-value="${o.value.replace(/"/g, '&quot;')}">
