@@ -134,6 +134,30 @@ def parse_psi_avg10(text):
     return some, full
 
 
+def dispatch_psi_action(requested, *, on_async_gc, on_critical) -> str:
+    """Map a drained event's `requested` action to its telemetry label, invoking the
+    side-effect callbacks. The Qt/CDP work lives in the callbacks (`on_async_gc` runs the
+    JS GC, `on_critical` runs the gated renderer purge and returns its decision status),
+    so this control flow — including the rarely-exercised CRITICAL path — is unit-testable
+    without a running renderer:
+
+      'async_gc' -> on_async_gc();          label 'async_gc'
+      'critical' -> on_critical() status;   label maps the purge decision
+       otherwise -> (no side effect);       label 'none'
+    """
+    if requested == 'async_gc':
+        on_async_gc()
+        return 'async_gc'
+    if requested == 'critical':
+        status = on_critical()
+        return {
+            'submitted': 'purge_submitted',
+            'skipped_ceiling': 'purge_skipped_ceiling',
+            'rate_limited': 'purge_rate_limited',
+        }.get(status, 'purge_unknown')
+    return 'none'
+
+
 def start_psi_monitor():
     """Start the daemon thread monitoring Linux PSI; no-op below kernel 4.20.
 

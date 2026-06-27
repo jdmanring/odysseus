@@ -736,22 +736,14 @@ class OdysseusWindow(QMainWindow):
             if event is None:
                 return
             qt_psi.psi_event_pending[0] = None
-            requested = event['requested']
-            if requested == 'async_gc':
-                action = 'async_gc'
-                page.runJavaScript(
+            action = qt_psi.dispatch_psi_action(
+                event['requested'],
+                on_async_gc=lambda: page.runJavaScript(
                     "if(typeof gc==='function')"
                     "gc({type:'major',execution:'async'});"
-                )
-            elif requested == 'critical':
-                status = self._purge_renderer('psi-critical')
-                action = {
-                    'submitted': 'purge_submitted',
-                    'skipped_ceiling': 'purge_skipped_ceiling',
-                    'rate_limited': 'purge_rate_limited',
-                }.get(status, 'purge_unknown')
-            else:
-                action = 'none'
+                ),
+                on_critical=lambda: self._purge_renderer('psi-critical'),
+            )
             rss_mb = self._renderer_rss_kb() // 1024
             avail = event['mem_avail_mb']
             swap = event['swap_mb']

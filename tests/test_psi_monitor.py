@@ -118,6 +118,55 @@ def test_parse_psi_avg10_malformed_defaults_zero():
     assert some == 0.0 and full == 0.0
 
 
+# --- dispatch_psi_action: the drain's action dispatch (incl. the CRITICAL path) ---
+
+def _record_calls():
+    calls = {"async_gc": 0, "critical": 0}
+
+    def on_async_gc():
+        calls["async_gc"] += 1
+
+    def on_critical():
+        calls["critical"] += 1
+        return on_critical.status
+    on_critical.status = "submitted"
+    return calls, on_async_gc, on_critical
+
+
+def test_dispatch_async_gc_runs_gc_only():
+    calls, on_async_gc, on_critical = _record_calls()
+    label = qt_psi.dispatch_psi_action(
+        "async_gc", on_async_gc=on_async_gc, on_critical=on_critical)
+    assert label == "async_gc"
+    assert calls == {"async_gc": 1, "critical": 0}
+
+
+def test_dispatch_none_runs_nothing():
+    calls, on_async_gc, on_critical = _record_calls()
+    label = qt_psi.dispatch_psi_action(
+        "none", on_async_gc=on_async_gc, on_critical=on_critical)
+    assert label == "none"
+    assert calls == {"async_gc": 0, "critical": 0}
+
+
+def test_dispatch_critical_invokes_purge_and_maps_status():
+    # The path that can't be exercised by a headless harness: CRITICAL must call the
+    # purge callback (the real wiring passes _purge_renderer('psi-critical')) exactly once
+    # and never the GC, and map each decision status to its telemetry label.
+    for status, expected in [
+        ("submitted", "purge_submitted"),
+        ("skipped_ceiling", "purge_skipped_ceiling"),
+        ("rate_limited", "purge_rate_limited"),
+        ("anything-else", "purge_unknown"),
+    ]:
+        calls, on_async_gc, on_critical = _record_calls()
+        on_critical.status = status
+        label = qt_psi.dispatch_psi_action(
+            "critical", on_async_gc=on_async_gc, on_critical=on_critical)
+        assert label == expected
+        assert calls == {"async_gc": 0, "critical": 1}
+
+
 # --- env-tunable thresholds ---
 
 def test_threshold_defaults():
