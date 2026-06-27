@@ -2,7 +2,14 @@
 
 Fork issue: [#121](https://github.com/jdmanring/odysseus/issues/121). Classification:
 **upstream-candidate** (shared `static/js/cookbook*.js`). Branch from `upstream-mirror`.
-Not started.
+**Implemented** on `fix/model-downloaded-detection` (`c17973f2`), cherry-picked to develop.
+
+On `upstream-mirror` the duplication was 4 sites in `cookbook-hwfit.js` (not the 16 that
+develop's fork patches had inflated it to); develop additionally carried a second re-mark
+loop, also consolidated during the cherry-pick. The canonical `isModelDownloaded` accepts
+a model object, a bare id string, or an id array (the row re-mark stores identities on the
+row as `data-dl-ids` to stay gguf-aware from the DOM). Proven: the better-quant lock case
+returns `false` under the old name-only logic and `true` under the predicate.
 
 ## Problem (why it keeps regressing)
 
