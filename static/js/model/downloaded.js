@@ -66,9 +66,16 @@ export function isModelDownloaded(model, cachedIds) {
   }
   // Base-model fallback: a discovered catalog model has no gguf_sources, so a
   // downloaded community quant of it shares only the base name. Match on the
-  // quant/format-stripped base. Guarded by a length floor so a tiny base can't
-  // match broadly.
-  const bases = new Set([...short].map(baseModelId).filter((b) => b.length >= 4));
+  // quant/format-stripped base, but ONLY for catalog identities that are
+  // themselves an untagged base name. A catalog entry that already carries its
+  // own quant tag (org/Model-AWQ-8bit) must match exactly, so a downloaded 4bit
+  // does not gray its 8bit sibling. Length floor stops a tiny base matching broadly.
+  const bases = new Set(
+    [...short]
+      .filter((s) => baseModelId(s) === s.toLowerCase())  // untagged identities only
+      .map((s) => s.toLowerCase())
+      .filter((b) => b.length >= 4),
+  );
   if (bases.size) {
     for (const c of cachedIds) {
       if (bases.has(baseModelId(c))) return true;
