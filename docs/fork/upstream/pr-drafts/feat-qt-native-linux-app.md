@@ -352,6 +352,16 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
    (`docker-compose.yml`, `src/constants.py`, `launch-windows.ps1`). The previous
    hardcoded `8000` was a development artifact. No reviewer action needed; noted here for
    traceability.
+6. **Pre-file squash (hard gate).** This branch was assembled by folding the memory stack
+   in via cherry-pick, so its commit history shows the design's *evolution*
+   (simulatePressure and `--enable-low-end-device-mode` added then removed, the PSI monitor
+   rewritten). Squash to a small set of coherent commits before filing so the history does
+   not read as "introduce naive, then patch." Verify the squash changed only history:
+   `git diff <squashed-branch> feat/qt-native-linux-app` must be empty.
+7. **Verify the CRITICAL purge in-app before ticking "ran end-to-end" (How-to-Test step 8).**
+   Automated coverage and the stress-ng smoke reached the MODERATE→async-GC path and the
+   off-interaction purge, but **not** PSI CRITICAL→`forciblyPurgeJavaScriptMemory` — confirm
+   the `[MEM] forcible purge (psi-critical)` line actually fires under heavy pressure.
 
 ## Visual / UI changes; REQUIRED if you touched anything that renders
 
