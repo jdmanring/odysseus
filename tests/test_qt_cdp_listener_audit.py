@@ -225,6 +225,13 @@ def test_gc_drain_calls_run_javascript():
     assert "runJavaScript" in _SRC
 
 
+def test_gc_drain_dispatches_via_qt_psi():
+    # The drain delegates to the unit-tested dispatcher and wires CRITICAL to the gated
+    # renderer purge with the 'psi-critical' reason (the [MEM] line that joins to [PSI]).
+    assert "qt_psi.dispatch_psi_action(" in _SRC
+    assert "self._purge_renderer('psi-critical')" in _SRC
+
+
 def test_adapter_starts_detection_core():
     # The Qt adapter must actually start the qt_psi monitor.
     assert "qt_psi.start_psi_monitor()" in _SRC
