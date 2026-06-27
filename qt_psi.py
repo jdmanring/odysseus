@@ -3,12 +3,12 @@
 This is the framework-agnostic detection layer: it reads /proc/pressure/memory, parses
 it to stall percentages, classifies a pressure level, and runs the notify FSM, handing
 each event to a single-cell queue. It names no Qt type. qt_wrapper.py is the output
-adapter — it drains the queue on the Qt main thread and turns each event into an action
-(async GC / renderer purge) plus the [PSI] telemetry line.
+adapter: it drains the queue on the Qt main thread and turns each event into an action
+(async GC or renderer purge) plus the [PSI] telemetry line.
 
-Separating the two means the detection logic is unit-testable with no PyQt/Qt runtime
-(the GUI stack is a stub in the server venv), and it mirrors the two-layer split the
-companion chromium-linux-mempressure contribution argues for (detection core vs. output
+Keeping the two apart lets the detection logic be unit-tested with no PyQt/Qt runtime
+(the GUI stack is a stub in the server venv), and matches the two-layer split the
+companion chromium-linux-mempressure contribution uses (detection core vs. output
 adapter). The level mapping and notify discipline are transliterated from that project's
 harness (CalculatePressureLevel / CheckMemoryPressure).
 """
@@ -23,7 +23,7 @@ LEVEL_CRITICAL = 'CRITICAL'
 
 PSI_PATH = '/proc/pressure/memory'
 POLL_INTERVAL = 5     # seconds between PSI reads
-COOLDOWN = 10         # MODERATE re-emit cadence — matches the harness
+COOLDOWN = 10         # MODERATE re-emit cadence; matches the harness
                       # kModeratePressureCooldown (10 s) so the log faithfully mirrors
                       # when its policy would re-notify under sustained MODERATE.
 HEARTBEAT = 60        # seconds between NONE heartbeat lines
@@ -43,8 +43,8 @@ PSI_MODERATE = psi_threshold('ODYSSEUS_PSI_MODERATE', 10.0)       # some_avg10
 PSI_CRITICAL = psi_threshold('ODYSSEUS_PSI_CRITICAL', 40.0)       # some_avg10
 PSI_FULL_CRITICAL = psi_threshold('ODYSSEUS_PSI_FULL_CRITICAL', 5.0)  # full_avg10
 
-# Event cell — written by the daemon monitor on a level transition (or the slow
-# heartbeat), read and cleared by qt_wrapper's 250 ms Qt drain timer. Single-element
+# Event cell, written by the daemon monitor on a level transition (or the slow
+# heartbeat) and read and cleared by qt_wrapper's 250 ms Qt drain timer. Single-element
 # list assignment is GIL-atomic so no lock is needed, which keeps the monitor off the
 # Qt main thread. Record: {'level','some','full','mem_avail_mb','swap_mb','requested'}
 # with requested in {'none','async_gc','critical'}.
@@ -66,13 +66,13 @@ def psi_level(some, full, *, moderate, critical, full_critical) -> str:
 
 
 def psi_should_emit(prev_level, level, now, last_emit, *, cooldown) -> bool:
-    """The harness CheckMemoryPressure notify discipline — three distinct arms.
+    """The harness CheckMemoryPressure notify discipline, three distinct arms.
 
     One gate drives both *act* and *emit*, so the log is a faithful record of when the
     harness policy would notify (the property being field-validated):
       - NONE: only on the down-transition out of a pressure level (never while idle).
       - MODERATE: on entry, then re-emit only every `cooldown` while sustained.
-      - CRITICAL: every poll (always notify) — acting is throttled downstream by the
+      - CRITICAL: every poll (always notify). Acting is throttled downstream by the
         purge rate-limit/ceiling, and dense telemetry during a rare CRITICAL episode is
         exactly when the validation data is most wanted.
     """
@@ -138,7 +138,7 @@ def dispatch_psi_action(requested, *, on_async_gc, on_critical) -> str:
     """Map a drained event's `requested` action to its telemetry label, invoking the
     side-effect callbacks. The Qt/CDP work lives in the callbacks (`on_async_gc` runs the
     JS GC, `on_critical` runs the gated renderer purge and returns its decision status),
-    so this control flow — including the rarely-exercised CRITICAL path — is unit-testable
+    so this control flow (including the rarely-exercised CRITICAL path) is unit-testable
     without a running renderer:
 
       'async_gc' -> on_async_gc();          label 'async_gc'
@@ -162,15 +162,15 @@ def start_psi_monitor():
     """Start the daemon thread monitoring Linux PSI; no-op when PSI is unavailable.
 
     PSI avg10 is the fraction of time tasks stalled waiting for memory over the last
-    10 s — the OS memory-pressure signal absent in embedded QtWebEngine builds. The
+    10 s, the OS memory-pressure signal absent in embedded QtWebEngine builds. The
     monitor classifies it into NONE/MODERATE/CRITICAL, and on each transition the
     harness policy would notify on, writes a record to psi_event_pending for the Qt
     adapter to act on: MODERATE -> async JS GC, CRITICAL -> gated renderer purge. A slow
     heartbeat records the NONE trajectory of a clean session. Does no Qt work.
 
     Returns the started thread, or None when `/proc/pressure/memory` is absent (kernel
-    < 4.20, CONFIG_PSI=n, or hidden in a container) — in which case the wrapper simply
-    runs without the graduated signal.
+    < 4.20, CONFIG_PSI=n, or hidden in a container); the wrapper then runs without the
+    graduated signal.
     """
     if not os.path.exists(PSI_PATH):
         # Log rather than fail silently: on a no-PSI kernel the operator should know the
