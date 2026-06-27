@@ -30,7 +30,7 @@ graduated Linux-PSI monitor that supplies the missing pressure signal, structure
 memory telemetry, and a low-resource device profile. These are described under
 *Memory management* below.
 
-<!-- Screenshot: drag `docs/fork/screenshots/qt-native-linux-app.png` into this text box when filing — the repo-relative path will not resolve upstream. -->
+<!-- Screenshot: drag `docs/fork/screenshots/qt-native-linux-app.png` into this text box when filing; the repo-relative path will not resolve upstream. -->
 
 ### New files
 
@@ -63,10 +63,10 @@ memory telemetry, and a low-resource device profile. These are described under
   `DefaultANGLEVulkan` is absent for all configurations (forces ANGLE to Vulkan;
   causes blank/invisible windows on ozone/Wayland regardless of GPU vendor,
   Chromium bug 334275637). Vendor-conditional: **NVIDIA** (proprietary,
-  `/proc/driver/nvidia` present) — `QTWEBENGINE_FORCE_USE_GBM=0` guards a Qt 6.9+
+  `/proc/driver/nvidia` present), `QTWEBENGINE_FORCE_USE_GBM=0` guards a Qt 6.9+
   regression (qutebrowser #8535) where Qt forces GBM on drivers that lack it;
   `--enable-zero-copy` is omitted (NVIDIA lacks GBM buffer allocation).
-  **Mesa/AMD/Intel/Nouveau** (`/proc/driver/nvidia` absent) — `--enable-zero-copy`
+  **Mesa/AMD/Intel/Nouveau** (`/proc/driver/nvidia` absent), `--enable-zero-copy`
   is enabled (native GBM buffer allocation path); no GBM guard needed.
   `setdefault` preserves any user override of the GBM env var.
 - **Logging:** `os.dup2` redirects Chromium renderer fd 1/2 into
@@ -74,7 +74,7 @@ memory telemetry, and a low-resource device profile. These are described under
   output is captured.
 - **JS console routing:** `OdysseusPage.javaScriptConsoleMessage` override routes all
   JavaScript `console.log()` output into `wrapper_system.log`. Chromium's
-  `--enable-logging=stderr` only captures the renderer's internal C++ log — JS console
+  `--enable-logging=stderr` only captures the renderer's internal C++ log; JS console
   calls are silent without this override. This surfaces all `[streamRenderer]`,
   `[chatHistory]`, `[chat]`, and `[GC]` structured log lines from the application JS.
 - **Post-evict listener audit:** when `chatHistory.js` emits
@@ -92,7 +92,7 @@ memory telemetry, and a low-resource device profile. These are described under
   subprocess spawn in the 60-second memory poll. PyQt6 already tracks the
   renderer PID internally; the subprocess was an unnecessary spawn per poll cycle
   that also matched unrelated processes sharing the binary name. `renderProcessPid()`
-  returns 0 when the renderer has not started or has crashed — guarded with `if pid:`.
+  returns 0 when the renderer has not started or has crashed; guarded with `if pid:`.
 - **Bounded CDP thread pool:** `concurrent.futures.ThreadPoolExecutor(max_workers=2,
   thread_name_prefix='cdp')` replaces ad-hoc `threading.Thread` spawning for CDP
   background work (post-eviction listener audit). Bounds concurrent thread count;
@@ -124,7 +124,7 @@ low-resource profile.
   > the Oilpan detached-DOM pool that actually grows.
 
 - **Async GC (non-blocking, lighter reclaim):** `gc({type:'major',execution:'async'})` via
-  `page.runJavaScript()` runs incremental collection without blocking the JS event loop —
+  `page.runJavaScript()` runs incremental collection without blocking the JS event loop:
   used where a stutter would be visible or a full purge is excessive: focus-loss (500 ms
   debounce via `_gc_focus_timer`, cancelled by `WindowActivate`), an Oilpan node-count
   threshold (> 50 000 nodes), and PSI MODERATE pressure (below).
@@ -135,7 +135,7 @@ low-resource profile.
   `full` 5). **MODERATE → async GC; CRITICAL → the gated forcible purge.** The detection
   logic is a **Qt-free module** (parse, level mapping, FSM, `/proc/meminfo` reads, the
   daemon loop) so it is unit-tested without the GUI stack; `qt_wrapper.py` is the output
-  adapter — a 250 ms main-thread drain timer reads the monitor's event cell (GIL-atomic
+  adapter: a 250 ms main-thread drain timer reads the monitor's event cell (GIL-atomic
   hand-off, avoiding `QTimer.singleShot` cross-thread hazards), dispatches the action, and
   emits one structured `[PSI]` line per transition carrying `level`, `some`, `full`, host
   `mem_avail_mb`, renderer `rss_mb`, `swap_mb`, and the action taken. Skipped silently on
@@ -156,21 +156,21 @@ low-resource profile.
 
 - **Startup log rotation:** `_rotate_log(path)` rotates `wrapper_system.log` and
   `server_access.log` at startup if they exceed 10 MB, preserving 5 numbered
-  backups (`path.1`–`path.5`) via the same shift algorithm used by
+  backups (`path.1`-`path.5`) via the same shift algorithm used by
   `logging.handlers.RotatingFileHandler`. Constants (`_LOG_MAX_BYTES = 10 MB`,
   `_LOG_BACKUP_COUNT = 5`) match `src/constants.py` so all three log files
   follow the same retention policy. Rotation happens before `os.dup2` so there
   is no fd conflict with the Chromium renderer's inherited file descriptors.
   A `[LOG]` timestamp line is written to the newly opened file after `os.dup2`.
 - **Memory flags:** `QTWEBENGINE_CHROMIUM_FLAGS` expanded with five targeted additions:
-  `--initial-old-space-size=128` (old-gen heap starts at 128 MB, grows to 512 MB cap —
+  `--initial-old-space-size=128` (old-gen heap starts at 128 MB, grows to 512 MB cap,
   reduces baseline RSS for short sessions); `--optimize-for-size` (V8 prefers smaller JIT
-  code over throughput — ~5–15% JIT footprint reduction, safe for I/O-bound chat workloads);
-  `--minor-mc` (replaces Scavenger with MinorMC for young-gen GC — compacts on every
-  collection, 10–20% better retention for DOM-heavy allocation patterns);
-  `--renderer-process-limit=1` (single renderer process — saves ~30–50 MB vs default
+  code over throughput, ~5-15% JIT footprint reduction, safe for I/O-bound chat workloads);
+  `--minor-mc` (replaces Scavenger with MinorMC for young-gen GC, compacts on every
+  collection, 10-20% better retention for DOM-heavy allocation patterns);
+  `--renderer-process-limit=1` (single renderer process, saves ~30-50 MB vs default
   multi-process behaviour in some Qt builds); `--disable-extensions` (removes extension
-  loader overhead, ~1–5 MB, no downside for embedded app).
+  loader overhead, ~1-5 MB, no downside for embedded app).
 - **Tests.** `tests/test_qt_cdp_listener_audit.py` (70 static-analysis tests) verifies
   import correctness, call-site presence, executor usage and shutdown, log-rotation
   structure (shift loop, `_LOG_BACKUP_COUNT`, constants match the app), `nodes` assigned
@@ -178,7 +178,7 @@ low-resource profile.
   off-interaction-only firing, the PSI dispatch wiring (the adapter starts the `qt_psi`
   monitor and drains its event cell), `changeEvent` debounce/cancel behaviour, and all
   five memory flags. `tests/test_psi_monitor.py` (11 tests) unit-tests the Qt-free
-  detection core directly — level boundaries, the three-arm notify FSM, `/proc/meminfo`
+  detection core directly: level boundaries, the three-arm notify FSM, `/proc/meminfo`
   and PSI parsing, and env-tunable thresholds. `tests/test_low_resource_profile.py`
   (5 tests) covers the low-resource auto-detection and profile selection.
 
@@ -224,7 +224,7 @@ and notes that a wrapper should follow the planned frontend migration to React/T
 
 **Why not Electron**
 
-Electron ships its own full copy of Chromium (zipped apps run 80–100 MB and
+Electron ships its own full copy of Chromium (zipped apps run 80-100 MB and
 exceed 100 MB unzipped, per [Electron's own documentation](https://www.electronjs.org/docs/latest/why-electron)). On Linux, this means installing and running a
 second Chromium runtime alongside whatever browser the user already has. For a
 Python application that already runs on the system, adding a Node.js + Electron
@@ -348,7 +348,7 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
 3. Upstream issue #3528 (Windows desktop wrapper) shows the maintainer is receptive to native desktop wrappers. Reference it as a parallel effort in the issue or PR if asked about motivation.
 4. Fork issue #7 (HF token persistence) overlaps with upstream PR #3459; monitor it, and after the next sync re-verify whether the issue is fully resolved before filing separately.
 5. **Port:** `qt_wrapper.py` now reads `APP_PORT` from the environment (`.env` is
-   loaded automatically), defaulting to `7000` — the project's canonical upstream default
+   loaded automatically), defaulting to `7000`, the project's canonical upstream default
    (`docker-compose.yml`, `src/constants.py`, `launch-windows.ps1`). The previous
    hardcoded `8000` was a development artifact. No reviewer action needed; noted here for
    traceability.
@@ -360,7 +360,7 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
    `git diff <squashed-branch> feat/qt-native-linux-app` must be empty.
 7. **Verify the CRITICAL purge in-app before ticking "ran end-to-end" (How-to-Test step 8).**
    Automated coverage and the stress-ng smoke reached the MODERATE→async-GC path and the
-   off-interaction purge, but **not** PSI CRITICAL→`forciblyPurgeJavaScriptMemory` — confirm
+   off-interaction purge, but **not** PSI CRITICAL→`forciblyPurgeJavaScriptMemory`; confirm
    the `[MEM] forcible purge (psi-critical)` line actually fires under heavy pressure.
 
 ## Visual / UI changes; REQUIRED if you touched anything that renders
