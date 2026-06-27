@@ -54,27 +54,59 @@ Two outcomes, equally weighted:
    existing 250 ms drain `QTimer` also drains it and calls
    `self._purge_renderer('psi-critical')` on the Qt main thread (so CDP/socket I/O
    stays off the monitor thread and reuses the gated, rate-limited path).
+   `_purge_renderer` currently skips silently when below the ceiling; have it return
+   a status (fired / skipped-ceiling / rate-limited) so the `[PSI]` line can log the
+   disambiguated `action`.
 
 ## Telemetry (the chromium-validation payload)
 
 On every **level transition**, one structured, greppable line:
 
 ```
-[PSI] level=MODERATE some=12.3 full=0.0 rss_mb=842 swap_mb=120 action=async_gc
+[PSI] level=CRITICAL some=45.2 full=6.1 mem_avail_mb=410 rss_mb=1850 swap_mb=900 action=purge_done
 ```
 
-Plus a low-rate **heartbeat** (~60 s) logging the same fields even at `NONE`, so
-the full PSI trajectory is sampled without spamming. Fields chosen to answer the
-validation questions: do the trip points fire sensibly (frequency of each level;
-is CRITICAL rare and genuine), are there false trips (MODERATE with low RSS / no
-swap), and does the level track memory state (rss/swap correlated with level).
+Two fields are correctness-critical, not nice-to-have:
+- **`mem_avail_mb`** (host `MemAvailable` from `/proc/meminfo`, one read). PSI is a
+  *system* signal; correlating it with renderer RSS only would be a category error.
+  Without `MemAvailable` the data cannot distinguish "PSI fired and the system was
+  genuinely low" from "PSI fired spuriously" -- which is the entire validation
+  question.
+- **`action`** must disambiguate the CRITICAL outcome. With the ceiling gate (kept),
+  CRITICAL often becomes a no-op skip, so log `purge_done` vs `purge_skipped_ceiling`
+  (and `async_gc` for MODERATE, `none` for NONE). Otherwise the data is ambiguous
+  about whether CRITICAL did anything.
+
+Plus a low-rate **heartbeat** (~60 s) logging the same fields even at `NONE`, so the
+trajectory is sampled without spamming. Fields chosen to answer the validation
+questions: do the trip points fire sensibly (frequency of each level; is CRITICAL
+rare and genuine), are there false trips (a level firing while `mem_avail_mb` is
+still high), and does the level track the *system's* memory state.
 
 **Feedback loop to chromium:** collect `[PSI]` lines from `logs/wrapper_system.log`
 across real sessions (`grep '\[PSI\]'` is directly parseable, or reuse the CSV
 shape of `chromium-linux-mempressure/harness/sample_workload.sh`); analyze
-fire-frequency, false-trip rate, and RSS correlation; confirm or nudge `some 10/40,
-full 5`, recording the result back in the chromium project's
+fire-frequency, false-trip rate, and `MemAvailable` correlation; confirm or nudge
+`some 10/40, full 5`, recording the result back in the chromium project's
 `pre-build-calibration.md` and the open-questions threshold item.
+
+### Limits of this data (state plainly; do not oversell)
+
+- **It is a single-hardware trigger sanity check, not a fleet study.** One box, one
+  workload, and an actuator that differs from Chromium's (Python GC / CDP purge vs
+  in-engine cc/V8/Skia eviction). It does **not** answer the maintainer's
+  diverse-hardware A/B objection and never will; it gives one real data point on
+  whether the trip points are sane, which the desk phase could not.
+- **It validates the avg10 *percentage* threshold form.** If the evaluator moves to
+  *stall-time* triggers (the Android-LMKD `some 150000 1000000` ms form via
+  `poll(POLLPRI)`, design.md Axis 2 / experimental-tech), transfer is only partial.
+- **Scope the telemetry; do not turn the wrapper into a research instrument.** The
+  "where is the natural knee" question is observational and is already
+  `chromium-linux-mempressure/harness/sample_workload.sh`'s job (observation-only,
+  uncoupled from intervention); the ramp shape is already characterized (the
+  disk-swap probe). This monitor measures whether the *shipped behavior* is sane.
+  Two different data jobs, so resist adding an observe-only mode, a CSV pipeline, or
+  per-poll ramp sampling here; greppable `[PSI]` lines on one box are enough.
 
 ## Tests (`tests/test_qt_cdp_listener_audit.py` or new `tests/test_psi_monitor.py`)
 
