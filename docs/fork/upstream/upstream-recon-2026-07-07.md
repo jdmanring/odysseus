@@ -97,3 +97,43 @@ It fetches older history pages from the server on scroll-up (`_historyUrl` limit
 **Process lesson:** recon must grep upstream for *feature-region ownership* (who owns the
 history render + scroll handler), not just named PRs/issues. A silently-merged "polish"
 commit reassigned ownership of the exact code region three fork branches target.
+
+## 8. ADDENDUM (2026-07-07, building the eviction graft) — #5090's pager is inert upstream
+
+While building the eviction graft (and writing its end-to-end test) I found that
+**#5090's history pager does not function on current upstream** — a route-shadowing
+bug, confirmed present on `upstream/dev`:
+
+- `routes/session_routes.py` mounts with `prefix="/api"` and registers (app.py:658)
+  **before** `routes/history` (app.py:687). Its legacy `GET /history/{sid}` →
+  `/api/history/{sid}` ignores `limit`/`offset` and returns the full history.
+- #5090's paginated `GET /api/history/{session_id}`
+  (`history_routes.get_session_history`) is the **second** registration of the same
+  path pattern. FastAPI matches first-registered, so the legacy route wins.
+- Net effect: `/api/history/{id}?limit=24` returns **all** messages, no `total`,
+  no `has_more_before`. The frontend pager (`_installHistoryPager`) is gated on
+  `has_more_before`, so **it never installs** — scroll-up "pagination" silently
+  renders the entire history into the DOM. #5090 shipped dead-on-arrival.
+
+**Fix (staged, verified):** remove the legacy `get_history`; `get_session_history`
+already serves the no-limit case via its fallback with the identical
+`{role, content, metadata}` shape (== `ChatMessage.to_dict()`), so it fully
+subsumes it. No-limit callers (documentLibrary, session copy/export) unaffected.
+A pytest regression guard asserts the endpoint honours `?limit`.
+
+**Staged branch `fix/chat-history-dom-eviction` (from `upstream-mirror`), 2 commits:**
+1. `fix(history):` remove the shadowing legacy route — **independently valuable**
+   (revives #5090's pager); candidate for its own small upstream PR.
+2. `perf(history):` the eviction graft (#2 reframed) — bounds the DOM on top of the
+   now-working pager; tagged-offset contiguity invariant; teardown of the app's own
+   per-node handles; **no #4661 code borrowed** (see §7). Depends on commit 1.
+
+Both verified end-to-end in real Chromium against the real server
+(`tests/test_chat_history_eviction_playwright.py`): paging contiguous, DOM bounded
+to the cap, eviction/refetch seam has no gap or duplicate.
+
+**Open items for the human:** (a) issues — `fix/chat-history-dom-eviction` was cut
+without a prior issue (needs one per fork rule); the route-shadowing fix needs its
+own issue; #2 covers the eviction reframe. (b) whether to file the route fix as a
+standalone upstream PR (recommended — it fixes a merged-but-dead feature). (c) the
+marathon-from-empty session is still out of scope (documented limitation).
