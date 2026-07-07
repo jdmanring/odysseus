@@ -79,13 +79,20 @@ It fetches older history pages from the server on scroll-up (`_historyUrl` limit
   monotonic-insert — it never evicts**, so DOM node count still grows unbounded on scroll-up
   (the OOM problem virtualization exists to solve is unsolved upstream).
   - **Correct upstream PR (consolidate-down):** do NOT port the 916-line `MessageWindow`.
-    Graft only the *eviction primitive* — the `_evictLive`/teardown pass (the #4661-attributed
-    timer-teardown idiom) — as a bounded-DOM eviction step layered on upstream's existing
-    `_installHistoryPager`. Dozens of lines that compose with upstream, not a class that rips
-    out their fresh work. A maintainer accepts the graft; rejects the replacement.
+    Graft only a bounded-DOM eviction pass, layered on the `_installHistoryPager` merged in
+    **#5090**. Dozens of lines that compose with upstream, not a class that rips out their
+    fresh work. A maintainer accepts the graft; rejects the replacement.
+  - **Attribution (verified against primary sources 2026-07-07):** the eviction teardown was
+    written independently. The only lines resembling upstream PR **#4661**'s
+    `_trimChatHistoryDOM` clear this app's own `_waveInterval`/`_elapsedTicker` timers —
+    convergence forced by the shared codebase, not copied code. We rejected #4661's actual
+    method as architecturally incompatible; #4661 was itself superseded by #5090. So: **no
+    in-code attribution to #4661.** The PR description references **#5090** for *coordination*
+    (the pager we compose with), not credit. Prior in-code/doc "adapted from #4661" framing
+    was over-caution and is retracted.
   - **Open genuinely-strategic question (human decision):** is client-side memory-bounding
-    worth an upstream PR at all, given upstream shipped lazy-load and the fork already has
-    separate renderer-OOM work (#4661 and the reclaim/responsiveness stack)?
+    worth an upstream PR at all, given upstream shipped lazy-load (#5090) and the fork already
+    has separate renderer-OOM work (the reclaim/responsiveness stack)?
 
 **Process lesson:** recon must grep upstream for *feature-region ownership* (who owns the
 history render + scroll handler), not just named PRs/issues. A silently-merged "polish"
