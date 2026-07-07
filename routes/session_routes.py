@@ -801,15 +801,14 @@ def setup_session_routes(
         finally:
             db.close()
 
-    @router.get("/history/{sid}")
-    def get_history(request: Request, sid: str):
-        _verify_session_owner(request, sid)
-        try:
-            session = session_manager.get_session(sid)
-        except KeyError:
-            raise HTTPException(404, f"Session {sid} not found")
-        return {"history": [msg.to_dict() for msg in session.history]}
-    
+    # NOTE: the legacy GET /api/history/{sid} handler was removed here. This
+    # router has prefix="/api" and is registered before routes/history, so its
+    # /api/history/{sid} shadowed the paginated GET /api/history/{session_id}
+    # (history_routes.get_session_history) — the pager endpoint never ran and
+    # scroll-up pagination silently returned the full history. get_session_history
+    # already serves the no-limit case with the identical {role, content,
+    # metadata} shape, so it fully subsumes this route.
+
     @router.get("/session/{sid}/export")
     def export_session(request: Request, sid: str, fmt: str = "md", filename: str = ""):
         """Export conversation history as a downloadable file.
