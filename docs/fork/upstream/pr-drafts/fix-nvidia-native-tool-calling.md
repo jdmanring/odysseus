@@ -72,6 +72,15 @@ API key to exercise end-to-end.
 
 ---
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- **#5206** (open) *per-endpoint native tool-calling toggle in Added Models* — **complements.** This PR adds `integrate.api.nvidia.com` + the `nemotron` keyword to the *default* native-tool detection; #5206 adds a manual per-endpoint override. Independent — mention the relationship so the reviewer doesn't read them as competing.
+- **#4729** (merged) local provider detection/labeling — unrelated to the NVIDIA cloud host allowlist here.
+
+**Verdict:** complements; not a duplicate.
+
 ## How to Test
 
 1. Configure `https://integrate.api.nvidia.com/v1` as an API endpoint with a NIM API key.

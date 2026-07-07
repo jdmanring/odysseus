@@ -77,6 +77,15 @@ by inspection.
 
 ---
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- **#4729** (merged) *detect llama.cpp servers and label local providers* — **complements; distinct path.** #4729 is provider *discovery/labeling* (fingerprinting local serving ports via `/props`); this PR extends the `_API_HOSTS` allowlist that decides which endpoints receive native tool schemas. No shared code, no conflict.
+- **#5206** (open) *per-endpoint native tool-calling toggle in Added Models* — **complements.** #5206 adds a manual per-endpoint override; this PR fixes the *default* host detection so well-behaved providers get native schemas without manual toggling. Valid regardless of merge order — worth a note to the reviewer to coordinate.
+
+**Verdict:** complements; not a duplicate. If #5206 lands first, this remains the sensible default-detection fix beneath the toggle.
+
 ## How to Test
 
 For each provider below, configure the endpoint and start an Agent session with at

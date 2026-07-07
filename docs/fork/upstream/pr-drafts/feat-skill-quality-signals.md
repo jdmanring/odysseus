@@ -181,6 +181,15 @@ All 7 tests pass. Full skill test suite: 40 passed.
 
 ---
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- **#5261/#5262** (open) *harden skill importer: block private SSRF targets, revalidate redirects* and **#5215/#5210** (open) *SKILL.md frontmatter corrupts non-ASCII* — both touch skill *import/loading* in `services/memory/skills.py`, the file this PR extends with BM25 retrieval + health scores. **Non-conflicting** (retrieval/scoring vs. import safety), but same file — **rebase-order matters**; keep their fixes.
+- Teacher Tier-2 work (merged) + issue **#4962** — the skill/teacher area is volatile; re-validate at rebase.
+
+**Verdict:** complements; same-file coordination on rebase.
+
 ## Filing Notes
 
 - File the upstream issue first; reference the issue number in the PR.

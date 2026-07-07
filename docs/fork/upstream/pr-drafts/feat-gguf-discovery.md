@@ -207,6 +207,14 @@ All 20 tests pass with no internet connection.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- **#5136** (open; issue **#5137**) *don't use display-label quant as GGUF download include filter* — **overlaps the same include-filter path.** #5137: a download fetches 0 files when the catalog quant is a display label (e.g. `QAT-INT4`) rather than the real quant string. This PR's quality-scored resolver chooses the GGUF; it must match on the **real** quant, not the display label. **Coordinate:** fold in / rebase after #5136, and confirm the resolver honours its fix so we don't reintroduce the 0-files bug.
+
+**Verdict:** complements, but shares a code path with an open bugfix — reconcile before filing.
+
 ## How to Test
 - Llama-3.2-11B-Vision-Instruct (llamacpp, no static ggufSource): resolver
   finds the correct repo; download uses `*Q4_K_M*` include pattern, not the

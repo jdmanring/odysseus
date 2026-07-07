@@ -125,6 +125,15 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/feat-logging.md] -->
 - [x] I ran the app and verified the change works end-to-end.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- **#5236** (open) *move note domain into `routes/note/` subpackage* — this PR's ntfy-send timing instrumentation lives in `note_routes.py`, which #5236 converts to a subpackage shim (the same refactor already applied to history/gallery/contacts/memory/research). **Coordinate:** rebase onto #5236's layout when it lands — the timing re-homes into `routes/note/`.
+- **#5208** (open; issue **#5207**) *sanitize ntfy Title header to ASCII* — touches the same ntfy send path. **Non-conflicting** (header encoding vs. timing log); keep both. Also mind **#5142** (merged) which added the SSRF guard our merge already sits behind.
+
+**Verdict:** non-conflicting but same file(s) — rebase-order matters; note it at file time.
+
 ## How to Test
 
 **Automated (passing):**

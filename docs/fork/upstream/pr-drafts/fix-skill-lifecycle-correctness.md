@@ -113,6 +113,15 @@ Fixes # <!-- [add upstream issue number before filing] -->
 - [x] My changes are limited to the scope described above.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- The **teacher subsystem is actively changing** upstream: `feat(teacher): Tier 2 LLM self-evaluation` + `teacher_tier2_enabled` (merged, in `src/teacher_escalation.py`), and issue **#4962** (`_TEACHER_SYSTEM_PROMPT` import error after the teacher refactor). This PR adjusts skill-extraction/audit semantics + teacher confidence in `services/memory/skill_extractor.py` — a **different file** than `teacher_escalation.py`, so no direct conflict, but **re-validate against the current teacher code at rebase** (the confidence contract may have shifted).
+- Skill-hardening PRs in flight: **#5261/#5262** (importer SSRF), **#5215/#5210** (SKILL.md non-ASCII) — touch skill *import/loading*, not extraction/audit; non-conflicting.
+
+**Verdict:** complements; re-validate the teacher/skill contract on rebase.
+
 ## How to Test
 
 1. Trigger a complex agent task (≥ 2 rounds, ≥ 3 tool calls). Confirm new skill appears in Brain > Skills as **draft**, not published.
