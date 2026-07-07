@@ -112,6 +112,35 @@ function _historyUrl(id, { limit = null, offset = null } = {}) {
   return url.toString();
 }
 
+// Map raw /api/history rows to the { role, content, modelName, meta } shape the
+// renderer/virtualization consumes. Shared by the initial load and the
+// scroll-up server pager so the two paths can never diverge. Drops the synthetic
+// "continue"/instruction user turns and rewrites doc-edit prompts to a compact
+// label, exactly as the initial render did before it was extracted.
+function _mapHistoryMessages(rawMsgs, modelName) {
+  const out = [];
+  for (const msg of rawMsgs || []) {
+    const meta = msg.metadata ? { ...msg.metadata, _fromHistory: true } : null;
+    let displayContent;
+    if (typeof msg.content === 'string') {
+      displayContent = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      displayContent = msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n').trim();
+    } else {
+      displayContent = '';
+    }
+    if (msg.role === 'user') {
+      if (displayContent.trim() === 'Continue where you left off' || displayContent.trim().startsWith('Your message was cut off.') || displayContent.trim().startsWith('Your previous response was interrupted.') || displayContent.includes('[Instruction: Rewrite') || displayContent.includes('[Instruction: Explain')) continue;
+      const docEditMatch = displayContent.match(/^In the document, edit this specific text \((lines? [\d-]+)\):\n```\n([\s\S]*?)\n```\n\nInstruction: ([\s\S]*)$/);
+      if (docEditMatch) {
+        displayContent = `[Doc edit: ${docEditMatch[1]}] ${docEditMatch[3]}`;
+      }
+    }
+    out.push({ role: msg.role, content: markdownModule.renderContent(displayContent), modelName, meta });
+  }
+  return out;
+}
+
 function _addHistoryMessageWithFullRenderer(role, content, modelName, meta) {
   const box = document.getElementById('chat-history');
   if (!box) return [];
@@ -1878,7 +1907,9 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
     let loadingTimer = null;
     let loadingPaintReady = Promise.resolve();
     if (!isOC) {
-      const res = await fetch(`${API_BASE}/api/history/${id}?limit=400`);
+      // One backend page (the server caps a page at 100); scroll-up pulls older
+      // pages on demand via the virtualization's olderLoader below.
+      const res = await fetch(_historyUrl(id, { limit: 100 }));
       const data = await res.json();
       if (loadingTimer) {
         clearTimeout(loadingTimer);
@@ -1954,28 +1985,26 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
          <p>Messages will be routed through your OpenClaw agent. The agent has access to tools, memory, and skills configured in your OpenClaw workspace.</p>`,
         'OpenClaw');
     } else if (msgHistory.length) {
-      const _preparedMsgs = [];
-      for (const msg of msgHistory) {
-        const meta = msg.metadata ? { ...msg.metadata, _fromHistory: true } : null;
-        let displayContent;
-        if (typeof msg.content === 'string') {
-          displayContent = msg.content;
-        } else if (Array.isArray(msg.content)) {
-          displayContent = msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n').trim();
-        } else {
-          displayContent = '';
-        }
-        if (msg.role === 'user') {
-          if (displayContent.trim() === 'Continue where you left off' || displayContent.trim().startsWith('Your message was cut off.') || displayContent.trim().startsWith('Your previous response was interrupted.') || displayContent.includes('[Instruction: Rewrite') || displayContent.includes('[Instruction: Explain')) continue;
-          const docEditMatch = displayContent.match(/^In the document, edit this specific text \((lines? [\d-]+)\):\n```\n([\s\S]*?)\n```\n\nInstruction: ([\s\S]*)$/);
-          if (docEditMatch) {
-            displayContent = `[Doc edit: ${docEditMatch[1]}] ${docEditMatch[3]}`;
-          }
-        }
-        _preparedMsgs.push({ role: msg.role, content: markdownModule.renderContent(displayContent), modelName, meta });
-      }
+      const _preparedMsgs = _mapHistoryMessages(msgHistory, modelName);
       if (window.chatHistory) {
-        window.chatHistory.load(_preparedMsgs);
+        // Feed the virtualization the server-paging cursor so scroll-up can pull
+        // older pages from the backend (limit/offset) instead of dead-ending at
+        // this first page — the backend caps a page at 100, so without this a
+        // long chat would only ever show its most recent 100 messages.
+        window.chatHistory.load(_preparedMsgs, {
+          sessionId: id,
+          serverOffset: (pageInfo && Number.isFinite(pageInfo.offset)) ? pageInfo.offset : 0,
+          serverHasMore: !!(pageInfo && pageInfo.has_more_before),
+          olderLoader: async (sid, limit, offset) => {
+            const r = await fetch(_historyUrl(sid, { limit, offset }));
+            const d = await r.json();
+            return {
+              msgs: _mapHistoryMessages(d.history || [], modelName),
+              offset: Number.isFinite(d.offset) ? d.offset : offset,
+              hasMore: !!d.has_more_before,
+            };
+          },
+        });
       } else {
         for (const m of _preparedMsgs) {
           window.chatModule.addMessage(m.role, m.content, m.modelName, m.meta);
