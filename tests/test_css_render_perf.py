@@ -120,7 +120,9 @@ def test_welcome_active_uses_container_padding_not_input_bar_margin():
 def test_modal_content_has_contain_layout_style():
     # Conservative variant (not paint) because provider picker menus can overflow
     # the modal boundary visually. Scopes layout without introducing clipping.
-    block = _block(".modal-content {")
+    # Anchor on the standalone rule (4-space indent), not a compound selector
+    # like ":root.ui-scale-125 #cookbook-modal .modal-content {".
+    block = _block("    .modal-content {")
     rule_end = block.index("}")
     assert "contain: layout style" in block[:rule_end]
 
