@@ -32103,8 +32103,10 @@ body.doc-find-active mark.doc-find-mark.current {
   text-transform: uppercase;
   vertical-align: baseline;
 }
-.email-tag-clickable:hover {
-  filter: brightness(1.12);
+@media (hover: hover) and (pointer: fine) {
+  .email-tag-clickable:hover {
+    filter: brightness(1.12);
+  }
 }
 .email-tag-work { background: rgba(96, 165, 250, 0.22); color: #60a5fa; }
 .email-tag-personal { background: rgba(74, 222, 128, 0.22); color: #4ade80; }
@@ -40512,15 +40514,6 @@ body.theme-frosted .modal {
 /* Interactive elements — 300ms tap-delay removal; pan/pinch-zoom preserved */
 button, a, [role="button"], .list-item, .dropdown-item { touch-action: manipulation; }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
 /* The model-comparison grid hard-codes 2-4 equal columns with no phone
    breakpoint that stacks them, so at 390px two models render ~178px columns and
    four render ~88px columns. Each column is a full scrolling chat (code blocks,
@@ -40529,4 +40522,15 @@ button, a, [role="button"], .list-item, .dropdown-item { touch-action: manipulat
 @media (max-width: 768px) {
   .compare-grid[data-cols] { grid-template-columns: 1fr !important; overflow-y: auto; }
   .compare-pane { min-height: 60dvh; }
+}
+
+/* Keep the reduced-motion catch-all LAST so its universal selector does not
+   shadow more-specific per-component blocks (fork invariant). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

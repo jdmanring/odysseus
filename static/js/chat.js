@@ -3987,7 +3987,14 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     };
 
     const renderDelta = () => {
-      const dt = markdownModule.normalizeThinkingMarkup(_streamDisplayText(roundText, { final: docFenceOpened }));
+      // The resume "replaying" bubble has no dedicated thinking UI — strip
+      // thinking sections from the raw text so they don't leak as visible text
+      // during replay (fork), then run upstream's display pipeline for the
+      // document-fence handling.
+      let dt = String(roundText);
+      dt = dt.replace(/<think(?:\s[^>]*)?>[\s\S]*?<\/think>/gi, '');
+      dt = dt.replace(/<think(?:\s[^>]*)?>[\s\S]*/i, '').trim();
+      dt = _streamDisplayText(dt, { final: docFenceOpened });
       if (docFenceOpened && !dt.trim()) {
         _showDocumentWritingStatus(contentDiv);
       } else {

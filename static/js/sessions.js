@@ -38,6 +38,9 @@ function _paintSessionLoading(chatHistory, label = 'Loading chat') {
   chatHistory.style.transition = '';
   chatHistory.style.opacity = '1';
   chatHistory.classList.add('no-animate');
+  // Tear down DOM-virtualization state before clearing (fork invariant:
+  // reset() must precede innerHTML='' so observers/holders are released).
+  if (window.chatHistory) window.chatHistory.reset();
   chatHistory.innerHTML = '';
 
   const wrap = document.createElement('div');
