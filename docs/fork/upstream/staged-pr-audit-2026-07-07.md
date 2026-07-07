@@ -53,3 +53,48 @@ functional bugs, scope creep, and test quality. Details below.
 
 ## Do-not-file (superseded / folded / empty)
 `perf/cdp-listener-audit` (empty), `perf/rendertail-raf-throttle` (→ dom-oom-streaming-throttle), `fix/streamingtts-scope` (→ upstream #2418), `fix/agent-context-budget-discovery` (#54 → #4909), `perf/renderer-memory-reclaim` + `perf/qt-psi-graduated-reclaim` (folded into #14), `fix/qtwebengine-oilpan-gc` (subset of agent-gc-catchup), `fix/chat-history-server-paging` (develop-based, folds into #2).
+
+---
+
+## Remediation status (2026-07-07, post-audit)
+
+**Verified before fixing** — I re-checked each claim against the code; two reviewer
+overreaches were corrected:
+- **#4661 provenance was NOT undisclosed** (the reviewer only checked commits/code
+  comments). Attribution is thorough: `memory-explosion-research.md`, `active-work.md`,
+  and the PR-body draft (`fix-dom-oom-virtualization.md`) all credit #4661/holden093.
+  What was actually shared: the small per-node timer-teardown *idiom* in `_evictLive`
+  (clear `_waveInterval`/`_elapsedTicker` + recurse), independently restructured and
+  extended (`_streamRenderer`, hljs-defer). **Fix applied:** added an in-code credit
+  comment at the borrow site so a diff-only reviewer sees it too.
+- **Skill arxiv IDs are past-dated 2025–2026 (plausibly real), not "fabricated."**
+  Reframed as *unverifiable — confirm they resolve before filing*.
+
+**Fixed:**
+- **Skills mutual-exclusion (#84 ↔ #86)** — resolved: **#84's `auto_approve_skills`
+  default-flip was the contamination** (its purpose is the extraction threshold). Stripped
+  all auto_approve changes from `fix/skill-extraction-threshold`; it now touches only the
+  round/tool gate + confidence floor (3 files, 7 tests pass). `fix/skill-lifecycle-correctness`
+  (#86) solely owns auto_approve semantics. develop unaffected (already #86 semantics).
+- **longcat over-broad `except`** — narrowed to `(JSONDecodeError, AttributeError, TypeError)`
+  so `function_call_to_tool_block` bugs propagate. Fixed on the branch **and develop**.
+- **spinner `offsetParent`** — replaced with `getClientRects().length` (correct under
+  `position:fixed`). Fixed on the branch **and develop** (+ test).
+
+**Outstanding (verified, decided — not yet implemented):**
+- **fix/basicsr-python314-compat** — commit message vs code: fix the message to say 3.13+
+  (the code's actual gate), or add the advertised patch. *Bounded — message fix.*
+- **fix/css-render-perf** — strip the counterproductive `will-change/translateZ/contain:content`
+  additions (they contradict the stated goal and duplicate `css-contain-paint`), keep only the
+  genuine cleanups. *Rework.*
+- **feat/nvidia-nim-support** — split the codebase-wide `_lookup_known` ranking change out of the
+  NIM data PR. *Rework.*
+- **feat/aria2c-downloader** — fix remote path (runner uses the server's local script path) +
+  quote `repo_id` + drop the unrelated `disable_hf_transfer` flip. *Larger; also `os.kill(pid,0)`
+  Windows guard.*
+- **feat/skill-quality-signals** — key the BM25 `_idf_cache` to the corpus (or recompute) to fix
+  cross-corpus staleness. *Moderate.*
+- **Housekeeping** — fill `Fixes #___` (`api-token-utcnow`, `chat-auto-scroll-threshold`); remove
+  stray `console.log` in perf branches; drop `qtwebengine-oilpan-gc` (subset of `agent-gc-catchup`).
+- **Collision ordering** unchanged (see table above): file the CSS/memory/tool-bubble/hf_url_resolver
+  pairs in dependency order.
