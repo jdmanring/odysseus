@@ -159,3 +159,17 @@ single-commit and verified).
   in its consolidated chatHistory.js. Correct fix: fold that delta into #2 during #2's
   file-prep (per `docs/fork/plans/dom-oom-virtualization-upstream-plan.md`) and retire
   this branch. Making its tests pass in isolation would be papering over a duplicate.
+
+### Broken-branch resolutions — ACTUAL work done (2026-07-07, later)
+- **fix/dom-oom-streaming-throttle — DONE (rebased, not just test-patched).** Rebased onto
+  current `upstream-mirror` (resolved the 3 chat.js conflicts: thinking `textContent` +
+  upstream token/timer; kept the `_renderRafId` rAF-throttle + finally cancel — I initially
+  dropped it by mistake and its own tests caught it; idle-yield in finally). Squashed to one
+  clean commit. **13 tests pass, chat.js parses, applies to current upstream.**
+- **perf/chathistory-gc-improvements — PROVEN REDUNDANT (retire).** Not "diagnosed" — verified:
+  develop's chatHistory.js (1000 lines) is a strict superset of the branch's (916); the only
+  lines unique to the branch are *older* forms of lines develop evolved (server-paging), and
+  every gc-improvement marker (`hljsDeferHighlightAll`, `_draining`, teardown) is byte-present
+  in develop. Nothing to fold — its content already lives, tested, on develop. It reaches
+  upstream via #2's file-prep (which will source chatHistory.js from develop's canonical
+  version). **Action: retire the branch** (pending owner approval to delete).
