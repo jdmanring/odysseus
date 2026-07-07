@@ -55,13 +55,16 @@ Remove the legacy `get_history` handler in `routes/session_routes.py`.
 fully subsumes the removed route. No-limit callers (`documentLibrary` copy-chat,
 session copy/export) are unaffected in shape.
 
-**Behaviour note (deliberate, must be stated in the PR):** for no-`limit` callers,
-`get_session_history`'s fallback additionally (a) truncates message `content` over
-`HISTORY_DISPLAY_CHAR_LIMIT` (160 KB) via `_history_display_content`, and (b) skips
-messages whose metadata is `hidden` (e.g. compaction summaries). Both are almost
-certainly desirable for the copy/export callers (hidden compaction rows shouldn't
-appear in a copied transcript; 160 KB single messages are rare), but the PR must
-call this out so it is a decision, not an accident.
+**Behaviour note (deliberate — all four no-`limit` callers audited):** the callers
+(`documentLibrary` copy + preview, `sessions.js` "Copy Chat" + archived peek) read
+only `role`/`content`. The fallback's `_history_display_content` changes `content` in
+three ways, all improvements/no-ops for these callers: (a) **strips inline media**
+from multimodal messages — the legacy route leaked raw base64 image bytes (Copy Chat
+would `JSON.stringify` them to the clipboard), so this is strictly better; (b)
+truncates >160 KB strings (a no-op — callers already truncate further); (c) skips
+`metadata.hidden` compaction rows (desirable). No caller depends on untruncated
+content, raw media, or hidden rows. The PR states this so it is a decision, not an
+accident.
 
 ## Verification
 
