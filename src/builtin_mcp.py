@@ -95,6 +95,21 @@ MCP_DISABLED = os.environ.get("ODYSSEUS_DISABLE_MCP", "").lower() in ("1", "true
 _EAGER_SERVERS = {"memory"}
 
 
+# Strong references to the fire-and-forget startup tasks scheduled below.
+# asyncio only keeps weak references to tasks created via create_task, so
+# without this the GC can collect a task mid-execution and the server
+# registration silently never runs. Mirrors _spawn_bg in routes/chat_helpers.py.
+_BG_TASKS: set[asyncio.Task] = set()
+
+
+def _spawn_bg(coro) -> asyncio.Task:
+    """Schedule a background task and hold a strong reference until it finishes."""
+    task = asyncio.create_task(coro)
+    _BG_TASKS.add(task)
+    task.add_done_callback(_BG_TASKS.discard)
+    return task
+
+
 async def register_builtin_servers(mcp_manager):
     """Connect all built-in MCP servers to the manager."""
     if MCP_DISABLED:
@@ -132,7 +147,8 @@ async def register_builtin_servers(mcp_manager):
         if server_id in _EAGER_SERVERS:
             # Hot path: connect at startup. `memory` is used in (nearly) every
             # session, so deferring it would only add first-query latency.
-            asyncio.create_task(_connect_python_server(server_id, script_path, name))
+            # Routed through upstream's _spawn_bg (background task tracker).
+            _spawn_bg(_connect_python_server(server_id, script_path, name))
         else:
             # Cold path: register the server as deferred without spawning the
             # interpreter. Each builtin holds ~50 MB RSS, and image_gen / rag /
@@ -197,7 +213,7 @@ async def register_builtin_servers(mcp_manager):
             except BaseException as e:
                 logger.warning(f"Built-in NPX server {cfg['name']} error: {type(e).__name__}: {e}")
 
-    asyncio.create_task(_start_npx_servers())
+    _spawn_bg(_start_npx_servers())
 
 
 def _npx_package_from_args(args):
@@ -255,6 +271,15 @@ async def _is_npx_package_cached(npx_path, package_spec, timeout_s=5):
         except Exception:
             pass
         return False
+    except asyncio.CancelledError:
+        # The probe was cancelled (e.g. app shutdown). Reap the child so it
+        # isn't orphaned, then propagate the cancellation.
+        try:
+            proc.kill()
+            await proc.wait()
+        except Exception:
+            pass
+        raise
     return proc.returncode == 0 and bool(stdout.strip())
 
 
