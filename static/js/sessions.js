@@ -20,6 +20,13 @@ const HISTORY_DISPLAY_CHAR_LIMIT = 160000;
 const HISTORY_DISPLAY_TAIL_CHARS = 20000;
 const HISTORY_PAGE_LIMIT_MOBILE = 8;
 const HISTORY_PAGE_LIMIT_DESKTOP = 24;
+// Selector for a primary message node (one per DB history row).
+const _HISTORY_PRIMARY_SEL = '.msg, .agent-thread, .gallery-bubble';
+// Cap on rendered history nodes. _installHistoryPager only *adds* older
+// messages on scroll-up (and streaming appends newer ones), so a long paged
+// session grows the DOM without bound. _evictHistoryOverflow trims the oldest
+// off-screen nodes back to this cap; the pager refetches them on scroll-up.
+const MAX_LIVE_HISTORY_NODES = 240;
 
 const SIDEBAR_MAX_VISIBLE = 10;
 const FOLDER_MAX_VISIBLE = 5;
@@ -170,6 +177,89 @@ function _clearHistoryPager() {
   _historyPager = null;
 }
 
+// Tag a rendered message's primary node with its absolute DB row offset. The
+// eviction pass reads this to rewind the pager to a contiguous refetch
+// boundary, so scroll-up reloads exactly what was evicted — no gap, no
+// duplicate — without any node-counting (robust to multi-node messages and
+// filtered-null rows).
+function _tagHistoryOffset(nodes, offset) {
+  if (!Array.isArray(nodes) || !Number.isFinite(offset)) return;
+  for (const n of nodes) {
+    if (n.nodeType === 1 && n.matches && n.matches(_HISTORY_PRIMARY_SEL)) {
+      n.dataset.histOffset = String(offset);
+      break;
+    }
+  }
+}
+
+// Stop this app's per-node timers/renderers before removing a subtree, so an
+// evicted node leaks neither intervals nor retained renderer closures. These
+// are the app's own handles (set in chat.js / compare); clearing them is the
+// only correct way to tear them down.
+function _teardownHistoryNode(el) {
+  if (!el || el.nodeType !== 1) return;
+  const kill = (n) => {
+    if (n._waveInterval)   { clearInterval(n._waveInterval);   n._waveInterval   = null; }
+    if (n._elapsedTicker)  { clearInterval(n._elapsedTicker);  n._elapsedTicker  = null; }
+    if (n._streamRenderer) { n._streamRenderer = null; }
+    if (n._spinner)        { try { n._spinner.destroy(); } catch (_) {} n._spinner = null; }
+  };
+  kill(el);
+  el.querySelectorAll('*').forEach(kill);
+}
+
+// Bound DOM growth in a paged session. When rendered history exceeds the cap,
+// evict the oldest *tagged* (history-origin) message nodes from the top and
+// rewind the pager's offset to the new topmost node, so #5090's
+// _installHistoryPager refetches the evicted rows contiguously on scroll-up.
+//
+// Runs only when a pager exists (evicted nodes are then refetchable) and the
+// user has scrolled down (top nodes are off-screen — the handler's else-branch
+// already guarantees scrollTop > 90). Untagged *live* nodes are never evicted:
+// a session that loads short then streams into a marathon has no pager and its
+// live nodes carry no offset, so it is out of scope here (see PR: symmetric
+// eviction for that case is follow-up).
+function _evictHistoryOverflow(box) {
+  if (!box || !_historyPager || _historyPager.loading) return;
+  if (_historyPager.sessionId !== currentSessionId) return;
+
+  const over = box.querySelectorAll(_HISTORY_PRIMARY_SEL).length - MAX_LIVE_HISTORY_NODES;
+  if (over <= 0) return;
+
+  const beforeHeight = box.scrollHeight;
+  const beforeTop = box.scrollTop;
+
+  let evicted = 0;
+  while (box.firstChild && evicted < over) {
+    const node = box.firstChild;
+    const isPrimary = node.nodeType === 1 && node.matches(_HISTORY_PRIMARY_SEL);
+    // Stop at the first untagged live primary — it isn't refetchable.
+    if (isPrimary && node.dataset.histOffset === undefined) break;
+    _teardownHistoryNode(node);
+    node.remove();
+    if (isPrimary) evicted++;
+  }
+  // Drop leading aux remnants orphaned from an evicted primary, so the DOM top
+  // is a clean message boundary.
+  while (box.firstChild) {
+    const node = box.firstChild;
+    if (node.nodeType === 1 && node.matches(_HISTORY_PRIMARY_SEL)) break;
+    _teardownHistoryNode(node);
+    node.remove();
+  }
+  if (!evicted) return;
+
+  // Rewind the pager so scroll-up refetches from the new topmost message.
+  const newTop = box.querySelector(_HISTORY_PRIMARY_SEL);
+  if (newTop && newTop.dataset.histOffset !== undefined) {
+    _historyPager.offset = Number(newTop.dataset.histOffset);
+    _historyPager.done = false;
+  }
+  // Keep the viewport visually stable — we removed content above it.
+  const removedHeight = beforeHeight - box.scrollHeight;
+  box.scrollTop = Math.max(0, beforeTop - removedHeight);
+}
+
 function _installHistoryPager(id, pageInfo, modelName) {
   const box = document.getElementById('chat-history');
   _clearHistoryPager();
@@ -205,10 +295,16 @@ function _installHistoryPager(id, pageInfo, modelName) {
       const data = await res.json();
       if (!_historyPager || _historyPager.sessionId !== currentSessionId) return;
       const newEls = [];
-      for (const msg of data.history || []) {
+      const _hist = data.history || [];
+      for (let _k = 0; _k < _hist.length; _k++) {
+        const msg = _hist[_k];
         if (msg.role !== 'user' && msg.role !== 'assistant') continue;
         const els = _renderHistoryMessage(msg, _historyPager.modelName);
-        if (Array.isArray(els)) newEls.push(...els);
+        if (Array.isArray(els)) {
+          // Row _k of this page sits at absolute DB offset nextOffset + _k.
+          _tagHistoryOffset(els, nextOffset + _k);
+          newEls.push(...els);
+        }
       }
       for (const el of newEls) {
         box.insertBefore(el, anchor || box.firstChild);
@@ -228,7 +324,10 @@ function _installHistoryPager(id, pageInfo, modelName) {
   };
 
   _historyPager.handler = () => {
+    // Near the top: page in older messages. Scrolled down: bound the DOM by
+    // evicting the oldest off-screen nodes (they refetch on the way back up).
     if (box.scrollTop <= 90) loadOlder();
+    else _evictHistoryOverflow(box);
   };
   box.addEventListener('scroll', _historyPager.handler, { passive: true });
 }
@@ -1959,13 +2058,16 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
          <p>Messages will be routed through your OpenClaw agent. The agent has access to tools, memory, and skills configured in your OpenClaw workspace.</p>`,
         'OpenClaw');
     } else if (msgHistory.length) {
-      for (const msg of msgHistory) {
+      // Row i of this page sits at absolute DB offset pageInfo.offset + i;
+      // tag each primary so the eviction pass can rewind the pager cleanly.
+      const _base = (pageInfo && Number.isFinite(pageInfo.offset)) ? pageInfo.offset : 0;
+      msgHistory.forEach((msg, i) => {
         try {
-          _renderHistoryMessage(msg, modelName);
+          _tagHistoryOffset(_renderHistoryMessage(msg, modelName), _base + i);
         } catch (e) {
           console.warn('Failed to render history message:', e, msg);
         }
-      }
+      });
     } else {
       if (window.chatModule && window.chatModule.showWelcomeScreen) window.chatModule.showWelcomeScreen();
       // Don't highlight ordinary empty sessions — feels like nothing is
