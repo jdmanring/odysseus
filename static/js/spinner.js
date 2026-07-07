@@ -4,6 +4,19 @@
  * ASCII Spinner Module for AI thinking/processing status
  */
 
+// All three animated spinners (whirlpool, sinewave, ASCII) run a continuous loop
+// — two via requestAnimationFrame, the ASCII one via setInterval. A continuous
+// loop must stop when the spinner is not doing visible work, or an orphaned
+// spinner (start()ed but never appended, or one whose panel closed) runs forever;
+// on Qt WebEngine that wasted CPU/raster work is never reclaimed and accumulates.
+// _shouldKeepSpinning() is the shared guard. This is how long a never-yet-visible
+// spinner may keep going, covering the synchronous gap between start() and the
+// caller appending the element (issue #107).
+const _SPIN_ORPHAN_GRACE_MS = 2000;
+function _spinNow() {
+  return (typeof performance !== 'undefined') ? performance.now() : Date.now();
+}
+
 class Spinner {
   constructor(message = "AI is processing", style = "right", animation = "spinner") {
     // Different animation frames
@@ -120,9 +133,29 @@ class Spinner {
     ctx.fillStyle = 'rgba(156, 222, 242, 0.9)';
     ctx.fill();
 
-    if (this.isRunning) {
+    if (this.isRunning && this._shouldKeepSpinning()) {
       this.rafId = requestAnimationFrame(() => this._drawSineWave());
+    } else {
+      this.isRunning = false;
     }
+  }
+
+  // Shared leak guard for all three animated spinners. Returns false once the
+  // spinner should stop: it was visible and then removed/hidden, or it was never
+  // made visible within the orphan grace window (start()ed but never appended).
+  // Gate on whether the element actually renders a box (getClientRects) rather
+  // than isConnected (stays true for display:none) or offsetParent (which is
+  // null for a *visible* element inside a position:fixed container — that would
+  // wrongly kill spinners in fixed overlays/modals).
+  _shouldKeepSpinning() {
+    const el = this.element;
+    if (el && el.isConnected && el.getClientRects().length > 0) {
+      this._spinWasVisible = true;
+      return true;
+    }
+    if (this._spinWasVisible) return false;  // was visible, now hidden -> stop
+    if (this._spinStart == null) this._spinStart = _spinNow();
+    return (_spinNow() - this._spinStart) < _SPIN_ORPHAN_GRACE_MS;
   }
 
   _createWhirlpoolElement() {
@@ -246,13 +279,10 @@ class Spinner {
 
     this._wpFrame++;
     if (!this.isRunning) return;
-    // Leak-safe self-terminate: stop once our element WAS in the DOM and then
-    // got removed (e.g. a loading row replaced by results). But keep spinning
-    // before it's first appended — start() runs synchronously, before the
-    // caller inserts the element, so it isn't connected on frame 1.
-    const connected = !!(this.element && this.element.isConnected);
-    if (connected) this._wpWasConnected = true;
-    if (connected || !this._wpWasConnected) {
+    // Leak-safe self-terminate via the shared visibility guard: stop when the
+    // spinner is orphaned or hidden so the rAF loop cannot run forever on a
+    // detached/invisible canvas.
+    if (this._shouldKeepSpinning()) {
       this.rafId = requestAnimationFrame(() => this._drawWhirlpool());
     } else {
       this.isRunning = false;
@@ -300,6 +330,9 @@ class Spinner {
 
     this.currentFrame = 0;
     this.intervalId = setInterval(() => {
+      // Same shared leak guard: an ASCII spinner that was never appended or whose
+      // panel closed must stop, not tick updateDisplay() forever.
+      if (!this._shouldKeepSpinning()) { this.stop(); return; }
       this.currentFrame++;
       this.updateDisplay();
     }, speed);
