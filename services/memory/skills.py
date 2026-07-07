@@ -23,7 +23,7 @@ import json
 import logging
 import os
 import time
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from .skill_format import Skill, slugify
 
@@ -143,7 +143,9 @@ class SkillsManager:
         self.usage_file = os.path.join(self.skills_root, "_usage.json")
         self.legacy_file = os.path.join(data_dir, "skills.json")  # back-compat
         os.makedirs(self.skills_root, exist_ok=True)
-        self._idf_cache: Optional[Dict[str, float]] = None
+        # (corpus_key, idf) — keyed to the corpus so a filtered subset can't
+        # reuse the full library's IDF.
+        self._idf_cache: Optional[Tuple[frozenset, Dict[str, float]]] = None
 
     # ----------------------------------------------------------------------
     # Path helpers
@@ -776,9 +778,10 @@ class SkillsManager:
 
         # BM25 IDF over the candidate corpus — lazy-cached on the instance.
         # avg_len: average token count across the full skill text used for scoring.
-        if self._idf_cache is None:
-            self._idf_cache = _compute_idf(skills)
-        idf = self._idf_cache
+        corpus_key = frozenset(sk.get("id") or sk.get("name", "") for sk in skills)
+        if self._idf_cache is None or self._idf_cache[0] != corpus_key:
+            self._idf_cache = (corpus_key, _compute_idf(skills))
+        idf = self._idf_cache[1]
         token_lists = []
         for sk in skills:
             toks = list(_tokenize(" ".join([
