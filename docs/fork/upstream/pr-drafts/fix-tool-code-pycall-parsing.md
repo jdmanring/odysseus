@@ -74,6 +74,16 @@ converted to a tool call."
 
 The MiniMax `{tool => ...}` path is unchanged and still tried first.
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- **#5033** (merged) *parse Gemma 3/4 custom tool calling tokens* — **complements; different format.** #5033 parses Gemma's `<|tool_call|> call:name{...}` tokens; this PR parses the `<tool_code>name(args)` python-call syntax. Both coexist (`dev` already carries #5033). No overlap.
+- **#4941 / #4704 / #4877** (merged) ReDoS-safe delimited parser/stripper rewrites — this change is written against that post-rewrite parser (forward-only `_strip_delimited`, no lazy rescan), so it does not reintroduce the ReDoS surface.
+- **#5275** (open) *bracket-tag `[bash]/[shell]/[python]` tool calls* and **#5199** (open; issue **#5187**) *Qwen/Hermes `<tool_call>` bare-JSON* — **adjacent, non-conflicting.** Each is an independent `if not blocks:` branch in the same parser; rebase around whichever lands first.
+
+**Verdict:** complements existing + in-flight parser work; not a duplicate.
+
 ## How to Test
 
 **Automated:**

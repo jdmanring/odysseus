@@ -92,6 +92,16 @@ No change to the wrapping/escaping mechanism. No schema changes.
 
 ---
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- **#4991** (open issue) *Benchmark how often the prompt-injection guard actually holds on small local models* — **directly relevant.** This PR changes the guard *wording*; #4991 asks for a quantitative eval of the guard's *effectiveness*. The behavioural claim here (fewer false refusals, injection still ineffective) is **not** eval-backed — the regression tests lock the prompt contract only. Offer to validate the new wording against #4991's harness once it exists; reference #4991 in the PR body.
+- **#4965 / commit `005ff731`** (merged) *wrap email style, integration, and MCP descriptions as untrusted* — a **new consumer** of `UNTRUSTED_CONTEXT_HEADER`. This PR's header change applies to it automatically; no conflict.
+- Note upstream added one sentence since the header #48 originally targeted ("Do not mention this wrapper…"); this PR **retains it verbatim** so the diff changes only the framing, not upstream's anti-leak provision.
+
+**Verdict:** complements; addresses a real reproducible refusal pattern, but pair with #4991 for behavioural evidence.
+
 ## How to Test
 
 1. Start Odysseus. Use Agent mode with any model.

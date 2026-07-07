@@ -81,6 +81,16 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/fix-longcat-tool-parsi
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
+## Related upstream work (prior-art search, 2026-07-07)
+
+Searched merged commits and open issues/PRs on `dev`:
+
+- **#5033** (merged) *parse Gemma 3/4 custom tool calling tokens* — different provider/format (Gemma `<|tool_call|>` vs Meituan LongCat `<longcat_tool_call>`); **complements**, no overlap.
+- **#4941 / #4704 / #4877** (merged) ReDoS-safe parser/stripper rewrites — this change targets the post-rewrite parser and adds the LongCat pattern as an independent branch + a bounded strip.
+- **#5275** (open) bracket-tag tool calls, **#5199** (open; issue **#5187**) Qwen/Hermes `<tool_call>` — **adjacent, non-conflicting** additions to the same parser.
+
+**Verdict:** complements existing + in-flight parser work; not a duplicate.
+
 ## How to Test
 
 1. Configure a Meituan LongCat model as an OpenAI-compatible provider in Settings → Providers using credentials from Meituan's API platform.
