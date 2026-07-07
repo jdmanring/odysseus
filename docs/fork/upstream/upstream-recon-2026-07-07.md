@@ -58,3 +58,35 @@ These landed upstream and touch our areas — reference them in the relevant PR 
 3. **Native tool-calling gating is being reworked** (#5206). File #60/#62 with awareness that per-endpoint toggles may change the model.
 4. **The "control wired but not rendered" bug class recurs** (our Launch button; upstream #5178). Worth a small shared lint/test guard if we ever land cookbook UI work upstream.
 5. **#48** should cite #4991 and note the guard-benchmark as the missing behavioural validation.
+
+## 7. ADDENDUM (2026-07-07, during #2 rebuild) — chat-history family superseded/reframed
+
+**Recon gap caught during the #2 rebuild.** Section 4 above missed that upstream shipped
+its own **server-side history pager** — `_installHistoryPager` + `_renderHistoryMessage`
+in `static/js/sessions.js` (upstream `45ee5a71` "Polish mobile UI and editor workflows").
+It fetches older history pages from the server on scroll-up (`_historyUrl` limit/offset,
+`has_more_before`) and prepends them (`box.insertBefore`). Impact on our chat-history family:
+
+- **`fix/chat-history-server-paging` — REDUNDANT (retire candidate).** Upstream built its
+  own standalone pager independently; ours is a *different*, MessageWindow-coupled
+  implementation (`serverHasMore`/`olderLoader`, 89-line content diff). No tracking record
+  shows ours was ever filed → it did not land; it is superseded, not adopted. Verify with
+  the human before deleting (per fork rule).
+
+- **`fix/dom-oom-virtualization` (#2) — BLOCKED as authored; needs reframe, not rebuild.**
+  The branch assumed it owned the history render + scroll path (`window.chatHistory.load()`
+  replacing the render loop). Upstream now owns that path. **Crucially, upstream's pager is
+  monotonic-insert — it never evicts**, so DOM node count still grows unbounded on scroll-up
+  (the OOM problem virtualization exists to solve is unsolved upstream).
+  - **Correct upstream PR (consolidate-down):** do NOT port the 916-line `MessageWindow`.
+    Graft only the *eviction primitive* — the `_evictLive`/teardown pass (the #4661-attributed
+    timer-teardown idiom) — as a bounded-DOM eviction step layered on upstream's existing
+    `_installHistoryPager`. Dozens of lines that compose with upstream, not a class that rips
+    out their fresh work. A maintainer accepts the graft; rejects the replacement.
+  - **Open genuinely-strategic question (human decision):** is client-side memory-bounding
+    worth an upstream PR at all, given upstream shipped lazy-load and the fork already has
+    separate renderer-OOM work (#4661 and the reclaim/responsiveness stack)?
+
+**Process lesson:** recon must grep upstream for *feature-region ownership* (who owns the
+history render + scroll handler), not just named PRs/issues. A silently-merged "polish"
+commit reassigned ownership of the exact code region three fork branches target.
