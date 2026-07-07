@@ -570,3 +570,156 @@ def test_gen_counter_prevents_old_session_content_after_switch(browser_page):
         f"Expected 8 new-session messages, got {len(texts)} — session switch may "
         f"have left DOM in a partial state"
     )
+
+
+# ---------------------------------------------------------------------------
+# Server-paged history — scroll-up pulls older pages from the backend
+#
+# Upstream's /api/history caps a page at 100 messages; the virtualization holds
+# only the pages fetched so far in _all. Without on-demand paging a long chat
+# would only ever show its most recent page. These drive the REAL scroll +
+# IntersectionObserver in Chromium with an injected olderLoader (the backend
+# stand-in) to prove _fetchOlderFromServer fires, prepends, and terminates.
+# ---------------------------------------------------------------------------
+
+def test_server_paging_fetches_older_page_on_scroll(browser_page):
+    """Scrolling to the top when the in-memory buffer is exhausted pulls the
+    next older page from the backend and renders it."""
+    _load_harness(browser_page)
+
+    # History of 150 msgs; client initially loaded only the last 50 (one short
+    # page). 100 older messages live on the "backend", served by olderLoader.
+    browser_page.evaluate("""
+        window.__olderCalls = [];
+        const FULL = Array.from({length: 150}, (_, i) => ({
+            role: 'user', content: 'Msg ' + i, modelName: null, meta: null
+        }));
+        window.chatHistory.load(FULL.slice(100), {
+            sessionId: 's1',
+            serverOffset: 100,
+            serverHasMore: true,
+            olderLoader: function (sid, limit, offset) {
+                window.__olderCalls.push({ sid: sid, limit: limit, offset: offset });
+                return Promise.resolve({
+                    msgs: FULL.slice(offset, offset + limit),
+                    offset: offset,
+                    hasMore: offset > 0,
+                });
+            },
+        });
+    """)
+    browser_page.wait_for_timeout(200)
+
+    # Sentinel shows (server has more) but nothing fetched until the user scrolls.
+    assert browser_page.evaluate("!!document.querySelector('.chat-history-sentinel')")
+    assert browser_page.evaluate("window.__olderCalls.length") == 0
+    sentinel = browser_page.evaluate("document.querySelector('.chat-history-sentinel').textContent")
+    assert "100 earlier messages" in sentinel, sentinel
+
+    browser_page.evaluate("document.getElementById('chat-history').scrollTop = 0")
+    browser_page.wait_for_timeout(500)
+
+    calls = browser_page.evaluate("window.__olderCalls")
+    assert len(calls) == 1, f"expected one backend page fetch, got {calls}"
+    assert calls[0]["sid"] == "s1"
+    assert calls[0]["limit"] == 100 and calls[0]["offset"] == 0, calls[0]
+
+    dom_text = browser_page.evaluate("document.getElementById('chat-history').textContent")
+    assert "Msg 99" in dom_text, "server-paged older message must be rendered on scroll-up"
+
+
+def test_server_paging_iterates_multiple_pages_then_terminates(browser_page):
+    """A history larger than one server page is fully reachable across several
+    scroll-up fetches, and paging stops (sentinel gone) once offset hits 0."""
+    _load_harness(browser_page)
+
+    # 250 msgs; client loaded the last 50; 200 older on the backend => 2 pages.
+    browser_page.evaluate("""
+        window.__olderCalls = [];
+        const FULL = Array.from({length: 250}, (_, i) => ({
+            role: 'user', content: 'M' + i, modelName: null, meta: null
+        }));
+        window.chatHistory.load(FULL.slice(200), {
+            sessionId: 's2',
+            serverOffset: 200,
+            serverHasMore: true,
+            olderLoader: function (sid, limit, offset) {
+                window.__olderCalls.push({ limit: limit, offset: offset });
+                return Promise.resolve({
+                    msgs: FULL.slice(offset, offset + limit),
+                    offset: offset,
+                    hasMore: offset > 0,
+                });
+            },
+        });
+    """)
+    browser_page.wait_for_timeout(200)
+
+    # Repeatedly scroll to the top; each _loadOlder walks 25 in-memory msgs and,
+    # when the buffer is empty, pulls the next backend page.
+    for _ in range(16):
+        browser_page.evaluate("document.getElementById('chat-history').scrollTop = 0")
+        browser_page.wait_for_timeout(250)
+
+    calls = browser_page.evaluate("window.__olderCalls")
+    offsets = [c["offset"] for c in calls]
+    assert offsets == [100, 0], f"expected two pages at offset 100 then 0, got {offsets}"
+
+    # The very first message (M0, from the oldest backend page) is reachable, and
+    # the sentinel is gone once the backend is exhausted (offset hit 0).
+    has_m0 = browser_page.evaluate(
+        "Array.from(document.querySelectorAll('.msg')).some(function(m){return m.textContent === 'M0';})"
+    )
+    assert has_m0, "oldest message must be reachable after paging back through the backend"
+    has_sentinel = browser_page.evaluate("!!document.querySelector('.chat-history-sentinel')")
+    assert not has_sentinel, "sentinel must disappear once the backend is exhausted"
+    assert browser_page.evaluate("window.chatHistory._serverHasMore") is False
+
+
+def test_server_paging_drops_stale_result_after_reset(browser_page):
+    """A page that lands after the session switched (reset) must be discarded —
+    the _gen guard prevents another chat's history from leaking in."""
+    _load_harness(browser_page)
+
+    browser_page.evaluate("""
+        window.__resolve = null;
+        const FULL = Array.from({length: 100}, (_, i) => ({
+            role: 'user', content: 'Old' + i, modelName: null, meta: null
+        }));
+        window.chatHistory.load(FULL.slice(50), {
+            sessionId: 's3',
+            serverOffset: 50,
+            serverHasMore: true,
+            olderLoader: function (sid, limit, offset) {
+                return new Promise(function (res) {
+                    window.__resolve = function () {
+                        res({ msgs: FULL.slice(offset, offset + limit), offset: offset, hasMore: offset > 0 });
+                    };
+                });
+            },
+        });
+    """)
+    browser_page.wait_for_timeout(150)
+
+    # Trigger the fetch (stays pending — the promise resolver is captured).
+    browser_page.evaluate("document.getElementById('chat-history').scrollTop = 0")
+    browser_page.wait_for_timeout(200)
+    assert browser_page.evaluate("typeof window.__resolve === 'function'"), "fetch should be in flight"
+
+    # Session switches (reset) BEFORE the stale page resolves.
+    browser_page.evaluate("""
+        window.chatHistory.reset();
+        document.getElementById('chat-history').innerHTML = '';
+        window.chatHistory.load([
+            { role: 'assistant', content: 'FreshChat', modelName: null, meta: null }
+        ]);
+    """)
+    browser_page.wait_for_timeout(100)
+
+    # Now let the stale fetch resolve — it must be dropped by the gen guard.
+    browser_page.evaluate("window.__resolve();")
+    browser_page.wait_for_timeout(200)
+
+    dom_text = browser_page.evaluate("document.getElementById('chat-history').textContent")
+    assert "Old" not in dom_text, "stale server page leaked after reset (gen guard failed)"
+    assert "FreshChat" in dom_text
