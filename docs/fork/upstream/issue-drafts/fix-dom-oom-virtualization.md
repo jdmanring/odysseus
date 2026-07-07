@@ -1,3 +1,10 @@
+> **⚠️ REFRAMED (2026-07-07).** The MessageWindow-port approach was abandoned after
+> finding the maintainer's own history pager (`45ee5a71`) owns this code region. The
+> problem (unbounded DOM growth, jdmanring#2) is now addressed by a small eviction
+> graft on top of that pager — see `fix-history-route-shadowing.md` (prerequisite)
+> and branch `fix/chat-history-dom-eviction`. jdmanring#2 is currently CLOSED but is
+> upstream-candidate with no PR filed — needs reopening per the issue-lifecycle rule.
+
 # Upstream Issue Draft: fix-dom-oom-virtualization
 
 **File on:** `pewdiepie-archdaemon/odysseus`

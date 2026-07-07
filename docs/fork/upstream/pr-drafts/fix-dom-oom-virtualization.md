@@ -1,3 +1,15 @@
+> **⚠️ REFRAMED / SUPERSEDED (2026-07-07).** This draft describes the abandoned
+> 916-line `MessageWindow` *port* strategy. It was reframed after finding the
+> maintainer shipped their own history pager (commit `45ee5a71`), which owns the
+> history render + scroll path this branch tried to replace. The current approach
+> is a small **eviction graft** on top of the maintainer's pager — see
+> `docs/fork/upstream/pr-drafts/fix-history-route-shadowing.md` (prerequisite route
+> fix) and the eviction graft on branch `fix/chat-history-dom-eviction`. Also
+> **retracted:** the "adapted from #4661 teardown" claim below — primary-source
+> verification (recon §7/§8) shows the teardown was written independently; the only
+> resemblance is clearing the app's own `_waveInterval`/`_elapsedTicker` fields.
+> Do not file this draft as-is.
+
 # PR Draft — fix/dom-oom-virtualization
 
 **Branch**: `fix/dom-oom-virtualization` (from `upstream-mirror`)

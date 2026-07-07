@@ -15,7 +15,7 @@ problem, it's listed as a supersession (§2), not an ingest.
 | Ours | Superseded by (merged) | Notes |
 |---|---|---|
 | #54 context-budget + #57 lazy-probe research | **#4909** `read real context window for unknown proxy models` | Confirmed; develop already took upstream's tests. |
-| #4661-derived `?limit=400` history pagination | **#5090** DB-level history pager | Confirmed; develop uses upstream pager + our virtualization (`fix/chat-history-server-paging`). |
+| fork `?limit=400` history pagination | maintainer commit **`45ee5a71`** (frontend `_installHistoryPager` + backend `has_more_before`) | **CORRECTED 2026-07-07:** the pager is a *maintainer direct commit* ("Polish mobile UI and editor workflows", 2026-06-27), NOT #5090. #5090 (merged, Tal.Yuan) is a route-subpackage *refactor* only. **And the pager is INERT — shadowed by a legacy route (see §8).** #4661 (OPEN, unmerged) is a *different* OOM PR (`_trimChatHistoryDOM`) — not the pager and not superseded. |
 
 No **new** hard supersessions among merged commits. In particular, upstream
 **#5033 (Gemma `<|tool_call|>` tokens)** does **not** supersede our **#35**
@@ -79,41 +79,55 @@ It fetches older history pages from the server on scroll-up (`_historyUrl` limit
   monotonic-insert — it never evicts**, so DOM node count still grows unbounded on scroll-up
   (the OOM problem virtualization exists to solve is unsolved upstream).
   - **Correct upstream PR (consolidate-down):** do NOT port the 916-line `MessageWindow`.
-    Graft only a bounded-DOM eviction pass, layered on the `_installHistoryPager` merged in
-    **#5090**. Dozens of lines that compose with upstream, not a class that rips out their
-    fresh work. A maintainer accepts the graft; rejects the replacement.
+    Graft only a bounded-DOM eviction pass, layered on the `_installHistoryPager` added by
+    maintainer commit **`45ee5a71`** (NOT #5090 — see the §2 correction). Dozens of lines that
+    compose with upstream, not a class that rips out their fresh work. A maintainer accepts
+    the graft; rejects the replacement.
   - **Attribution (verified against primary sources 2026-07-07):** the eviction teardown was
     written independently. The only lines resembling upstream PR **#4661**'s
     `_trimChatHistoryDOM` clear this app's own `_waveInterval`/`_elapsedTicker` timers —
     convergence forced by the shared codebase, not copied code. We rejected #4661's actual
-    method as architecturally incompatible; #4661 was itself superseded by #5090. So: **no
-    in-code attribution to #4661.** The PR description references **#5090** for *coordination*
-    (the pager we compose with), not credit. Prior in-code/doc "adapted from #4661" framing
-    was over-caution and is retracted.
+    method as architecturally incompatible. **#4661 is OPEN and unmerged** (verified via `gh`)
+    — a *different* OOM PR, not superseded by anything. So: **no in-code attribution to #4661.**
+    The PR description references the maintainer's pager commit `45ee5a71` for *coordination*
+    (the pager we compose with), not credit. Prior "adapted from #4661" / "#5090 pager" framing
+    was wrong and is retracted.
   - **Open genuinely-strategic question (human decision):** is client-side memory-bounding
-    worth an upstream PR at all, given upstream shipped lazy-load (#5090) and the fork already
-    has separate renderer-OOM work (the reclaim/responsiveness stack)?
+    worth an upstream PR at all, given the maintainer already shipped lazy-load (once the
+    shadow is fixed) and the fork has separate renderer-OOM work (the reclaim/responsiveness stack)?
 
 **Process lesson:** recon must grep upstream for *feature-region ownership* (who owns the
 history render + scroll handler), not just named PRs/issues. A silently-merged "polish"
 commit reassigned ownership of the exact code region three fork branches target.
 
-## 8. ADDENDUM (2026-07-07, building the eviction graft) — #5090's pager is inert upstream
+## 8. ADDENDUM (2026-07-07, building the eviction graft) — the maintainer's history pager is inert upstream
 
-While building the eviction graft (and writing its end-to-end test) I found that
-**#5090's history pager does not function on current upstream** — a route-shadowing
-bug, confirmed present on `upstream/dev`:
+**PROVENANCE (verified via `gh` + git, 2026-07-07 — supersedes earlier #5090 wording):**
+- The history pager (frontend `_installHistoryPager`, backend `has_more_before`/limit/offset)
+  was added by **maintainer direct commit `45ee5a71`** "Polish mobile UI and editor workflows"
+  (pewdiepie-archdaemon, 2026-06-27). Intent: deliberate history pagination for perf/mobile.
+- **#5090** (MERGED 2026-07-04, author Tal.Yuan, commit `6f6cb6ea`) = *"refactor(routes): move
+  history domain into routes/history/ subpackage"* — a route move, no pager, no sessions.js.
+- **#4661** (OPEN, unmerged) = *"fix(ui): prevent browser OOM during long agent interactions"*
+  — a separate `_trimChatHistoryDOM` OOM attempt. Not the pager; not merged; not superseded.
+
+While building the eviction graft (and writing its end-to-end test) I found the maintainer's
+pager **does not function on current upstream** — a route-shadowing bug. `upstream-mirror` is
+byte-current with `upstream/dev` (both `c67deaa6`, 0 commits behind), so this is live upstream,
+proven both by route analysis AND empirically (the seeded endpoint test):
 
 - `routes/session_routes.py` mounts with `prefix="/api"` and registers (app.py:658)
   **before** `routes/history` (app.py:687). Its legacy `GET /history/{sid}` →
-  `/api/history/{sid}` ignores `limit`/`offset` and returns the full history.
-- #5090's paginated `GET /api/history/{session_id}`
-  (`history_routes.get_session_history`) is the **second** registration of the same
-  path pattern. FastAPI matches first-registered, so the legacy route wins.
-- Net effect: `/api/history/{id}?limit=24` returns **all** messages, no `total`,
-  no `has_more_before`. The frontend pager (`_installHistoryPager`) is gated on
-  `has_more_before`, so **it never installs** — scroll-up "pagination" silently
-  renders the entire history into the DOM. #5090 shipped dead-on-arrival.
+  `/api/history/{sid}` ignores `limit`/`offset` and returns the full history. This legacy
+  route **predates** the pager (first seen in the `e5c99a5e` base), so `45ee5a71` created the
+  collision by adding the paginated route without removing the pre-existing one.
+- The paginated `GET /api/history/{session_id}` (`history_routes.get_session_history`) is the
+  **second** registration of the same path pattern. FastAPI matches first-registered, so the
+  legacy route wins.
+- Net effect: `/api/history/{id}?limit=24` returns **all** messages, no `total`, no
+  `has_more_before`. The frontend pager is gated on `has_more_before`, so **it never installs**
+  — scroll-up "pagination" silently renders the entire history into the DOM. The maintainer's
+  pager shipped dead-on-arrival.
 
 **Fix (staged, verified):** remove the legacy `get_history`; `get_session_history`
 already serves the no-limit case via its fallback with the identical
@@ -123,7 +137,7 @@ A pytest regression guard asserts the endpoint honours `?limit`.
 
 **Staged branch `fix/chat-history-dom-eviction` (from `upstream-mirror`), 2 commits:**
 1. `fix(history):` remove the shadowing legacy route — **independently valuable**
-   (revives #5090's pager); candidate for its own small upstream PR.
+   (revives the maintainer's inert pager); candidate for its own small upstream PR.
 2. `perf(history):` the eviction graft (#2 reframed) — bounds the DOM on top of the
    now-working pager; tagged-offset contiguity invariant; teardown of the app's own
    per-node handles; **no #4661 code borrowed** (see §7). Depends on commit 1.
