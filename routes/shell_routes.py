@@ -1604,6 +1604,11 @@ def setup_shell_routes() -> APIRouter:
         }
         if pip_name not in known:
             return {"ok": False, "error": f"Unknown package: {pip_name}"}
+        if pip_name == "realesrgan":
+            from routes.cookbook_helpers import run_basicsr_preflight_async
+            _rc, _err = await run_basicsr_preflight_async()
+            if _rc != 0:
+                return {"ok": False, "error": _err.decode()[-300:]}
         cmd = [_sys.executable, "-m", "pip", "install", pip_name]
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
