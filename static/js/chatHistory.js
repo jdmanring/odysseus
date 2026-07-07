@@ -635,6 +635,11 @@
     var savedScrollTop = this._c.scrollTop;
     var before = this._c.scrollHeight;
 
+    // Per-node teardown before removal. The timer-clearing idiom
+    // (clearInterval(_waveInterval/_elapsedTicker) + null, recursing into
+    // descendants) is adapted from upstream PR #4661 (holden093)'s
+    // _trimChatHistoryDOM() teardown, and extended here to also release
+    // _streamRenderer and the hljs-defer observer refs.
     for (var i = 0; i < toRemove.length; i++) {
       var el = toRemove[i];
       // Stop any live timers/intervals before removing the node.
