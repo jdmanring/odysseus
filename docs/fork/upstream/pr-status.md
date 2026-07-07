@@ -8,6 +8,28 @@ per-action authorization. Agents stage; you file.**
 
 ---
 
+## ⚠ 2026-07-07 — rebase state after the 320-commit upstream ingest
+
+`upstream-mirror` advanced to `c67deaa6` (`#5283`), including a module-extraction
+refactor. **All staging branches were rebased onto current `upstream-mirror`:
+54 clean, 19 conflict** (backed up at `backup/prerebase__*`). The 19 conflicts
+need the same resolutions applied in the develop merge (recipes in the branch's
+row and in scratch `SYNC_REPORT.md`). **Verify each branch's tests before filing —
+a clean rebase is not a correctness guarantee** (spot-checked 7 candidates green /
+212 tests; one brittle static test fails on the *superseded* `renderer-memory-reclaim`).
+
+**Superseded by upstream — do not file:** `fix/agent-context-budget-discovery`
+(#54) and the #57 lazy-probe research → upstream **#4886/#4909**; the #4661-derived
+`?limit=400` history pagination → upstream **#5090** (develop now uses upstream's
+pager + the fork's virtualization via `fix/chat-history-server-paging`).
+
+`fix/untrusted-tool-result-header` (#48) **rebuilt** as one clean commit on current
+`upstream-mirror`, byte-identical to develop; PR draft corrected to the shipped header.
+
+Nothing pushed yet (develop, integration+tag, and the rebased branches are local).
+
+---
+
 ## Branch → Issue Map
 
 | Branch | Issue | Type | Status |
