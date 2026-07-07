@@ -121,3 +121,23 @@ Flagged (NOT mechanically fixable — need verification I can't do from here):
   chat elements; split/review before filing (not done blind).
 - **aria2c `disable_hf_transfer` default flip** — defensible (avoids racing aria2c; aligns
   with fork's #36) but affects the non-aria2c fallback path; scope to the aria2c path for the PR.
+
+### Rebase verification — all 67 fileable branches (2026-07-07)
+Ran each branch's own tests against its rebased state.
+- **54 pass clean** · **11 no-tests** (docs/data/wrappers: catppuccin, ai-documentation,
+  assets-move, api-hosts, nvidia-native, searxng, pytest-timeout, freebsd/openbsd, etc.)
+- **2 genuinely broken** (clean rebase ≠ correct):
+  - **perf/chathistory-gc-improvements** — 23 failed / 105 passed. Confirms the audit's
+    NEEDS-WORK verdict: it bundles the 916-line virtualization engine (a duplicate of
+    fix/dom-oom-virtualization's) with the gc/leak fixes. Not file-ready; needs the
+    prescribed split (land the teardown/leak fixes separately from the engine).
+  - **fix/dom-oom-streaming-throttle** — 1 failed (unrebased, behind 320). Its own
+    test_chat_streaming_oom.py asserts a `gc()`/`_gcPending` dispatch in the finally
+    block that the branch's chat.js doesn't contain (a sibling-branch feature). Needs
+    rebase + test reconciliation before filing.
+
+**File-readiness (squash status):** 32 branches are single-commit (structurally file-ready);
+~35 are multi-commit and need squashing before filing (the perf/memory/qt families; the
+small wave-1 fixes — agent-tool-budget, pytest-timeout, basicsr, searxng, editor fixes,
+api-token-utcnow, sigcache-lru, provider-picker, chat-auto-scroll, stream-429 — are already
+single-commit and verified).
