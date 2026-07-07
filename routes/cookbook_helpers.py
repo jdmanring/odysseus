@@ -1,6 +1,7 @@
 """cookbook_helpers.py — validators + small helpers shared by the cookbook routes.
 Extracted from cookbook_routes.py; the routes module imports the symbols it needs."""
 
+import asyncio
 import json
 import logging
 import ntpath
@@ -8,6 +9,8 @@ import os
 import posixpath
 import re
 import shlex
+import sys
+import tempfile
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -328,6 +331,159 @@ def _pip_install_help_check_from_cmd(cmd: str) -> str | None:
         return None
     pip_prefix = parts[:install_index]
     return f"{shlex.join(pip_prefix + ['install', '--help'])} 2>/dev/null | grep -q -- --break-system-packages"
+
+
+def _pip_install_python_executable(cmd: str) -> str:
+    """Return the Python executable used by a ``python -m pip install`` cmd."""
+    try:
+        parts = shlex.split(cmd or "")
+    except ValueError:
+        return "python3"
+    env_re = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+    parts = [p for p in parts if not env_re.match(p)]
+    if len(parts) >= 4 and parts[1:4] == ["-m", "pip", "install"]:
+        return parts[0]
+    return "python3"
+
+
+def _is_realesrgan_pip_install(cmd: str) -> bool:
+    """Whether the Cookbook pip command is installing Real-ESRGAN."""
+    try:
+        parts = shlex.split(cmd or "")
+    except ValueError:
+        return False
+    return "pip" in parts and "install" in parts and any(p == "realesrgan" for p in parts)
+
+
+_REALESRGAN_BASICSR_PATCH = r'''
+import json
+import pathlib
+import subprocess
+import sys
+import tarfile
+import tempfile
+import urllib.request
+
+if sys.version_info < (3, 13):
+    raise SystemExit(0)
+
+try:
+    import basicsr  # noqa: F401
+    raise SystemExit(0)
+except ImportError:
+    pass
+
+print("[odysseus] Pre-installing patched basicsr 1.4.2 for Real-ESRGAN compatibility...")
+with tempfile.TemporaryDirectory(prefix="odysseus-basicsr-") as tmp:
+    tmp_path = pathlib.Path(tmp)
+    # Download the sdist directly via PyPI JSON API — pip download triggers
+    # get_requires_for_build_wheel which runs setup.py and hits the same
+    # KeyError we are here to fix.
+    with urllib.request.urlopen("https://pypi.org/pypi/basicsr/1.4.2/json") as _resp:
+        _meta = json.loads(_resp.read())
+    _sdist = next(
+        (u for u in _meta["urls"]
+         if u["packagetype"] == "sdist" and u["filename"] == "basicsr-1.4.2.tar.gz"),
+        None,
+    )
+    if _sdist is None:
+        raise RuntimeError("basicsr 1.4.2 sdist not found on PyPI")
+    archive = tmp_path / "basicsr-1.4.2.tar.gz"
+    with urllib.request.urlopen(_sdist["url"]) as _resp:
+        archive.write_bytes(_resp.read())
+    _tf_kw = {"filter": "data"} if sys.version_info >= (3, 12) else {}
+    with tarfile.open(archive) as tf:
+        tf.extractall(tmp_path, **_tf_kw)
+    src = tmp_path / "basicsr-1.4.2"
+
+    # setup.py get_version() uses exec(); locals()['__version__'] — broken in
+    # Python 3.13+ per CPython issue #118888 (PEP 667 locals() scoping change).
+    setup_py = src / "setup.py"
+    _setup = setup_py.read_text(encoding="utf-8")
+    _old_gv = (
+        "def get_version():\n"
+        "    with open(version_file, 'r') as f:\n"
+        "        exec(compile(f.read(), version_file, 'exec'))\n"
+        "    return locals()['__version__']\n"
+    )
+    _new_gv = (
+        "def get_version():\n"
+        "    namespace = {}\n"
+        "    with open(version_file, 'r') as f:\n"
+        "        exec(compile(f.read(), version_file, 'exec'), namespace)\n"
+        "    return namespace['__version__']\n"
+    )
+    if _old_gv in _setup:
+        setup_py.write_text(_setup.replace(_old_gv, _new_gv), encoding="utf-8")
+
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install", "--no-cache-dir", str(src),
+    ])
+'''
+
+
+def _append_realesrgan_basicsr_preflight(
+    lines: list[str], cmd: str, *, powershell: bool = False
+) -> None:
+    """Pre-install a patched basicsr 1.4.2 before Real-ESRGAN on Python 3.13+.
+
+    realesrgan requires basicsr>=1.4.2. BasicSR 1.4.2 ships with no wheel on
+    PyPI — pip builds it from source. On Python 3.13+, ``setup.py``'s
+    ``get_version()`` uses ``exec(...); locals()['__version__']``, which raises
+    ``KeyError: '__version__'`` due to the PEP 667 locals() scoping change
+    (CPython issue #118888). Downloads the basicsr 1.4.2 sdist from PyPI,
+    patches ``get_version()`` to use an explicit namespace dict, and installs
+    the corrected build before the original ``pip install realesrgan`` runs.
+    Scoped to the Real-ESRGAN install path only; no-ops when basicsr is already
+    installed or Python < 3.13.
+    """
+    if not _is_realesrgan_pip_install(cmd):
+        return
+    py = _pip_install_python_executable(cmd)
+    if powershell:
+        lines.append("$odyBasicsrPatch = @'")
+        lines.extend(_REALESRGAN_BASICSR_PATCH.strip("\n").splitlines())
+        lines.append("'@")
+        lines.append(f"& {py!r} -c $odyBasicsrPatch")
+        lines.append(
+            'if ($LASTEXITCODE -ne 0) { Write-Host ""; '
+            'Write-Host "=== Process exited with code $LASTEXITCODE ==="; '
+            'exit $LASTEXITCODE }'
+        )
+    else:
+        lines.append(f"{shlex.quote(py)} - <<'PY'")
+        lines.extend(_REALESRGAN_BASICSR_PATCH.strip("\n").splitlines())
+        lines.append("PY")
+        lines.append("ODYSSEUS_PREFLIGHT_EXIT=$?")
+        lines.append(
+            '[ "$ODYSSEUS_PREFLIGHT_EXIT" = "0" ] || '
+            '{ echo ""; echo "=== basicsr preflight exited with code $ODYSSEUS_PREFLIGHT_EXIT ==="; '
+            'exit "$ODYSSEUS_PREFLIGHT_EXIT"; }'
+        )
+
+
+async def run_basicsr_preflight_async() -> tuple[int, bytes]:
+    """Run the basicsr preflight and return (returncode, stderr).
+
+    Intended for install paths that run pip directly (e.g.
+    /api/cookbook/packages/install) rather than through a shell runner script.
+    Returns (0, b"") when basicsr is already installed or Python < 3.13.
+    """
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", delete=False, encoding="utf-8"
+    ) as tf:
+        tf.write(_REALESRGAN_BASICSR_PATCH.strip())
+        patch_path = tf.name
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, patch_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+    finally:
+        os.unlink(patch_path)
+    return proc.returncode, stderr
 
 
 def _append_pip_install_runner_lines(runner_lines: list[str], cmd: str) -> None:
