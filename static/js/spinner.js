@@ -143,11 +143,12 @@ class Spinner {
   // Shared leak guard for all three animated spinners. Returns false once the
   // spinner should stop: it was visible and then removed/hidden (display:none
   // makes offsetParent null), or it was never made visible within the orphan
-  // grace window (start()ed but never appended). Gate on visibility, not mere
-  // isConnected, which stays true for a display:none element.
+  // grace window (start()ed but never appended). Gate on whether the element
+  // renders a box (getClientRects) — not offsetParent, which is null for a
+  // *visible* element inside a position:fixed container.
   _shouldKeepSpinning() {
     const el = this.element;
-    if (el && el.isConnected && el.offsetParent !== null) {
+    if (el && el.isConnected && el.getClientRects().length > 0) {
       this._spinWasVisible = true;
       return true;
     }

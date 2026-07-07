@@ -1308,7 +1308,10 @@ def _parse_longcat_tool_call(content: str) -> Optional[ToolBlock]:
             if isinstance(raw_args, dict):
                 first_val = next(iter(raw_args.values()), "")
                 return ToolBlock(tool_type, str(first_val)) if first_val else None
-    except (json.JSONDecodeError, Exception):
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        # Malformed/non-object model output is simply "not a tool call".
+        # A real bug in function_call_to_tool_block must NOT be swallowed here,
+        # so this does not catch bare Exception.
         pass
     return None
 

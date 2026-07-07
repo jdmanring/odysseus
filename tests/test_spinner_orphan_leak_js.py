@@ -26,7 +26,8 @@ def test_shared_guard_and_grace_constant_exist():
 def test_guard_gates_on_visibility_not_just_connected():
     # isConnected is true for display:none; the guard must require offsetParent.
     body = _guard_body()
-    assert "offsetParent" in body
+    assert "getClientRects()" in body
+    assert "offsetParent" not in body
     assert "isConnected" in body
 
 
