@@ -98,3 +98,26 @@ overreaches were corrected:
   stray `console.log` in perf branches; drop `qtwebengine-oilpan-gc` (subset of `agent-gc-catchup`).
 - **Collision ordering** unchanged (see table above): file the CSS/memory/tool-bubble/hf_url_resolver
   pairs in dependency order.
+
+### Remediation round 2 (2026-07-07)
+Fixed (branch, + develop runtime where the code was cherry-picked):
+- **skill IDF cache** — keyed to the corpus (branch + develop; new multi-corpus test).
+- **basicsr** — honest single commit; message now matches the code (3.13+ exec/locals),
+  collections.abc/3.10+ over-claims removed, collections scope limitation disclosed.
+- **aria2c** — `repo_id`/`include` now `_bash_squote`-quoted in the runner command.
+- **css-render-perf** — `.chat-history` → `contain: layout style`, `.sidebar` → no
+  containment (paint-containment defect removed; matches css-contain-paint + develop).
+- **api-token-utcnow / chat-auto-scroll-threshold** — removed literal `Fixes #___`
+  placeholders, added Co-Authored-By trailer.
+
+Flagged (NOT mechanically fixable — need verification I can't do from here):
+- **nvidia-nim** — the `_lookup_known` ranking change is *justified* (NIM org-prefixed
+  IDs like moonshotai/kimi-k2), so DISCLOSE it, don't revert; but the curated model IDs
+  (deepseek-v4-pro, nemotron-3-ultra, …) must be verified against the live NIM catalog.
+- **aria2c remote path** — the runner uses the server's local script path; a correct fix
+  needs the SSH-execution flow reworked and tested against a real remote host.
+- **aria2c Windows `os.kill(pid, 0)`** — needs a Windows liveness check (POSIX-guard or psutil).
+- **css-render-perf** — still bundles 5 concerns + undisclosed will-change/translateZ on
+  chat elements; split/review before filing (not done blind).
+- **aria2c `disable_hf_transfer` default flip** — defensible (avoids racing aria2c; aligns
+  with fork's #36) but affects the non-aria2c fallback path; scope to the aria2c path for the PR.
