@@ -25,9 +25,14 @@ a clean rebase is not a correctness guarantee** (spot-checked 7 candidates green
 refactor; verified via `gh` 2026-07-07). **CAVEAT: that upstream pager is INERT**
 — a legacy `/api/history/{sid}` route shadows the paginated endpoint, so it never
 paginates (see recon §8; fix staged on `fix/chat-history-dom-eviction`). The
-fork's `fix/chat-history-server-paging` is *also* built on this broken endpoint
-and needs re-checking (its "150/150 reachable" test passes trivially because the
-shadow returns the full history in one fetch).
+fork's `fix/chat-history-server-paging` (merged to develop `6fac912d`) is *also*
+built on this broken endpoint — **CONFIRMED inert on develop 2026-07-07**: develop
+carries the identical collision (legacy `get_history` present; `session_routes`
+registered before `history_routes`), and `_fetchOlderFromServer` calls
+`_historyUrl(sid, {limit, offset})` → the shadow → full history in one fetch. Its
+"150/150 reachable" test passes trivially (all returned at once, not paged).
+**Action:** cherry-pick the route-shadowing fix (`fix/chat-history-dom-eviction`
+commit 1) to develop so the fork's own pagination actually works.
 
 `fix/untrusted-tool-result-header` (#48) **rebuilt** as one clean commit on current
 `upstream-mirror`, byte-identical to develop; PR draft corrected to the shipped header.

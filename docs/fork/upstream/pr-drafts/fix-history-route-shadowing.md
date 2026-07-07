@@ -26,19 +26,27 @@ Remove the legacy `get_history` handler. `get_session_history` already handles t
 no-`limit` case via its fallback and returns the identical `{role, content,
 metadata}` shape (`== ChatMessage.to_dict()`), so it fully subsumes the route.
 
-### Behaviour note (deliberate)
+### Behaviour note (deliberate — all four no-`limit` callers audited)
 
-For no-`limit` callers (`documentLibrary` copy-chat, session copy/export), the
-surviving `get_session_history` fallback differs from the removed handler in two
-intentional ways:
-- **content truncation:** messages longer than `HISTORY_DISPLAY_CHAR_LIMIT` (160 KB)
-  are head+tail truncated by `_history_display_content`.
-- **hidden rows skipped:** messages with `metadata.hidden` (compaction summaries)
-  are omitted.
+The four no-`limit` callers of `/api/history/{id}` — `documentLibrary._copyChatById`,
+`documentLibrary` chat-preview, `sessions.js` "Copy Chat", and `sessions.js`
+archived-session peek — all read only `role` and `content`. Switching them from the
+removed legacy handler (raw `msg.to_dict()`) to `get_session_history`'s fallback
+(via `_history_display_content`) changes the `content` payload in three ways, **all
+of which are improvements or no-ops for these callers**:
+- **multimodal media stripped:** list/multimodal content returns its text parts with
+  image/audio blocks dropped (or `"[N media attachment(s) omitted]"`). The legacy
+  route returned the raw list *including inline base64 image bytes* — e.g. "Copy Chat"
+  did `JSON.stringify(content)` and would have dumped base64 into the clipboard. The
+  fallback is strictly better here.
+- **large-content truncation:** string content over `HISTORY_DISPLAY_CHAR_LIMIT`
+  (160 KB) is head+tail truncated; the copy/preview callers already truncate further
+  (600 chars for preview), so this is a no-op in practice.
+- **hidden rows skipped:** `metadata.hidden` messages (compaction summaries) are
+  omitted — desirable; a copied/previewed transcript shouldn't include internal rows.
 
-Both are desirable for those callers (a copied transcript shouldn't include internal
-compaction rows; 160 KB single messages are pathological), but they are a behaviour
-change and are called out here so the maintainer can accept them explicitly.
+No caller depends on untruncated content, raw media bytes, or hidden rows. Called out
+so the maintainer accepts the change explicitly rather than by accident.
 
 ## Verification
 
