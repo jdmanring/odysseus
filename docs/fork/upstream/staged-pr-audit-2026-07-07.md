@@ -141,3 +141,21 @@ Ran each branch's own tests against its rebased state.
 small wave-1 fixes — agent-tool-budget, pytest-timeout, basicsr, searxng, editor fixes,
 api-token-utcnow, sigcache-lru, provider-picker, chat-auto-scroll, stream-429 — are already
 single-commit and verified).
+
+### Broken-branch resolutions (2026-07-07)
+- **fix/dom-oom-streaming-throttle** — FIXED. Removed `test_finally_has_gc_dispatch`, a
+  misplaced cross-branch assertion (the gc()/_gcPending dispatch belongs to
+  perf/agent-gc-catchup, covered by test_chat_gc_hint_js.py). This branch's finally
+  yields to idle (scheduler.postTask/requestIdleCallback), still covered. 13 tests pass.
+  (Still an unrebased conflict branch — needs the chat.js reconciliation at file time.)
+- **perf/chathistory-gc-improvements** — **DO NOT FILE STANDALONE; fold into #2
+  (fix/dom-oom-virtualization).** Root cause of its 23 failures: it carries a *divergent
+  duplicate* of #2's 916-line chatHistory.js engine (881 vs 916 lines, 153 diff lines)
+  plus sibling branches' test files (`test_chat_gc_hint_js.py` = agent-gc-catchup's;
+  resume-stream cases in `test_chat_history_js.py` = dom-oom-virtualization's) — so in
+  isolation those tests assert features not present here. Its only *unique* content is a
+  small gc-improvements delta (rIC after `_evictLive`/`_pruneBottom`, full timer teardown
+  in the removal loops, `_purgeStaleBackgroundStreams`), which **develop already carries**
+  in its consolidated chatHistory.js. Correct fix: fold that delta into #2 during #2's
+  file-prep (per `docs/fork/plans/dom-oom-virtualization-upstream-plan.md`) and retire
+  this branch. Making its tests pass in isolation would be papering over a duplicate.
