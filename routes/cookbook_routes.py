@@ -471,7 +471,7 @@ def setup_cookbook_routes() -> APIRouter:
             local_dir_quoted = _bash_squote(_dl_base) if _dl_base else "''"
             hf_cmd = (
                 f"python3 {_bash_squote(_aria2c_script)} "
-                f"--repo {req.repo_id} "
+                f"--repo {_bash_squote(req.repo_id)} "
                 f"--token {token_quoted} "
                 f"--local-dir {local_dir_quoted} "
                 f"--include {include_quoted}"
@@ -480,9 +480,9 @@ def setup_cookbook_routes() -> APIRouter:
             # Standard hf download command. Redirection to suppress the interactive
             # "update available? [Y/n]" prompt is added per-platform further down
             # (< /dev/null on bash, $null | on PowerShell).
-            hf_cmd = f"hf download {req.repo_id}"
+            hf_cmd = f"hf download {_bash_squote(req.repo_id)}"
             if req.include:
-                hf_cmd += f" --include '{req.include}'"
+                hf_cmd += f" --include {_bash_squote(req.include)}"
             if _dl_shell:
                 hf_cmd += f" --local-dir {_dl_shell}"
 
