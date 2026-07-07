@@ -19,9 +19,15 @@ a clean rebase is not a correctness guarantee** (spot-checked 7 candidates green
 212 tests; one brittle static test fails on the *superseded* `renderer-memory-reclaim`).
 
 **Superseded by upstream — do not file:** `fix/agent-context-budget-discovery`
-(#54) and the #57 lazy-probe research → upstream **#4886/#4909**; the #4661-derived
-`?limit=400` history pagination → upstream **#5090** (develop now uses upstream's
-pager + the fork's virtualization via `fix/chat-history-server-paging`).
+(#54) and the #57 lazy-probe research → upstream **#4886/#4909**. The fork's
+`?limit=400` history pagination is superseded by the maintainer's history pager
+(direct commit **`45ee5a71`**, NOT #5090 — #5090 is only a route-subpackage
+refactor; verified via `gh` 2026-07-07). **CAVEAT: that upstream pager is INERT**
+— a legacy `/api/history/{sid}` route shadows the paginated endpoint, so it never
+paginates (see recon §8; fix staged on `fix/chat-history-dom-eviction`). The
+fork's `fix/chat-history-server-paging` is *also* built on this broken endpoint
+and needs re-checking (its "150/150 reachable" test passes trivially because the
+shadow returns the full history in one fetch).
 
 `fix/untrusted-tool-result-header` (#48) **rebuilt** as one clean commit on current
 `upstream-mirror`, byte-identical to develop; PR draft corrected to the shipped header.
