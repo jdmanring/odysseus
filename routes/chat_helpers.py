@@ -1210,7 +1210,7 @@ def run_post_response_tasks(
         and auto_skills_enabled
         and not incognito
         and not compare_mode
-        and (agent_rounds >= 2 or agent_tool_calls >= 2)
+        and (agent_rounds >= 2 and agent_tool_calls >= 3)
     ):
         if skills_manager is None:
             logger.warning(

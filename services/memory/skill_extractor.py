@@ -41,8 +41,10 @@ SKILL_EXTRACT_PROMPT = (
 )
 
 # Skills the model is unsure about (or that read as one-offs) add clutter —
-# drop anything below this confidence.
-MIN_CONFIDENCE = 0.6
+# drop anything below this confidence. Aligned with the injection floor in
+# agent_loop.py (skill_min_confidence default = 0.85) so skills that would
+# never reach the agent are not saved to disk.
+MIN_CONFIDENCE = 0.85
 
 # How many recent messages to include
 CONTEXT_WINDOW = 12
@@ -139,8 +141,8 @@ async def maybe_extract_skill(
         "[skill-extract] start: rounds=%d tools=%d model=%s owner=%s",
         round_count, tool_count, model, owner,
     )
-    if round_count < 2 and tool_count < 2:
-        logger.debug("[skill-extract] BELOW threshold (need rounds>=2 or tools>=2)")
+    if round_count < 2 or tool_count < 3:
+        logger.debug("[skill-extract] BELOW threshold (need rounds>=2 AND tools>=3)")
         return None
 
     try:
@@ -263,7 +265,8 @@ async def maybe_extract_skill(
         # newly-extracted skill is created `published` immediately rather
         # than waiting for the next audit batch. The audit still runs later
         # and can demote it back to `draft` (or delete) on failure. Default
-        # ON matches the UI label "Auto-approve skills".
+        # OFF so skills land as drafts; the user publishes from Brain > Skills
+        # after reviewing. Opt-in to auto-publish by enabling the toggle.
         _initial_status = "draft"
         try:
             from routes.prefs_routes import _load_for_user as _load_prefs
