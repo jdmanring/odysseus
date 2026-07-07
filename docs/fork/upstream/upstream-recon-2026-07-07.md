@@ -137,3 +137,15 @@ without a prior issue (needs one per fork rule); the route-shadowing fix needs i
 own issue; #2 covers the eviction reframe. (b) whether to file the route fix as a
 standalone upstream PR (recommended — it fixes a merged-but-dead feature). (c) the
 marathon-from-empty session is still out of scope (documented limitation).
+
+### §8 caveat — what the eviction graft does and does NOT claim (validated)
+
+The seam test validates **correctness (no gap/duplicate) and a bounded live node
+count** — not RSS. Frame the PR as **responsiveness + correctness on long
+histories, plus a memory benefit in standard browsers**. Do NOT attach it to #2's
+"prevent renderer OOM" claim: per `project_memory_oom.md`, the QtWebEngine OOM
+driver is *detached* nodes + renderer cache, and in QtWebEngine an evicted node
+becomes a detached node Oilpan won't reclaim without an explicit `gc()`/pressure
+signal — so eviction there may convert live→detached with no RSS win. The
+`perf(history)` commit message is already scoped correctly (it claims "bound the
+DOM," not "fix OOM"); this note keeps the doc artifacts honest too.
