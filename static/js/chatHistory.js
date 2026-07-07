@@ -21,6 +21,7 @@
 
   var WINDOW_SIZE  = 50;    // messages rendered on session load
   var BATCH_SIZE   = 25;    // messages loaded per upward/downward scroll step
+  var SERVER_PAGE  = 100;   // messages fetched per backend history page (matches server cap)
   var PRUNE_AT     = 80;    // live DOM child count that triggers Phase 2 pruning
   var PRUNE_COUNT  = 20;    // nodes removed per Phase 2 prune event
   var BIDI_CAP     = 120;   // historical DOM child count that triggers top prune (in _loadNewer)
@@ -48,6 +49,15 @@
     this._draining   = false;      // true while scrollToBottom() is draining all batches
     this._gen        = 0;          // incremented on reset(); all rAF callbacks check this
     this._evictedLiveCount = 0;   // live nodes evicted when history exhausted (for notice)
+    // Server-paged history: _all holds only the pages fetched so far. When the
+    // in-memory buffer is exhausted on scroll-up, older pages are pulled from
+    // the backend (limit/offset) so the full history is reachable while the DOM
+    // stays bounded. _serverOffset is the raw DB offset of _all[0].
+    this._sessionId     = null;
+    this._serverOffset  = 0;
+    this._serverHasMore = false;
+    this._fetching      = false;
+    this._olderLoader   = null;   // async (sessionId, limit, offset) -> {msgs, offset, hasMore}
     this._initMutObs();
     this._initScrollListener();
   }
@@ -56,14 +66,22 @@
   // Public API
   // ---------------------------------------------------------------------------
 
-  MessageWindow.prototype.load = function (messages) {
+  MessageWindow.prototype.load = function (messages, opts) {
     // Hold the lock through the entire load sequence. MutationObserver fires as
     // a microtask after this synchronous call returns, so setting _loading=false
     // synchronously in _renderTail would let Phase 2 prune a freshly-rendered
     // agent session (50 msgs × 5 DOM children = 250 nodes > PRUNE_AT=80).
     // rAF fires after the microtask queue drains, keeping the guard intact.
+    opts = opts || {};
     this._loading  = true;
     this._all      = messages;
+    // Server-paging state: only enabled when the caller supplies an olderLoader
+    // and the backend reports older messages exist beyond this first page.
+    this._sessionId     = opts.sessionId || null;
+    this._serverOffset  = (typeof opts.serverOffset === 'number' && opts.serverOffset > 0) ? opts.serverOffset : 0;
+    this._olderLoader   = (typeof opts.olderLoader === 'function') ? opts.olderLoader : null;
+    this._serverHasMore = !!opts.serverHasMore && this._serverOffset > 0 && this._olderLoader !== null;
+    this._fetching      = false;
     this._startIdx = Math.max(0, messages.length - WINDOW_SIZE);
     this._endIdx   = messages.length;
     console.log('[chatHistory] Session load: %d msgs, rendering %d–%d', messages.length, this._startIdx, this._endIdx - 1);
@@ -134,6 +152,11 @@
     this._startIdx = 0;
     this._endIdx   = 0;
     this._evictedLiveCount = 0;
+    this._sessionId     = null;
+    this._serverOffset  = 0;
+    this._serverHasMore = false;
+    this._fetching      = false;
+    this._olderLoader   = null;
   };
 
   // Snap to the true bottom of history, draining all remaining _loadNewer() batches.
@@ -180,11 +203,15 @@
 
   MessageWindow.prototype._attachSentinel = function () {
     this._detachSentinel();
-    if (this._startIdx === 0) return;
+    // Keep the sentinel while there are earlier messages either buffered
+    // in _all (_startIdx) or still on the server (_serverHasMore), so scrolling
+    // up keeps paging the backend instead of dead-ending at the first page.
+    if (this._startIdx === 0 && !this._serverHasMore) return;
 
     var s = document.createElement('div');
     s.className   = 'chat-history-sentinel';
-    s.textContent = '↑ ' + this._startIdx + ' earlier messages';
+    var _older = this._startIdx + (this._serverHasMore ? this._serverOffset : 0);
+    s.textContent = '↑ ' + _older + ' earlier messages';
     s.style.cssText = (
       'text-align:center;padding:10px 0;color:var(--fg);opacity:0.5;' +
       'font-size:0.85rem;user-select:none;flex-shrink:0'
@@ -205,6 +232,54 @@
     if (this._sObs) { this._sObs.disconnect(); this._sObs = null; }
     if (this._sentinel && this._sentinel.parentNode) this._sentinel.remove();
     this._sentinel = null;
+  };
+
+  // ---------------------------------------------------------------------------
+  // _fetchOlderFromServer — pull the next older backend page into _all
+  //
+  // Called by _loadOlder when the in-memory buffer is exhausted but the server
+  // still has older messages. Prepends the fetched (mapped) messages to _all and
+  // re-enters _loadOlder to render one batch. Returns true if a fetch started.
+  // Guards: _fetching (one in flight at a time) and _gen (session switched → drop
+  // the stale result). On error, paging is disabled so scroll-up stops dead-ending.
+  // ---------------------------------------------------------------------------
+
+  MessageWindow.prototype._fetchOlderFromServer = function () {
+    if (this._fetching || !this._serverHasMore || typeof this._olderLoader !== 'function') return false;
+    var limit = Math.min(SERVER_PAGE, this._serverOffset);
+    if (limit <= 0) { this._serverHasMore = false; return false; }
+    var offset = Math.max(0, this._serverOffset - limit);
+    var self = this, gen = this._gen, sid = this._sessionId;
+    this._fetching = true;
+    this._loading  = true;   // defer Phase 2 prune until the fetched batch renders
+    Promise.resolve(this._olderLoader(sid, limit, offset)).then(function (res) {
+      if (gen !== self._gen) return;          // session switched during the fetch
+      var msgs = (res && res.msgs) || [];
+      if (msgs.length) {
+        self._all      = msgs.concat(self._all);
+        self._startIdx += msgs.length;
+        self._endIdx   += msgs.length;
+      }
+      self._serverOffset  = (res && typeof res.offset === 'number') ? res.offset : offset;
+      self._serverHasMore = !!(res && res.hasMore) && self._serverOffset > 0;
+      self._fetching = false;
+      if (msgs.length) {
+        self._loadOlder();                    // render the prepended batch from _all
+      } else {
+        // Page was entirely filtered out (e.g. hidden/continue messages).
+        // Keep paging further back on the next scroll if more remain.
+        self._loading = false;
+        self._attachSentinel();
+      }
+    }).catch(function (e) {
+      if (gen !== self._gen) return;
+      console.warn('[chatHistory] server page fetch failed:', e);
+      self._fetching = false;
+      self._loading  = false;
+      self._serverHasMore = false;            // stop retrying after an error
+      self._attachSentinel();
+    });
+    return true;
   };
 
   // ---------------------------------------------------------------------------
@@ -280,7 +355,13 @@
   MessageWindow.prototype._loadOlder = function () {
     var from = Math.max(0, this._startIdx - BATCH_SIZE);
     var upTo = this._startIdx;
-    if (from >= upTo) { this._attachSentinel(); return; }
+    if (from >= upTo) {
+      // In-memory buffer exhausted. Pull the next older page from the backend
+      // if one exists; _fetchOlderFromServer re-enters _loadOlder once it lands.
+      if (this._serverHasMore && this._fetchOlderFromServer()) return;
+      this._attachSentinel();
+      return;
+    }
 
     // Measure before any DOM mutation so the spacer height is included in the
     // baseline. The scroll adjustment at the end is scrollHeight_after - before,
