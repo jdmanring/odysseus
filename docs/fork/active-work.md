@@ -6,6 +6,14 @@ Last updated: 2026-06-25. Lighter-rectangle raster tint fixed: `--enable-low-end
 
 ---
 
+**2026-07-08 — Chat-history architecture: decided, not open.** Confirmed by reading both
+implementations that the fork's `MessageWindow` (`chatHistory.js`, DOM eviction + bidirectional
+server paging) **completely supersedes** upstream's `_installHistoryPager` (`45ee5a71`, prepend-only,
+no eviction → unbounded DOM on scroll-up). **We keep ours on `develop`** — a deliberate enhancement,
+not carried debt. Upstream gets two cooperative PRs (route-shadowing fix #125 + eviction concept #2),
+never a request to undo their pager. Regression guard: `tests/test_chat_history_render_paging_playwright.py`.
+Full rationale + comparison table + when-to-revisit: `docs/fork/chat-history-architecture-decision.md`.
+
 ## In Progress
 
 | Issue | Branch | Status |
