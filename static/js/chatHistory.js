@@ -101,10 +101,12 @@
         if (self._gen !== _lgen) return;
         self._loading = false;
         self._c.scrollTop = self._c.scrollHeight;
-        // Lazy-loaded images inflate scrollHeight after the initial snap.
-        // overflow-anchor:none prevents automatic compensation, so attach one-shot
-        // load listeners and re-snap. No slack threshold: a fresh session load should
-        // always land at the bottom regardless of how much content loads.
+        // Lazy-loaded images inflate scrollHeight after the initial snap. Message
+        // nodes keep the default overflow-anchor:auto (only the sentinels/spacer set
+        // :none, see style.css); on our Chromium/QtWebEngine target native anchoring
+        // pins the visible *bottom*, which does not compensate for image growth below
+        // a bottom-anchored viewport — so attach one-shot load listeners and re-snap.
+        // No slack threshold: a fresh session load should always land at the bottom.
         var _imgs = self._c.querySelectorAll('img');
         for (var _ii = 0; _ii < _imgs.length; _ii++) {
           if (!_imgs[_ii].complete) {
@@ -157,6 +159,51 @@
     this._serverHasMore = false;
     this._fetching      = false;
     this._olderLoader   = null;
+    this._clearBusy();
+  };
+
+  // ---------------------------------------------------------------------------
+  // Accessibility helpers
+  //
+  // #chat-history is role="log" aria-live="polite" (index.html) AND the element
+  // we prepend/evict into. Without care, scroll-up history is announced as new
+  // and focus inside an evicted message is silently lost. Two helpers address
+  // that, per the WAI-ARIA APG feed pattern:
+  //   _setBusy/_clearBusy bracket a batch DOM change with aria-busy so assistive
+  //   tech coalesces the churn. _clearBusy restores the PRIOR value (never a
+  //   hardcoded 'false'), so it composes with the streaming aria-busy that
+  //   chat.js toggles on the same element rather than clearing it out from under
+  //   an in-flight stream.
+  //   _captureFocus/_restoreFocusIfLost move focus to the log container if the
+  //   node holding it was removed, so keyboard position is not dumped to <body>.
+  // These are churn/robustness improvements validated by guard tests; they are
+  // not a substitute for a screen-reader audit.
+  // ---------------------------------------------------------------------------
+  MessageWindow.prototype._setBusy = function () {
+    if (this._busyPrev === undefined) {
+      this._busyPrev = this._c.getAttribute('aria-busy');
+    }
+    this._c.setAttribute('aria-busy', 'true');
+  };
+  MessageWindow.prototype._clearBusy = function () {
+    if (this._busyPrev === undefined) return;
+    var prev = this._busyPrev;
+    this._busyPrev = undefined;
+    if (prev === null) this._c.removeAttribute('aria-busy');
+    else this._c.setAttribute('aria-busy', prev);
+  };
+  MessageWindow.prototype._captureFocus = function () {
+    var a = document.activeElement;
+    return !!(a && this._c.contains(a));
+  };
+  MessageWindow.prototype._restoreFocusIfLost = function (had) {
+    if (!had) return;
+    var a = document.activeElement;
+    if (a && this._c.contains(a)) return;   // focus survived
+    // The focused node was evicted; browsers reset activeElement to <body>.
+    // Move focus to the log container so keyboard scroll position is preserved.
+    if (!this._c.hasAttribute('tabindex')) this._c.setAttribute('tabindex', '-1');
+    try { this._c.focus({ preventScroll: true }); } catch (e) { this._c.focus(); }
   };
 
   // Snap to the true bottom of history, draining all remaining _loadNewer() batches.
@@ -216,6 +263,10 @@
       'text-align:center;padding:10px 0;color:var(--fg);opacity:0.5;' +
       'font-size:0.85rem;user-select:none;flex-shrink:0'
     );
+    // Decorative progress marker; loading is driven by the IntersectionObserver,
+    // not by activating this element. Hide it from AT so scroll-up doesn't churn
+    // the live region with an "N earlier messages" announcement.
+    s.setAttribute('aria-hidden', 'true');
     this._sentinel = s;
     this._c.prepend(s);
 
@@ -304,9 +355,19 @@
       'text-align:center;padding:10px 0;color:var(--fg);opacity:0.5;' +
       'font-size:0.85rem;user-select:none;flex-shrink:0;cursor:pointer'
     );
-    // Click also triggers load for users who prefer explicit control
+    // Interactive control: expose it to assistive tech and the keyboard, not just
+    // the mouse. role=button + tabindex + Enter/Space match native button semantics.
+    s.setAttribute('role', 'button');
+    s.setAttribute('tabindex', '0');
+    s.setAttribute('aria-label', 'Load ' + remaining + ' newer messages');
     var self = this;
     s.addEventListener('click', function () { self._loadNewer(); });
+    s.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
+        ev.preventDefault();
+        self._loadNewer();
+      }
+    });
     this._bSentinel = s;
     if (this._histSep && this._histSep.parentNode) {
       this._c.insertBefore(s, this._histSep);
@@ -379,7 +440,12 @@
 
     var insertRef = this._sentinel ? this._sentinel.nextSibling : this._c.firstChild;
 
+    // Bracket the prepend so AT coalesces it instead of announcing old history as
+    // new; cleared in the trailing rAF below. Restores the prior aria-busy value
+    // so a concurrent stream keeps ownership.
+    this._setBusy();
     this._loading = true;
+    var _hadFocusO = this._captureFocus();
     var nodes = [];
     for (var i = from; i < upTo; i++) {
       var m    = this._all[i];
@@ -475,9 +541,13 @@
         );
       }
     }
+    // If the Phase-3 bottom prune above evicted the node holding focus, move it
+    // to the log container before yielding the frame.
+    this._restoreFocusIfLost(_hadFocusO);
     var self = this;
     var _ogen = this._gen;
     requestAnimationFrame(function () {
+      self._clearBusy();
       if (self._gen !== _ogen) return;
       self._loading = false;
       // If scrollToBottom() was called while _loadOlder() was running, restart drain
@@ -512,7 +582,9 @@
     var from = this._endIdx;
     var upTo = Math.min(this._all.length, from + BATCH_SIZE);
 
+    this._setBusy();
     this._loading = true;
+    var _hadFocusN = this._captureFocus();
     var nodes = [];
     for (var i = from; i < upTo; i++) {
       var m    = this._all[i];
@@ -605,10 +677,12 @@
       }
     }
 
+    this._restoreFocusIfLost(_hadFocusN);
     this._attachBottomSentinel();
     var self = this;
     var _ngen = this._gen;
     requestAnimationFrame(function () {
+      self._clearBusy();
       if (self._gen !== _ngen) { self._draining = false; return; }
       self._loading = false;
 
@@ -721,6 +795,7 @@
     }
     if (!toRemove.length) return;
 
+    var _hadFocusE = this._captureFocus();
     var savedScrollTop = this._c.scrollTop;
     var before = this._c.scrollHeight;
 
@@ -753,6 +828,7 @@
     }
 
     this._updateEvictNotice();
+    this._restoreFocusIfLost(_hadFocusE);
     if (typeof requestIdleCallback !== 'undefined') {
       requestIdleCallback(function () {}, { timeout: 3000 });
     }
@@ -817,6 +893,7 @@
     // immediately clamps scrollTop to the new scrollHeight-clientHeight. The spacer
     // restores scrollHeight but not the clamped scrollTop, causing a visible jump.
     var savedScrollTop = this._c.scrollTop;
+    var _hadFocusP = this._captureFocus();
     var before   = this._c.scrollHeight;
     var removed  = 0;
     var highIdx  = -1;
@@ -891,6 +968,7 @@
     if (totalDelta > 0) {
       var spacer = document.createElement('div');
       spacer.className  = 'chat-history-spacer';
+      spacer.setAttribute('aria-hidden', 'true');   // geometry filler, not content
       spacer.style.cssText = (
         'height:' + totalDelta + 'px;flex-shrink:0;display:flex;' +
         'align-items:center;justify-content:center;' +
@@ -914,6 +992,7 @@
     // clamp that occurred during node removal.
     this._c.scrollTop = savedScrollTop;
 
+    this._restoreFocusIfLost(_hadFocusP);
     // Yield to idle after prune so V8 can run incremental GC on the detached subtrees.
     if (typeof requestIdleCallback !== 'undefined') {
       requestIdleCallback(function () {}, { timeout: 3000 });
