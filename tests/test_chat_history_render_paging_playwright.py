@@ -54,9 +54,21 @@ def _seed(db_url):
                          model="test-model", owner=None))
         t = datetime(2026, 1, 1)
         for i in range(N_MESSAGES):
+            # The last few messages (in the initial render window) carry rich content
+            # — fenced code, markdown, an inline image — so the real _mapHistoryMessages
+            # → markdownModule.renderContent path is exercised on non-trivial shapes, not
+            # just plain strings. The SEQMSG marker is preserved so the paging/bounding
+            # assertions (which match /SEQMSG (\d+)/) still hold.
+            content = f"SEQMSG {i:04d}"
+            if i == N_MESSAGES - 3:
+                content += "\n\n```python\nprint('hello')\n```\n\n**bold** and `code`"
+            elif i == N_MESSAGES - 2:
+                content += "\n\n![tiny](data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==)"
+            elif i == N_MESSAGES - 1:
+                content += "\n\n- list item\n- another\n\n> a quote"
             db.add(DbChatMessage(id=str(uuid.uuid4()), session_id=SID,
                                  role="user" if i % 2 == 0 else "assistant",
-                                 content=f"SEQMSG {i:04d}", timestamp=t + timedelta(seconds=i)))
+                                 content=content, timestamp=t + timedelta(seconds=i)))
         db.commit()
     finally:
         db.close()
@@ -130,6 +142,12 @@ def test_history_renders_and_pages(live_server):
                 timeout=15000,
             )
             assert not any("markdownModule" in e for e in errors), f"render error: {errors}"
+
+            # Rich content in the initial window rendered through the real markdown
+            # path: the fenced code block became a <pre> (regression guard for the
+            # markdownModule class on non-trivial content, not just plain strings).
+            assert page.evaluate("document.querySelectorAll('#chat-history pre').length") > 0, \
+                "fenced code block did not render — markdown render path broken for rich content"
 
             init = page.evaluate(_SEQ_JS)
             assert init["count"] < N_MESSAGES, f"initial load not bounded: {init['count']}"
