@@ -6,13 +6,21 @@ Last updated: 2026-06-25. Lighter-rectangle raster tint fixed: `--enable-low-end
 
 ---
 
-**2026-07-08 — Chat-history architecture: decided, not open.** Confirmed by reading both
-implementations that the fork's `MessageWindow` (`chatHistory.js`, DOM eviction + bidirectional
-server paging) **completely supersedes** upstream's `_installHistoryPager` (`45ee5a71`, prepend-only,
-no eviction → unbounded DOM on scroll-up). **We keep ours on `develop`** — a deliberate enhancement,
-not carried debt. Upstream gets two cooperative PRs (route-shadowing fix #125 + eviction concept #2),
-never a request to undo their pager. Regression guard: `tests/test_chat_history_render_paging_playwright.py`.
-Full rationale + comparison table + when-to-revisit: `docs/fork/chat-history-architecture-decision.md`.
+**2026-07-08 — Chat-history architecture: decided + audited.** The fork's `MessageWindow`
+(`chatHistory.js`, DOM eviction + bidirectional server paging) is kept on `develop`: it bounds RSS
+(true node removal), which upstream does not — the merged pager (`45ee5a71`) is prepend-only, and
+**both open upstream PRs miss the memory bound** (#4661 paging-only; #4998 `chatVirtualizer.js` detaches
+children but keeps them in heap = lag fix, not RSS). Open issue **#4644** asks for DOM removal —
+attach our eviction PR there (issue-first). If #4998 merges it becomes a substrate → contribute
+eviction on top, retire most of `MessageWindow`. Upstream research: ROADMAP/issues/PRs/discussions
+surveyed; CONTRIBUTING constraints captured (agent PRs issue-first + human-filed, screenshots, no emoji).
+**Gold-standard audit done:** mechanical core matches best practice; fixed the a11y weakness (aria-busy
+bracket composing with streaming, focus-preserve on eviction, sentinel keyboard access, aria-hidden
+decoratives) each guard-tested; deleted the dead upstream pager cluster from `sessions.js`. **New tests
+(161 green together):** `test_history_pagination_contract.py` (9: pagination math, hidden/base64
+stripping, route-shadowing guard), `test_chat_history_a11y_js.py` (7), extended render-path Playwright
+with markdown/code/image. Full story + comparison table + when-to-revisit:
+`docs/fork/chat-history-architecture-decision.md`.
 
 ## In Progress
 
