@@ -31,8 +31,17 @@ carries the identical collision (legacy `get_history` present; `session_routes`
 registered before `history_routes`), and `_fetchOlderFromServer` calls
 `_historyUrl(sid, {limit, offset})` → the shadow → full history in one fetch. Its
 "150/150 reachable" test passes trivially (all returned at once, not paged).
-**Action:** cherry-pick the route-shadowing fix (`fix/chat-history-dom-eviction`
-commit 1) to develop so the fork's own pagination actually works.
+**Action — DONE 2026-07-07:** route-shadowing fix cherry-picked to develop
+(`268d713c`). Verifying it end-to-end surfaced a **severe pre-existing develop bug**:
+`sessions.js._mapHistoryMessages` (added by server-paging `90b0ebba`) called
+`markdownModule.renderContent` without importing `markdownModule` → `ReferenceError`
+on every session load → **chat history rendered empty** (error swallowed by
+selectSession's catch; missed by static/mock tests). Fixed by adding the import
+(`a34ae5a0`) + a real-browser regression test (`dffed66b`, verified to fail without
+the fix). After both fixes, verified end-to-end: history renders, scroll-up pages to
+the oldest message, DOM stays bounded. The **eviction graft (commit 2) is NOT
+cherry-picked** — it hooks the upstream `_installHistoryPager`, which is dead code on
+develop (develop's active pager is the fork MessageWindow, which has its own eviction).
 
 `fix/untrusted-tool-result-header` (#48) **rebuilt** as one clean commit on current
 `upstream-mirror`, byte-identical to develop; PR draft corrected to the shipped header.
