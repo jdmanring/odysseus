@@ -1,76 +1,156 @@
 # Decision Record — Chat-History Rendering Architecture
 
-**Status:** Decided. Not open for re-litigation. Reopen only if upstream ships DOM eviction of their own (see "When to revisit").
+**Status:** Decided. The verdict (keep the fork's `MessageWindow`) is stable; the *upstream landscape*
+below is live and must be re-checked before filing any upstream PR.
 **Scope:** How the fork renders long chat histories, and what we contribute upstream.
 **Regression guard:** `tests/test_chat_history_render_paging_playwright.py` (on `develop`).
+**Last upstream survey:** 2026-07-08 (issues/PRs/ROADMAP/discussions of `pewdiepie-archdaemon/odysseus`).
 
 ---
 
 ## The question
 
-Upstream shipped its own history pager (`_installHistoryPager`, direct commit `45ee5a71`). The fork
-has its own, older, larger history stack (`static/js/chatHistory.js`, `MessageWindow`). Do we keep
-ours, or drop it for theirs?
+Long chat histories blow up renderer memory (RSS) and cause lag — the fork's whole memory track exists
+because RSS/VRAM is the scarce resource. Two implementations of "don't hold the whole history live"
+are in play: the fork's own `static/js/chatHistory.js` (`MessageWindow`), and upstream's work. Do we
+keep ours, adopt theirs, or blend?
 
-**The only test that matters: is ours better?** It is. So we keep ours. This document records why,
-so it is not asked a third time.
+**The test that decides it: is ours better *for the problem the fork actually has* (bounded memory)?**
+Yes. Keep `MessageWindow` on `develop`. The rest of this document records the evidence, the honest
+places theirs is better, and how our upstream contributions relate to upstream's in-flight work — so
+this is not re-litigated and so a merge of upstream's PRs does not blindside us.
+
+## Upstream landscape (surveyed 2026-07-08 — re-check before filing)
+
+| Upstream item | State | What it does | Bounds memory? |
+|---|---|---|---|
+| Pager `_installHistoryPager` (commit `45ee5a71`, direct to `dev`, **not** a PR) | **merged** | Prepends older pages on scroll-up. Never removes a node. | ❌ DOM grows monotonically |
+| Issue **#4644** "browser OOM during long agent interactions" | **open** | Asks explicitly that old messages be *"collapsed or removed from the DOM."* The canonical OOM issue. | — (the ask) |
+| Issue **#2869** "Chat Freeze" after ~20 messages | **open** | Symptom report; no concrete design. | — |
+| PR **#4661** "prevent browser OOM during long agent interactions" (Fixes #4644) | **open** | "Show N older" bar: server paging (`?limit`/`total`/`has_more_before`) + throttled thinking render. | ❌ paging only — adds, never removes |
+| PR **#4998** "virtualize #chat-history to fix long-chat lag" (`chatVirtualizer.js`) | **open** | Per-message IntersectionObserver: for far-off-screen nodes, **detaches child nodes into a JS array and pins the wrapper height**, restores on scroll-back. Preserves `<details>`/highlight/listeners. | ⚠️ bounds *layout/paint* (lag), **not RSS** — detached children stay referenced in heap, one shell per message retained forever |
+| ROADMAP.md | — | No chat-history / virtualization / renderer-memory item at all. Has a generic "Accessibility pass (incl. reduced motion)". | — |
+
+**Consequence:** upstream's *merged* code still has no bounded-DOM story — our supersession claim holds
+against `dev`. But two open PRs and an open issue are now circling this exact area. Neither open PR
+bounds memory: #4661 is paging-only; #4998 targets lag and keeps detached nodes in heap. So the fork's
+requirement — a true RSS bound via node removal + server refetch — is **unmet by everything upstream,
+merged or in-flight.** That is the specific, on-the-record justification for the divergence (answers
+"a workbench shouldn't diverge": we diverge exactly where upstream has no solution to the fork's
+scarce-resource problem).
 
 ## The comparison (read the code, not the vibes)
 
-| | Upstream `_installHistoryPager` (`sessions.js`, ~60 lines) | Fork `MessageWindow` (`chatHistory.js`, ~1000 lines) |
-|---|---|---|
-| Defers full-history render on open | ✅ | ✅ |
-| Pages **older** from server on scroll-up | ✅ (`loadOlder`, prepend) | ✅ (`_fetchOlderFromServer` → `_all`) |
-| Pages **newer** back in | ❌ | ✅ (`_loadNewer`) |
-| **Evicts DOM nodes** as you scroll | ❌ — prepends forever | ✅ (`_maybePrune`, `_evictLive`, `_pruneTop`, `_pruneBottom`) |
-| Bounded live node count on a long history | ❌ | ✅ (top/bottom IntersectionObserver sentinels) |
-| Scroll-anchor on prepend (no viewport jump) | ✅ (`scrollHeight` delta) | ✅ |
+| | Upstream `_installHistoryPager` (`45ee5a71`, merged) | Upstream `chatVirtualizer.js` (PR #4998, open) | Fork `MessageWindow` (`chatHistory.js`, ~1000 L) |
+|---|---|---|---|
+| Defers full render on open | ✅ | n/a (windows existing DOM) | ✅ |
+| Pages **older** from server | ✅ (prepend) | ❌ (no server involvement) | ✅ (`_fetchOlderFromServer`) |
+| Pages **newer** back in | ❌ | n/a | ✅ (`_loadNewer`) |
+| **Removes nodes from the DOM** | ❌ | ⚠️ detaches *children*, keeps wrapper + heap refs | ✅ (`_pruneTop`/`_evictLive`) |
+| **Bounds RSS** (nodes truly gone) | ❌ | ❌ (detached subtrees retained) | ✅ |
+| Preserves per-node state on scroll-back | ✅ (never removed) | ✅ (detach/restore, no re-render) | ❌ (re-renders via `addMessage`) |
+| Lines of code | ~60 | ~95 | ~1000 |
 
-**The decisive gap:** upstream's pager only *defers* the OOM. It never removes a node, so scrolling
-up through a long conversation grows the DOM without bound — the exact failure `MessageWindow` was
-built to prevent. Ours holds memory flat regardless of history length. Upstream has no
-`chatHistory.js` at all.
+**Honest two-axis verdict.** Ours wins decisively on the memory/OOM bound — the fork's actual
+requirement, and the one #4998 does *not* satisfy (its detached children remain in heap). #4998 wins on
+simplicity and on state-preservation (its detach-and-restore avoids the re-render/refetch ours pays on
+scroll-back). They are closer to *complementary* than competing: #4998 = lag (layout/paint), ours =
+memory. Keeping `MessageWindow` on `develop` is the correct call for a memory-constrained runtime.
 
-**Verdict: ours completely supersedes upstream's recent history work.** Keep `MessageWindow` on
-`develop` as a deliberate fork enhancement. This is not carried debt — it is a better implementation
-we maintain on purpose.
+## The convergence path (strategic — capture, do not build yet)
+
+If #4998 merges, it becomes a **substrate, not a competitor**: our eviction could be contributed *on top
+of* their virtualizer (evict the far tail their windowing leaves in heap), which would let us retire
+most of `MessageWindow` and shrink the fork's divergence — exactly the workbench's purpose. Until an
+upstream bounded-DOM approach actually lands, we hold `MessageWindow`. This reframes the future from
+"defend our 1000 lines" to "delete them once upstream can carry the memory bound."
 
 ## What we learned from theirs
 
-Their prepend scroll-anchor (capture `box.scrollHeight` before insert, add the delta back to
-`scrollTop`) is clean. `MessageWindow` already does the equivalent; keep it that way.
+- **#4998's detach-and-preserve** round-trips node state (`<details>`, highlight, listeners) with no
+  re-render — cleaner than our destroy-and-refetch on that axis. Candidate for a future hybrid (near
+  window: preserve; far tail: evict). Documented as a deferred idea, not built (working-system change,
+  regression risk, no active bug).
+- **Upstream's prepend scroll-anchor** (capture `scrollHeight`, add the delta back to `scrollTop`) —
+  `MessageWindow` already does the equivalent for prepend *and* eviction.
 
 ## What goes upstream (we stage; the human files — hard rule)
 
-We do **not** ask upstream to undo their pager. Two cooperative contributions, both on
+We do **not** ask upstream to undo their pager. Two cooperative contributions on
 `fix/chat-history-dom-eviction` (cut from `upstream-mirror`):
 
-1. **Route-shadowing fix (#125).** A legacy `GET /api/history/{sid}` on the sessions router shadows
-   the paginated endpoint, so upstream's *own* pager never receives `has_more_before` and is inert.
-   This fix makes their feature actually run — a pure gift, no contest.
+1. **Route-shadowing fix (#125).** A legacy `GET /api/history/{sid}` on the sessions router shadows the
+   paginated endpoint, so upstream's *own* pager never receives `has_more_before` and is inert. This
+   fix makes their merged feature actually run — a pure gift.
    Draft: `docs/fork/upstream/pr-drafts/fix-history-route-shadowing.md`.
-2. **Bounded-DOM eviction (#2).** Eviction offered as an enhancement layered on their pager. Since
-   upstream lacks the `MessageWindow` substrate, this branch is the pragmatic small-patch form of our
-   idea, ported onto their code — we hand them the improvement our design proved out.
+2. **Bounded-DOM eviction (#2).** Attach to the **existing upstream issue #4644** (it explicitly
+   requests DOM removal), not a new issue — per CONTRIBUTING's issue-first rule. The PR's exact shape is
+   **reassessed at file-time** (a human decision) depending on whether #4661/#4998 have merged: if
+   #4998 lands, file eviction as a layer on their virtualizer; if not, the standalone eviction pass.
    Draft: `docs/fork/upstream/pr-drafts/fix-chat-history-dom-eviction.md`.
 
-Per the issue-lifecycle rule, #125 and #2 stay open until those upstream PRs are filed.
+**CONTRIBUTING constraints these PRs must satisfy** (upstream `CONTRIBUTING.md`, surveyed 2026-07-08):
+base branch `dev`; one fix per PR; **large feature → open/point to an issue first**; agent-authored
+PRs must be **issue-first and human-filed** (bulk agent PRs are closed unreviewed — Claude Code is named
+explicitly); any `static/js/` DOM change is "visual" → **run the app + attach desktop and mobile
+screenshots**, reuse existing CSS vars/components, **no emoji** (inline SVG only); run `pytest`,
+`py_compile`, and `node --check` and state so in the PR body. Per the issue-lifecycle rule, #125 and #2
+stay open until those upstream PRs are filed.
 
-## How we don't regress
+## Gold-standard audit (2026-07-08)
 
-- **`tests/test_chat_history_render_paging_playwright.py`** (on `develop`) is the guard. It boots a
-  real server + Chromium and asserts: backend paginates (`?limit` honoured, `has_more_before` sent);
-  `selectSession` actually renders bubbles; scroll-up reaches the oldest message via server paging;
-  the DOM never holds the entire history. It would have caught — and now prevents — the
-  `markdownModule is not defined` regression (`_mapHistoryMessages` threw on every session load,
-  history rendered empty, error swallowed by `selectSession`'s catch).
-- The static source-grep + mock-DOM tests **do not** exercise the real render path — that blind spot
-  is exactly how the `markdownModule` break shipped. Any change to `chatHistory.js`, `sessions.js`
-  `_mapHistoryMessages`/`_installHistoryPager`, or the `/api/history` route **must** keep the
-  Playwright guard green; do not rely on the greps alone.
+Audited `MessageWindow` against current virtualization/reverse-scroll best practice (MDN, web.dev,
+TanStack Virtual, WAI-ARIA APG). **The mechanical core is gold-standard:** prepend/eviction scroll
+anchoring, height-matched spacers, timer/listener/hljs teardown on every removal path, `_gen`
+generation guards, `_fetching` single-flight, `_isAtBottom`-gated stick-to-bottom, and a
+`content-visibility:auto` + JS-eviction hybrid all match reference practice.
+
+**The systematic weakness was accessibility** — where hand-rolled virtualizers typically fail. Fixed
+this pass (each with a guard test):
+
+- **Live-region churn.** `#chat-history` is `role="log" aria-live="polite"` *and* the mutation target
+  for prepend/restore/evict, so a screen reader would announce scroll-up history as new. Fix: set
+  `aria-busy="true"` around each `MessageWindow` prune/insert batch and clear it after (ARIA APG),
+  **composing** with the streaming `aria-busy` (`chat.js:1449`/`3532`) so the virtualizer never clears
+  busy while a stream still owns it. (Validated by a guard test that the busy flag brackets the batch —
+  *not* a screen-reader audit, which cannot run here.)
+- **Focus loss on eviction.** Each eviction/prune batch (`_pruneTop`, `_evictLive`, and the scroll-up
+  and scroll-down inline prunes in `_loadOlder`/`_loadNewer`) captures whether focus was inside the log
+  before removing, and — if the focused node was evicted (focus fell to `<body>`) — moves focus to the
+  log container instead of dumping keyboard position.
+- **Sentinel keyboard/semantics.** The clickable bottom sentinel gets `role="button"`/`tabindex`/Enter;
+  decorative spacer/sentinels get `aria-hidden`.
+
+**Deferred and documented (no active bug — do not churn a working system):** intrinsic-size placeholders
+in place of the measured-px spacer; stricter read/write batching in prune paths; the #4998
+detach-preserve hybrid. **Not a bug, comment corrected only:** `overflow-anchor:none` is applied to
+sentinels/spacer, not globally; the target is Chromium-based QtWebEngine where native anchoring targets
+the visible bottom and coexists harmlessly with our manual math — the misleading "required globally"
+comment was corrected to state the real invariant.
+
+**Dead code removed (develop-only hygiene):** `sessions.js` `_installHistoryPager` /
+`_renderHistoryMessage` / `_addHistoryMessageWithFullRenderer` — upstream's pager, orphaned on the fork
+by our `olderLoader`, zero call sites and zero test refs. (`upstream-mirror` correctly keeps the pager.)
+
+## Test coverage (2026-07-08)
+
+The `*_js.py` tests are static source-greps (no JS execution); real behavior is covered only by the two
+Playwright files. Added this pass:
+
+- **Backend pagination contract** (pytest `TestClient`): `limit`/`offset`/`has_more_before`/
+  `has_more_after`, `limit` cap at 100, offset clamp, default offset `total-limit`.
+- **Hidden-row + base64/multimodal stripping through the *paginated* DB branch** (previously only the
+  fallback branch was grepped).
+- **Direct route-shadowing assertion**: exactly one `/api/history/{id}` handler is registered and it is
+  the paginated one — a one-line reintroduction of the legacy route would otherwise silently re-break
+  paging with no failing test.
+- **Real render-path Playwright** extended to seed markdown/fenced-code/image/agent-thread content, not
+  just plain strings — closing the `markdownModule`-regression class beyond the trivial shape.
+- **A guard test per a11y fix** above.
 
 ## When to revisit
 
-Only if upstream ships genuine DOM **eviction** (not just paging) of their own. At that point
-re-run this comparison against their new code. Until then: course is set — keep ours, ship them the
-fix + the eviction concept.
+- **Before filing** either upstream PR — re-run the upstream survey (#4644/#4661/#4998 states).
+- **If #4998 or #4661 merges** — re-open the comparison; pursue the convergence path (eviction on top of
+  their virtualizer) rather than defending `MessageWindow`.
+- Otherwise the course is set: keep ours on `develop`, ship them the route fix + the eviction concept.
