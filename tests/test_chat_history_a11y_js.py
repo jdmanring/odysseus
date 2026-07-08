@@ -106,6 +106,27 @@ def test_clear_busy_composes_with_streaming_busy(page):
     assert r == "true"                    # stream still owns busy
 
 
+def test_clear_busy_does_not_steal_from_stream_started_after_setbusy(page):
+    _load(page)
+    # Dangerous interleaving: virtualizer brackets a batch with NO stream active
+    # (_busyPrev captured as null), then a stream starts within the same frame
+    # (chat.js sets aria-busy='true' and a .stream-content node appears) before the
+    # trailing rAF clears. _clearBusy must NOT removeAttribute — the live stream
+    # owns busy now.
+    r = page.evaluate("""() => {
+        const c = document.getElementById('chat-history');
+        const ch = window.chatHistory;
+        ch._setBusy();                                   // no stream: _busyPrev = null
+        const s = document.createElement('div');         // stream starts...
+        s.className = 'stream-content';
+        c.appendChild(s);
+        c.setAttribute('aria-busy', 'true');
+        ch._clearBusy();                                 // must leave busy for the stream
+        return c.getAttribute('aria-busy');
+    }""")
+    assert r == "true"
+
+
 # --- focus preservation on eviction ----------------------------------------
 
 def test_focus_moved_to_container_when_focused_node_pruned(page):

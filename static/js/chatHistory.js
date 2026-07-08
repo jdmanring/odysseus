@@ -73,6 +73,7 @@
     // agent session (50 msgs × 5 DOM children = 250 nodes > PRUNE_AT=80).
     // rAF fires after the microtask queue drains, keeping the guard intact.
     opts = opts || {};
+    this._setBusy();          // coalesce the initial session render for AT
     this._loading  = true;
     this._all      = messages;
     // Server-paging state: only enabled when the caller supplies an olderLoader
@@ -100,6 +101,7 @@
       requestAnimationFrame(function () {
         if (self._gen !== _lgen) return;
         self._loading = false;
+        self._clearBusy();
         self._c.scrollTop = self._c.scrollHeight;
         // Lazy-loaded images inflate scrollHeight after the initial snap. Message
         // nodes keep the default overflow-anchor:auto (only the sentinels/spacer set
@@ -189,6 +191,15 @@
     if (this._busyPrev === undefined) return;
     var prev = this._busyPrev;
     this._busyPrev = undefined;
+    // A stream may have STARTED after _setBusy() captured prev (chat.js sets
+    // aria-busy='true' while streaming and 'false' at done, and leaves a
+    // .stream-content / .agent-thinking-dots marker in the log meanwhile). If one
+    // is live now, it owns aria-busy — leave it 'true' rather than restoring our
+    // captured prior, which would clear the busy out from under the live stream.
+    if (this._c.querySelector('.stream-content, .agent-thinking-dots')) {
+      this._c.setAttribute('aria-busy', 'true');
+      return;
+    }
     if (prev === null) this._c.removeAttribute('aria-busy');
     else this._c.setAttribute('aria-busy', prev);
   };
