@@ -23,7 +23,7 @@ not a failure. Read the sections below as the *method*, not as a prediction that
 | `naive` | upstream merged pager (`45ee5a71`) shape | render page, prepend older on scroll-up, never remove | nothing (baseline) |
 | `detach` | **vendored** upstream PR **#4998** `chatVirtualizer.js` (verbatim, with provenance) | off-screen: detach children into a JS array, pin wrapper height; restore on scroll-back | layout/paint only |
 | `evict` | the fork's `static/js/chatHistory.js` (`MessageWindow`) | remove off-screen nodes; refetch from server on scroll-back | rendered DOM nodes (but `_all` data grows) |
-| `hybrid` | new (this benchmark) — **hypothesis, refuted** | live band → warm band (detach-preserve, #4998 technique) → cold tail (evict nodes **and** `_all`, refetch) | strictly worse than `evict`: the warm band retains a superset |
+| `hybrid` | new (this benchmark) — **hypothesis, refuted** | live band → warm band (detach-preserve, #4998 technique) → cold tail (evict nodes **and** `_all`, refetch) | bounded, but never better than `evict` where it matters (n ≥ 1000) |
 
 Vendoring #4998's actual code (not a reimplementation) is a hard requirement: a benchmark that
 reimplements a rival and makes it look bad is dismissed on sight.
@@ -175,8 +175,15 @@ Two rules follow, and they are load-bearing:
   eviction — the arm the conclusion favours, i.e. the honest direction. `deepback_moved_msgs` is
   published so the asymmetry is auditable. (That the spacer misreports also means eviction's *scrollbar
   lies to the user* in the real app — a separate, real finding.)
-- **`hybrid`'s top spacer drifts** (fork issue #126); its deep-scroll-back cells are withheld by the
-  completeness guard rather than published. The refutation does not rest on them.
+- **Neither bounded arm produces a deep-scroll-back number**, for two different reasons, and the table
+  says so rather than showing a flattering zero. `hybrid`'s top spacer drifts (fork issue #126) so its
+  excursion falls short. `evict` walks the full excursion but its scroll anchoring defeats the driver's
+  `scrollTop +=` walk and it never reaches the newest message. **Consequence: this benchmark supports no
+  claim about eviction's deep scroll-back cost.** The refutation of the hybrid does not rest on those
+  cells (it rests on memory, which is structural).
+- **That `evict` cannot be driven back to the bottom is itself a lead, not just a harness quirk** — it
+  may indicate a real "scrolling down never reaches the newest message" bug under programmatic scroll.
+  Unverified in the real app; do not report it as a bug until reproduced there.
 - **Network is excluded.** `evict`/`hybrid` refetch cold pages from the server in the real app; the
   harness serves them from memory. Their scroll-back numbers are a **lower bound**. Again: biased
   against the conclusion.

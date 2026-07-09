@@ -64,9 +64,18 @@ our eviction, expected to Pareto-dominate both. **It was built (`tests/bench/ven
 tested (`tests/test_chat_history_hybrid_bench_js.py`, 5 Chromium guards), benchmarked, and it lost.**
 Numbers: `tests/bench/results/bench.md` (generated; never transcribed here).
 
-The hybrid is **strictly worse than eviction alone** — more retained nodes, more renderer USS, and no
-compensating win on any measured cost axis. Two reasons, and both are structural rather than a tuning
-failure, so **do not attempt to rescue this by tuning band sizes**:
+**The hybrid buys nothing over eviction alone at any history length that matters.** Stated precisely,
+because the honest version is narrower than "strictly worse":
+
+- At **n ≥ 1000** eviction wins on renderer USS and holds ~2.5× fewer retained nodes.
+- At **n = 250** the hybrid is marginally *ahead* on USS and node count. This is the regime where all
+  strategies sit inside Chromium's renderer baseline and the difference is not worth a decision.
+- At **n = 5000** their USS is within measurement spread; eviction still holds ~2.5× fewer nodes.
+- The hybrid's one theoretical advantage — cheap warm-band restore — is **beaten by eviction's zero**,
+  because the live window already covers that range without detaching anything.
+
+The reasons are structural rather than a tuning failure, so **do not attempt to rescue this by tuning
+band sizes**:
 
 1. **Detach-preserve retains a superset of what eviction retains** over the same window: it keeps every
    collapsed message's children alive in `__vChildren`. Eviction can therefore never lose to it on
