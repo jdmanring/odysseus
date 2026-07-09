@@ -39,6 +39,11 @@ HYBRID_JS = ROOT / "tests/bench/vendor/hybrid_bench.js"
 RESULTS_DIR = ROOT / "tests/bench/results"
 
 VIEWPORT = {"width": 900, "height": 700}
+
+# Excursion targets, in MESSAGES. Named so the probes and the withheld-reason
+# reporting cannot drift apart.
+_RECENT_EXCURSION = 20    # inside the bounded arms' window: nothing should be pruned
+_DEEP_EXCURSION = 200     # past the window: the bounded arms must have pruned the bottom
 LAUNCH_ARGS = ["--enable-precise-memory-info", "--js-flags=--expose-gc"]
 
 
@@ -260,7 +265,7 @@ def _scrollback_probe_js() -> str:
         if (!window.__sbWarmed) {
           box.scrollTop = box.scrollHeight;
           await settle();
-          const ex = await upBy(20);
+          const ex = await upBy(""" + str(_RECENT_EXCURSION) + """);
           window.__sbDist = ex.dist;
           window.__sbOk = ex.complete;
           await walkDown([]);          // leave: region collapses (detach) or rests (evict)
@@ -306,7 +311,7 @@ def _deepback_probe_js() -> str:
         if (!window.__dbWarmed) {
           box.scrollTop = box.scrollHeight;
           await settle();
-          const ex = await upBy(200);
+          const ex = await upBy(""" + str(_DEEP_EXCURSION) + """);
           window.__dbOk = ex.complete;
           window.__dbMoved = ex.moved;
           window.__dbWarmed = true;
@@ -554,6 +559,25 @@ def median_cell(pw, arm, n, repeats):
         out[k] = round(statistics.median(vals), 2)
         out[k + "_spread"] = round(max(vals) - min(vals), 2)
         out[k + "_raw"] = vals
+
+    # Booleans are not medians, so the loop above drops them -- which left the artifact
+    # unable to explain its own blank cells: a reviewer saw an em-dash and had to trust
+    # the caption. Carry the completeness flags, the per-run values behind them, and a
+    # machine-readable reason, so a withheld cell is self-describing in the JSON.
+    for probe, target in (("scrollback", _RECENT_EXCURSION), ("deepback", _DEEP_EXCURSION)):
+        flags = [bool(r.get(probe + "_complete")) for r in runs]
+        out[probe + "_complete"] = all(flags)
+        out[probe + "_complete_runs"] = f"{sum(flags)}/{len(flags)}"
+        if not all(flags):
+            moved = out.get("deepback_moved_msgs") if probe == "deepback" else None
+            if moved is not None and moved < target:
+                out[probe + "_withheld_reason"] = (
+                    f"excursion fell short: traversed {moved} of {target} messages "
+                    f"(the arm cannot walk that far; its spacer under-models history)")
+            else:
+                out[probe + "_withheld_reason"] = (
+                    "return walk never reached the newest message (scroll anchoring "
+                    "defeats a stepped scrollTop walk); a stalled walk is not a fast one")
     return out
 
 
