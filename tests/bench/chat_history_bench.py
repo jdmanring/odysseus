@@ -106,23 +106,35 @@ _HARNESS_HTML = """
 # Arm drivers — each loads the corpus and drives the SAME scroll-to-top trajectory.
 # Returned value is unused; measurement is done via CDP around these calls.
 # ---------------------------------------------------------------------------
-def _scroll_to_top_js(steps: int = 60) -> str:
-    # Step the container to the top, yielding frames so IntersectionObserver /
-    # scroll-driven paging/eviction actually fire. Drives all the way up so the
-    # evict arm's _all retention and the detach arm's kept nodes are both measured.
+def _scroll_sweep_js(divisor: int = 120) -> str:
+    # Instrumented smooth scroll from bottom to top: step scrollTop down each frame
+    # and record per-frame intervals. This (a) drives the scroll-back mechanism of
+    # each strategy (detach restore / evict _loadOlder paging) so the memory peak is
+    # measured at the top, and (b) captures scroll smoothness. A composited static
+    # list (naive) stays at ~16.7ms; a strategy doing synchronous DOM work per scroll
+    # step (e.g. #4998's per-message collapse/restore) shows long frames. Robust
+    # across scroll speed (validated: #4998 janks at fast/med/slow alike).
     return f"""
       async () => {{
         const box = document.getElementById('chat-history');
-        for (let s = 0; s < {steps}; s++) {{
-          box.scrollTop = 0;
-          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-          if (box.scrollTop === 0 && s > 4) {{
-            // give paging a couple extra frames to settle at the very top
-            await new Promise(r => setTimeout(r, 30));
-            if (box.scrollTop === 0) break;
-          }}
+        box.scrollTop = box.scrollHeight;
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const H = box.scrollHeight, step = Math.max(8, Math.floor(H / {divisor}));
+        let last = performance.now();
+        const frames = [];
+        for (let y = H; y >= 0; y -= step) {{
+          box.scrollTop = y;
+          await new Promise(r => requestAnimationFrame(() => {{
+            const n = performance.now(); frames.push(n - last); last = n; r();
+          }}));
         }}
+        // settle at the very top so any final paging lands before the memory sample
+        for (let s = 0; s < 8; s++) {{ box.scrollTop = 0;
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); }}
         await new Promise(r => setTimeout(r, 60));
+        const sum = frames.reduce((s, x) => s + x, 0);
+        return {{ mean: +(sum / frames.length).toFixed(2),
+                 long: frames.filter(f => f > 50).length, frames: frames.length }};
       }}
     """
 
@@ -273,9 +285,11 @@ def run_cell(pw, arm: str, n: int) -> dict:
         }""")
         lay_after = layout_cost(cdp)
 
-        # --- memory axis: drive to the very top so both the evict arm's _all retention
-        # and the detach arm's kept-node retention are measured (fairness cuts both ways).
-        page.evaluate(_scroll_to_top_js())
+        # --- scroll axis + drive to top: an instrumented bottom→top sweep records
+        # scroll smoothness AND exercises each strategy's scroll-back path, leaving us
+        # at the top so the evict arm's _all retention and the detach arm's kept-node
+        # retention are both measured (fairness cuts both ways).
+        sweep = page.evaluate(_scroll_sweep_js())
         mem_peak = sample_mem(page, cdp)
         # GC-settle before the OS memory read so USS reflects retained, not transient.
         page.evaluate("window.gc && (window.gc(), window.gc());")
@@ -288,6 +302,7 @@ def run_cell(pw, arm: str, n: int) -> dict:
             "jsheap_loaded": mem_loaded["jsheap"], "jsheap_peak": mem_peak["jsheap"],
             "listeners_peak": mem_peak["listeners"],
             "uss_mb": rmem["uss_mb"], "rss_mb": rmem["rss_mb"],
+            "scroll_mean_ms": sweep["mean"], "scroll_long_frames": sweep["long"],
             "append_layout_ms": round(lay_after["layout_ms"] - lay_before["layout_ms"], 2),
             "append_style_ms": round(lay_after["style_ms"] - lay_before["style_ms"], 2),
         }
@@ -303,7 +318,8 @@ def median_cell(pw, arm, n, repeats):
     runs = [run_cell(pw, arm, n) for _ in range(repeats + 1)][1:]
     out = {"arm": arm, "n": n, "repeats_kept": len(runs)}
     keys = ("nodes_loaded", "nodes_peak", "jsheap_loaded", "jsheap_peak", "listeners_peak",
-            "uss_mb", "rss_mb", "append_layout_ms", "append_style_ms")
+            "uss_mb", "rss_mb", "scroll_mean_ms", "scroll_long_frames",
+            "append_layout_ms", "append_style_ms")
     for k in keys:
         vals = [r[k] for r in runs if r[k] is not None]
         if not vals:
@@ -353,8 +369,8 @@ def main():
                 uss = cell["uss_mb"]
                 print(f"  {arm:7} n={n:5}  nodes={cell['nodes_peak']:7}  "
                       f"USS={uss if uss is None else f'{uss:6.1f}'}MB  "
-                      f"jsheap={cell['jsheap_peak']/1e6:5.2f}MB  "
-                      f"append_layout={cell['append_layout_ms']:6}ms  style={cell['append_style_ms']:6}ms")
+                      f"scroll={cell['scroll_mean_ms']:6}ms/{cell['scroll_long_frames']:>3}long  "
+                      f"append={cell['append_layout_ms']:6}ms")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     (RESULTS_DIR / "bench.json").write_text(json.dumps({"env": env, "results": rows}, indent=2))
@@ -375,7 +391,10 @@ def _table(by, lengths, arms, key, fmt=lambda x: x):
         for a in arms:
             r = by[(a, n)]
             v = r.get(key)
-            cells.append(_cell(fmt(v) if v is not None else None, r.get(key + "_spread")))
+            sp = r.get(key + "_spread")
+            # spread is stored in the raw unit; render it through the same formatter
+            # as the value or a bytes->MB table prints "1.51 ±22016".
+            cells.append(_cell(fmt(v) if v is not None else None, fmt(sp) if sp else sp))
         lines.append(f"| {n} | " + " | ".join(cells) + " |")
     return lines
 
@@ -400,6 +419,21 @@ def _write_markdown(rows, lengths, arms, env):
     L.append("\n## Post-GC JS heap at top (MB) — JS-side retention only\n")
     L.append("Does NOT include #4998's detached DOM (C++/Blink); includes the fork's `_all` strings.\n")
     L += _table(by, lengths, arms, "jsheap_peak", fmt=lambda b: round(b / 1e6, 2))
+    L.append("\n## Scroll smoothness — mean frame ms during a bottom→top sweep\n")
+    L.append("~16.7ms = a solid 60fps. A composited static list (naive) stays smooth; a strategy doing "
+             "synchronous DOM work per scroll step janks. This also exercises scroll-back: evict's batched "
+             "`_loadOlder` re-render stays smooth, whereas #4998's per-message collapse/restore does not "
+             "(validated janky at fast/medium/slow scroll alike). Excludes evict's server-fetch cost — see "
+             "the scroll-back note below.\n")
+    L += _table(by, lengths, arms, "scroll_mean_ms")
+    L.append("\n## Scroll long frames (>50ms) during the sweep — jank count\n")
+    L += _table(by, lengths, arms, "scroll_long_frames")
+    L.append("\n> **Scroll-back / network (the one axis where #4998 wins, not captured above):** #4998 "
+             "restores collapsed messages instantly from its in-heap `__vChildren` (zero network). The "
+             "fork's evict refetches older pages from the server on scroll-up (`_fetchOlderFromServer`), "
+             "so it pays ~one localhost round-trip per page — the cost of not retaining the data client-"
+             "side. This harness runs evict without a server (in-memory `_all`), so that network tax is "
+             "NOT in these numbers and must be weighed separately.\n")
     L.append("\n## Append LAYOUT ms (stream 25 msgs into an n-message list)\n")
     L.append("Cost of streaming new messages into a large list. `evict` wins because its list stays "
              "bounded. **This does NOT capture #4998's lag benefit**: appends land in the live region, "
