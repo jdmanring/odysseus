@@ -666,13 +666,20 @@ def _write_markdown(rows, lengths, arms, env):
     L.append("\n## Recent scroll-back — STYLE-recalc ms\n")
     L += _table(by, lengths, arms, "scrollback_style_ms")
     L.append("\n## Deep scroll-back — LAYOUT ms returning to the conversation\n")
-    L.append("Walk back 200+ messages (past the window, so the bounded arms pruned the bottom), then "
-             "measure the return to the newest message. This was designed as the axis the detach "
-             "family owns — `detach` still holds every message's children in `__vChildren`, while "
-             "`evict`/`hybrid` must re-render from data. **It does not play out that way:** "
-             "re-rendering a bounded batch is cheaper than re-attaching thousands of nodes with a "
-             "forced reflow each. A cell is blank if that arm's walk never reached the newest message "
-             "or its excursion fell short — a stalled walk is not a fast one.\n")
+    L.append("Walk back 200 messages (past the window, so the bounded arms pruned the bottom), then "
+             "measure the return to the newest message. Designed as the axis the detach family owns — "
+             "`detach` holds every message's children in `__vChildren`, while `evict`/`hybrid` must "
+             "re-render from data.\n")
+    L.append("\n**Both bounded arms' cells are withheld, for two different reasons, and neither is a "
+             "result.** `evict` walks its full 200 messages but its scroll anchoring defeats the "
+             "driver's `scrollTop +=` walk, so it never reaches the newest message. `hybrid`'s top "
+             "spacer drifts (fork issue #126), so its excursion falls short of 200. A stalled walk is "
+             "not a fast one: the harness reports `complete`/`moved` and blanks the cell rather than "
+             "publishing a near-zero. **What survives here is only `detach` vs `naive`** — and it is "
+             "brutal for `detach`, for the same `offsetHeight`-reflow reason as the scroll-jank row. "
+             "No claim about eviction's deep scroll-back cost is supported by this table.\n")
+    L.append("\n(`detach` at n=5000 carries a wide spread from one outlier run; the median is robust and "
+             "every kept run exceeds 470ms. Raw per-run values are in `bench.json`.)\n")
     L.append("\nMessages actually traversed by the excursion (`evict`'s spacer compresses unrendered "
              "history, so a fixed message target overshoots — it walks *further* than the others, "
              "which biases this table against it):\n")
