@@ -5,9 +5,14 @@ on the two axes that matter — **renderer memory** and **layout/paint cost (lag
 memory-bound strategies trade away — **scroll-back latency**. The output is an artifact a skeptic
 (upstream maintainer) can re-run and get the same *shape*, so the conclusion is not deniable.
 
-**Non-goal.** A chart that only flatters one strategy. Every strategy's genuine win is reported. The
-persuasive result is not "ours beats theirs" (a trade-off, waved off in one comment) but a **hybrid
-that Pareto-dominates** — bounded memory *and* low layout cost *and* instant recent scroll-back.
+**Non-goal.** A chart that only flatters one strategy. Every strategy's genuine win is reported.
+
+**The hypothesis this benchmark was built to prove was refuted by it.** The design below anticipated a
+`hybrid` arm that Pareto-dominates — bounded memory *and* low layout cost *and* instant recent
+scroll-back. The hybrid was built, tested, and measured; it is strictly worse than eviction alone. The
+reasoning is recorded in `docs/fork/chat-history-architecture-decision.md` and the numbers in
+`tests/bench/results/bench.md`. The arm is kept, relabelled: a tested refutation with data is a result,
+not a failure. Read the sections below as the *method*, not as a prediction that held.
 
 ---
 
@@ -18,7 +23,7 @@ that Pareto-dominates** — bounded memory *and* low layout cost *and* instant r
 | `naive` | upstream merged pager (`45ee5a71`) shape | render page, prepend older on scroll-up, never remove | nothing (baseline) |
 | `detach` | **vendored** upstream PR **#4998** `chatVirtualizer.js` (verbatim, with provenance) | off-screen: detach children into a JS array, pin wrapper height; restore on scroll-back | layout/paint only |
 | `evict` | the fork's `static/js/chatHistory.js` (`MessageWindow`) | remove off-screen nodes; refetch from server on scroll-back | rendered DOM nodes (but `_all` data grows) |
-| `hybrid` | new (this benchmark) | live band → warm band (detach-preserve, #4998 technique) → cold tail (evict nodes **and** `_all`, refetch) | rendered DOM nodes **and** retained data |
+| `hybrid` | new (this benchmark) — **hypothesis, refuted** | live band → warm band (detach-preserve, #4998 technique) → cold tail (evict nodes **and** `_all`, refetch) | strictly worse than `evict`: the warm band retains a superset |
 
 Vendoring #4998's actual code (not a reimplementation) is a hard requirement: a benchmark that
 reimplements a rival and makes it look bad is dismissed on sight.
@@ -31,10 +36,13 @@ reimplements a rival and makes it look bad is dismissed on sight.
   subtrees, but it is O(history-scrolled), not flat. The headline is "bounded rendered DOM + cheap
   string retention," and the scroll trajectory **must drive to the very top** so this cost is measured,
   not hidden. Fairness cuts against us too.
-- **`detach` genuinely wins two things:** layout/paint parity with the bounded strategies, and
-  **instant, zero-network scroll-back** (array re-append vs our server round-trip). Both are reported.
-- **The hybrid's claim:** matches `detach` on layout and on recent scroll-back (warm band is detach),
-  and matches `evict` on memory for deep history (cold tail frees both nodes and `_all`).
+- **`detach`'s one genuine, unmeasured win is zero-network scroll-back** (array re-append vs our server
+  round-trip). It is stated and excluded, not measured — see Known limitations. Its *layout* parity did
+  not survive measurement: it loses the scroll-smoothness and scroll-back layout axes outright, for the
+  `offsetHeight`-reflow reason above.
+- **The hybrid's claim was refuted.** It was: match `detach` on recent scroll-back, match `evict` on
+  deep memory. It matches neither advantage and costs more memory than `evict`. Kept as a recorded
+  refutation.
 
 ## Instruments (empirically selected)
 
@@ -126,10 +134,51 @@ their real behaviour, so its results are theirs, not a crippled reimplementation
 - Generated results (`tests/bench/results/*.json` + a rendered table) — **generated output, never
   hand-written numbers** (claims discipline: no un-reproduced number in a permanent doc).
 
-## Interpretation → upstream strategy
+## Interpretation → upstream strategy (rewritten against the measured result)
 
-If the hybrid Pareto-dominates (expected from the probe: `detach` node-count stays at history size,
-`evict`/`hybrid` sawtooth low; layout parity across bounded arms; hybrid keeps `detach`'s instant
-recent scroll-back), the upstream ask is not "replace #4998." It is: **land #4998 for lag, then add the
-cold-tail eviction increment** (this benchmark's hybrid delta) tied to issue #4644 (which asks for DOM
-removal). Small, single-purpose, complementary — and backed by numbers the maintainer re-runs.
+The hybrid does **not** Pareto-dominate; eviction dominates the hybrid. Detach-preserve retains a
+superset of what eviction retains over the same window, and a live window already gives instant recent
+scroll-back at zero work and zero network. So the upstream ask is *not* "land #4998, then add a cold
+tail." It is:
+
+1. **Route-shadowing fix (#125)** — makes upstream's own merged pager actually run. A pure gift.
+2. **Bounded-DOM eviction**, attached to existing issue **#4644** (which asks for DOM removal).
+3. **A review comment on #4998**, offered as help rather than competition: their jank has one root
+   cause — `node.offsetHeight` read inside the IntersectionObserver callback forces a synchronous
+   layout per collapsing node. `entry.boundingClientRect.height` is already computed and free.
+
+## Probe failures this harness has caught (why the guards exist)
+
+Each of these produced a *plausible, flattering* number for the arm the author favoured. They are
+recorded because the guards that now prevent them are otherwise unmotivated code.
+
+| Artifact | Symptom | Guard now in place |
+|---|---|---|
+| 3-viewport pixel excursion never left `evict`'s window | exact `0.00ms` "win" | excursions are driven in **messages**, not pixels |
+| walk-down stalled against `chatHistory.js` scroll anchoring | ~0ms for work never done; newest message never rendered | `walkDown()` returns `complete`; cell discarded when false |
+| appended stream bubbles carried no `data-i` → `topVisible()` returned `Infinity` | `evict`'s entire scroll-back row measured an excursion that **never moved** | every bubble tagged; `topVisible()` returns `NaN`, not `Infinity` |
+| `upBy()` under-delivered its message target | short excursion published as a fast one | `upBy()` returns `moved`; cell discarded when `moved < k`; `moved` published |
+| JS-heap table | medians in MB, spreads in bytes | spread rendered through the value's formatter |
+
+Two rules follow, and they are load-bearing:
+
+- **An extreme value (`0.00`, a perfect tie, a suspiciously round number) means read the underlying
+  record before concluding.** Every zero above survived a plausibility check and died on inspection.
+- **Never edit the harness while a measurement run is in flight.** Python has already imported the
+  module; the artifact will not correspond to the source, and no one can reproduce it. One run was
+  discarded for exactly this.
+
+## Known limitations (stated, not hidden)
+
+- **`evict`'s spacer compresses unrendered history**, so a fixed message-count excursion overshoots and
+  it traverses *more* messages than the other arms. This biases the deep-scroll-back table **against**
+  eviction — the arm the conclusion favours, i.e. the honest direction. `deepback_moved_msgs` is
+  published so the asymmetry is auditable. (That the spacer misreports also means eviction's *scrollbar
+  lies to the user* in the real app — a separate, real finding.)
+- **`hybrid`'s top spacer drifts** (fork issue #126); its deep-scroll-back cells are withheld by the
+  completeness guard rather than published. The refutation does not rest on them.
+- **Network is excluded.** `evict`/`hybrid` refetch cold pages from the server in the real app; the
+  harness serves them from memory. Their scroll-back numbers are a **lower bound**. Again: biased
+  against the conclusion.
+- **Ecological validity is an assumption, not a measurement.** These are headless-Chromium renderer
+  numbers; the target runtime is QtWebEngine. Nothing here demonstrates the curves transfer.

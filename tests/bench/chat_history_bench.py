@@ -163,28 +163,42 @@ def _scroll_sweep_js(divisor: int = 120) -> str:
 _PROBE_PRELUDE = """
   const box = document.getElementById('chat-history');
   const atBottom = () => box.scrollTop >= box.scrollHeight - box.clientHeight - 2;
+  // NaN (not Infinity) when nothing tagged is visible: Infinity silently satisfied the
+  // "moved k messages" test on the first tagged message it saw, so an excursion that
+  // never moved reported success. NaN comparisons are false, so the walk continues and
+  // the completeness check below catches a genuinely broken probe.
   const topVisible = () => {
     const top = box.getBoundingClientRect().top;
     let best = Infinity;
     for (const el of box.querySelectorAll('.msg[data-i]')) {
       if (el.getBoundingClientRect().bottom > top) { best = Math.min(best, +el.dataset.i); }
     }
-    return best;
+    return best === Infinity ? NaN : best;
   };
   const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   // Walk up until we have passed K messages (or hit the true top).
   // Returns the pixel distance the walk required, so a measured pass can replay the
   // same excursion without calling topVisible() (whose scan forces layout).
+  // Reports how far it actually got, in messages, so a caller can refuse to publish
+  // an excursion that under-delivered. Reaching the true top counts as complete.
+  // Fine steps (0.25 viewport) bound the overshoot. A coarse 0.9-viewport step walked
+  // evict from message 1880 to 0 in one excursion while hybrid moved only ~330: evict's
+  // spacer under-models unrendered history, so a pixel of its scrollbar is worth many
+  // messages. `moved` is returned and published so any residual asymmetry between arms
+  // is auditable rather than hidden inside a "200 messages" label.
   const upBy = async (k) => {
     const start = topVisible(), from = box.scrollTop;
-    for (let i = 0; i < 600; i++) {
-      if (box.scrollTop <= 0) break;
+    for (let i = 0; i < 2400; i++) {
       if (start - topVisible() >= k) break;
-      box.scrollTop -= box.clientHeight * 0.9;
+      if (box.scrollTop <= 0) break;
+      box.scrollTop -= box.clientHeight * 0.25;
       await settle();
     }
     await new Promise(r => setTimeout(r, 80));
-    return Math.abs(from - box.scrollTop);
+    const moved = start - topVisible();
+    // Reaching the true top does NOT excuse a short excursion: if an arm cannot travel
+    // k messages, the cell it would produce is not comparable and must be discarded.
+    return { dist: Math.abs(from - box.scrollTop), moved: moved, complete: moved >= k };
   };
   // Walk DOWN to the live conversation, recording per-frame intervals. Distance is
   // whatever that arm's own geometry requires -- the work it must do to get back IS
@@ -246,7 +260,9 @@ def _scrollback_probe_js() -> str:
         if (!window.__sbWarmed) {
           box.scrollTop = box.scrollHeight;
           await settle();
-          window.__sbDist = await upBy(20);
+          const ex = await upBy(20);
+          window.__sbDist = ex.dist;
+          window.__sbOk = ex.complete;
           await walkDown([]);          // leave: region collapses (detach) or rests (evict)
           window.__sbWarmed = true;
           return null;
@@ -265,7 +281,7 @@ def _scrollback_probe_js() -> str:
           }));
         }
         await new Promise(r => setTimeout(r, 80));
-        return report(frames);
+        return Object.assign(report(frames), { complete: !!window.__sbOk });
       }
     """
 
@@ -290,13 +306,16 @@ def _deepback_probe_js() -> str:
         if (!window.__dbWarmed) {
           box.scrollTop = box.scrollHeight;
           await settle();
-          await upBy(200);
+          const ex = await upBy(200);
+          window.__dbOk = ex.complete;
+          window.__dbMoved = ex.moved;
           window.__dbWarmed = true;
           return null;
         }
         const frames = [];
         const complete = await walkDown(frames);   // MEASURED: return to the conversation
-        return Object.assign(report(frames), { complete: complete });
+        return Object.assign(report(frames),
+                             { complete: complete && !!window.__dbOk, moved: window.__dbMoved });
       }
     """
 
@@ -435,9 +454,14 @@ def run_cell(pw, arm: str, n: int) -> dict:
         }""")
         lay_before = layout_cost(cdp)
         page.evaluate("""async () => {
+            // Tag appends with the next source indices. Untagged bubbles at the bottom
+            // made topVisible() return Infinity, which made the scroll-back excursions
+            // break on their first tagged message and never move at all -- reported as
+            // a genuine 0.00ms. Every bubble in the container must carry data-i.
+            const base = window.CORPUS.length;
             for (let k = 0; k < 25; k++) {
                 window.chatModule.addMessage('assistant',
-                    '<p>Appended streamed message ' + k + '. ' +
+                    '<p>Message ' + (base + k) + '. Appended streamed. ' +
                     'Lorem ipsum dolor sit amet consectetur adipiscing elit. '.repeat(3) + '</p>');
                 const box = document.getElementById('chat-history');
                 box.scrollTop = box.scrollHeight;
@@ -481,12 +505,20 @@ def run_cell(pw, arm: str, n: int) -> dict:
             "listeners_peak": mem_peak["listeners"],
             "uss_mb": rmem["uss_mb"], "rss_mb": rmem["rss_mb"],
             "scroll_mean_ms": sweep["mean"], "scroll_long_frames": sweep["long"],
-            "scrollback_mean_ms": sb["mean"], "scrollback_worst_ms": sb["worst"],
-            "scrollback_layout_ms": round(sb_after["layout_ms"] - sb_before["layout_ms"], 2),
-            "scrollback_style_ms": round(sb_after["style_ms"] - sb_before["style_ms"], 2),
+            # Same discipline as deepback: an excursion that never travelled the
+            # required number of messages measured nothing, and 0.00ms from a no-op
+            # must never be published as a win.
+            "scrollback_complete": bool(sb["complete"]),
+            "scrollback_mean_ms": sb["mean"] if sb["complete"] else None,
+            "scrollback_worst_ms": sb["worst"] if sb["complete"] else None,
+            "scrollback_layout_ms": round(sb_after["layout_ms"] - sb_before["layout_ms"], 2)
+            if sb["complete"] else None,
+            "scrollback_style_ms": round(sb_after["style_ms"] - sb_before["style_ms"], 2)
+            if sb["complete"] else None,
             # A walk that never reached the newest message measured nothing; publishing
             # its near-zero cost would be a lie. Null it out so the cell shows as absent.
             "deepback_complete": bool(db["complete"]),
+            "deepback_moved_msgs": db.get("moved"),
             "deepback_mean_ms": db["mean"] if db["complete"] else None,
             "deepback_worst_ms": db["worst"] if db["complete"] else None,
             "deepback_layout_ms": round(db_after["layout_ms"] - db_before["layout_ms"], 2)
@@ -512,7 +544,7 @@ def median_cell(pw, arm, n, repeats):
             "scrollback_mean_ms", "scrollback_worst_ms",
             "scrollback_layout_ms", "scrollback_style_ms",
             "deepback_mean_ms", "deepback_worst_ms",
-            "deepback_layout_ms", "deepback_style_ms",
+            "deepback_layout_ms", "deepback_style_ms", "deepback_moved_msgs",
             "append_layout_ms", "append_style_ms")
     for k in keys:
         vals = [r[k] for r in runs if r[k] is not None]
@@ -623,8 +655,8 @@ def _write_markdown(rows, lengths, arms, env):
     L.append("\n## Scroll long frames (>50ms) during the sweep — jank count\n")
     L += _table(by, lengths, arms, "scroll_long_frames")
     L.append("\n## Recent scroll-back — LAYOUT ms revisiting a region inside the window\n")
-    L.append("Up ~12 viewports, back to bottom, then up again; the second pass is measured. The "
-             "excursion stays inside the bounded arms' 80-message window. **This inverts the expected "
+    L.append("Walk back 20 messages, return to the bottom, then walk back again; the second pass is "
+             "measured. The excursion stays inside the bounded arms' 80-message window. **This inverts the expected "
              "result and is reported as measured:** `evict` does *no* work here (the region was never "
              "pruned), while `detach` pays the most — #4998's 2000px live margin is narrower than "
              "eviction's window, so it collapses and restores messages eviction simply kept. `hybrid` "
@@ -634,10 +666,17 @@ def _write_markdown(rows, lengths, arms, env):
     L.append("\n## Recent scroll-back — STYLE-recalc ms\n")
     L += _table(by, lengths, arms, "scrollback_style_ms")
     L.append("\n## Deep scroll-back — LAYOUT ms returning to the conversation\n")
-    L.append("Up ~30 viewports (past the window, so the bounded arms pruned the bottom), then measured "
-             "on the way back down. **This is the axis the detach family owns.** `detach` still holds "
-             "every message's children in `__vChildren` and re-appends them; `evict` and `hybrid` "
-             "discarded the bottom and must re-render it from data.\n")
+    L.append("Walk back 200+ messages (past the window, so the bounded arms pruned the bottom), then "
+             "measure the return to the newest message. This was designed as the axis the detach "
+             "family owns — `detach` still holds every message's children in `__vChildren`, while "
+             "`evict`/`hybrid` must re-render from data. **It does not play out that way:** "
+             "re-rendering a bounded batch is cheaper than re-attaching thousands of nodes with a "
+             "forced reflow each. A cell is blank if that arm's walk never reached the newest message "
+             "or its excursion fell short — a stalled walk is not a fast one.\n")
+    L.append("\nMessages actually traversed by the excursion (`evict`'s spacer compresses unrendered "
+             "history, so a fixed message target overshoots — it walks *further* than the others, "
+             "which biases this table against it):\n")
+    L += _table(by, lengths, arms, "deepback_moved_msgs")
     L += _table(by, lengths, arms, "deepback_layout_ms")
     L.append("\n## Deep scroll-back — STYLE-recalc ms\n")
     L.append("Style recalc is where the re-parse shows: re-appending detached nodes skips `innerHTML` "
