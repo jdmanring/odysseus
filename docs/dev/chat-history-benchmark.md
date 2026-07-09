@@ -56,13 +56,32 @@ clean, legible signal that captures #4998's retention (20005 vs 5). Instruments 
 2. **`JSHeapUsedSize`** sampled **after forced `window.gc()`** — JS-side retention. Corroborates.
 3. **`LayoutDuration` + `RecalcStyleDuration`** deltas across a fixed trajectory — the lag axis
    (#4998's own metric; showing bounded strategies match it neutralizes "yours is heavier").
-4. **`performance.measureUserAgentSpecificMemory()` DOM-bytes** — authoritative DOM byte breakdown.
-   Optional corroboration; requires a COOP/COEP cross-origin-isolated server. Not a dependency (1–3
-   work today and are decisive).
-5. **Real-app process RSS** — the fork's Qt-wrapper `[MEM]` telemetry on the actual target, as
-   ground-truth confirmation that the harness curves reflect real RSS. Referenced, not re-derived here.
+4. **Renderer-process USS/RSS** (via `psutil`, the *page's* renderer process) — the **ground-truth
+   byte metric**: the real OS-level private memory that actually OOMs. This is the headline memory
+   number; node count (1) is its structural proxy. `measureUserAgentSpecificMemory()` was intended
+   here but is **unavailable in headless Chromium** — it throws `SecurityError: not available` even
+   when `self.crossOriginIsolated === true` (verified 2026-07-08). Renderer USS is a stronger metric
+   anyway (real process memory, not an in-page estimate). The harness reads the *max* single renderer's
+   USS (one page → one content renderer holds the DOM; a spare/prewarm renderer is excluded), recording
+   `renderers` so the assumption is auditable. Each cell runs in a **fresh persistent context** (clean
+   renderer) located by a unique `--user-data-dir`.
+5. **Real-app process RSS** — the fork's Qt-wrapper `[MEM]` telemetry on the actual QtWebEngine target,
+   as ecological confirmation that the harness curves reflect real RSS. Referenced, not re-derived here;
+   the harness→real-app link remains an assumption, not a measurement (a stated limitation).
 
-Flags: `--enable-precise-memory-info`, `--js-flags=--expose-gc`.
+Flags: `--enable-precise-memory-info`, `--js-flags=--expose-gc`. Statistics: median of ≥4 kept runs per
+cell with one warm-up run discarded; dispersion (max−min) published alongside each median; environment
+(Chromium build, CPU, RAM, OS) captured into the results JSON.
+
+### Scale dependence (a load-bearing honesty point)
+
+The memory difference is **negligible below ~1000 messages** — a few thousand DOM nodes cost a few MB,
+swamped by Chromium's ~40 MB renderer baseline, so all strategies sit within noise there. The eviction
+win only becomes material at large histories (measured divergence at ~2000+, large at 5000). Any claim
+must be stated *with its history-length regime*; "bounds memory" is true at scale, not at n=200. The
+byte metric (4) is what exposes this — a node-count-only benchmark would imply a difference that does
+not exist in bytes at small n, and would *overstate* the gap by ignoring that #4998's detaching frees
+real render memory even though node count is unchanged.
 
 ### Instrument caveat (decisive — read before trusting any memory number)
 

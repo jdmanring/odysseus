@@ -1,287 +1,942 @@
-[
-  {
-    "arm": "naive",
-    "n": 100,
-    "repeats": 3,
-    "nodes_loaded": 793,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 868,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 741544,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 749736,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 0,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 3.36,
-    "append_layout_ms_spread": 0.21,
-    "append_style_ms": 0.49,
-    "append_style_ms_spread": 0.1
+{
+  "env": {
+    "platform": "Linux-7.1.2-artix3-1.1-x86_64-with-glibc2.43",
+    "python": "3.14.6",
+    "chromium_version": "148.0.7778.96",
+    "cpu_count": 24,
+    "total_ram_gb": 33.2,
+    "repeats_kept": 4,
+    "warmup_runs_discarded": 1,
+    "memory_metric": "renderer-process USS/RSS via psutil (measureUAM unavailable headless); node count is the structural proxy; JS heap is JS-side only",
+    "launch_args": [
+      "--enable-precise-memory-info",
+      "--js-flags=--expose-gc"
+    ]
   },
-  {
-    "arm": "detach",
-    "n": 100,
-    "repeats": 3,
-    "nodes_loaded": 796,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 871,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1311992,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 1335728,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 14,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 3.26,
-    "append_layout_ms_spread": 0.34,
-    "append_style_ms": 0.54,
-    "append_style_ms_spread": 0.15
-  },
-  {
-    "arm": "evict",
-    "n": 100,
-    "repeats": 3,
-    "nodes_loaded": 409,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 718,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1361596,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 1401020,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 17,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 2.65,
-    "append_layout_ms_spread": 0.22,
-    "append_style_ms": 0.47,
-    "append_style_ms_spread": 0.02
-  },
-  {
-    "arm": "naive",
-    "n": 250,
-    "repeats": 3,
-    "nodes_loaded": 1963,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 2038,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 884428,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 892620,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 0,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 5.64,
-    "append_layout_ms_spread": 0.76,
-    "append_style_ms": 0.57,
-    "append_style_ms_spread": 0.14
-  },
-  {
-    "arm": "detach",
-    "n": 250,
-    "repeats": 3,
-    "nodes_loaded": 1966,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 2041,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1481796,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 1505532,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 14,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 5.88,
-    "append_layout_ms_spread": 0.12,
-    "append_style_ms": 0.57,
-    "append_style_ms_spread": 0.17
-  },
-  {
-    "arm": "evict",
-    "n": 250,
-    "repeats": 3,
-    "nodes_loaded": 409,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 718,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1554360,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 1616204,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 17,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 2.5,
-    "append_layout_ms_spread": 0.21,
-    "append_style_ms": 0.45,
-    "append_style_ms_spread": 0.09
-  },
-  {
-    "arm": "naive",
-    "n": 500,
-    "repeats": 3,
-    "nodes_loaded": 3913,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 3988,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1117204,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 1126844,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 0,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 9.89,
-    "append_layout_ms_spread": 1.09,
-    "append_style_ms": 0.7,
-    "append_style_ms_spread": 0.14
-  },
-  {
-    "arm": "detach",
-    "n": 500,
-    "repeats": 3,
-    "nodes_loaded": 3916,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 3991,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1765028,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 1787196,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 14,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 11.21,
-    "append_layout_ms_spread": 1.83,
-    "append_style_ms": 1.07,
-    "append_style_ms_spread": 0.51
-  },
-  {
-    "arm": "evict",
-    "n": 500,
-    "repeats": 3,
-    "nodes_loaded": 409,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 718,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1868528,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 1862064,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 17,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 2.53,
-    "append_layout_ms_spread": 0.68,
-    "append_style_ms": 0.47,
-    "append_style_ms_spread": 0.2
-  },
-  {
-    "arm": "naive",
-    "n": 1000,
-    "repeats": 3,
-    "nodes_loaded": 7813,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 7888,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1587352,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 1599888,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 0,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 18.57,
-    "append_layout_ms_spread": 2.63,
-    "append_style_ms": 1.16,
-    "append_style_ms_spread": 0.35
-  },
-  {
-    "arm": "detach",
-    "n": 1000,
-    "repeats": 3,
-    "nodes_loaded": 7816,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 7891,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 2325652,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 2348976,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 14,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 18.38,
-    "append_layout_ms_spread": 2.09,
-    "append_style_ms": 1.15,
-    "append_style_ms_spread": 0.1
-  },
-  {
-    "arm": "evict",
-    "n": 1000,
-    "repeats": 3,
-    "nodes_loaded": 409,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 718,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 2505060,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 2340768,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 17,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 2.49,
-    "append_layout_ms_spread": 0.34,
-    "append_style_ms": 0.45,
-    "append_style_ms_spread": 0.13
-  },
-  {
-    "arm": "naive",
-    "n": 2000,
-    "repeats": 3,
-    "nodes_loaded": 15613,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 15688,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 2528724,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 2536916,
-    "jsheap_peak_spread": 0,
-    "listeners_peak": 0,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 35.31,
-    "append_layout_ms_spread": 4.56,
-    "append_style_ms": 1.8,
-    "append_style_ms_spread": 1.41
-  },
-  {
-    "arm": "detach",
-    "n": 2000,
-    "repeats": 3,
-    "nodes_loaded": 15616,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 15691,
-    "nodes_peak_spread": 0,
-    "jsheap_loaded": 1649160,
-    "jsheap_loaded_spread": 64,
-    "jsheap_peak": 1672800,
-    "jsheap_peak_spread": 64,
-    "listeners_peak": 14,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 31.54,
-    "append_layout_ms_spread": 1.81,
-    "append_style_ms": 1.61,
-    "append_style_ms_spread": 0.12
-  },
-  {
-    "arm": "evict",
-    "n": 2000,
-    "repeats": 3,
-    "nodes_loaded": 409,
-    "nodes_loaded_spread": 0,
-    "nodes_peak": 720,
-    "nodes_peak_spread": 17,
-    "jsheap_loaded": 3781856,
-    "jsheap_loaded_spread": 0,
-    "jsheap_peak": 3456912,
-    "jsheap_peak_spread": 96,
-    "listeners_peak": 17,
-    "listeners_peak_spread": 0,
-    "append_layout_ms": 2.33,
-    "append_layout_ms_spread": 0.17,
-    "append_style_ms": 0.39,
-    "append_style_ms_spread": 0.02
-  }
-]
+  "results": [
+    {
+      "arm": "naive",
+      "n": 250,
+      "repeats_kept": 4,
+      "nodes_loaded": 1963.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        1963,
+        1963,
+        1963,
+        1963
+      ],
+      "nodes_peak": 2038.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        2038,
+        2038,
+        2038,
+        2038
+      ],
+      "jsheap_loaded": 884428.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        884428,
+        884428,
+        884428,
+        884428
+      ],
+      "jsheap_peak": 892620.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        892620,
+        892620,
+        892620,
+        892620
+      ],
+      "listeners_peak": 0.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "uss_mb": 28.88,
+      "uss_mb_spread": 0.23,
+      "uss_mb_raw": [
+        28.78,
+        29.01,
+        28.79,
+        28.98
+      ],
+      "rss_mb": 114.47,
+      "rss_mb_spread": 0.18,
+      "rss_mb_raw": [
+        114.44,
+        114.5,
+        114.32,
+        114.49
+      ],
+      "append_layout_ms": 6.18,
+      "append_layout_ms_spread": 1.04,
+      "append_layout_ms_raw": [
+        6.28,
+        6.12,
+        6.24,
+        5.24
+      ],
+      "append_style_ms": 0.63,
+      "append_style_ms_spread": 0.27,
+      "append_style_ms_raw": [
+        0.72,
+        0.62,
+        0.64,
+        0.45
+      ]
+    },
+    {
+      "arm": "detach",
+      "n": 250,
+      "repeats_kept": 4,
+      "nodes_loaded": 1966.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        1966,
+        1966,
+        1966,
+        1966
+      ],
+      "nodes_peak": 2041.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        2041,
+        2041,
+        2041,
+        2041
+      ],
+      "jsheap_loaded": 1481796.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        1481796,
+        1481796,
+        1481796,
+        1481796
+      ],
+      "jsheap_peak": 1505532.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        1505532,
+        1505532,
+        1505532,
+        1505532
+      ],
+      "listeners_peak": 14.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 29.89,
+      "uss_mb_spread": 0.68,
+      "uss_mb_raw": [
+        29.8,
+        29.81,
+        30.48,
+        29.97
+      ],
+      "rss_mb": 115.38,
+      "rss_mb_spread": 0.36,
+      "rss_mb_raw": [
+        115.51,
+        115.35,
+        115.4,
+        115.15
+      ],
+      "append_layout_ms": 5.94,
+      "append_layout_ms_spread": 1.27,
+      "append_layout_ms_raw": [
+        6.13,
+        6.53,
+        5.74,
+        5.26
+      ],
+      "append_style_ms": 0.63,
+      "append_style_ms_spread": 0.23,
+      "append_style_ms_raw": [
+        0.81,
+        0.67,
+        0.58,
+        0.59
+      ]
+    },
+    {
+      "arm": "evict",
+      "n": 250,
+      "repeats_kept": 4,
+      "nodes_loaded": 409.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        409,
+        409,
+        409,
+        409
+      ],
+      "nodes_peak": 718.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        718,
+        718,
+        718,
+        718
+      ],
+      "jsheap_loaded": 1554360.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        1554360,
+        1554360,
+        1554360,
+        1554360
+      ],
+      "jsheap_peak": 1616204.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        1616204,
+        1616204,
+        1616204,
+        1616204
+      ],
+      "listeners_peak": 17.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        17,
+        17,
+        17,
+        17
+      ],
+      "uss_mb": 31.4,
+      "uss_mb_spread": 0.93,
+      "uss_mb_raw": [
+        31.42,
+        30.89,
+        31.82,
+        31.38
+      ],
+      "rss_mb": 116.78,
+      "rss_mb_spread": 1.03,
+      "rss_mb_raw": [
+        116.74,
+        116.81,
+        117.77,
+        116.74
+      ],
+      "append_layout_ms": 2.56,
+      "append_layout_ms_spread": 0.17,
+      "append_layout_ms_raw": [
+        2.48,
+        2.65,
+        2.5,
+        2.63
+      ],
+      "append_style_ms": 0.46,
+      "append_style_ms_spread": 0.03,
+      "append_style_ms_raw": [
+        0.45,
+        0.45,
+        0.46,
+        0.48
+      ]
+    },
+    {
+      "arm": "naive",
+      "n": 1000,
+      "repeats_kept": 4,
+      "nodes_loaded": 7813.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        7813,
+        7813,
+        7813,
+        7813
+      ],
+      "nodes_peak": 7888.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        7888,
+        7888,
+        7888,
+        7888
+      ],
+      "jsheap_loaded": 1587352.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        1587352,
+        1587352,
+        1587352,
+        1587352
+      ],
+      "jsheap_peak": 1599888.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        1599888,
+        1599888,
+        1599888,
+        1599888
+      ],
+      "listeners_peak": 0.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "uss_mb": 42.38,
+      "uss_mb_spread": 0.58,
+      "uss_mb_raw": [
+        42.36,
+        42.81,
+        42.23,
+        42.4
+      ],
+      "rss_mb": 128.23,
+      "rss_mb_spread": 0.57,
+      "rss_mb_raw": [
+        128.18,
+        128.61,
+        128.04,
+        128.27
+      ],
+      "append_layout_ms": 19.58,
+      "append_layout_ms_spread": 0.61,
+      "append_layout_ms_raw": [
+        19.58,
+        19.12,
+        19.73,
+        19.58
+      ],
+      "append_style_ms": 1.12,
+      "append_style_ms_spread": 0.19,
+      "append_style_ms_raw": [
+        1.23,
+        1.04,
+        1.18,
+        1.06
+      ]
+    },
+    {
+      "arm": "detach",
+      "n": 1000,
+      "repeats_kept": 4,
+      "nodes_loaded": 7816.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        7816,
+        7816,
+        7816,
+        7816
+      ],
+      "nodes_peak": 7891.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        7891,
+        7891,
+        7891,
+        7891
+      ],
+      "jsheap_loaded": 2325652.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        2325652,
+        2325652,
+        2325652,
+        2325652
+      ],
+      "jsheap_peak": 2348976.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        2348976,
+        2348976,
+        2348976,
+        2348976
+      ],
+      "listeners_peak": 14.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 38.05,
+      "uss_mb_spread": 0.69,
+      "uss_mb_raw": [
+        38.32,
+        37.92,
+        37.63,
+        38.17
+      ],
+      "rss_mb": 123.49,
+      "rss_mb_spread": 0.59,
+      "rss_mb_raw": [
+        123.55,
+        123.43,
+        123.06,
+        123.65
+      ],
+      "append_layout_ms": 17.91,
+      "append_layout_ms_spread": 2.18,
+      "append_layout_ms_raw": [
+        17.92,
+        16.57,
+        18.75,
+        17.89
+      ],
+      "append_style_ms": 1.15,
+      "append_style_ms_spread": 0.3,
+      "append_style_ms_raw": [
+        1.17,
+        1.08,
+        1.38,
+        1.14
+      ]
+    },
+    {
+      "arm": "evict",
+      "n": 1000,
+      "repeats_kept": 4,
+      "nodes_loaded": 409.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        409,
+        409,
+        409,
+        409
+      ],
+      "nodes_peak": 718.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        718,
+        718,
+        718,
+        718
+      ],
+      "jsheap_loaded": 2505060.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        2505060,
+        2505060,
+        2505060,
+        2505060
+      ],
+      "jsheap_peak": 2340768.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        2340768,
+        2340768,
+        2340768,
+        2340768
+      ],
+      "listeners_peak": 17.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        17,
+        17,
+        17,
+        17
+      ],
+      "uss_mb": 35.19,
+      "uss_mb_spread": 0.97,
+      "uss_mb_raw": [
+        35.36,
+        35.84,
+        35.02,
+        34.87
+      ],
+      "rss_mb": 120.81,
+      "rss_mb_spread": 0.53,
+      "rss_mb_raw": [
+        121.15,
+        120.88,
+        120.75,
+        120.62
+      ],
+      "append_layout_ms": 2.55,
+      "append_layout_ms_spread": 0.27,
+      "append_layout_ms_raw": [
+        2.55,
+        2.55,
+        2.79,
+        2.52
+      ],
+      "append_style_ms": 0.45,
+      "append_style_ms_spread": 0.12,
+      "append_style_ms_raw": [
+        0.47,
+        0.44,
+        0.53,
+        0.41
+      ]
+    },
+    {
+      "arm": "naive",
+      "n": 2000,
+      "repeats_kept": 4,
+      "nodes_loaded": 15613.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        15613,
+        15613,
+        15613,
+        15613
+      ],
+      "nodes_peak": 15688.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        15688,
+        15688,
+        15688,
+        15688
+      ],
+      "jsheap_loaded": 2528724.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        2528724,
+        2528724,
+        2528724,
+        2528724
+      ],
+      "jsheap_peak": 2536916.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        2536916,
+        2536916,
+        2536916,
+        2536916
+      ],
+      "listeners_peak": 0.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "uss_mb": 63.12,
+      "uss_mb_spread": 0.58,
+      "uss_mb_raw": [
+        63.31,
+        63.13,
+        63.12,
+        62.73
+      ],
+      "rss_mb": 149.36,
+      "rss_mb_spread": 6.46,
+      "rss_mb_raw": [
+        149.3,
+        155.5,
+        149.41,
+        149.04
+      ],
+      "append_layout_ms": 35.8,
+      "append_layout_ms_spread": 9.02,
+      "append_layout_ms_raw": [
+        34.85,
+        36.41,
+        35.19,
+        43.87
+      ],
+      "append_style_ms": 1.79,
+      "append_style_ms_spread": 1.73,
+      "append_style_ms_raw": [
+        1.41,
+        1.59,
+        2.0,
+        3.14
+      ]
+    },
+    {
+      "arm": "detach",
+      "n": 2000,
+      "repeats_kept": 4,
+      "nodes_loaded": 15616.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        15616,
+        15616,
+        15616,
+        15616
+      ],
+      "nodes_peak": 15691.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        15691,
+        15691,
+        15691,
+        15691
+      ],
+      "jsheap_loaded": 1649160.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        1649160,
+        1649160,
+        1649160,
+        1649160
+      ],
+      "jsheap_peak": 1672800.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        1672800,
+        1672800,
+        1672800,
+        1672800
+      ],
+      "listeners_peak": 14.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 52.09,
+      "uss_mb_spread": 0.52,
+      "uss_mb_raw": [
+        51.95,
+        52.2,
+        51.99,
+        52.47
+      ],
+      "rss_mb": 137.99,
+      "rss_mb_spread": 0.68,
+      "rss_mb_raw": [
+        137.81,
+        138.16,
+        137.76,
+        138.44
+      ],
+      "append_layout_ms": 33.41,
+      "append_layout_ms_spread": 2.36,
+      "append_layout_ms_raw": [
+        33.32,
+        35.16,
+        33.49,
+        32.8
+      ],
+      "append_style_ms": 1.87,
+      "append_style_ms_spread": 0.4,
+      "append_style_ms_raw": [
+        1.74,
+        2.13,
+        2.0,
+        1.73
+      ]
+    },
+    {
+      "arm": "evict",
+      "n": 2000,
+      "repeats_kept": 4,
+      "nodes_loaded": 409.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        409,
+        409,
+        409,
+        409
+      ],
+      "nodes_peak": 734.5,
+      "nodes_peak_spread": 6,
+      "nodes_peak_raw": [
+        734,
+        740,
+        734,
+        735
+      ],
+      "jsheap_loaded": 3781856.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        3781856,
+        3781856,
+        3781856,
+        3781856
+      ],
+      "jsheap_peak": 3456960.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        3456960,
+        3456960,
+        3456960,
+        3456960
+      ],
+      "listeners_peak": 17.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        17,
+        17,
+        17,
+        17
+      ],
+      "uss_mb": 39.34,
+      "uss_mb_spread": 0.15,
+      "uss_mb_raw": [
+        39.31,
+        39.38,
+        39.44,
+        39.29
+      ],
+      "rss_mb": 124.94,
+      "rss_mb_spread": 0.37,
+      "rss_mb_raw": [
+        124.73,
+        124.9,
+        125.1,
+        124.98
+      ],
+      "append_layout_ms": 2.5,
+      "append_layout_ms_spread": 0.32,
+      "append_layout_ms_raw": [
+        2.69,
+        2.37,
+        2.6,
+        2.39
+      ],
+      "append_style_ms": 0.43,
+      "append_style_ms_spread": 0.11,
+      "append_style_ms_raw": [
+        0.51,
+        0.4,
+        0.45,
+        0.42
+      ]
+    },
+    {
+      "arm": "naive",
+      "n": 5000,
+      "repeats_kept": 4,
+      "nodes_loaded": 39014.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        39014,
+        39014,
+        39014,
+        39014
+      ],
+      "nodes_peak": 39088.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        39088,
+        39088,
+        39088,
+        39088
+      ],
+      "jsheap_loaded": 5345044.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        5345044,
+        5345044,
+        5345044,
+        5345044
+      ],
+      "jsheap_peak": 5353236.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        5353236,
+        5353236,
+        5353236,
+        5353236
+      ],
+      "listeners_peak": 0.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "uss_mb": 116.75,
+      "uss_mb_spread": 0.95,
+      "uss_mb_raw": [
+        116.6,
+        116.89,
+        116.22,
+        117.17
+      ],
+      "rss_mb": 209.15,
+      "rss_mb_spread": 0.38,
+      "rss_mb_raw": [
+        209.08,
+        209.22,
+        209.03,
+        209.41
+      ],
+      "append_layout_ms": 81.34,
+      "append_layout_ms_spread": 11.85,
+      "append_layout_ms_raw": [
+        81.41,
+        81.16,
+        93.01,
+        81.26
+      ],
+      "append_style_ms": 3.08,
+      "append_style_ms_spread": 1.36,
+      "append_style_ms_raw": [
+        3.1,
+        3.05,
+        4.27,
+        2.91
+      ]
+    },
+    {
+      "arm": "detach",
+      "n": 5000,
+      "repeats_kept": 4,
+      "nodes_loaded": 39016.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        39016,
+        39016,
+        39016,
+        39016
+      ],
+      "nodes_peak": 39091.0,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        39091,
+        39091,
+        39091,
+        39091
+      ],
+      "jsheap_loaded": 2392596.0,
+      "jsheap_loaded_spread": 48,
+      "jsheap_loaded_raw": [
+        2392636,
+        2392588,
+        2392604,
+        2392588
+      ],
+      "jsheap_peak": 2417976.0,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        2417976,
+        2417976,
+        2417976,
+        2417976
+      ],
+      "listeners_peak": 14.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 81.48,
+      "uss_mb_spread": 39.27,
+      "uss_mb_raw": [
+        80.13,
+        81.47,
+        119.4,
+        81.49
+      ],
+      "rss_mb": 167.7,
+      "rss_mb_spread": 39.1,
+      "rss_mb_raw": [
+        166.26,
+        167.87,
+        205.36,
+        167.53
+      ],
+      "append_layout_ms": 80.1,
+      "append_layout_ms_spread": 30.82,
+      "append_layout_ms_raw": [
+        81.53,
+        77.38,
+        108.2,
+        78.67
+      ],
+      "append_style_ms": 3.84,
+      "append_style_ms_spread": 1.1,
+      "append_style_ms_raw": [
+        4.1,
+        3.44,
+        4.54,
+        3.59
+      ]
+    },
+    {
+      "arm": "evict",
+      "n": 5000,
+      "repeats_kept": 4,
+      "nodes_loaded": 409.0,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        409,
+        409,
+        409,
+        409
+      ],
+      "nodes_peak": 720.0,
+      "nodes_peak_spread": 15,
+      "nodes_peak_raw": [
+        720,
+        720,
+        720,
+        735
+      ],
+      "jsheap_loaded": 7619968.0,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        7619968,
+        7619968,
+        7619968,
+        7619968
+      ],
+      "jsheap_peak": 7289652.0,
+      "jsheap_peak_spread": 48,
+      "jsheap_peak_raw": [
+        7289652,
+        7289652,
+        7289652,
+        7289700
+      ],
+      "listeners_peak": 17.0,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        17,
+        17,
+        17,
+        17
+      ],
+      "uss_mb": 50.82,
+      "uss_mb_spread": 0.43,
+      "uss_mb_raw": [
+        50.57,
+        51.0,
+        50.75,
+        50.89
+      ],
+      "rss_mb": 137.12,
+      "rss_mb_spread": 0.52,
+      "rss_mb_raw": [
+        137.22,
+        137.01,
+        136.97,
+        137.49
+      ],
+      "append_layout_ms": 2.36,
+      "append_layout_ms_spread": 0.18,
+      "append_layout_ms_raw": [
+        2.47,
+        2.41,
+        2.29,
+        2.31
+      ],
+      "append_style_ms": 0.38,
+      "append_style_ms_spread": 0.06,
+      "append_style_ms_raw": [
+        0.41,
+        0.38,
+        0.38,
+        0.35
+      ]
+    }
+  ]
+}
