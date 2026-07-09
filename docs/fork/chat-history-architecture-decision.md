@@ -57,20 +57,48 @@ simplicity and on state-preservation (its detach-and-restore avoids the re-rende
 scroll-back). They are closer to *complementary* than competing: #4998 = lag (layout/paint), ours =
 memory. Keeping `MessageWindow` on `develop` is the correct call for a memory-constrained runtime.
 
-## The convergence path (strategic — capture, do not build yet)
+## The convergence path — BUILT, MEASURED, REFUTED (2026-07-09)
 
-If #4998 merges, it becomes a **substrate, not a competitor**: our eviction could be contributed *on top
-of* their virtualizer (evict the far tail their windowing leaves in heap), which would let us retire
-most of `MessageWindow` and shrink the fork's divergence — exactly the workbench's purpose. Until an
-upstream bounded-DOM approach actually lands, we hold `MessageWindow`. This reframes the future from
-"defend our 1000 lines" to "delete them once upstream can carry the memory bound."
+The plan above was to combine the two: a warm band using #4998's detach-preserve over a cold tail using
+our eviction, expected to Pareto-dominate both. **It was built (`tests/bench/vendor/hybrid_bench.js`),
+tested (`tests/test_chat_history_hybrid_bench_js.py`, 5 Chromium guards), benchmarked, and it lost.**
+Numbers: `tests/bench/results/bench.md` (generated; never transcribed here).
+
+The hybrid is **strictly worse than eviction alone** — more retained nodes, more renderer USS, and no
+compensating win on any measured cost axis. Two reasons, and both are structural rather than a tuning
+failure, so **do not attempt to rescue this by tuning band sizes**:
+
+1. **Detach-preserve retains a superset of what eviction retains** over the same window: it keeps every
+   collapsed message's children alive in `__vChildren`. Eviction can therefore never lose to it on
+   memory, at any band size.
+2. **A live window already subsumes detach's only real advantage.** #4998's value proposition is instant
+   recent scroll-back. But `MessageWindow` keeps the recent `BIDI_MSG_CAP` messages *fully live*, so
+   recent scroll-back costs zero work **and** zero network — strictly better than a warm band, which
+   detached those same messages and must re-attach them. Beyond the window, everyone re-renders from the
+   cold tail anyway. Any hybrid tuned toward eviction's zero-work recent scroll-back converges *to*
+   eviction.
+
+This is a stronger position than a contrived winner: we implemented their idea on top of ours, measured
+it honestly, and it added nothing. The refuted arm and its tests are **kept, not deleted** — a tested
+refutation with data is the deliverable. Known defect in that arm: fork issue #126 (top-spacer height
+drifts; its deep-scroll-back timing cells are withheld by the harness's completeness guard rather than
+published). The refutation does not depend on those cells.
+
+**Revisit only if** upstream ships real DOM eviction of its own, or if the network cost of cold-tail
+refetch is shown to dominate — the one axis the harness excludes (it serves cold pages from memory,
+which biases *against* eviction, the honest direction).
 
 ## What we learned from theirs
 
 - **#4998's detach-and-preserve** round-trips node state (`<details>`, highlight, listeners) with no
-  re-render — cleaner than our destroy-and-refetch on that axis. Candidate for a future hybrid (near
-  window: preserve; far tail: evict). Documented as a deferred idea, not built (working-system change,
-  regression risk, no active bug).
+  re-render — genuinely cleaner than our destroy-and-refetch on that axis. Measured and refuted as an
+  addition to eviction (above): the live window already delivers that benefit more cheaply.
+- **The one thing we can give #4998's author.** Their scroll jank has a single root cause: `collapse()`
+  reads `node.offsetHeight` inside the IntersectionObserver callback, forcing a synchronous layout per
+  collapsing node — a reflow storm during a scroll. The height is already on
+  `entry.boundingClientRect.height`, for free. Deferring the collapse to a batched rAF pass compounds
+  the win. This is a discrete, self-contained improvement to *their* PR and should be offered as such
+  (a review comment on #4998, not a competing claim). Demonstrated in `hybrid_bench.js`'s `collapse()`.
 - **Upstream's prepend scroll-anchor** (capture `scrollHeight`, add the delta back to `scrollTop`) —
   `MessageWindow` already does the equivalent for prepend *and* eviction.
 
