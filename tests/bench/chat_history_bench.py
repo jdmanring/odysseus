@@ -24,8 +24,13 @@ Run:
 import argparse
 import json
 import pathlib
+import platform
+import shutil
 import statistics
 import sys
+import tempfile
+
+import psutil
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 CHAT_HISTORY_JS = ROOT / "static/js/chatHistory.js"
@@ -170,15 +175,63 @@ def layout_cost(cdp) -> dict:
             "layout_count": m["LayoutCount"], "style_count": m["RecalcStyleCount"]}
 
 
+# --- Real process memory (ground truth — what actually OOMs) -----------------
+# measureUserAgentSpecificMemory() is unavailable in headless Chromium even when
+# crossOriginIsolated, so we read the renderer process's private memory (USS) and
+# RSS from the OS via psutil. USS = memory unique to the renderer (freed if it
+# exits) — the honest byte-level DOM-retention signal that node count only proxies.
+def find_browser_pid(marker: str):
+    for p in psutil.process_iter(["pid", "cmdline"]):
+        try:
+            joined = " ".join(p.info["cmdline"] or [])
+            if marker in joined and "--type=" not in joined:
+                return p.info["pid"]
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return None
+
+
+def renderer_mem(browser_pid: int) -> dict:
+    """Private memory of the page's renderer (GC-settled caller).
+
+    Reports the MAX single renderer's USS/RSS — with one page there is one content
+    renderer holding the DOM; a spare/prewarm renderer (~baseline) is excluded so the
+    number isolates the page's DOM cost rather than a constant offset. renderers>1 is
+    recorded so the assumption is auditable.
+    """
+    try:
+        proc = psutil.Process(browser_pid)
+    except psutil.NoSuchProcess:
+        return {"uss_mb": None, "rss_mb": None, "renderers": 0}
+    best = None
+    renderers = 0
+    for p in [proc] + proc.children(recursive=True):
+        try:
+            if "--type=renderer" in " ".join(p.cmdline()):
+                renderers += 1
+                mi = p.memory_full_info()
+                if best is None or mi.uss > best[0]:
+                    best = (mi.uss, mi.rss)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    if best is None:
+        return {"uss_mb": None, "rss_mb": None, "renderers": 0}
+    return {"uss_mb": round(best[0] / 1e6, 2), "rss_mb": round(best[1] / 1e6, 2), "renderers": renderers}
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 def run_cell(pw, arm: str, n: int) -> dict:
-    browser = pw.chromium.launch(headless=True, args=LAUNCH_ARGS)
+    # Fresh persistent context per cell → clean renderer process, and a unique
+    # user-data-dir so we can locate that process for OS-level memory sampling.
+    udd = tempfile.mkdtemp(prefix="chbench_")
+    ctx = pw.chromium.launch_persistent_context(udd, headless=True, args=LAUNCH_ARGS, viewport=VIEWPORT)
+    browser_pid = find_browser_pid(udd)
     try:
-        page = browser.new_context(viewport=VIEWPORT).new_page()
+        page = ctx.new_page()
         page.set_content(_HARNESS_HTML)
-        cdp = page.context.new_cdp_session(page)
+        cdp = ctx.new_cdp_session(page)
         cdp.send("Performance.enable")
 
         load_arm(page, arm, n)
@@ -224,27 +277,41 @@ def run_cell(pw, arm: str, n: int) -> dict:
         # and the detach arm's kept-node retention are measured (fairness cuts both ways).
         page.evaluate(_scroll_to_top_js())
         mem_peak = sample_mem(page, cdp)
+        # GC-settle before the OS memory read so USS reflects retained, not transient.
+        page.evaluate("window.gc && (window.gc(), window.gc());")
+        page.wait_for_timeout(250)
+        rmem = renderer_mem(browser_pid) if browser_pid else {"uss_mb": None, "rss_mb": None, "renderers": 0}
 
         return {
             "arm": arm, "n": n,
             "nodes_loaded": mem_loaded["nodes"], "nodes_peak": mem_peak["nodes"],
             "jsheap_loaded": mem_loaded["jsheap"], "jsheap_peak": mem_peak["jsheap"],
             "listeners_peak": mem_peak["listeners"],
+            "uss_mb": rmem["uss_mb"], "rss_mb": rmem["rss_mb"],
             "append_layout_ms": round(lay_after["layout_ms"] - lay_before["layout_ms"], 2),
             "append_style_ms": round(lay_after["style_ms"] - lay_before["style_ms"], 2),
         }
     finally:
-        browser.close()
+        ctx.close()
+        shutil.rmtree(udd, ignore_errors=True)
 
 
 def median_cell(pw, arm, n, repeats):
-    runs = [run_cell(pw, arm, n) for _ in range(repeats)]
-    out = {"arm": arm, "n": n, "repeats": repeats}
-    for k in ("nodes_loaded", "nodes_peak", "jsheap_loaded", "jsheap_peak",
-              "listeners_peak", "append_layout_ms", "append_style_ms"):
-        vals = [r[k] for r in runs]
+    # Warm-up discard: the first run of a fresh process pays one-time JIT/allocation
+    # costs, so run repeats+1 and drop run 0. Report median + spread (max-min) over
+    # the kept runs; keep the raw values in the artifact for full transparency.
+    runs = [run_cell(pw, arm, n) for _ in range(repeats + 1)][1:]
+    out = {"arm": arm, "n": n, "repeats_kept": len(runs)}
+    keys = ("nodes_loaded", "nodes_peak", "jsheap_loaded", "jsheap_peak", "listeners_peak",
+            "uss_mb", "rss_mb", "append_layout_ms", "append_style_ms")
+    for k in keys:
+        vals = [r[k] for r in runs if r[k] is not None]
+        if not vals:
+            out[k] = out[k + "_spread"] = None
+            continue
         out[k] = round(statistics.median(vals), 2)
         out[k + "_spread"] = round(max(vals) - min(vals), 2)
+        out[k + "_raw"] = vals
     return out
 
 
@@ -252,7 +319,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--lengths", default="100,500,2000")
     ap.add_argument("--arms", default="naive,detach,evict")
-    ap.add_argument("--repeats", type=int, default=3)
+    ap.add_argument("--repeats", type=int, default=7)
     args = ap.parse_args()
     lengths = [int(x) for x in args.lengths.split(",")]
     arms = [a.strip() for a in args.arms.split(",")]
@@ -265,42 +332,86 @@ def main():
 
     rows = []
     with sync_playwright() as pw:
+        vb = pw.chromium.launch(headless=True)
+        chromium_version = vb.version
+        vb.close()
+        env = {
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+            "chromium_version": chromium_version,
+            "cpu_count": psutil.cpu_count(),
+            "total_ram_gb": round(psutil.virtual_memory().total / 1e9, 1),
+            "repeats_kept": args.repeats, "warmup_runs_discarded": 1,
+            "memory_metric": "renderer-process USS/RSS via psutil (measureUAM unavailable headless); "
+                             "node count is the structural proxy; JS heap is JS-side only",
+            "launch_args": LAUNCH_ARGS,
+        }
         for n in lengths:
             for arm in arms:
                 cell = median_cell(pw, arm, n, args.repeats)
                 rows.append(cell)
+                uss = cell["uss_mb"]
                 print(f"  {arm:7} n={n:5}  nodes={cell['nodes_peak']:7}  "
-                      f"jsheap={cell['jsheap_peak']/1e6:6.2f}MB  "
-                      f"append_layout={cell['append_layout_ms']:7}ms")
+                      f"USS={uss if uss is None else f'{uss:6.1f}'}MB  "
+                      f"jsheap={cell['jsheap_peak']/1e6:5.2f}MB  "
+                      f"append_layout={cell['append_layout_ms']:6}ms  style={cell['append_style_ms']:6}ms")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    (RESULTS_DIR / "bench.json").write_text(json.dumps(rows, indent=2))
-    _write_markdown(rows, lengths, arms)
+    (RESULTS_DIR / "bench.json").write_text(json.dumps({"env": env, "results": rows}, indent=2))
+    _write_markdown(rows, lengths, arms, env)
     print(f"\nWrote {RESULTS_DIR/'bench.json'} and {RESULTS_DIR/'bench.md'}")
 
 
-def _write_markdown(rows, lengths, arms):
+def _cell(v, spread):
+    if v is None:
+        return "—"
+    return f"{v} ±{spread}" if spread else f"{v}"
+
+
+def _table(by, lengths, arms, key, fmt=lambda x: x):
+    lines = ["| n | " + " | ".join(arms) + " |", "|" + "---|" * (len(arms) + 1)]
+    for n in lengths:
+        cells = []
+        for a in arms:
+            r = by[(a, n)]
+            v = r.get(key)
+            cells.append(_cell(fmt(v) if v is not None else None, r.get(key + "_spread")))
+        lines.append(f"| {n} | " + " | ".join(cells) + " |")
+    return lines
+
+
+def _write_markdown(rows, lengths, arms, env):
     by = {(r["arm"], r["n"]): r for r in rows}
-    lines = ["# Chat-history benchmark results (generated)\n",
-             "Retained DOM nodes at the top of history (lower = memory bounded), post-GC JS heap "
-             "(JS-side retention only — does NOT include #4998's detached DOM, which lives in C++/Blink "
-             "memory; see the methodology doc's instrument caveat), and append layout cost (streaming "
-             "into a large list). Generated by `tests/bench/chat_history_bench.py`; do not hand-edit.\n",
-             "## Retained DOM nodes at top of history\n",
-             "| n | " + " | ".join(arms) + " |", "|" + "---|" * (len(arms) + 1)]
-    for n in lengths:
-        lines.append(f"| {n} | " + " | ".join(str(by[(a, n)]["nodes_peak"]) for a in arms) + " |")
-    lines.append("\n## Post-GC JS heap at top (MB)\n")
-    lines.append("| n | " + " | ".join(arms) + " |")
-    lines.append("|" + "---|" * (len(arms) + 1))
-    for n in lengths:
-        lines.append(f"| {n} | " + " | ".join(f"{by[(a,n)]['jsheap_peak']/1e6:.2f}" for a in arms) + " |")
-    lines.append("\n## Append layout ms (streaming 25 msgs into an n-message list)\n")
-    lines.append("| n | " + " | ".join(arms) + " |")
-    lines.append("|" + "---|" * (len(arms) + 1))
-    for n in lengths:
-        lines.append(f"| {n} | " + " | ".join(str(by[(a,n)]["append_layout_ms"]) for a in arms) + " |")
-    (RESULTS_DIR / "bench.md").write_text("\n".join(lines) + "\n")
+    L = ["# Chat-history benchmark results (generated)\n",
+         "Generated by `tests/bench/chat_history_bench.py` (do not hand-edit). Values are medians over "
+         f"{env['repeats_kept']} kept runs (1 warm-up discarded), shown as `median ±(max-min)`.\n",
+         "## Environment\n",
+         f"- Chromium {env['chromium_version']}, {env['platform']}",
+         f"- {env['cpu_count']} CPUs, {env['total_ram_gb']} GB RAM, Python {env['python']}",
+         f"- Memory metric: {env['memory_metric']}\n",
+         "## Renderer process USS at top of history (MB) — ground-truth private memory\n",
+         "The real OS-level memory unique to the renderer (what OOMs). Lower = bounded.\n"]
+    L += _table(by, lengths, arms, "uss_mb")
+    L.append("\n## Retained DOM nodes at top of history — structural memory proxy\n")
+    L.append("Counts detached-but-referenced nodes, so it captures #4998's retention.\n")
+    L += _table(by, lengths, arms, "nodes_peak")
+    L.append("\n## Renderer process RSS at top of history (MB)\n")
+    L += _table(by, lengths, arms, "rss_mb")
+    L.append("\n## Post-GC JS heap at top (MB) — JS-side retention only\n")
+    L.append("Does NOT include #4998's detached DOM (C++/Blink); includes the fork's `_all` strings.\n")
+    L += _table(by, lengths, arms, "jsheap_peak", fmt=lambda b: round(b / 1e6, 2))
+    L.append("\n## Append LAYOUT ms (stream 25 msgs into an n-message list)\n")
+    L.append("Cost of streaming new messages into a large list. `evict` wins because its list stays "
+             "bounded. **This does NOT capture #4998's lag benefit**: appends land in the live region, "
+             "not collapsed nodes, so #4998 ≈ naive here. #4998 targets *scroll-repaint* lag, which this "
+             "harness does not yet measure — do not read this column as \"#4998 fails at lag.\"\n")
+    L += _table(by, lengths, arms, "append_layout_ms")
+    L.append("\n## Append STYLE-recalc ms\n")
+    L.append("Same caveat as layout: measured during append (live region), so #4998's collapse does not "
+             "help here (the data confirms #4998 ≈ naive). Its style/paint win during scrolling is "
+             "unmeasured.\n")
+    L += _table(by, lengths, arms, "append_style_ms")
+    (RESULTS_DIR / "bench.md").write_text("\n".join(L) + "\n")
 
 
 if __name__ == "__main__":
