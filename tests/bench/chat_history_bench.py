@@ -93,6 +93,15 @@ _HARNESS_HTML = """
       var d = document.createElement('div');
       d.className = 'msg msg-' + role;
       d.innerHTML = content;
+      // Source index, so scroll excursions can be defined in MESSAGES rather than
+      // pixels. A pixel span is not comparable across arms: an arm whose spacer
+      // under-models unrendered history has a much shorter scrollHeight, so the
+      // same pixel hop traverses a different number of messages (measured: evict
+      // reached scrollTop 3962 where hybrid reached 312902 for the same "30
+      // viewports"). Every arm renders through this stub except hybrid, which
+      // tags identically in its own _make().
+      var m = /Message (\\d+)\\./.exec(content);
+      if (m) d.dataset.i = m[1];
       document.getElementById('chat-history').appendChild(d);
       return d;
     }
@@ -136,6 +145,159 @@ def _scroll_sweep_js(divisor: int = 120) -> str:
         return {{ mean: +(sum / frames.length).toFixed(2),
                  long: frames.filter(f => f > 50).length, frames: frames.length }};
       }}
+    """
+
+
+# --- scroll-back probes ------------------------------------------------------
+# Shared JS: an excursion measured in MESSAGES, not pixels.
+#
+# A pixel span is not comparable across arms. An arm whose spacer under-models the
+# unrendered history has a far shorter scrollHeight, so the same "30 viewports" walks
+# a different number of messages (measured: evict reached scrollTop 3962 where hybrid
+# reached 312902). Excursions are therefore driven until the top *visible* message
+# index has moved back by K, using the data-i tag every arm writes.
+#
+# The index scan does forced layout, so it runs only during the UNMEASURED excursion;
+# the measured pass is a plain scroll with per-frame timing and CDP layout/style deltas
+# sampled around it.
+_PROBE_PRELUDE = """
+  const box = document.getElementById('chat-history');
+  const atBottom = () => box.scrollTop >= box.scrollHeight - box.clientHeight - 2;
+  const topVisible = () => {
+    const top = box.getBoundingClientRect().top;
+    let best = Infinity;
+    for (const el of box.querySelectorAll('.msg[data-i]')) {
+      if (el.getBoundingClientRect().bottom > top) { best = Math.min(best, +el.dataset.i); }
+    }
+    return best;
+  };
+  const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  // Walk up until we have passed K messages (or hit the true top).
+  // Returns the pixel distance the walk required, so a measured pass can replay the
+  // same excursion without calling topVisible() (whose scan forces layout).
+  const upBy = async (k) => {
+    const start = topVisible(), from = box.scrollTop;
+    for (let i = 0; i < 600; i++) {
+      if (box.scrollTop <= 0) break;
+      if (start - topVisible() >= k) break;
+      box.scrollTop -= box.clientHeight * 0.9;
+      await settle();
+    }
+    await new Promise(r => setTimeout(r, 80));
+    return Math.abs(from - box.scrollTop);
+  };
+  // Walk DOWN to the live conversation, recording per-frame intervals. Distance is
+  // whatever that arm's own geometry requires -- the work it must do to get back IS
+  // the metric.
+  //
+  // "Arrived" means the newest message is rendered AND we are pinned at the bottom;
+  // a pixel test alone is not enough. An arm that re-anchors scrollTop while paging
+  // (chatHistory.js does, to hold the viewport steady) fights a naive `scrollTop +=`
+  // walk: an early version stalled at scrollTop 12756 of 16718 with the newest
+  // message never rendered, and reported ~0ms because almost nothing had happened.
+  // A stalled walk must never be published as a fast one, so this reports `complete`
+  // and the runner discards the cell when it is false.
+  const walkDown = async (frames) => {
+    const lastIdx = window.CORPUS.length - 1;
+    const arrived = () => atBottom() && !!box.querySelector('.msg[data-i="' + lastIdx + '"]');
+    let last = performance.now(), stalled = 0, prev = -1;
+    for (let i = 0; i < 2000; i++) {
+      if (arrived()) break;
+      const before = box.scrollTop;
+      box.scrollTop += box.clientHeight * 0.9;
+      await new Promise(r => requestAnimationFrame(() => {
+        const t = performance.now(); frames.push(t - last); last = t; r();
+      }));
+      // Paging can re-anchor scrollTop; only a total lack of progress is a stall.
+      stalled = (box.scrollTop <= before + 1 && box.scrollTop === prev) ? stalled + 1 : 0;
+      prev = box.scrollTop;
+      if (stalled > 60) break;
+    }
+    await new Promise(r => setTimeout(r, 80));
+    return arrived();
+  };
+  const report = (frames) => {
+    if (!frames.length) return { mean: 0, worst: 0 };
+    const sum = frames.reduce((s, x) => s + x, 0);
+    return { mean: +(sum / frames.length).toFixed(2), worst: +Math.max(...frames).toFixed(2) };
+  };
+"""
+
+
+def _scrollback_probe_js() -> str:
+    """RECENT scroll-back: revisit a region 20 messages back -- inside the bounded
+    arms' 80-message window, so nothing was ever pruned.
+
+    Trajectory: bottom -> up 20 msgs -> back to bottom -> MEASURED: up 20 msgs again.
+
+    Measured behaviour, which INVERTS the result this probe was designed to show (the
+    first draft used a 3-viewport pixel span and reported an exact 0.00ms for evict --
+    an artifact of never leaving its window, not a win):
+
+      naive   nothing to do (still attached)                    -> floor
+      evict   also nothing: the region is still inside its window
+      detach  collapses and restores it -- #4998's 2000px live margin is NARROWER than
+              eviction's window, so it works where eviction rests
+      hybrid  same warm band, batched and reflow-free -> a fraction of detach's cost
+    """
+    return """
+      async () => {
+""" + _PROBE_PRELUDE + """
+        if (!window.__sbWarmed) {
+          box.scrollTop = box.scrollHeight;
+          await settle();
+          window.__sbDist = await upBy(20);
+          await walkDown([]);          // leave: region collapses (detach) or rests (evict)
+          window.__sbWarmed = true;
+          return null;
+        }
+        // MEASURED: walk back up the same excursion. Distance was fixed in messages by
+        // the warm-up; replay it in pixels so topVisible()'s forced layout stays out of
+        // the sample.
+        const frames = [];
+        const dist = window.__sbDist || box.clientHeight;
+        const steps = Math.max(1, Math.round(dist / (box.clientHeight * 0.9)));
+        let last = performance.now();
+        for (let i = 0; i < steps && box.scrollTop > 0; i++) {
+          box.scrollTop -= dist / steps;
+          await new Promise(r => requestAnimationFrame(() => {
+            const t = performance.now(); frames.push(t - last); last = t; r();
+          }));
+        }
+        await new Promise(r => setTimeout(r, 80));
+        return report(frames);
+      }
+    """
+
+
+def _deepback_probe_js() -> str:
+    """DEEP scroll-back: return to the conversation after walking 200 messages up --
+    well past the bounded arms' window, so they HAVE pruned the bottom.
+
+    Trajectory: bottom -> up 200 msgs -> MEASURED: back down to the bottom.
+
+    This is the axis the detach family owns: #4998 still holds every message's children
+    in `__vChildren` and re-appends them, while evict/hybrid discarded the bottom and
+    must re-render it from data (`innerHTML` parse + style + layout; in the real app,
+    also a server round-trip).
+
+    Network is NOT included, so evict's and hybrid's numbers are a LOWER BOUND on their
+    real cost. The bias runs against the conclusion, which is the honest direction.
+    """
+    return """
+      async () => {
+""" + _PROBE_PRELUDE + """
+        if (!window.__dbWarmed) {
+          box.scrollTop = box.scrollHeight;
+          await settle();
+          await upBy(200);
+          window.__dbWarmed = true;
+          return null;
+        }
+        const frames = [];
+        const complete = await walkDown(frames);   // MEASURED: return to the conversation
+        return Object.assign(report(frames), { complete: complete });
+      }
     """
 
 
@@ -285,6 +447,22 @@ def run_cell(pw, arm: str, n: int) -> dict:
         }""")
         lay_after = layout_cost(cdp)
 
+        # --- recent scroll-back axis: the one where the detach family beats eviction.
+        # Warm-up pass (unmeasured) leaves the region already-rendered-then-left; the
+        # second pass is measured for frame cost and for the layout/style work each
+        # strategy must redo. See _scrollback_probe_js for the lower-bound caveat.
+        page.evaluate(_scrollback_probe_js())
+        sb_before = layout_cost(cdp)
+        sb = page.evaluate(_scrollback_probe_js())
+        sb_after = layout_cost(cdp)
+
+        # --- deep scroll-back: return to the conversation after a long excursion.
+        # This is the case eviction actually pays for (it discarded the bottom).
+        page.evaluate(_deepback_probe_js())
+        db_before = layout_cost(cdp)
+        db = page.evaluate(_deepback_probe_js())
+        db_after = layout_cost(cdp)
+
         # --- scroll axis + drive to top: an instrumented bottom→top sweep records
         # scroll smoothness AND exercises each strategy's scroll-back path, leaving us
         # at the top so the evict arm's _all retention and the detach arm's kept-node
@@ -303,6 +481,18 @@ def run_cell(pw, arm: str, n: int) -> dict:
             "listeners_peak": mem_peak["listeners"],
             "uss_mb": rmem["uss_mb"], "rss_mb": rmem["rss_mb"],
             "scroll_mean_ms": sweep["mean"], "scroll_long_frames": sweep["long"],
+            "scrollback_mean_ms": sb["mean"], "scrollback_worst_ms": sb["worst"],
+            "scrollback_layout_ms": round(sb_after["layout_ms"] - sb_before["layout_ms"], 2),
+            "scrollback_style_ms": round(sb_after["style_ms"] - sb_before["style_ms"], 2),
+            # A walk that never reached the newest message measured nothing; publishing
+            # its near-zero cost would be a lie. Null it out so the cell shows as absent.
+            "deepback_complete": bool(db["complete"]),
+            "deepback_mean_ms": db["mean"] if db["complete"] else None,
+            "deepback_worst_ms": db["worst"] if db["complete"] else None,
+            "deepback_layout_ms": round(db_after["layout_ms"] - db_before["layout_ms"], 2)
+            if db["complete"] else None,
+            "deepback_style_ms": round(db_after["style_ms"] - db_before["style_ms"], 2)
+            if db["complete"] else None,
             "append_layout_ms": round(lay_after["layout_ms"] - lay_before["layout_ms"], 2),
             "append_style_ms": round(lay_after["style_ms"] - lay_before["style_ms"], 2),
         }
@@ -319,6 +509,10 @@ def median_cell(pw, arm, n, repeats):
     out = {"arm": arm, "n": n, "repeats_kept": len(runs)}
     keys = ("nodes_loaded", "nodes_peak", "jsheap_loaded", "jsheap_peak", "listeners_peak",
             "uss_mb", "rss_mb", "scroll_mean_ms", "scroll_long_frames",
+            "scrollback_mean_ms", "scrollback_worst_ms",
+            "scrollback_layout_ms", "scrollback_style_ms",
+            "deepback_mean_ms", "deepback_worst_ms",
+            "deepback_layout_ms", "deepback_style_ms",
             "append_layout_ms", "append_style_ms")
     for k in keys:
         vals = [r[k] for r in runs if r[k] is not None]
@@ -428,12 +622,33 @@ def _write_markdown(rows, lengths, arms, env):
     L += _table(by, lengths, arms, "scroll_mean_ms")
     L.append("\n## Scroll long frames (>50ms) during the sweep — jank count\n")
     L += _table(by, lengths, arms, "scroll_long_frames")
-    L.append("\n> **Scroll-back / network (the one axis where #4998 wins, not captured above):** #4998 "
-             "restores collapsed messages instantly from its in-heap `__vChildren` (zero network). The "
-             "fork's evict refetches older pages from the server on scroll-up (`_fetchOlderFromServer`), "
-             "so it pays ~one localhost round-trip per page — the cost of not retaining the data client-"
-             "side. This harness runs evict without a server (in-memory `_all`), so that network tax is "
-             "NOT in these numbers and must be weighed separately.\n")
+    L.append("\n## Recent scroll-back — LAYOUT ms revisiting a region inside the window\n")
+    L.append("Up ~12 viewports, back to bottom, then up again; the second pass is measured. The "
+             "excursion stays inside the bounded arms' 80-message window. **This inverts the expected "
+             "result and is reported as measured:** `evict` does *no* work here (the region was never "
+             "pruned), while `detach` pays the most — #4998's 2000px live margin is narrower than "
+             "eviction's window, so it collapses and restores messages eviction simply kept. `hybrid` "
+             "runs the same warm band at a fraction of the cost: batched, and sized from the "
+             "IntersectionObserver's own rect instead of a per-node `offsetHeight` reflow.\n")
+    L += _table(by, lengths, arms, "scrollback_layout_ms")
+    L.append("\n## Recent scroll-back — STYLE-recalc ms\n")
+    L += _table(by, lengths, arms, "scrollback_style_ms")
+    L.append("\n## Deep scroll-back — LAYOUT ms returning to the conversation\n")
+    L.append("Up ~30 viewports (past the window, so the bounded arms pruned the bottom), then measured "
+             "on the way back down. **This is the axis the detach family owns.** `detach` still holds "
+             "every message's children in `__vChildren` and re-appends them; `evict` and `hybrid` "
+             "discarded the bottom and must re-render it from data.\n")
+    L += _table(by, lengths, arms, "deepback_layout_ms")
+    L.append("\n## Deep scroll-back — STYLE-recalc ms\n")
+    L.append("Style recalc is where the re-parse shows: re-appending detached nodes skips `innerHTML` "
+             "parse and style resolution; re-rendering from data does not.\n")
+    L += _table(by, lengths, arms, "deepback_style_ms")
+    L.append("\n> **Network is NOT in the deep scroll-back numbers, and that biases them toward `evict`/"
+             "`hybrid`.** In the real app both refetch cold pages from the server "
+             "(`_fetchOlderFromServer`), paying ~one round-trip per page; `detach` restores from its "
+             "in-heap `__vChildren` with zero network. This harness serves their cold pages from an "
+             "in-memory source, so the columns above are a **lower bound** on their real cost. The bias "
+             "runs against the conclusion drawn from them, which is the honest direction.\n")
     L.append("\n## Append LAYOUT ms (stream 25 msgs into an n-message list)\n")
     L.append("Cost of streaming new messages into a large list. `evict` wins because its list stays "
              "bounded. **This does NOT capture #4998's lag benefit**: appends land in the live region, "
