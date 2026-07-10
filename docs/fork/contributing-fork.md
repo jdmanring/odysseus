@@ -9,10 +9,16 @@ This file **extends** the upstream `CONTRIBUTING.md`. All upstream rules still a
 1. **Synchronise with upstream** – ensure `upstream‑mirror` and `develop` are up‑to‑date. Use the helper script `scripts/run_full_sync.sh` (see *Automation helpers* below).
 2. **Search upstream for overlap** – verify that there is no open upstream issue, discussion, roadmap item, or PR that already covers the change:
    ```bash
-   gh issue list    --search "<short description>" --state open
-   gh pr list       --search "<short description>" --state open
-   gh discussion list --search "<short description>"
+   gh issue list --repo pewdiepie-archdaemon/odysseus --search "<short description>" --state open
+   gh pr list    --repo pewdiepie-archdaemon/odysseus --search "<short description>" --state open
    ```
+   **Always pass `--repo` explicitly, on reads as well as writes.** A bare `gh` command
+   resolves against `gh repo set-default`, which has historically pointed at the *read‑only
+   upstream* — a bare `gh issue comment 128` once posted onto upstream's unrelated PR #128,
+   because both repos happened to have an item at that number and nothing errored. Reading
+   the returned URL is the only tell. Writes to any owner other than `jdmanring` are now
+   refused by a local `PreToolUse` guard (`~/.claude/hooks/github_write_guard.py`); reads are
+   unaffected.
 3. **Identify roadmap synergies** – review `docs/ROADMAP.md` for items that could be addressed with a small extension of your change. If you find a match, add a link in the PR body under “Potential roadmap impact”.
 
 ---
