@@ -16,9 +16,19 @@ This file **extends** the upstream `CONTRIBUTING.md`. All upstream rules still a
    resolves against `gh repo set-default`, which has historically pointed at the *read‑only
    upstream* — a bare `gh issue comment 128` once posted onto upstream's unrelated PR #128,
    because both repos happened to have an item at that number and nothing errored. Reading
-   the returned URL is the only tell. Writes to any owner other than `jdmanring` are now
-   refused by a local `PreToolUse` guard (`~/.claude/hooks/github_write_guard.py`); reads are
-   unaffected.
+   the returned URL is the only tell.
+
+   Three controls now make that failure structural rather than a matter of care. The
+   GitHub credential is a fine‑grained token scoped to `jdmanring`, so an upstream write
+   returns **403 from GitHub** (`pull:true, push:false`) no matter what issues it; reads of
+   any repo are unaffected, which the sync pipeline depends on. A local `PreToolUse` guard
+   (`~/.claude/hooks/github_write_guard.py`, tested by `test_github_write_guard.py`) refuses
+   any write that does not name an allowed owner, catching the mistake before it is sent.
+   And `upstream`'s push URL is disabled, because `git push` travels over SSH where no token
+   scope reaches.
+
+   The token is the boundary; the guard is a guardrail. Do not rely on the guard alone, and
+   never edit it to widen it — that change belongs to the repository owner.
 3. **Identify roadmap synergies** – review `docs/ROADMAP.md` for items that could be addressed with a small extension of your change. If you find a match, add a link in the PR body under “Potential roadmap impact”.
 
 ---
