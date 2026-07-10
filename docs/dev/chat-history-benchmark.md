@@ -9,7 +9,11 @@ memory-bound strategies trade away — **scroll-back latency**. The output is an
 
 **The hypothesis this benchmark was built to prove was refuted by it.** The design below anticipated a
 `hybrid` arm that Pareto-dominates — bounded memory *and* low layout cost *and* instant recent
-scroll-back. The hybrid was built, tested, and measured; it is strictly worse than eviction alone. The
+scroll-back. The hybrid was built, tested, and measured; **it buys nothing over eviction alone.** Stated
+to the precision the data supports: eviction wins renderer USS outside measurement spread at n=1000 and
+n=2000; at n=250 and n=5000 the two arms are *within* spread (a null result, not a win for either); and
+eviction holds ~2.5× fewer retained nodes at every length. The refutation rests on a structural argument
+— detach-preserve retains a superset of what eviction retains — not on those margins. The
 reasoning is recorded in `docs/fork/chat-history-architecture-decision.md` and the numbers in
 `tests/bench/results/bench.md`. The arm is kept, relabelled: a tested refutation with data is a result,
 not a failure. Read the sections below as the *method*, not as a prediction that held.
@@ -22,11 +26,33 @@ not a failure. Read the sections below as the *method*, not as a prediction that
 |-----|--------|-----------|--------|
 | `naive` | upstream merged pager (`45ee5a71`) shape | render page, prepend older on scroll-up, never remove | nothing (baseline) |
 | `detach` | **vendored** upstream PR **#4998** `chatVirtualizer.js` (verbatim, with provenance) | off-screen: detach children into a JS array, pin wrapper height; restore on scroll-back | layout/paint only |
-| `evict` | the fork's `static/js/chatHistory.js` (`MessageWindow`) | remove off-screen nodes; refetch from server on scroll-back | rendered DOM nodes (but `_all` data grows) |
+| `evict` | **vendored** snapshot of the fork's `MessageWindow` (`tests/bench/vendor/messageWindow_fork.js`) — see the warning below | remove off-screen nodes; refetch from server on scroll-back | rendered DOM nodes (but `_all` data grows) |
 | `hybrid` | new (this benchmark) — **hypothesis, refuted** | live band → warm band (detach-preserve, #4998 technique) → cold tail (evict nodes **and** `_all`, refetch) | bounded, but never better than `evict` where it matters (n ≥ 1000) |
 
 Vendoring #4998's actual code (not a reimplementation) is a hard requirement: a benchmark that
 reimplements a rival and makes it look bad is dismissed on sight.
+
+### What each arm actually is — and what `evict` is *not*
+
+**The `evict` arm is not the eviction code staged for upstream, and no number here may be attributed to
+that PR.** The two are different implementations of the same idea:
+
+- **Benchmarked (`evict`):** the fork's `MessageWindow` — a ~1090-line class in `static/js/chatHistory.js`,
+  vendored here as `tests/bench/vendor/messageWindow_fork.js`.
+- **Staged upstream** (`fix/chat-history-dom-eviction`): ~112 lines of functions in `static/js/sessions.js`
+  (`_evictHistoryOverflow`, `_tagHistoryOffset`, `_teardownHistoryNode`) hooked into upstream's own
+  `_installHistoryPager`.
+
+What they share is the *mechanism under test* — remove off-screen nodes from the DOM, refetch them from
+the server on scroll-back — and that mechanism is what these results measure. What they do not share is
+source. A reviewer holding the `sessions.js` PR cannot diff it against this arm line-for-line, and should
+not try. The honest reading: this benchmark establishes that **DOM removal beats detach-preserve on
+renderer memory**; it does not certify any particular implementation of DOM removal.
+
+All three non-trivial arms are vendored snapshots, so the benchmark runs deterministically from a clean
+checkout of any branch — including one with no `chatHistory.js`. `tests/test_bench_vendor_snapshot_drift.py`
+asserts the snapshot stays byte-identical to the live file wherever that file exists, so the published
+results can never silently describe code that has since changed; the test skips where the live file is absent.
 
 ## Honest claims (corrected against the code, 2026-07-08)
 
@@ -169,6 +195,11 @@ Two rules follow, and they are load-bearing:
   discarded for exactly this.
 
 ## Known limitations (stated, not hidden)
+
+- **The `evict` arm is not the code staged upstream.** It is the fork's 1090-line `MessageWindow`; the
+  upstream PR implements eviction as ~112 lines in `sessions.js`. They share the mechanism, not the
+  source. These results support "DOM removal beats detach-preserve on renderer memory" — they do not
+  validate a specific implementation. See "What each arm actually is" above.
 
 - **`evict`'s spacer compresses unrendered history**, so a fixed message-count excursion overshoots and
   it traverses *more* messages than the other arms. This biases the deep-scroll-back table **against**
