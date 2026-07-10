@@ -67,10 +67,13 @@ Numbers: `tests/bench/results/bench.md` (generated; never transcribed here).
 **The hybrid buys nothing over eviction alone at any history length that matters.** Stated precisely,
 because the honest version is narrower than "strictly worse":
 
-- At **n ≥ 1000** eviction wins on renderer USS and holds ~2.5× fewer retained nodes.
-- At **n = 250** the hybrid is marginally *ahead* on USS and node count. This is the regime where all
-  strategies sit inside Chromium's renderer baseline and the difference is not worth a decision.
-- At **n = 5000** their USS is within measurement spread; eviction still holds ~2.5× fewer nodes.
+- At **n = 1000 and n = 2000** eviction wins on renderer USS by a margin well outside measurement
+  spread (+9.1MB and +5.1MB respectively).
+- At **n = 250** and **n = 5000** the two arms' USS is **within combined spread** — indistinguishable,
+  which is a null result and not a win for either. (At n=250 all strategies sit inside Chromium's
+  renderer baseline; at n=5000 both bounded arms have converged to a flat window.)
+- At **every length**, eviction holds ~2.5× fewer retained nodes. This is the structural metric and it
+  never inverts.
 - The hybrid's one theoretical advantage — cheap warm-band restore — is **beaten by eviction's zero**,
   because the live window already covers that range without detaching anything.
 
