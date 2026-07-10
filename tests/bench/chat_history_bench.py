@@ -33,7 +33,11 @@ import tempfile
 import psutil
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-CHAT_HISTORY_JS = ROOT / "static/js/chatHistory.js"
+# The evict arm is a vendored snapshot, like the other two non-trivial arms, so
+# the bench runs identically from any branch. It is the fork's MessageWindow --
+# NOT the sessions.js eviction staged upstream. See that file's header.
+CHAT_HISTORY_JS = ROOT / "tests/bench/vendor/messageWindow_fork.js"
+LIVE_CHAT_HISTORY_JS = ROOT / "static/js/chatHistory.js"
 VENDOR_4998 = ROOT / "tests/bench/vendor/chatVirtualizer_4998.js"
 HYBRID_JS = ROOT / "tests/bench/vendor/hybrid_bench.js"
 RESULTS_DIR = ROOT / "tests/bench/results"
