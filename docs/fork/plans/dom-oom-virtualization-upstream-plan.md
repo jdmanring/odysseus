@@ -163,10 +163,20 @@ page cap. **That fold carries a known defect unless two companions travel with i
   + `tests/bench/scroll_driver.js`, which fold in as test infrastructure). The coherence
   assertion is the load-bearing one — a bare count bound passes trivially on the broken code.
 
-Known open defects in the same code to re-check at fold time: #127 (scrollbar spacer), #130
-(pinned-top IO dead-end — `scroll_driver.js` ships `pinnedTopWalk` as its ready-made
-regression driver). Filing with these open is a disclosure decision, not a blocker; filing
-with #129 unfixed would ship a defect we have already measured, named, and fixed.
+- **The sentinel newest-entry fix (fork #130).** The top-sentinel observer callback must read
+  `entries[entries.length-1]`, not `entries[0]`: IO batches a leave+enter pair into one
+  delivery under a busy main thread, and reading the stale oldest entry discards the enter,
+  dead-ending scroll-up paging permanently at the top (captured live). Companions: its
+  Playwright regression `test_pinned_top_walk_completes` and static guard
+  `test_sentinel_observer_reads_newest_entry`. **Unlike #129, this defect is in the CURRENT
+  staged snapshot** (verified 2026-07-17: `entries[0].isIntersecting` at its line 197) — the
+  trigger is a busy main thread during a batch render, no server paging required, so
+  in-memory scroll-up can dead-end the same way. The fix must reach the branch even if the
+  server-paging fold were abandoned.
+
+Known open defects in the same code to re-check at fold time: #127 (scrollbar spacer).
+Filing with #127 open is a disclosure decision, not a blocker; filing with #129 or #130
+unfixed would ship defects we have already measured, named, and fixed.
 
 ## Part 5 — Sequencing and exit criteria
 
