@@ -39,20 +39,16 @@ Run:
 """
 import argparse
 import json
-import os
 import pathlib
 import platform
-import signal
-import socket
 import statistics
-import subprocess
 import sys
-import time
-import urllib.request
-import uuid
-from datetime import datetime, timedelta
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from live_app import LiveApp, seed_session  # noqa: E402  (shared real-app bootstrap)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+SCROLL_DRIVER_JS = ROOT / "tests/bench/scroll_driver.js"
 RESULTS_DIR = ROOT / "tests/bench/results"
 SID = "network-arm-bench"
 VIEWPORT = {"width": 900, "height": 700}
@@ -81,141 +77,25 @@ def _message_md(i: int) -> str:
     return body
 
 
-def _seed(db_url: str, n: int) -> None:
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from core.database import Base, Session as DbSession, ChatMessage as DbChatMessage
-
-    engine = create_engine(db_url)
-    Base.metadata.create_all(bind=engine)
-    db = sessionmaker(bind=engine)()
-    try:
-        db.add(DbSession(id=SID, name="Network Arm", endpoint_url="http://localhost/v1",
-                         model="bench-model", owner=None))
-        t = datetime(2026, 1, 1)
-        for i in range(n):
-            db.add(DbChatMessage(id=str(uuid.uuid4()), session_id=SID,
-                                 role="user" if i % 2 == 0 else "assistant",
-                                 content=_message_md(i), timestamp=t + timedelta(seconds=i)))
-        db.commit()
-    finally:
-        db.close()
-
-
 # ---------------------------------------------------------------------------
-# Real server (the same bootstrap as tests/test_chat_history_render_paging_playwright.py)
+# Real server: shared bootstrap (live_app.py). The excursion driver is shared
+# too (scroll_driver.js) — it encodes the measured IO/frame-boundary failure
+# modes; see that file's header before changing any walk logic.
 # ---------------------------------------------------------------------------
-def _free_port() -> int:
-    s = socket.socket()
-    s.bind(("127.0.0.1", 0))
-    p = s.getsockname()[1]
-    s.close()
-    return p
-
-
-class LiveServer:
+class LiveServer(LiveApp):
     def __init__(self, datadir: str, n: int):
-        self.datadir = datadir
-        db_url = f"sqlite:///{datadir}/app.db"
-        _seed(db_url, n)
-        self.port = _free_port()
-        env = dict(os.environ)
-        env.update({"ODYSSEUS_DATA_DIR": datadir, "DATABASE_URL": db_url,
-                    "AUTH_ENABLED": "false", "LOCALHOST_BYPASS": "true",
-                    "APP_PORT": str(self.port)})
-        self.proc = subprocess.Popen(
-            [f"{ROOT}/venv/bin/python", "-c",
-             f"import uvicorn, app; uvicorn.run(app.app, host='127.0.0.1', "
-             f"port={self.port}, log_level='warning')"],
-            cwd=str(ROOT), env=env,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        self.base = f"http://127.0.0.1:{self.port}"
-        for _ in range(120):
-            try:
-                urllib.request.urlopen(self.base + "/", timeout=2)
-                return
-            except Exception:
-                time.sleep(0.5)
-        self.stop()
-        raise RuntimeError("server did not start")
+        super().__init__(datadir,
+                         lambda db_url: seed_session(db_url, SID,
+                                                     [_message_md(i) for i in range(n)],
+                                                     name="Network Arm"))
+        self.n = n
 
-    def stop(self) -> None:
-        self.proc.send_signal(signal.SIGTERM)
-        try:
-            self.proc.wait(timeout=10)
-        except Exception:
-            self.proc.kill()
-
-    def handler_latency_ms(self, n: int, samples: int = 7) -> dict:
-        """Server-side page cost with no browser in the loop: time a cold mid-history
-        page fetch (the shape the olderLoader issues). Median + spread over samples."""
-        vals = []
-        offset = max(0, n // 2 - 50)
-        for _ in range(samples):
-            t0 = time.perf_counter()
-            urllib.request.urlopen(
-                f"{self.base}/api/history/{SID}?limit=100&offset={offset}", timeout=10).read()
-            vals.append((time.perf_counter() - t0) * 1000.0)
-        return {"median_ms": round(statistics.median(vals), 2),
-                "spread_ms": round(max(vals) - min(vals), 2)}
+    def handler_latency_ms(self, n: int, samples: int = 7) -> dict:  # noqa: D401
+        return super().handler_latency_ms(SID, offset=max(0, n // 2 - 50),
+                                          samples=samples)
 
 
-# ---------------------------------------------------------------------------
-# The excursion — real client, real paging, wall-clocked in the page.
-# ---------------------------------------------------------------------------
-# Progress-driven, because MessageWindow's _loadOlder is NOT scroll-event-driven:
-# it fires from an IntersectionObserver on a top sentinel (chatHistory.js, rootMargin
-# 300px), which evaluates at frame boundaries. A fixed-cadence scrollTop=0 hammer
-# races the post-prepend scroll re-anchor, so the sentinel is rarely intersecting
-# when the observer evaluates — measured: 2 pages in 6000 iterations. A real user
-# scrolls, waits for content, scrolls again; the driver does the same, and the
-# wait-for-progress naturally absorbs whatever time the fetch round takes (which
-# is exactly the quantity under test).
-_WALK_JS = """
-async () => {
-  const box = document.getElementById('chat-history');
-  const minIdx = () => {
-    let best = Infinity;
-    for (const el of box.querySelectorAll('.msg,.agent-thread')) {
-      const m = /SEQMSG (\\d+)/.exec(el.textContent || '');
-      if (m) best = Math.min(best, +m[1]);
-    }
-    return best;
-  };
-  box.scrollTop = box.scrollHeight;
-  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-  const t0 = performance.now();
-  let prev = minIdx(), stalls = 0, rounds = 0;
-  while (prev > 0 && stalls < 8 && rounds++ < 2000) {
-    // Produce an intersection TRANSITION each round, and HOLD each phase for a
-    // settled frame. Two measured failure modes shaped this:
-    //   * pinning scrollTop at 0 deadlocks — a callback swallowed while _loading
-    //     leaves the sentinel intersecting forever, so the observer never re-fires
-    //     (stalled at scrollTop 0, _loading false, 800 buffered msgs unrendered);
-    //   * a down-up jiggle inside one frame is invisible — IO evaluates once per
-    //     frame after layout, so a transition that never survives to a frame
-    //     boundary never happened (verified: the identical jiggle with holds
-    //     resumed a 'stalled' walk instantly; a fresh observer fired fine).
-    // A real user's scroll always spans frames; the driver must too.
-    box.scrollTop = box.clientHeight * 2;
-    await new Promise(r => requestAnimationFrame(r));
-    await new Promise(r => setTimeout(r, 120));
-    box.scrollTop = 0;
-    await new Promise(r => requestAnimationFrame(r));
-    box.dispatchEvent(new Event('scroll'));
-    let cur = prev;
-    for (let w = 0; w < 20; w++) {          // wait for progress, up to 1s per round
-      await new Promise(r => setTimeout(r, 50));
-      cur = minIdx();
-      if (cur < prev) break;
-    }
-    stalls = cur < prev ? 0 : stalls + 1;
-    prev = cur;
-  }
-  const ms = performance.now() - t0;
-  return { ms: +ms.toFixed(0), complete: prev === 0, iters: rounds };
-}
-"""
+_WALK_JS = "async () => window.scrollDriver.walkToOldest(document.getElementById('chat-history'))"
 
 
 def run_cell(pw, server: LiveServer, n: int, rtt_ms: int) -> dict:
@@ -243,6 +123,10 @@ def run_cell(pw, server: LiveServer, n: int, rtt_ms: int) -> dict:
 
         page.goto(server.base + "/", wait_until="networkidle", timeout=30000)
         page.wait_for_selector("#chat-history", timeout=15000)
+        # The real app ships a CSP (script-src 'self' + nonce) that blocks
+        # add_script_tag; evaluate() goes through CDP Runtime, which page CSP
+        # does not govern, so inject the shared driver that way.
+        page.evaluate(SCROLL_DRIVER_JS.read_text())
 
         # Latency emulation starts AFTER app load: the claim under test is paging
         # cost, not asset-loading cost.
