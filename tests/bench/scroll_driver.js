@@ -7,10 +7,12 @@
  *     IntersectionObserver on a top sentinel (chatHistory.js, rootMargin 300px);
  *     dispatching 'scroll' events does nothing on its own (measured: 2 pages
  *     fetched in 6000 hammer iterations).
- *  2. Pinning scrollTop at 0 deadlocks. The observer fires on intersection
- *     TRANSITIONS; a fire swallowed while `_loading` leaves the sentinel
- *     intersecting forever and paging dead-ends with buffered messages
- *     unrendered (fork issue #130 — pinnedTopWalk below reproduces it).
+ *  2. Pinning scrollTop at 0 deadlocked (fork issue #130, FIXED): the sentinel
+ *     callback read entries[0] — the OLDEST queued entry — so a leave+enter
+ *     pair delivered in one batch (busy main thread) was read as "left" and
+ *     the enter discarded; no transition ever followed and paging dead-ended
+ *     with buffered messages unrendered. pinnedTopWalk reproduced it and is
+ *     the #130 regression driver (fast cadence provokes the batched delivery).
  *  3. A down-up jiggle inside one frame is invisible. IO evaluates intersections
  *     once per frame after layout; a transition that never survives to a frame
  *     boundary never happened. Each phase must HOLD for a settled frame.
@@ -74,9 +76,10 @@
   }
 
   /* The deadlock shape: pin scrollTop at 0 (scrollbar dragged to the top) and
-   * never leave. On a fixed MessageWindow this must still reach the oldest
-   * message; today it dead-ends (fork issue #130). Regression tests for #130
-   * should assert complete === true with THIS driver. */
+   * never leave. A fixed MessageWindow must still reach the oldest message;
+   * pre-fix code dead-ended here (fork issue #130 — stale entries[0] read).
+   * Regression tests for #130 assert complete === true with THIS driver at a
+   * fast cadence (~30ms), which provokes the batched leave+enter delivery. */
   async function pinnedTopWalk(box, opts) {
     opts = opts || {};
     var markerRe = opts.markerRe || /SEQMSG (\d+)/;

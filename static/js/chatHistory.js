@@ -283,7 +283,15 @@
 
     var self = this;
     this._sObs = new IntersectionObserver(function (entries) {
-      if (!entries[0].isIntersecting) return;
+      // Act on the NEWEST queued entry, not entries[0] (the oldest). IO queues
+      // one entry per transition between deliveries; when the main thread is
+      // busy (batch render) the sentinel can leave and re-enter before delivery,
+      // so one callback carries [leave, enter]. Reading entries[0] sees the
+      // stale leave, returns without disconnecting, and discards the enter —
+      // the state is now "intersecting" with no future transition, so paging
+      // dead-ends permanently at the top with history remaining (issue #130,
+      // captured live: a single delivery with isIntersecting [false, true]).
+      if (!entries[entries.length - 1].isIntersecting) return;
       self._sObs.disconnect();
       self._loadOlder();
     }, { root: this._c, rootMargin: '300px 0px 0px 0px', threshold: 0 });

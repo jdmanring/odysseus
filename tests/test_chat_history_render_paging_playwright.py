@@ -30,6 +30,11 @@ from live_app import LiveApp, seed_session  # noqa: E402  (shared real-app boots
 N_MESSAGES = 300
 SID = "render-paging-check"
 
+# Long session for the pinned-top walk (#130): the swallowed-fire race needs many
+# server-fetch `_loading` windows to manifest; n=300 passes on broken code.
+N_LONG = 2000
+SID_LONG = "pinned-top-walk"
+
 
 def _contents():
     """N_MESSAGES message bodies. The last few (in the initial render window) carry
@@ -55,8 +60,11 @@ def live_server(tmp_path_factory):
     pytest.importorskip("playwright.sync_api")
     datadir = str(tmp_path_factory.mktemp("render_paging"))
     try:
-        srv = LiveApp(datadir, lambda db_url: seed_session(
-            db_url, SID, _contents(), name="Render Paging", model="test-model"))
+        def _seed(db_url):
+            seed_session(db_url, SID, _contents(), name="Render Paging", model="test-model")
+            seed_session(db_url, SID_LONG, [f"SEQMSG {i:04d}" for i in range(N_LONG)],
+                         name="Pinned Top Walk", model="test-model")
+        srv = LiveApp(datadir, _seed)
     except RuntimeError as e:
         pytest.fail(str(e))
     try:
@@ -189,5 +197,68 @@ def test_scrollup_dom_stays_bounded(live_server):
             assert st["maxTag"] == st["endIdx"] - 1, (
                 f"chIdx tag space is stale: max tag {st['maxTag']} vs _endIdx "
                 f"{st['endIdx']} — nodes were not retagged after a server prepend")
+        finally:
+            browser.close()
+
+
+def test_pinned_top_walk_completes(live_server):
+    """Pin the viewport at the very top (scrollbar dragged to the top, or held
+    Home/PgUp) and stay there; paging must still reach the oldest message.
+
+    Guards issue #130: the top sentinel's one-shot IntersectionObserver fires on
+    intersection TRANSITIONS. A fire swallowed while `_loading` is true leaves
+    the re-armed observer waiting for a transition that never comes when the
+    viewport stays pinned at scrollTop=0 — paging dead-ends with older messages
+    still buffered ("↑ N earlier messages" shows, nothing arrives). pinnedTopWalk
+    is exactly that shape; on broken code it stalls out with complete=False.
+
+    RTT is emulated (CDP, as in tests/bench/network_arm_bench.py) because the
+    swallow needs a fire to land inside the `_loading` window of a server fetch;
+    at localhost RTT that window is near zero and broken code can pass by luck.
+    """
+    from playwright.sync_api import sync_playwright
+    base = live_server
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_context(viewport={"width": 900, "height": 700}).new_page()
+        try:
+            page.goto(base + "/", wait_until="networkidle", timeout=30000)
+            page.wait_for_selector("#chat-history", timeout=15000)
+            page.evaluate("async (sid)=>{await window.sessionModule.loadSessions();"
+                          " await window.sessionModule.selectSession(sid);}", SID_LONG)
+            page.wait_for_function(
+                "()=>document.querySelectorAll('#chat-history .msg,#chat-history .agent-thread').length>0",
+                timeout=15000)
+            page.wait_for_timeout(300)
+
+            # Apply AFTER app load so only the paging fetches see the latency.
+            cdp = page.context.new_cdp_session(page)
+            cdp.send("Network.enable")
+            cdp.send("Network.emulateNetworkConditions",
+                     {"offline": False, "latency": 40,
+                      "downloadThroughput": -1, "uploadThroughput": -1})
+
+            with open(os.path.join(REPO, "tests", "bench", "scroll_driver.js")) as fh:
+                page.evaluate(fh.read())
+            # cadenceMs=30: re-pinning faster than a settled frame is what gets
+            # fires swallowed (probe sweep 2026-07-17: 30ms cadence dead-ended at
+            # RTT 40 and 400 with the issue's exact stall signature; 100/250ms
+            # cadences completed). A fixed MessageWindow self-drives on batch
+            # completion, so cadence must not matter.
+            walk = page.evaluate(
+                "async () => window.scrollDriver.pinnedTopWalk("
+                "document.getElementById('chat-history'), {cadenceMs: 30})")
+            st = page.evaluate("""() => {
+              const w = window.chatHistory;
+              return { startIdx: w._startIdx, serverHasMore: w._serverHasMore,
+                       loading: w._loading, fetching: w._fetching };
+            }""")
+            assert walk["complete"], (
+                f"pinned-top walk dead-ended: {walk} state {st} — a swallowed "
+                f"sentinel-observer fire was never recovered (#130)")
+            # The walk must have consumed everything: buffer and server drained.
+            assert st["startIdx"] == 0 and not st["serverHasMore"], (
+                f"walk 'completed' with history remaining: {st}")
         finally:
             browser.close()
