@@ -90,6 +90,31 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 - `tests/test_chat_history_js.py` — static-analysis tests
 - `tests/test_chat_history_playwright.py` — Playwright integration tests
 
+## Measured evidence (comparison matrix)
+
+Source: `tests/bench/` harness, published artifact `tests/bench/results/bench.{json,md}`
+(5 kept repeats, Chromium 148 headless; #4661's trim/reload vendored faithfully from its
+commit `27f35e1c` as `tests/bench/vendor/trimChatHistory_4661.js`, provenance-guarded by
+`tests/test_bench_vendor_4661.py`). Worst-case column n=5000 messages; full curve
+(250/1000/2000/5000) in the artifact.
+
+| Axis (n=5000) | Unpatched baseline | #4661 | This PR (`MessageWindow`) |
+|---|---|---|---|
+| Steady-state DOM nodes after load | 39,014 | 1,274 (150-msg cap holds) | 411 |
+| DOM nodes at top of history | 39,088 | **39,092** — click-reload restores all; no re-trim until next message | 2,196 |
+| Renderer USS at top of history (MB) | 119.8 | 122.9 | **62.5** |
+| Reaching old history | scroll (all live) | 97 "show older" clicks, full restore, scroll position lost | scroll-up pages in place, window stays bounded |
+| Append layout cost, 25-msg stream (ms) | 101.3 | 4.7 | 3.2 |
+| Scroll smoothness (mean frame ms) | 16.7 | 16.7 | 16.7 |
+| Review size (lines) | — | ~145 | ~873 |
+
+The two rows that decide it: #4661's cap genuinely bounds the steady state, but the moment
+a user reads old history the bound is gone — the DOM and USS return to the unpatched
+values and stay there until the next message re-trims. This PR's window holds (~2.2k nodes,
+half the baseline's USS) at the deepest point of a 5000-message history, which is exactly
+the long-session reading pattern #4644 describes. Cost rows are honest in both directions:
+#4661 matches us on append and scroll smoothness, and is a fraction of the review size.
+
 ## Relationship to upstream #4661
 
 This change and open upstream PR #4661 (holden093, `fix/browser-memory-leak`) target the

@@ -49,6 +49,12 @@ verified citation explaining why it matters. No claim ships without all three.
 2.1 **Comparison matrix** (ours vs #4661 vs unpatched baseline) across: bounded DOM under
 long sessions; detached-node/observer/renderer leakage; scroll-up reload; scroll-down
 behaviour; review size; risk.
+**DONE (2026-07-18).** Matrix built from the published artifact and placed in the PR
+draft ("Measured evidence" section). Key result: #4661 bounds the steady state
+(~1.19k nodes at every n) but its click-reload path restores the full history with no
+re-trim until the next message (n=5000: 39k nodes / 122.9 MB USS ≈ unpatched) and loses
+scroll position; ours holds ~2.2k nodes / 62.5 MB USS at the top of a 5000-message
+history. Decision record and active-work corrected to match the measurement.
 
 2.2 **Measured evidence (the core of "provable").** Build a reproducible benchmark:
 - Three branches: `test/upstream-pr-4661` (theirs), `fix/dom-oom-virtualization` (ours),
@@ -61,6 +67,12 @@ behaviour; review size; risk.
   extended teardown; document the actual numbers, not the expected ones.
 - If a measurement does not favour us, say so and adjust the claim. The benchmark decides,
   not the narrative.
+**DONE (2026-07-18)** — implemented as the `tests/bench/` harness with vendored arms
+(including #4661's trim/reload, `trimChatHistory_4661.js`, faithfulness-guarded by
+`tests/test_bench_vendor_4661.py`) rather than branch checkouts; published artifact
+`tests/bench/results/bench.{json,md}`. Measurements that did not favour us are kept and
+disclosed in the artifact (recent scroll-back inverts toward detach; deep scroll-back
+cells withheld with self-describing reasons; network bias noted).
 
 2.3 **Cited, verified sources.** For each technical claim, cite an authoritative source and
 verify (open it, confirm it says what we claim, the lesson from the draft-link audit):
