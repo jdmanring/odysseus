@@ -4,6 +4,7 @@
 import Storage from './storage.js';
 import uiModule, { autoResize, styledPrompt } from './ui.js';
 import chatRenderer from './chatRenderer.js';
+import markdownModule from './markdown.js';
 import { providerLogo } from './providers.js';
 import { initModelPicker, updateModelPicker } from './modelPicker.js';
 import themeModule from './theme.js';
@@ -18,8 +19,6 @@ let _skipAutoSelect = false;
 let _suppressNextSessionLoading = false;
 const HISTORY_DISPLAY_CHAR_LIMIT = 160000;
 const HISTORY_DISPLAY_TAIL_CHARS = 20000;
-const HISTORY_PAGE_LIMIT_MOBILE = 8;
-const HISTORY_PAGE_LIMIT_DESKTOP = 24;
 
 const SIDEBAR_MAX_VISIBLE = 10;
 const FOLDER_MAX_VISIBLE = 5;
@@ -38,6 +37,9 @@ function _paintSessionLoading(chatHistory, label = 'Loading chat') {
   chatHistory.style.transition = '';
   chatHistory.style.opacity = '1';
   chatHistory.classList.add('no-animate');
+  // Tear down DOM-virtualization state before clearing (invariant:
+  // reset() must precede innerHTML='' so observers/holders are released).
+  if (window.chatHistory) window.chatHistory.reset();
   chatHistory.innerHTML = '';
 
   const wrap = document.createElement('div');
@@ -98,10 +100,6 @@ function _stripUserVisionBlocks(text) {
   ).trim();
 }
 
-function _historyPageLimit() {
-  return window.innerWidth <= 768 ? HISTORY_PAGE_LIMIT_MOBILE : HISTORY_PAGE_LIMIT_DESKTOP;
-}
-
 function _historyUrl(id, { limit = null, offset = null } = {}) {
   const url = new URL(`${API_BASE}/api/history/${id}`);
   if (limit != null) url.searchParams.set('limit', String(limit));
@@ -109,57 +107,41 @@ function _historyUrl(id, { limit = null, offset = null } = {}) {
   return url.toString();
 }
 
-function _addHistoryMessageWithFullRenderer(role, content, modelName, meta) {
-  const box = document.getElementById('chat-history');
-  if (!box) return [];
-  const marker = document.createComment('history-message');
-  box.appendChild(marker);
-  let rendered = null;
-  try {
-    rendered = chatRenderer.addMessage(role, content, modelName, meta);
-  } catch (e) {
-    marker.remove();
-    throw e;
-  }
-  const nodes = [];
-  let node = marker.nextSibling;
-  while (node) {
-    const next = node.nextSibling;
-    nodes.push(node);
-    node = next;
-  }
-  marker.remove();
-  return nodes.length ? nodes : (rendered ? [rendered] : []);
-}
-
-function _renderHistoryMessage(msg, modelName) {
-  const meta = msg.metadata ? { ...msg.metadata, _fromHistory: true } : null;
-  let displayContent;
-  if (typeof msg.content === 'string') {
-    displayContent = _displayHistoryContent(msg.content);
-  } else if (Array.isArray(msg.content)) {
-    displayContent = _displayHistoryContent(msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n').trim());
-  } else {
-    displayContent = '';
-  }
-  if (msg.role === 'user') {
-    displayContent = _stripUserVisionBlocks(displayContent);
-    const trimmed = displayContent.trim();
-    if (
-      trimmed === 'Continue where you left off' ||
-      trimmed.startsWith('Your message was cut off.') ||
-      trimmed.startsWith('Your previous response was interrupted.') ||
-      displayContent.includes('[Instruction: Rewrite') ||
-      displayContent.includes('[Instruction: Explain')
-    ) {
-      return null;
+// Map raw /api/history rows to the { role, content, modelName, meta } shape the
+// renderer/virtualization consumes. Shared by the initial load and the
+// scroll-up server pager so the two paths can never diverge. Drops the synthetic
+// "continue"/instruction user turns and rewrites doc-edit prompts to a compact
+// one-line form.
+function _mapHistoryMessages(rawMsgs, modelName) {
+  const out = [];
+  for (const msg of rawMsgs || []) {
+    const meta = msg.metadata ? { ...msg.metadata, _fromHistory: true } : null;
+    let displayContent;
+    if (typeof msg.content === 'string') {
+      displayContent = _displayHistoryContent(msg.content);
+    } else if (Array.isArray(msg.content)) {
+      displayContent = _displayHistoryContent(msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n').trim());
+    } else {
+      displayContent = '';
     }
-    const docEditMatch = displayContent.match(/^In the document, edit this specific text \((lines? [\d-]+)\):\n```\n([\s\S]*?)\n```\n\nInstruction: ([\s\S]*)$/);
-    if (docEditMatch) {
-      displayContent = `[Doc edit: ${docEditMatch[1]}] ${docEditMatch[3]}`;
+    if (msg.role === 'user') {
+      displayContent = _stripUserVisionBlocks(displayContent);
+      const trimmed = displayContent.trim();
+      if (
+        trimmed === 'Continue where you left off' ||
+        trimmed.startsWith('Your message was cut off.') ||
+        trimmed.startsWith('Your previous response was interrupted.') ||
+        displayContent.includes('[Instruction: Rewrite') ||
+        displayContent.includes('[Instruction: Explain')
+      ) continue;
+      const docEditMatch = displayContent.match(/^In the document, edit this specific text \((lines? [\d-]+)\):\n```\n([\s\S]*?)\n```\n\nInstruction: ([\s\S]*)$/);
+      if (docEditMatch) {
+        displayContent = `[Doc edit: ${docEditMatch[1]}] ${docEditMatch[3]}`;
+      }
     }
+    out.push({ role: msg.role, content: markdownModule.renderContent(displayContent), modelName, meta });
   }
-  return _addHistoryMessageWithFullRenderer(msg.role, displayContent, modelName, meta);
+  return out;
 }
 
 function _clearHistoryPager() {
@@ -168,69 +150,6 @@ function _clearHistoryPager() {
     box.removeEventListener('scroll', _historyPager.handler);
   }
   _historyPager = null;
-}
-
-function _installHistoryPager(id, pageInfo, modelName) {
-  const box = document.getElementById('chat-history');
-  _clearHistoryPager();
-  if (!box || !pageInfo || !pageInfo.has_more_before) return;
-
-  _historyPager = {
-    sessionId: id,
-    offset: Number(pageInfo.offset || 0),
-    limit: Number(pageInfo.limit || _historyPageLimit()),
-    loading: false,
-    done: false,
-    modelName,
-    handler: null,
-  };
-
-  const loadOlder = async () => {
-    if (!_historyPager || _historyPager.loading || _historyPager.done) return;
-    if (_historyPager.sessionId !== currentSessionId) return;
-    if (box.scrollTop > 90) return;
-
-    const nextOffset = Math.max(0, _historyPager.offset - _historyPager.limit);
-    const nextLimit = _historyPager.offset - nextOffset;
-    if (nextLimit <= 0) {
-      _historyPager.done = true;
-      return;
-    }
-
-    _historyPager.loading = true;
-    const anchor = box.querySelector('.msg, .agent-thread, .gallery-bubble');
-    const beforeHeight = box.scrollHeight;
-    try {
-      const res = await fetch(_historyUrl(_historyPager.sessionId, { limit: nextLimit, offset: nextOffset }));
-      const data = await res.json();
-      if (!_historyPager || _historyPager.sessionId !== currentSessionId) return;
-      const newEls = [];
-      for (const msg of data.history || []) {
-        if (msg.role !== 'user' && msg.role !== 'assistant') continue;
-        const els = _renderHistoryMessage(msg, _historyPager.modelName);
-        if (Array.isArray(els)) newEls.push(...els);
-      }
-      for (const el of newEls) {
-        box.insertBefore(el, anchor || box.firstChild);
-      }
-      _historyPager.offset = Number(data.offset || nextOffset);
-      _historyPager.done = !data.has_more_before;
-      if (window.hljs) {
-        newEls.forEach(el => el.querySelectorAll('pre code:not(.hljs)').forEach(block => window.hljs.highlightElement(block)));
-      }
-      const heightDelta = box.scrollHeight - beforeHeight;
-      box.scrollTop += heightDelta;
-    } catch (e) {
-      console.warn('Failed to load older chat history:', e);
-    } finally {
-      if (_historyPager) _historyPager.loading = false;
-    }
-  };
-
-  _historyPager.handler = () => {
-    if (box.scrollTop <= 90) loadOlder();
-  };
-  box.addEventListener('scroll', _historyPager.handler, { passive: true });
 }
 
 function _getIncognitoIds() {
@@ -1884,7 +1803,9 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
           loadingPaintReady = _nextPaint();
         }, loadingDelayMs);
       }
-      const res = await fetch(_historyUrl(id, { limit: _historyPageLimit() }));
+      // One backend page (the server caps a page at 100); scroll-up pulls older
+      // pages on demand via the virtualization's olderLoader below.
+      const res = await fetch(_historyUrl(id, { limit: 100 }));
       const data = await res.json();
       if (loadingTimer) {
         clearTimeout(loadingTimer);
@@ -1945,6 +1866,7 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
       chatHistory.style.opacity = '0';
       await new Promise(r => setTimeout(r, 120));
       if (navToken !== _sessionNavToken || currentSessionId !== id) return;
+      if (window.chatHistory) window.chatHistory.reset();
       chatHistory.innerHTML = '';
     }
 
@@ -1959,11 +1881,29 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
          <p>Messages will be routed through your OpenClaw agent. The agent has access to tools, memory, and skills configured in your OpenClaw workspace.</p>`,
         'OpenClaw');
     } else if (msgHistory.length) {
-      for (const msg of msgHistory) {
-        try {
-          _renderHistoryMessage(msg, modelName);
-        } catch (e) {
-          console.warn('Failed to render history message:', e, msg);
+      const _preparedMsgs = _mapHistoryMessages(msgHistory, modelName);
+      if (window.chatHistory) {
+        // Feed the virtualization the server-paging cursor so scroll-up can pull
+        // older pages from the backend (limit/offset) instead of dead-ending at
+        // this first page — the backend caps a page at 100, so without this a
+        // long chat would only ever show its most recent 100 messages.
+        window.chatHistory.load(_preparedMsgs, {
+          sessionId: id,
+          serverOffset: (pageInfo && Number.isFinite(pageInfo.offset)) ? pageInfo.offset : 0,
+          serverHasMore: !!(pageInfo && pageInfo.has_more_before),
+          olderLoader: async (sid, limit, offset) => {
+            const r = await fetch(_historyUrl(sid, { limit, offset }));
+            const d = await r.json();
+            return {
+              msgs: _mapHistoryMessages(d.history || [], modelName),
+              offset: Number.isFinite(d.offset) ? d.offset : offset,
+              hasMore: !!d.has_more_before,
+            };
+          },
+        });
+      } else {
+        for (const m of _preparedMsgs) {
+          window.chatModule.addMessage(m.role, m.content, m.modelName, m.meta);
         }
       }
     } else {
@@ -1976,11 +1916,12 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
         document.querySelectorAll('.list-item.active-session').forEach(el => el.classList.remove('active-session'));
       }
     }
+    // Snap to bottom while the container is still invisible. This mirrors upstream's
+    // original order and ensures the compositor layer is initialised with the correct
+    // scrollTop when the opacity fade-in transition begins. Setting scrollTop AFTER
+    // opacity='1' (our previous order) let Chrome initialise the compositor with
+    // scrollTop=0 (left by innerHTML='') and defer the correction.
     uiModule.scrollHistoryInstant();
-    if (!isOC && msgHistory.length) {
-      _installHistoryPager(id, pageInfo, modelName);
-    }
-
     // Fade in and re-enable message animations
     if (chatHistory) {
       chatHistory.style.transition = 'opacity 0.15s ease-in';
@@ -1992,6 +1933,10 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
         window.hljs.highlightElement(block);
       });
     }
+    // Re-anchor after hljs: overflow-anchor:none (required for _loadOlder scroll
+    // compensation) disables Chrome's automatic adjustment for hljs height growth,
+    // so a second snap is needed to land at the true bottom.
+    uiModule.scrollHistoryInstant();
     // Hide research button on session switch — it's only for the session that started it
     var _rBtn = document.getElementById('research-toggle-btn');
     var _rChk = document.getElementById('research-toggle');

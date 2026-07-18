@@ -3807,6 +3807,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     // full canonical render, which is rebuilt from the saved DB record on reload.
     // Plain text replies can be finalized in place without a reload.
     let rich = false;
+    // Mirror the main handler's _thinkOpen state: the server sends thinking tokens
+    // as {delta, thinking:true}. Without wrapping them in <think>…</think>,
+    // thinking content renders raw as visible text in the resume bubble.
+    let _resumeThinkOpen = false;
 
     const cleanup = () => {
       try { spinner.destroy(); } catch (_) {}
@@ -3814,7 +3818,14 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     };
 
     const renderDelta = () => {
-      const dt = markdownModule.normalizeThinkingMarkup(_streamDisplayText(roundText, { final: docFenceOpened }));
+      // The resume "replaying" bubble has no dedicated thinking UI — strip
+      // thinking sections from the raw text so they don't leak as visible text
+      // during replay, then run the display pipeline for the document-fence
+      // handling.
+      let dt = String(roundText);
+      dt = dt.replace(/<think(?:\s[^>]*)?>[\s\S]*?<\/think>/gi, '');
+      dt = dt.replace(/<think(?:\s[^>]*)?>[\s\S]*/i, '').trim();
+      dt = _streamDisplayText(dt, { final: docFenceOpened });
       if (docFenceOpened && !dt.trim()) {
         _showDocumentWritingStatus(contentDiv);
       } else {
@@ -3849,7 +3860,16 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
           let json;
           try { json = JSON.parse(payload); } catch (_) { continue; }
           if (json.delta) {
-            roundText += json.delta;
+            // Wrap thinking tokens in <think>…</think> so the display pipeline
+            // renders them as collapsible sections instead of raw text. Mirrors
+            // main handler.
+            let _rdelta = json.delta;
+            if (json.thinking) {
+              if (!_resumeThinkOpen) { _rdelta = '<think>' + _rdelta; _resumeThinkOpen = true; }
+            } else if (_resumeThinkOpen) {
+              _rdelta = '</think>' + _rdelta; _resumeThinkOpen = false;
+            }
+            roundText += _rdelta;
             if (!docFenceOpened && (roundText.includes('```create_document\n') || roundText.includes('```document\n') || roundText.includes('```documen\n'))) {
               docFenceOpened = true;
               rich = true;
@@ -3876,6 +3896,10 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     } catch (e) {
       // Network drop or parse failure: fall through to the reload below.
     }
+
+    // Close any unclosed thinking block before finalization so addMessage
+    // gets well-formed <think>…</think> tags.
+    if (_resumeThinkOpen) { roundText += '</think>'; _resumeThinkOpen = false; }
 
     cleanup();
     if (docFenceOpened) _finishDocumentWritingStatus(holder, true);
