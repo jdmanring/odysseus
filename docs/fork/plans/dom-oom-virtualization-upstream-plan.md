@@ -145,6 +145,29 @@ verified). Re-verify before filing.
 
 ---
 
+## Part 4.5 — Server-paging fold: MANDATORY companion fixes (added 2026-07-17)
+
+The staged snapshot pre-dates server paging and walks only the in-memory buffer. The plan of
+record folds the server-paging work (`fix/chat-history-server-paging`, develop `6fac912d`)
+into this branch at rebuild time so a filed PR does not dead-end at the backend's 100-message
+page cap. **That fold carries a known defect unless two companions travel with it:**
+
+- **The chIdx retag fix (fork #129, develop `ac18291a`).** `_fetchOlderFromServer` shifts the
+  `_all` index space on every prepend; without retagging rendered nodes, tags from successive
+  pages collide and the Phase-3 scroll-up prune silently removes nothing (measured in the
+  real app: ~1,980 of 2,000 messages live in DOM — the exact unbounded-DOM failure this
+  contribution exists to fix). The bug is invisible to the in-memory harness; only the
+  server-paging path triggers it.
+- **Its regression test** (`test_scrollup_dom_stays_bounded`: constant DOM bound + tag-space
+  coherence `maxTag == _endIdx-1`, driven over real server paging via `tests/bench/live_app.py`
+  + `tests/bench/scroll_driver.js`, which fold in as test infrastructure). The coherence
+  assertion is the load-bearing one — a bare count bound passes trivially on the broken code.
+
+Known open defects in the same code to re-check at fold time: #127 (scrollbar spacer), #130
+(pinned-top IO dead-end — `scroll_driver.js` ships `pinnedTopWalk` as its ready-made
+regression driver). Filing with these open is a disclosure decision, not a blocker; filing
+with #129 unfixed would ship a defect we have already measured, named, and fixed.
+
 ## Part 5 — Sequencing and exit criteria
 
 Recommended order (each is its own fork issue + branch where it is a code change; issue
@@ -158,6 +181,7 @@ first):
 7. Final code/test/cleanliness audit (Part 4) + long-session verification (3.5).
 
 **Submittable when, and only when, all of these are true:**
+- The server-paging fold includes the #129 retag fix and its regression test (Part 4.5).
 - Provenance is precise and every #4661 reference matches it (Part 1 exit check).
 - Every superiority claim has a number and a verified citation; the tradeoff is stated
   (Part 2 exit check).
