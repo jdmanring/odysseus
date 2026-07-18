@@ -914,8 +914,19 @@
 
     var frag = document.createDocumentFragment();
     for (var j = 0; j < nodes.length; j++) frag.appendChild(nodes[j]);
-    if (this._histSep && this._histSep.parentNode) {
-      this._c.insertBefore(frag, this._histSep);
+    // Insert at the CONTENT EDGE: before the bottom sentinel (or, failing
+    // that, the bottom honesty spacer), never blindly before _histSep — the
+    // spacer sits between the sentinel and _histSep, and inserting below it
+    // renders the batch UNDER the blank that represents it: message order
+    // corrupts and the blank-in-view chain never fills (measured: 125
+    // messages loaded on a single scroll-down trigger, all below the spacer).
+    var _insRef = (this._bSentinel && this._bSentinel.parentNode === this._c)
+      ? this._bSentinel
+      : (this._botSpacer && this._botSpacer.parentNode === this._c)
+        ? this._botSpacer
+        : (this._histSep && this._histSep.parentNode) ? this._histSep : null;
+    if (_insRef) {
+      this._c.insertBefore(frag, _insRef);
     } else {
       this._c.appendChild(frag);
     }
