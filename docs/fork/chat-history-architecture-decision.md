@@ -148,6 +148,22 @@ pre-fix and completes in all 9 post-fix; guarded by a pinned-top full-walk Playw
 deterministic static guard. Note the reach: this bug needs no server paging (busy main thread is
 the trigger), so it also lives in the staged #2 snapshot — recorded in plan Part 4.5.
 
+**2026-07-17, last — #127 fixed; the scrollbar is honest.** Estimator spacers now own the whole
+unrendered range on BOTH edges (a top-only first cut collapsed back to 4% honesty at walk end —
+caught by the walk-stability regression before commit). Design against #126's drift lessons:
+idempotent recompute (never incremental accumulation), exact prune-pass heights keyed by absolute
+DB index, estimator average movable only inside compensated contexts. Measured honesty at load:
+1.01/1.00/1.00 for n=300/2000/5000 against walk-end ground truth (was 0.50/0.03/0.01; uniform
+corpus — heterogeneous chats estimate looser at load and converge as prunes record exact heights).
+Verification surfaced and fixed two adjacent defects: the height-delta scroll compensation
+double-compensated under Chromium's native scroll anchoring (measured +36 px on the boundary
+batch; replaced with idempotent anchor-restore, net-formula fallback in blank spacer where
+anchoring is suppressed) — note this corrects this document's earlier "coexists harmlessly with
+our manual math" claim, which held only while the net delta was ~0 — and the deep-drag catch-up
+chain over-triggered on a proximity margin (now gated on blank-actually-in-viewport; the sentinel
+owns the one-batch lookahead). The staged #2 branch was converged to the maintained
+chatHistory.js + test pairing (`463526b0`), retiring the snapshot-lag defect class there.
+
 ## What we learned from theirs
 
 - **#4998's detach-and-preserve** round-trips node state (`<details>`, highlight, listeners) with no
