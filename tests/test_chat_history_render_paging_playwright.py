@@ -18,94 +18,51 @@ Run:
 import json
 import os
 import shutil
-import signal
-import socket
-import subprocess
-import time
+import sys
 import urllib.request
-import uuid
-from datetime import datetime, timedelta
 
 import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(REPO, "tests", "bench"))
+from live_app import LiveApp, seed_session  # noqa: E402  (shared real-app bootstrap)
+
 N_MESSAGES = 300
 SID = "render-paging-check"
 
 
-def _free_port():
-    s = socket.socket()
-    s.bind(("127.0.0.1", 0))
-    p = s.getsockname()[1]
-    s.close()
-    return p
-
-
-def _seed(db_url):
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from core.database import Base, Session as DbSession, ChatMessage as DbChatMessage
-
-    engine = create_engine(db_url)
-    Base.metadata.create_all(bind=engine)
-    db = sessionmaker(bind=engine)()
-    try:
-        db.add(DbSession(id=SID, name="Render Paging", endpoint_url="http://localhost/v1",
-                         model="test-model", owner=None))
-        t = datetime(2026, 1, 1)
-        for i in range(N_MESSAGES):
-            # The last few messages (in the initial render window) carry rich content
-            # — fenced code, markdown, an inline image — so the real _mapHistoryMessages
-            # → markdownModule.renderContent path is exercised on non-trivial shapes, not
-            # just plain strings. The SEQMSG marker is preserved so the paging/bounding
-            # assertions (which match /SEQMSG (\d+)/) still hold.
-            content = f"SEQMSG {i:04d}"
-            if i == N_MESSAGES - 3:
-                content += "\n\n```python\nprint('hello')\n```\n\n**bold** and `code`"
-            elif i == N_MESSAGES - 2:
-                content += "\n\n![tiny](data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==)"
-            elif i == N_MESSAGES - 1:
-                content += "\n\n- list item\n- another\n\n> a quote"
-            db.add(DbChatMessage(id=str(uuid.uuid4()), session_id=SID,
-                                 role="user" if i % 2 == 0 else "assistant",
-                                 content=content, timestamp=t + timedelta(seconds=i)))
-        db.commit()
-    finally:
-        db.close()
+def _contents():
+    """N_MESSAGES message bodies. The last few (in the initial render window) carry
+    rich content — fenced code, markdown, an inline image — so the real
+    _mapHistoryMessages → markdownModule.renderContent path is exercised on
+    non-trivial shapes, not just plain strings. The SEQMSG marker is preserved so
+    the paging/bounding assertions (which match /SEQMSG (\\d+)/) still hold."""
+    out = []
+    for i in range(N_MESSAGES):
+        content = f"SEQMSG {i:04d}"
+        if i == N_MESSAGES - 3:
+            content += "\n\n```python\nprint('hello')\n```\n\n**bold** and `code`"
+        elif i == N_MESSAGES - 2:
+            content += "\n\n![tiny](data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==)"
+        elif i == N_MESSAGES - 1:
+            content += "\n\n- list item\n- another\n\n> a quote"
+        out.append(content)
+    return out
 
 
 @pytest.fixture(scope="module")
 def live_server(tmp_path_factory):
     pytest.importorskip("playwright.sync_api")
     datadir = str(tmp_path_factory.mktemp("render_paging"))
-    db_url = f"sqlite:///{datadir}/app.db"
-    _seed(db_url)
-    port = _free_port()
-    env = dict(os.environ)
-    env.update({"ODYSSEUS_DATA_DIR": datadir, "DATABASE_URL": db_url,
-                "AUTH_ENABLED": "false", "LOCALHOST_BYPASS": "true", "APP_PORT": str(port)})
-    srv = subprocess.Popen(
-        [f"{REPO}/venv/bin/python", "-c",
-         f"import uvicorn, app; uvicorn.run(app.app, host='127.0.0.1', port={port}, log_level='warning')"],
-        cwd=REPO, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    base = f"http://127.0.0.1:{port}"
     try:
-        for _ in range(60):
-            try:
-                urllib.request.urlopen(base + "/", timeout=2)
-                break
-            except Exception:
-                time.sleep(0.5)
-        else:
-            srv.kill()
-            pytest.fail("server did not start")
-        yield base
+        srv = LiveApp(datadir, lambda db_url: seed_session(
+            db_url, SID, _contents(), name="Render Paging", model="test-model"))
+    except RuntimeError as e:
+        pytest.fail(str(e))
+    try:
+        yield srv.base
     finally:
-        srv.send_signal(signal.SIGTERM)
-        try:
-            srv.wait(timeout=10)
-        except Exception:
-            srv.kill()
+        srv.stop()
         shutil.rmtree(datadir, ignore_errors=True)
 
 
