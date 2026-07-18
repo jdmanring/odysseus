@@ -110,7 +110,7 @@ commit `27f35e1c` as `tests/bench/vendor/trimChatHistory_4661.js`, provenance-gu
 | Reaching old history | scroll (all live) | 97 "show older" clicks, full restore, scroll position lost | scroll-up pages in place, window stays bounded |
 | Append layout cost, 25-msg stream (ms) | 101.3 | 4.7 | 3.2 |
 | Scroll smoothness (mean frame ms) | 16.7 | 16.7 | 16.7 |
-| Review size (lines) | — | ~145 | ~873 |
+| Review size (source lines changed) | — | ~142 | ~1,430 (5 files; plus ~2,200 test lines) |
 
 The two rows that decide it: #4661's cap genuinely bounds the steady state, but the moment
 a user reads old history the bound is gone — the DOM and USS return to the unpatched
@@ -134,7 +134,7 @@ relationship is precise, and stated honestly:
   releases hljs-defer observer references via `hljsDeferForgetNode`. Those uncleaned
   observers and renderers were confirmed leak sources in the fork's OOM investigation
   (`docs/fork/memory-explosion-research.md`).
-- **The windowing is more complete.** #4661 is a focused top-only trim (~145 lines): a
+- **The windowing is more complete.** #4661 is a focused top-only trim (~142 lines): a
   150-node cap, removal from the top, and a "load older" bar backed by server pagination.
   This adds bidirectional windowing so a user can scroll back up and reload evicted
   messages in place.
