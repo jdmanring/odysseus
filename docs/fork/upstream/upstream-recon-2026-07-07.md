@@ -83,15 +83,14 @@ It fetches older history pages from the server on scroll-up (`_historyUrl` limit
     maintainer commit **`45ee5a71`** (NOT #5090 — see the §2 correction). Dozens of lines that
     compose with upstream, not a class that rips out their fresh work. A maintainer accepts
     the graft; rejects the replacement.
-  - **Attribution (verified against primary sources 2026-07-07):** the eviction teardown was
-    written independently. The only lines resembling upstream PR **#4661**'s
+  - **Attribution:** the only lines resembling upstream PR **#4661**'s
     `_trimChatHistoryDOM` clear this app's own `_waveInterval`/`_elapsedTicker` timers —
-    convergence forced by the shared codebase, not copied code. We rejected #4661's actual
-    method as architecturally incompatible. **#4661 is OPEN and unmerged** (verified via `gh`)
+    an idiom any code removing these nodes must use. #4661's actual
+    method was rejected as architecturally incompatible. **#4661 is OPEN and unmerged** (verified via `gh`)
     — a *different* OOM PR, not superseded by anything. So: **no in-code attribution to #4661.**
     The PR description references the maintainer's pager commit `45ee5a71` for *coordination*
-    (the pager we compose with), not credit. Prior "adapted from #4661" / "#5090 pager" framing
-    was wrong and is retracted.
+    (the pager we compose with), not credit. Canonical framing: plan Part 1.2 of
+    `docs/fork/plans/dom-oom-virtualization-upstream-plan.md`.
   - **Open genuinely-strategic question (human decision):** is client-side memory-bounding
     worth an upstream PR at all, given the maintainer already shipped lazy-load (once the
     shadow is fixed) and the fork has separate renderer-OOM work (the reclaim/responsiveness stack)?

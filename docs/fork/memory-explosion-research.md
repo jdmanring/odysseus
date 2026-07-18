@@ -514,8 +514,8 @@ All fixes are upstream-candidates.
 | Branch | Origin | Scope | Status |
 |---|---|---|---|
 | `fix/dom-oom-virtualization` | `upstream-mirror` | Phase 3 scroll-jump-to-bottom (BIDI_MSG_CAP) | On develop; needs in-app verification |
-| `fix/dom-oom-streaming-throttle` | `upstream-mirror` | Fix A (thinking-block textContent, adapted from upstream PR #4661) + Fix A2 (rAF throttle) + Fix C1–C3 (C4 partial — teardown pattern adapted from PR #4661) | Built and pushed (commit `d35f3819`) |
-| `fix/dom-oom-phase2-guard` | `fix/dom-oom-virtualization` | Fix B: Phase 2 `_evictLive()` replaces `hist===0` hard-stop; teardown cleanup adapted from upstream PR #4661's `_trimChatHistoryDOM()` teardown | Built and pushed (commit `d1222f42`) |
+| `fix/dom-oom-streaming-throttle` | `upstream-mirror` | Fix A (thinking-block textContent, adapted from upstream PR #4661) + Fix A2 (rAF throttle) + Fix C1–C3 (C4 partial) | Built and pushed (commit `d35f3819`) |
+| `fix/dom-oom-phase2-guard` | `fix/dom-oom-virtualization` | Fix B: Phase 2 `_evictLive()` replaces `hist===0` hard-stop, with per-node teardown of the app's own handles (see plan Part 1.2 for the #4661 framing) | Built and pushed (commit `d1222f42`) |
 | `test/upstream-pr-4661` | `upstream-mirror` | Upstream PR #4661 cherry-picked on upstream-mirror — for comparison only | Created, pushed |
 | `test/pr-4661` | `develop` | Upstream PR #4661 cherry-picked on develop (one conflict resolved in sessions.js) — for comparison only | Created, pushed |
 | _(pending ingest)_ | upstream PR #4661 | Safe parts only — see "Ingest" note above | Waiting for upstream merge |
