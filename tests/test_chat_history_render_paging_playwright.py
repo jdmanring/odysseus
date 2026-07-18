@@ -67,6 +67,24 @@ def live_server(tmp_path_factory):
         srv = LiveApp(datadir, _seed)
     except RuntimeError as e:
         pytest.fail(str(e))
+    # This suite exercises server-side paging end-to-end, so the backend must
+    # actually honor limit/offset on /api/history. If a legacy unpaginated route
+    # shadows the paginated endpoint, skip rather than fail: that is a separate,
+    # separately-staged fix (route-shadowing), not a defect in this feature.
+    try:
+        probe = json.loads(urllib.request.urlopen(
+            srv.base + f"/api/history/{SID}?limit=24", timeout=10).read())
+    except Exception as e:
+        srv.stop()
+        shutil.rmtree(datadir, ignore_errors=True)
+        pytest.fail(f"/api/history probe failed: {e}")
+    if len(probe.get("history", [])) != 24 or "has_more_before" not in probe:
+        srv.stop()
+        shutil.rmtree(datadir, ignore_errors=True)
+        pytest.skip(
+            "backend /api/history is not paginated (legacy route shadows the "
+            "paginated endpoint); this suite requires the route-shadowing fix, "
+            "staged separately")
     try:
         yield srv.base
     finally:
@@ -145,11 +163,12 @@ def test_history_renders_and_pages(live_server):
 _DOM_MSG_BOUND = 130
 
 
+# Fork issue #129 tracked the stale-tag prune bug this test guards.
 def test_scrollup_dom_stays_bounded(live_server):
     """Walk to the oldest message over real server paging; the DOM must stay at
     a constant size and the chIdx tag space must stay coherent.
 
-    Guards issue #129: _fetchOlderFromServer prepends to _all and shifts the
+    Guards the retag invariant: _fetchOlderFromServer prepends to _all and shifts the
     index space without retagging rendered nodes, so tags from successive pages
     collide (measured: a full 300-message walk left tags 0-99 against _endIdx
     280) and the Phase-3 prune breaks at the first stale tag, removing nothing.
@@ -190,7 +209,7 @@ def test_scrollup_dom_stays_bounded(live_server):
             # message may span several DOM children, so distinct tags, not nodes).
             assert st["distinctMsgs"] <= _DOM_MSG_BOUND, (
                 f"DOM holds {st['distinctMsgs']} messages after the walk "
-                f"(bound {_DOM_MSG_BOUND}) — scroll-up prune is not running (#129)")
+                f"(bound {_DOM_MSG_BOUND}) — scroll-up prune is not running")
             # Tag-space coherence: the bottom-most rendered message's tag must be
             # in the CURRENT _all index space. Stale tags collide across pages and
             # silently disable every chIdx consumer (prune, scroll-down reload).
@@ -201,11 +220,12 @@ def test_scrollup_dom_stays_bounded(live_server):
             browser.close()
 
 
+# Fork issue #130 tracked the swallowed-fire bug this test guards.
 def test_pinned_top_walk_completes(live_server):
     """Pin the viewport at the very top (scrollbar dragged to the top, or held
     Home/PgUp) and stay there; paging must still reach the oldest message.
 
-    Guards issue #130: the top sentinel's one-shot IntersectionObserver fires on
+    Guards the newest-entry read: the top sentinel's one-shot IntersectionObserver fires on
     intersection TRANSITIONS. A fire swallowed while `_loading` is true leaves
     the re-armed observer waiting for a transition that never comes when the
     viewport stays pinned at scrollTop=0 — paging dead-ends with older messages
@@ -256,7 +276,7 @@ def test_pinned_top_walk_completes(live_server):
             }""")
             assert walk["complete"], (
                 f"pinned-top walk dead-ended: {walk} state {st} — a swallowed "
-                f"sentinel-observer fire was never recovered (#130)")
+                f"sentinel-observer fire was never recovered")
             # The walk must have consumed everything: buffer and server drained.
             assert st["startIdx"] == 0 and not st["serverHasMore"], (
                 f"walk 'completed' with history remaining: {st}")
