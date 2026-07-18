@@ -1527,8 +1527,18 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
 
       function _showThinkingSpinner(label) {
         if (document.querySelector('.agent-thinking-dots')) return;
+        // Zero-footprint sticky overlay, not an in-flow message: a height:0
+        // sticky anchor appended as the log's last child, with the bubble
+        // absolutely positioned above it (see .agent-thinking-overlay CSS).
+        // The document's bottom edge never moves on show/replace/remove, so
+        // the indicator cannot cause layout jumps or scroll-position churn;
+        // sticky keeps it visible at the viewport bottom while the user reads
+        // older history. Stays INSIDE #chat-history so the existing cleanup
+        // queries and the log's aria-busy ownership check still see it;
+        // role=status replaces the announcement the in-flow message provided.
         const _thinkMsg = document.createElement('div');
-        _thinkMsg.className = 'msg msg-ai agent-thinking-dots';
+        _thinkMsg.className = 'agent-thinking-dots agent-thinking-overlay';
+        _thinkMsg.setAttribute('role', 'status');
         const _thinkBody = document.createElement('div');
         _thinkBody.className = 'body';
         const _ts = spinnerModule.create(label || 'Thinking', 'right', 'wave');
@@ -1536,8 +1546,8 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
         _ts.start(120);
         _thinkMsg._spinner = _ts;
         _thinkMsg.appendChild(_thinkBody);
+        // No scrollHistory(): the overlay has no height, nothing moved.
         document.getElementById('chat-history').appendChild(_thinkMsg);
-        uiModule.scrollHistory();
       }
 
       function _replaceThinkingSpinner(label) {

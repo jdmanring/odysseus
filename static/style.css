@@ -9643,6 +9643,36 @@ body.fullwidth-chat .chat-history {
   letter-spacing: 0.5px;
 }
 
+/* Thinking indicator as a zero-footprint sticky overlay: a height:0 anchor at
+   the end of the log (the document bottom never moves when it appears, is
+   replaced, or is removed) whose bubble is absolutely positioned above it.
+   Sticky rides the scroller, so the indicator stays visible at the viewport
+   bottom while the user reads older history. Deliberately no transform and no
+   will-change: this must not cost a compositor layer. */
+.agent-thinking-overlay {
+  position: sticky;
+  bottom: 8px;
+  height: 0;
+  overflow: visible;
+  flex-shrink: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.agent-thinking-overlay .body {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin: 0 auto;
+  pointer-events: auto;
+  background: var(--ai-bubble-bg, var(--panel));
+  border: 1px solid var(--bubble-border, var(--border));
+  border-radius: 14px;
+  padding: 6px 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
 .agent-tool-output[open] {
   background: color-mix(in srgb, var(--red) 6%, transparent);
 }
