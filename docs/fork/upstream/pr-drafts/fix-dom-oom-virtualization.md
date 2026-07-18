@@ -78,6 +78,11 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
   scroll-down windowing, the scroll-to-bottom drain/snap transition, and teardown
   (timers cleared + `hljsDeferForgetNode` called when pruning removes nodes)
 - `tests/test_chat_history_a11y_js.py`: 8 accessibility contract tests
+- `tests/test_chat_history_render_paging_playwright.py`: 5 end-to-end tests that boot the
+  real app (uvicorn + seeded 300/2000-message sessions) and drive rendering, markdown
+  mapping, server paging, the full deep-back walk, and DOM bounding against the live
+  `/api/history` contract (skips with an explicit reason until the separately-staged
+  route-shadowing fix unblocks the paginated endpoint)
 - Manual: run a long agent session (80+ exchanges) and confirm DOM child count stays bounded via `document.getElementById('chat-history').children.length` in the browser console
 - Manual: confirm the eviction notice appears after enough exchanges and the text is correct
 - Manual: confirm `scrollTop` does not jump when eviction fires
@@ -86,13 +91,24 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 ## Files changed
 
 - `static/js/chatHistory.js` — new file; full `MessageWindow` implementation
-- `static/js/sessions.js` — wire in `chatHistory.reset()` and `chatHistory.load()`
-- `static/js/chat.js` — delegate scroll-to-bottom to `chatHistory.scrollToBottom()`
-- `static/index.html` — load `chatHistory.js` before `sessions.js`
-- `static/style.css` — `overflow-anchor:none`, `will-change` cleanup
+- `static/js/sessions.js` — map history through the existing display filters and hand
+  `chatHistory.load()` a server-paging loader against the paginated `/api/history`
+- `static/js/chat.js` — resume-think stream handling the windowed render path depends on
+- `static/index.html` — load `chatHistory.js`; scroll-to-bottom button delegates to
+  `chatHistory.scrollToBottom()`
+- `static/style.css` — `overflow-anchor:none` on the window's sentinels/spacer
 - `tests/test_chat_history_js.py` — static-analysis tests
 - `tests/test_chat_history_playwright.py` — Playwright integration tests
 - `tests/test_chat_history_a11y_js.py` — accessibility contract tests
+- `tests/test_chat_history_render_paging_playwright.py` — end-to-end render/paging
+  regression suite against the live app
+- `tests/bench/live_app.py`, `tests/bench/scroll_driver.js` — real-app bootstrap and
+  scroll-walk driver the end-to-end suite runs on
+
+Dependency: the end-to-end paging suite requires the paginated `/api/history` endpoint
+to actually be reachable. A legacy unpaginated route currently shadows it; that
+route-shadowing fix is staged as a separate PR, and the suite skips (with an explicit
+reason) rather than fails until it lands.
 
 ## Measured evidence (comparison matrix)
 
@@ -110,7 +126,7 @@ commit `27f35e1c` as `tests/bench/vendor/trimChatHistory_4661.js`, provenance-gu
 | Reaching old history | scroll (all live) | 97 "show older" clicks, full restore, scroll position lost | scroll-up pages in place, window stays bounded |
 | Append layout cost, 25-msg stream (ms) | 101.3 | 4.7 | 3.2 |
 | Scroll smoothness (mean frame ms) | 16.7 | 16.7 | 16.7 |
-| Review size (source lines changed) | — | ~142 | ~1,430 (5 files; plus ~2,200 test lines) |
+| Review size (source lines changed) | — | ~142 | ~1,490 (5 files; plus ~2,830 test lines) |
 
 The two rows that decide it: #4661's cap genuinely bounds the steady state, but the moment
 a user reads old history the bound is gone — the DOM and USS return to the unpatched
