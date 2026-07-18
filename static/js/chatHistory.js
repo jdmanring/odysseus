@@ -21,6 +21,7 @@
 
   var WINDOW_SIZE  = 50;    // messages rendered on session load
   var BATCH_SIZE   = 25;    // messages loaded per upward/downward scroll step
+  var SERVER_PAGE  = 100;   // messages fetched per backend history page (matches server cap)
   var PRUNE_AT     = 80;    // live DOM child count that triggers Phase 2 pruning
   var PRUNE_COUNT  = 20;    // nodes removed per Phase 2 prune event
   var BIDI_CAP     = 120;   // historical DOM child count that triggers top prune (in _loadNewer)
@@ -48,6 +49,26 @@
     this._draining   = false;      // true while scrollToBottom() is draining all batches
     this._gen        = 0;          // incremented on reset(); all rAF callbacks check this
     this._evictedLiveCount = 0;   // live nodes evicted when history exhausted (for notice)
+    // Server-paged history: _all holds only the pages fetched so far. When the
+    // in-memory buffer is exhausted on scroll-up, older pages are pulled from
+    // the backend (limit/offset) so the full history is reachable while the DOM
+    // stays bounded. _serverOffset is the raw DB offset of _all[0].
+    this._sessionId     = null;
+    this._serverOffset  = 0;
+    this._serverHasMore = false;
+    this._fetching      = false;
+    this._olderLoader   = null;   // async (sessionId, limit, offset) -> {msgs, offset, hasMore}
+    // Scrollbar honesty (top edge): a spacer whose height estimates every
+    // message above the DOM (never-rendered + pruned), so scrollHeight
+    // reflects the conversation, not the rendered window. See _updateTopSpacer.
+    this._topSpacer = null;
+    this._botSpacer = null;      // same, bottom edge ([_endIdx, _all.length))
+    this._topPending = false;    // rAF guard for deep-drag paging assist
+    this._hpx       = {};        // absolute DB index -> measured px (exact, recorded at prune)
+    this._estSum    = 0;         // live estimator numerator (px)
+    this._estCount  = 0;         // live estimator denominator (messages)
+    this._estPendSum   = 0;      // samples recorded outside compensated contexts,
+    this._estPendCount = 0;      // folded into the estimator by _estFold()
     this._initMutObs();
     this._initScrollListener();
   }
@@ -56,14 +77,23 @@
   // Public API
   // ---------------------------------------------------------------------------
 
-  MessageWindow.prototype.load = function (messages) {
+  MessageWindow.prototype.load = function (messages, opts) {
     // Hold the lock through the entire load sequence. MutationObserver fires as
     // a microtask after this synchronous call returns, so setting _loading=false
     // synchronously in _renderTail would let Phase 2 prune a freshly-rendered
     // agent session (50 msgs × 5 DOM children = 250 nodes > PRUNE_AT=80).
     // rAF fires after the microtask queue drains, keeping the guard intact.
+    opts = opts || {};
+    this._setBusy();          // coalesce the initial session render for AT
     this._loading  = true;
     this._all      = messages;
+    // Server-paging state: only enabled when the caller supplies an olderLoader
+    // and the backend reports older messages exist beyond this first page.
+    this._sessionId     = opts.sessionId || null;
+    this._serverOffset  = (typeof opts.serverOffset === 'number' && opts.serverOffset > 0) ? opts.serverOffset : 0;
+    this._olderLoader   = (typeof opts.olderLoader === 'function') ? opts.olderLoader : null;
+    this._serverHasMore = !!opts.serverHasMore && this._serverOffset > 0 && this._olderLoader !== null;
+    this._fetching      = false;
     this._startIdx = Math.max(0, messages.length - WINDOW_SIZE);
     this._endIdx   = messages.length;
     console.log('[chatHistory] Session load: %d msgs, rendering %d–%d', messages.length, this._startIdx, this._endIdx - 1);
@@ -73,6 +103,18 @@
     // JS task returns, so the sentinel is guaranteed to be out of view
     // by the time the observer first evaluates.
     this._attachSentinel();
+    // Seed the height estimator from the rendered window: (content height minus
+    // control elements) / rendered message count. One number, margins included.
+    // The newest-window mean is not a representative corpus sample — it is only
+    // the seed, refined by exact per-message heights as prunes record them.
+    var _rendered = this._endIdx - this._startIdx;
+    if (_rendered > 0) {
+      var _ctrlH = (this._sentinel ? this._sentinel.offsetHeight : 0) +
+                   (this._histSep  ? this._histSep.offsetHeight  : 0);
+      var _contentH = this._c.scrollHeight - _ctrlH;
+      if (_contentH > 0) { this._estSum = _contentH; this._estCount = _rendered; }
+    }
+    this._updateTopSpacer();
     this._c.scrollTop = this._c.scrollHeight;
     var self = this;
     var _lgen = this._gen;
@@ -82,11 +124,14 @@
       requestAnimationFrame(function () {
         if (self._gen !== _lgen) return;
         self._loading = false;
+        self._clearBusy();
         self._c.scrollTop = self._c.scrollHeight;
-        // Lazy-loaded images inflate scrollHeight after the initial snap.
-        // overflow-anchor:none prevents automatic compensation, so attach one-shot
-        // load listeners and re-snap. No slack threshold: a fresh session load should
-        // always land at the bottom regardless of how much content loads.
+        // Lazy-loaded images inflate scrollHeight after the initial snap. Message
+        // nodes keep the default overflow-anchor:auto (only the sentinels/spacer set
+        // :none, see style.css); on our Chromium/QtWebEngine target native anchoring
+        // pins the visible *bottom*, which does not compensate for image growth below
+        // a bottom-anchored viewport — so attach one-shot load listeners and re-snap.
+        // No slack threshold: a fresh session load should always land at the bottom.
         var _imgs = self._c.querySelectorAll('img');
         for (var _ii = 0; _ii < _imgs.length; _ii++) {
           if (!_imgs[_ii].complete) {
@@ -134,6 +179,75 @@
     this._startIdx = 0;
     this._endIdx   = 0;
     this._evictedLiveCount = 0;
+    this._sessionId     = null;
+    this._serverOffset  = 0;
+    this._serverHasMore = false;
+    this._fetching      = false;
+    this._olderLoader   = null;
+    if (this._topSpacer && this._topSpacer.parentNode) this._topSpacer.remove();
+    if (this._botSpacer && this._botSpacer.parentNode) this._botSpacer.remove();
+    this._topSpacer    = null;
+    this._botSpacer    = null;
+    this._topPending   = false;
+    this._hpx          = {};
+    this._estSum       = 0;
+    this._estCount     = 0;
+    this._estPendSum   = 0;
+    this._estPendCount = 0;
+    this._clearBusy();
+  };
+
+  // ---------------------------------------------------------------------------
+  // Accessibility helpers
+  //
+  // #chat-history is role="log" aria-live="polite" (index.html) AND the element
+  // we prepend/evict into. Without care, scroll-up history is announced as new
+  // and focus inside an evicted message is silently lost. Two helpers address
+  // that, per the WAI-ARIA APG feed pattern:
+  //   _setBusy/_clearBusy bracket a batch DOM change with aria-busy so assistive
+  //   tech coalesces the churn. _clearBusy restores the PRIOR value (never a
+  //   hardcoded 'false'), so it composes with the streaming aria-busy that
+  //   chat.js toggles on the same element rather than clearing it out from under
+  //   an in-flight stream.
+  //   _captureFocus/_restoreFocusIfLost move focus to the log container if the
+  //   node holding it was removed, so keyboard position is not dumped to <body>.
+  // These are churn/robustness improvements validated by guard tests; they are
+  // not a substitute for a screen-reader audit.
+  // ---------------------------------------------------------------------------
+  MessageWindow.prototype._setBusy = function () {
+    if (this._busyPrev === undefined) {
+      this._busyPrev = this._c.getAttribute('aria-busy');
+    }
+    this._c.setAttribute('aria-busy', 'true');
+  };
+  MessageWindow.prototype._clearBusy = function () {
+    if (this._busyPrev === undefined) return;
+    var prev = this._busyPrev;
+    this._busyPrev = undefined;
+    // A stream may have STARTED after _setBusy() captured prev (chat.js sets
+    // aria-busy='true' while streaming and 'false' at done, and leaves a
+    // .stream-content / .agent-thinking-dots marker in the log meanwhile). If one
+    // is live now, it owns aria-busy — leave it 'true' rather than restoring our
+    // captured prior, which would clear the busy out from under the live stream.
+    if (this._c.querySelector('.stream-content, .agent-thinking-dots')) {
+      this._c.setAttribute('aria-busy', 'true');
+      return;
+    }
+    if (prev === null) this._c.removeAttribute('aria-busy');
+    else this._c.setAttribute('aria-busy', prev);
+  };
+  MessageWindow.prototype._captureFocus = function () {
+    var a = document.activeElement;
+    return !!(a && this._c.contains(a));
+  };
+  MessageWindow.prototype._restoreFocusIfLost = function (had) {
+    if (!had) return;
+    var a = document.activeElement;
+    if (a && this._c.contains(a)) return;   // focus survived
+    // The focused node was evicted; browsers reset activeElement to <body>.
+    // Move focus to the log container so keyboard scroll position is preserved.
+    if (!this._c.hasAttribute('tabindex')) this._c.setAttribute('tabindex', '-1');
+    try { this._c.focus({ preventScroll: true }); } catch (e) { this._c.focus(); }
   };
 
   // Snap to the true bottom of history, draining all remaining _loadNewer() batches.
@@ -142,6 +256,9 @@
   // batches that would otherwise break the _isAtBottom() threshold test.
   MessageWindow.prototype.scrollToBottom = function () {
     this._draining = true;
+    // Remove the bottom honesty spacer before snapping: the drain renders its
+    // whole range, and a snap into blank filler is exactly what it must avoid.
+    this._updateBottomSpacer();
     this._c.scrollTop = this._c.scrollHeight - this._c.clientHeight;
     if (this._endIdx < this._all.length && !this._loading) {
       this._loadNewer();
@@ -175,22 +292,212 @@
   };
 
   // ---------------------------------------------------------------------------
+  // Scrollbar honesty — top estimator spacer (issue: scrollHeight reflected only
+  // the rendered window, ~2.5% of a 2000-message conversation at load)
+  //
+  // The spacer represents every message above the DOM: the server remainder
+  // ([0, _serverOffset) in absolute DB indices) plus the unrendered buffer
+  // ([_serverOffset, _serverOffset + _startIdx)). Its height is an IDEMPOTENT
+  // RECOMPUTE — sum of exact per-message heights where recorded (_hpx, written
+  // at prune time from the exact scrollHeight delta of each prune pass) plus a
+  // running-average estimate for never-measured messages. Never accumulate the
+  // height incrementally: a benchmark arm that did (estimated increments,
+  // compounded per page) drifted ~220k px short over a deep walk.
+  //
+  // Jump-freedom invariant: the estimator average may only change inside a
+  // compensated context (_loadOlder/_loadNewer measure scrollHeight before and
+  // after their mutations and adjust scrollTop by the net delta, absorbing any
+  // spacer resize). Prune paths record samples into a pending pool (_estPend*)
+  // instead of the live average; their own spacer growth is the exact measured
+  // delta of the removed nodes, so restoring the saved scrollTop is exact.
+  // _estFold() promotes the pending pool and MUST only be called from a
+  // compensated context.
+  //
+  // Heights are keyed by ABSOLUTE DB index (_serverOffset + chIdx): a server
+  // prepend shifts every relative index but leaves absolute ones fixed (the
+  // same property that made the staged eviction immune to the retag bug).
+  //
+  // The BOTTOM edge ([_endIdx, _all.length) after a bottom prune) gets the
+  // symmetric spacer. It is geometrically simpler: it sits below the viewport,
+  // so resizing it shifts nothing the user sees and needs no scrollTop
+  // compensation. The one conflict — a bottom-snap (scrollToBottom / drain)
+  // landing the viewport in blank filler — is resolved by removing the bottom
+  // spacer for the duration of a drain (the drain renders everything anyway).
+  // ---------------------------------------------------------------------------
+
+  // Viewport anchor for prepend/prune compensation. Chromium's native scroll
+  // anchoring ALSO restores the anchored node when content above it mutates,
+  // so a blind `scrollTop += heightDelta` double-compensates whenever the net
+  // delta is non-zero (measured: +36px — exactly the removed sentinel — on the
+  // batch that reaches the oldest message). Anchor-restore is idempotent under
+  // native anchoring: if the browser already restored the node, the correction
+  // is zero. Returns null when no content node straddles the viewport top
+  // (viewport in blank spacer, where native anchoring is suppressed by the
+  // spacer's overflow-anchor:none and the net formula must be used instead —
+  // anchoring the content edge there would pin it and the deep-drag catch-up
+  // could never converge on the held position).
+  MessageWindow.prototype._viewportAnchor = function () {
+    var cTop = this._c.getBoundingClientRect().top;
+    var ch = this._c.firstElementChild;
+    while (ch) {
+      var isCtl = (ch === this._sentinel || ch === this._bSentinel ||
+                   ch === this._histSep ||
+                   ch.classList.contains('chat-history-spacer'));
+      if (!isCtl) {
+        var r = ch.getBoundingClientRect();
+        if (r.bottom > cTop) {
+          return (r.top <= cTop + this._c.clientHeight)
+            ? { el: ch, top: r.top } : null;   // below the viewport: in blank
+        }
+      }
+      ch = ch.nextElementSibling;
+    }
+    return null;
+  };
+
+  MessageWindow.prototype._restoreAnchor = function (a) {
+    if (!a || !a.el.isConnected) return false;
+    this._c.scrollTop += a.el.getBoundingClientRect().top - a.top;
+    return true;
+  };
+
+  MessageWindow.prototype._estFold = function () {
+    // Promote prune-time samples into the live average. Compensated contexts only.
+    if (this._estPendCount > 0) {
+      this._estSum   += this._estPendSum;
+      this._estCount += this._estPendCount;
+      this._estPendSum = 0; this._estPendCount = 0;
+    }
+  };
+
+  // Record one prune pass: `msgPx` maps chIdx -> summed node px for the removed
+  // messages; `exactDelta` is the pass's measured scrollHeight loss. The exact
+  // delta is distributed over the removed messages proportionally to their node
+  // heights, so Σ recorded == exactDelta (margins and collapse included) and the
+  // spacer recompute reproduces the removed height to the pixel.
+  MessageWindow.prototype._recordPruneHeights = function (msgPx, exactDelta) {
+    var idxs = Object.keys(msgPx), nodeSum = 0, i;
+    if (!idxs.length || exactDelta <= 0) return;
+    for (i = 0; i < idxs.length; i++) nodeSum += msgPx[idxs[i]];
+    for (i = 0; i < idxs.length; i++) {
+      var chIdx = parseInt(idxs[i], 10);
+      var px = nodeSum > 0 ? exactDelta * (msgPx[idxs[i]] / nodeSum)
+                           : exactDelta / idxs.length;
+      var abs = this._serverOffset + chIdx;
+      var prev = this._hpx[abs];
+      this._hpx[abs] = px;
+      // Refresh the pending estimator pool: replace a prior sample for the same
+      // message rather than double-counting a render/prune/render cycle.
+      if (prev !== undefined) { this._estPendSum += px - prev; }
+      else { this._estPendSum += px; this._estPendCount++; }
+    }
+  };
+
+  MessageWindow.prototype._updateTopSpacer = function () {
+    var count = this._serverOffset + this._startIdx;  // messages above the DOM
+    if (count <= 0) {
+      if (this._topSpacer && this._topSpacer.parentNode) this._topSpacer.remove();
+      this._topSpacer = null;
+      return;
+    }
+    var est = this._estCount > 0 ? this._estSum / this._estCount : 96;
+    var h = 0;
+    for (var abs = 0; abs < count; abs++) {
+      var m = this._hpx[abs];
+      h += (m !== undefined) ? m : est;
+    }
+    h = Math.round(h);
+    if (!this._topSpacer) {
+      var sp = document.createElement('div');
+      sp.className = 'chat-history-spacer';
+      sp.setAttribute('aria-hidden', 'true');   // geometry filler, not content
+      sp.style.cssText = (
+        'flex-shrink:0;display:flex;align-items:flex-end;justify-content:center;' +
+        'color:var(--fg);opacity:0.35;font-size:0.8rem;padding-bottom:6px;' +
+        'overflow:hidden;box-sizing:border-box'
+      );
+      sp.textContent = 'Earlier messages — scroll up to load';
+      this._topSpacer = sp;
+      // Order is [spacer, sentinel, content]: the sentinel stays at the content
+      // edge so slow scroll-up pages before any blank filler is visible; a deep
+      // thumb-drag into the spacer is handled by the scroll-listener assist.
+      this._c.prepend(sp);
+    }
+    this._topSpacer.style.height = h + 'px';
+  };
+
+  MessageWindow.prototype._updateBottomSpacer = function () {
+    var count = this._all.length - this._endIdx;   // messages below the DOM
+    // A drain is about to render all of them and snaps to the bottom each
+    // batch; a spacer there would put blank filler in the snapped viewport.
+    if (count <= 0 || this._draining) {
+      if (this._botSpacer && this._botSpacer.parentNode) this._botSpacer.remove();
+      this._botSpacer = null;
+      return;
+    }
+    var est = this._estCount > 0 ? this._estSum / this._estCount : 96;
+    var h = 0;
+    for (var i = this._endIdx; i < this._all.length; i++) {
+      var m = this._hpx[this._serverOffset + i];
+      h += (m !== undefined) ? m : est;
+    }
+    h = Math.round(h);
+    if (!this._botSpacer) {
+      var sp = document.createElement('div');
+      sp.className = 'chat-history-spacer';
+      sp.setAttribute('aria-hidden', 'true');
+      sp.style.cssText = (
+        'flex-shrink:0;display:flex;align-items:flex-start;justify-content:center;' +
+        'color:var(--fg);opacity:0.35;font-size:0.8rem;padding-top:6px;' +
+        'overflow:hidden;box-sizing:border-box'
+      );
+      sp.textContent = 'Newer messages — scroll down to load';
+      this._botSpacer = sp;
+      // Order is [content, bottom sentinel, spacer, histSep]: the sentinel
+      // stays at the content edge (mirror of the top arrangement).
+      if (this._bSentinel && this._bSentinel.parentNode) {
+        this._bSentinel.insertAdjacentElement('afterend', sp);
+      } else if (this._histSep && this._histSep.parentNode) {
+        this._c.insertBefore(sp, this._histSep);
+      } else {
+        this._c.appendChild(sp);
+      }
+    }
+    this._botSpacer.style.height = h + 'px';
+  };
+
+  // ---------------------------------------------------------------------------
   // Top sentinel (Phase 1 — load older on scroll-up)
   // ---------------------------------------------------------------------------
 
   MessageWindow.prototype._attachSentinel = function () {
     this._detachSentinel();
-    if (this._startIdx === 0) return;
+    // Keep the sentinel while there are earlier messages either buffered
+    // in _all (_startIdx) or still on the server (_serverHasMore), so scrolling
+    // up keeps paging the backend instead of dead-ending at the first page.
+    if (this._startIdx === 0 && !this._serverHasMore) return;
 
     var s = document.createElement('div');
     s.className   = 'chat-history-sentinel';
-    s.textContent = '↑ ' + this._startIdx + ' earlier messages';
+    var _older = this._startIdx + (this._serverHasMore ? this._serverOffset : 0);
+    s.textContent = '↑ ' + _older + ' earlier messages';
     s.style.cssText = (
       'text-align:center;padding:10px 0;color:var(--fg);opacity:0.5;' +
       'font-size:0.85rem;user-select:none;flex-shrink:0'
     );
+    // Decorative progress marker; loading is driven by the IntersectionObserver,
+    // not by activating this element. Hide it from AT so scroll-up doesn't churn
+    // the live region with an "N earlier messages" announcement.
+    s.setAttribute('aria-hidden', 'true');
     this._sentinel = s;
-    this._c.prepend(s);
+    // Keep the [spacer, sentinel, content] order: the sentinel belongs at the
+    // content edge (just above the first rendered message), below the honesty
+    // spacer, so scroll-up reaches it before entering blank filler.
+    if (this._topSpacer && this._topSpacer.parentNode === this._c) {
+      this._topSpacer.insertAdjacentElement('afterend', s);
+    } else {
+      this._c.prepend(s);
+    }
 
     var self = this;
     this._sObs = new IntersectionObserver(function (entries) {
@@ -198,7 +505,7 @@
       // one entry per transition between deliveries; when the main thread is
       // busy (batch render) the sentinel can leave and re-enter before delivery,
       // so one callback carries [leave, enter]. Reading entries[0] sees the
-      // stale leave, returns without disconnecting, and discards the enter --
+      // stale leave, returns without disconnecting, and discards the enter —
       // the state is now "intersecting" with no future transition, so paging
       // dead-ends permanently at the top with history remaining (captured
       // live: a single delivery with isIntersecting [false, true]).
@@ -213,6 +520,71 @@
     if (this._sObs) { this._sObs.disconnect(); this._sObs = null; }
     if (this._sentinel && this._sentinel.parentNode) this._sentinel.remove();
     this._sentinel = null;
+  };
+
+  // ---------------------------------------------------------------------------
+  // _fetchOlderFromServer — pull the next older backend page into _all
+  //
+  // Called by _loadOlder when the in-memory buffer is exhausted but the server
+  // still has older messages. Prepends the fetched (mapped) messages to _all and
+  // re-enters _loadOlder to render one batch. Returns true if a fetch started.
+  // Guards: _fetching (one in flight at a time) and _gen (session switched → drop
+  // the stale result). On error, paging is disabled so scroll-up stops dead-ending.
+  // ---------------------------------------------------------------------------
+
+  MessageWindow.prototype._fetchOlderFromServer = function () {
+    if (this._fetching || !this._serverHasMore || typeof this._olderLoader !== 'function') return false;
+    var limit = Math.min(SERVER_PAGE, this._serverOffset);
+    if (limit <= 0) { this._serverHasMore = false; return false; }
+    var offset = Math.max(0, this._serverOffset - limit);
+    var self = this, gen = this._gen, sid = this._sessionId;
+    this._fetching = true;
+    this._loading  = true;   // defer Phase 2 prune until the fetched batch renders
+    Promise.resolve(this._olderLoader(sid, limit, offset)).then(function (res) {
+      if (gen !== self._gen) return;          // session switched during the fetch
+      var msgs = (res && res.msgs) || [];
+      if (msgs.length) {
+        self._all      = msgs.concat(self._all);
+        self._startIdx += msgs.length;
+        self._endIdx   += msgs.length;
+        // The prepend shifted the _all index space; every rendered node's chIdx
+        // tag is now stale by msgs.length. Left stale, tags from successive
+        // pages collide (measured: a 300-message walk left the DOM tagged 0-99
+        // against _endIdx 280), and every chIdx consumer misreads: the Phase-3
+        // scroll-up prune compares a stale (too small) tag against a
+        // current-space target and breaks at the first node -- removing nothing,
+        // ever -- which is how the DOM reached ~1,980 of 2,000 messages
+        // Retag before anything else reads the tags.
+        for (var ci = 0; ci < self._c.children.length; ci++) {
+          var _ch = self._c.children[ci];
+          if (_ch.dataset && _ch.dataset.chIdx !== undefined) {
+            _ch.dataset.chIdx = String(parseInt(_ch.dataset.chIdx, 10) + msgs.length);
+          }
+        }
+      }
+      self._serverOffset  = (res && typeof res.offset === 'number') ? res.offset : offset;
+      self._serverHasMore = !!(res && res.hasMore) && self._serverOffset > 0;
+      self._fetching = false;
+      if (msgs.length) {
+        self._loadOlder();                    // render the prepended batch from _all
+      } else {
+        // Page was entirely filtered out (e.g. hidden/continue messages).
+        // Keep paging further back on the next scroll if more remain. The
+        // filtered messages occupy no height, so shrinking the honesty spacer
+        // by their estimate is the correct geometry.
+        self._loading = false;
+        self._attachSentinel();
+        self._updateTopSpacer();
+      }
+    }).catch(function (e) {
+      if (gen !== self._gen) return;
+      console.warn('[chatHistory] server page fetch failed:', e);
+      self._fetching = false;
+      self._loading  = false;
+      self._serverHasMore = false;            // stop retrying after an error
+      self._attachSentinel();
+    });
+    return true;
   };
 
   // ---------------------------------------------------------------------------
@@ -237,11 +609,25 @@
       'text-align:center;padding:10px 0;color:var(--fg);opacity:0.5;' +
       'font-size:0.85rem;user-select:none;flex-shrink:0;cursor:pointer'
     );
-    // Click also triggers load for users who prefer explicit control
+    // Interactive control: expose it to assistive tech and the keyboard, not just
+    // the mouse. role=button + tabindex + Enter/Space match native button semantics.
+    s.setAttribute('role', 'button');
+    s.setAttribute('tabindex', '0');
+    s.setAttribute('aria-label', 'Load ' + remaining + ' newer messages');
     var self = this;
     s.addEventListener('click', function () { self._loadNewer(); });
+    s.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
+        ev.preventDefault();
+        self._loadNewer();
+      }
+    });
     this._bSentinel = s;
-    if (this._histSep && this._histSep.parentNode) {
+    // Keep the [content, sentinel, spacer, histSep] order: the sentinel belongs
+    // at the content edge, above the bottom honesty spacer.
+    if (this._botSpacer && this._botSpacer.parentNode === this._c) {
+      this._c.insertBefore(s, this._botSpacer);
+    } else if (this._histSep && this._histSep.parentNode) {
       this._c.insertBefore(s, this._histSep);
     } else {
       this._c.appendChild(s);
@@ -260,6 +646,29 @@
   MessageWindow.prototype._initScrollListener = function () {
     var self = this;
     this._c.addEventListener('scroll', function () {
+      // Deep-drag assist (top): a thumb drag deep into the honesty spacer puts
+      // the viewport in blank filler far above the sentinel, where the sentinel
+      // observer cannot fire. If the spacer intersects the viewport, keep
+      // paging; each batch renders at the spacer's bottom edge and shrinks it,
+      // so the content boundary converges on the held position.
+      if (self._topSpacer && self._topSpacer.parentNode && !self._loading &&
+          !self._topPending && (self._startIdx > 0 || self._serverHasMore)) {
+        var sRect = self._topSpacer.getBoundingClientRect();
+        var cRect = self._c.getBoundingClientRect();
+        // Blank actually in view (spacer bottom below the viewport top) --
+        // NOT a proximity margin. With a margin, every ordinary scroll-up
+        // near the sentinel would chain-drain the entire history (and every
+        // server page with it); the sentinel owns the one-batch lookahead.
+        if (sRect.bottom > cRect.top) {
+          self._topPending = true;
+          var _tgen = self._gen;
+          requestAnimationFrame(function () {
+            if (self._gen !== _tgen) { self._topPending = false; return; }
+            self._topPending = false;
+            if (!self._loading) self._loadOlder();
+          });
+        }
+      }
       // Nothing to do if no pruned content or already loading
       if (!self._bSentinel || self._loading || self._bidiPending) return;
       if (self._endIdx >= self._all.length) return;
@@ -288,25 +697,43 @@
   MessageWindow.prototype._loadOlder = function () {
     var from = Math.max(0, this._startIdx - BATCH_SIZE);
     var upTo = this._startIdx;
-    if (from >= upTo) { this._attachSentinel(); return; }
+    if (from >= upTo) {
+      // In-memory buffer exhausted. Pull the next older page from the backend
+      // if one exists; _fetchOlderFromServer re-enters _loadOlder once it lands.
+      if (this._serverHasMore && this._fetchOlderFromServer()) return;
+      this._attachSentinel();
+      return;
+    }
 
     // Measure before any DOM mutation so the spacer height is included in the
-    // baseline. The scroll adjustment at the end is scrollHeight_after - before,
-    // which gives the net change (content_height - spacer_height). Computing
-    // before after spacer removal drops the spacer from the baseline and then
-    // overcorrects scrollTop by the full content height regardless of spacer size.
+    // baseline. The net formula (scrollHeight_after - before) is the FALLBACK
+    // compensation, used only when the viewport sits in blank spacer; when a
+    // content node is visible at the viewport top, anchor-restore is used
+    // instead (see _viewportAnchor for why both exist).
+    var _anchor = this._viewportAnchor();
     var before = this._c.scrollHeight;
 
-    // Remove spacers before computing insertRef: after _pruneTop the sentinel is
-    // immediately followed by a spacer, so insertRef = sentinel.nextSibling = spacer.
-    // Removing the spacer after capturing insertRef leaves it pointing to a detached
-    // node, and insertBefore(frag, detachedNode) throws NotFoundError.
+    // Remove any stray spacers before computing insertRef — but never the
+    // estimator spacer, which persists across batches (its height is recomputed
+    // below inside this compensated context). Removing a spacer after capturing
+    // insertRef would leave insertRef detached and insertBefore would throw.
     var _spcs = this._c.querySelectorAll('.chat-history-spacer');
-    for (var _si = 0; _si < _spcs.length; _si++) _spcs[_si].remove();
+    for (var _si = 0; _si < _spcs.length; _si++) {
+      if (_spcs[_si] !== this._topSpacer && _spcs[_si] !== this._botSpacer) {
+        _spcs[_si].remove();
+      }
+    }
 
-    var insertRef = this._sentinel ? this._sentinel.nextSibling : this._c.firstChild;
+    var insertRef = this._sentinel ? this._sentinel.nextSibling
+      : (this._topSpacer && this._topSpacer.parentNode === this._c
+          ? this._topSpacer.nextSibling : this._c.firstChild);
 
+    // Bracket the prepend so AT coalesces it instead of announcing old history as
+    // new; cleared in the trailing rAF below. Restores the prior aria-busy value
+    // so a concurrent stream keeps ownership.
+    this._setBusy();
     this._loading = true;
+    var _hadFocusO = this._captureFocus();
     var nodes = [];
     for (var i = from; i < upTo; i++) {
       var m    = this._all[i];
@@ -328,21 +755,32 @@
       this._c.appendChild(frag);
     }
 
-    if (window.hljs) {
-      for (var hi = 0; hi < nodes.length; hi++) {
-        var _bs = nodes[hi].querySelectorAll ? nodes[hi].querySelectorAll('pre code:not(.hljs)') : [];
+    var _deferAll = window.hljsDeferHighlightAll;
+    for (var hi = 0; hi < nodes.length; hi++) {
+      if (!nodes[hi].querySelectorAll) continue;
+      if (_deferAll) {
+        _deferAll(nodes[hi]);
+      } else if (window.hljs) {
+        var _bs = nodes[hi].querySelectorAll('pre code:not(.hljs)');
         for (var bi = 0; bi < _bs.length; bi++) window.hljs.highlightElement(_bs[bi]);
       }
     }
 
     this._startIdx = from;
-    console.debug('[chatHistory] Load older: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
+    console.log('[chatHistory] Load older: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
     // Attach sentinel before computing the scroll compensation. Sentinel height
     // changes (e.g. removing the sentinel when _startIdx reaches 0) happen above
     // the viewport and must be included in the positional correction so the user
     // does not see a visual jump when the oldest batch finishes loading.
     this._attachSentinel();
-    this._c.scrollTop += this._c.scrollHeight - before;
+    // Compensated context: fold pending estimator samples and recompute the
+    // honesty spacer. Any spacer resize (batch rendered out of it, estimator
+    // refined) lands above the viewport and is absorbed by the net correction.
+    this._estFold();
+    this._updateTopSpacer();
+    if (!this._restoreAnchor(_anchor)) {
+      this._c.scrollTop += this._c.scrollHeight - before;
+    }
 
     // Phase 3: cap historical DOM size; pruned content reloads on scroll-down.
     // Guard is message count (_endIdx - _startIdx), not DOM node count — agent
@@ -351,6 +789,8 @@
     if (histMsgCount > BIDI_MSG_CAP) {
       var _pruneTarget = this._endIdx - (histMsgCount - BIDI_MSG_CAP);
       var _beforePruneTop = this._c.scrollTop;
+      var _beforePruneH = this._c.scrollHeight;
+      var _bMsgPx = {};   // chIdx -> summed node px, for _recordPruneHeights
       var _pruneRemoved = 0;
       var _pruneLowest = this._endIdx;
       var _pRef = this._histSep
@@ -365,6 +805,7 @@
           var _pIdx = (_pRef.dataset && _pRef.dataset.chIdx !== undefined)
             ? parseInt(_pRef.dataset.chIdx, 10) : null;
           if (_pIdx === null || _pIdx < _pruneTarget) break;
+          _bMsgPx[_pIdx] = (_bMsgPx[_pIdx] || 0) + _pRef.getBoundingClientRect().height;
           _pRef.remove();
           _pruneRemoved++;
           if (_pIdx < _pruneLowest) _pruneLowest = _pIdx;
@@ -381,6 +822,7 @@
                !_pPeek.classList.contains('chat-history-spacer')) {
           if (_pPeek.dataset && parseInt(_pPeek.dataset.chIdx, 10) === _pruneLowest) {
             var _pPeekNext = _pPeek.previousElementSibling;
+            _bMsgPx[_pruneLowest] = (_bMsgPx[_pruneLowest] || 0) + _pPeek.getBoundingClientRect().height;
             _pPeek.remove();
             _pPeek = _pPeekNext;
           } else { break; }
@@ -388,6 +830,11 @@
         this._endIdx = _pruneLowest;
         console.log('[chatHistory] Phase 3 prune (load-older): removed %d nodes, endIdx → %d', _pruneRemoved, this._endIdx);
         this._attachBottomSentinel();
+        // Record the exact pass delta and restore the removed height as bottom
+        // spacer (below the viewport — no compensation needed). Doing it before
+        // the scrollTop re-assert also keeps the browser clamp from engaging.
+        this._recordPruneHeights(_bMsgPx, _beforePruneH - this._c.scrollHeight);
+        this._updateBottomSpacer();
         // The prune reduced scrollHeight. Re-assert the pre-prune scrollTop so
         // the browser's implicit clamp does not silently move the user toward
         // the bottom. If the clamp is unavoidable (prune > content_below_viewport),
@@ -398,14 +845,30 @@
         );
       }
     }
+    // If the Phase-3 bottom prune above evicted the node holding focus, move it
+    // to the log container before yielding the frame.
+    this._restoreFocusIfLost(_hadFocusO);
     var self = this;
     var _ogen = this._gen;
     requestAnimationFrame(function () {
+      self._clearBusy();
       if (self._gen !== _ogen) return;
       self._loading = false;
       // If scrollToBottom() was called while _loadOlder() was running, restart drain
       if (self._draining && self._endIdx < self._all.length) {
         self._loadNewer();
+        return;
+      }
+      // Deep-drag catch-up: while the honesty spacer still intersects the
+      // viewport (thumb dragged into never-rendered range), keep paging — the
+      // scroll listener only fires on user scrolls, and the spacer shrinking
+      // above the viewport generates none, so without this re-check the
+      // catch-up dead-ends after one batch.
+      if (self._topSpacer && self._topSpacer.parentNode &&
+          (self._startIdx > 0 || self._serverHasMore)) {
+        var _sR = self._topSpacer.getBoundingClientRect();
+        var _cR = self._c.getBoundingClientRect();
+        if (_sR.bottom > _cR.top) self._loadOlder();   // blank still in view
       }
     });
   };
@@ -435,7 +898,9 @@
     var from = this._endIdx;
     var upTo = Math.min(this._all.length, from + BATCH_SIZE);
 
+    this._setBusy();
     this._loading = true;
+    var _hadFocusN = this._captureFocus();
     var nodes = [];
     for (var i = from; i < upTo; i++) {
       var m    = this._all[i];
@@ -455,24 +920,30 @@
       this._c.appendChild(frag);
     }
 
-    if (window.hljs) {
-      for (var hi = 0; hi < nodes.length; hi++) {
-        var _bs = nodes[hi].querySelectorAll ? nodes[hi].querySelectorAll('pre code:not(.hljs)') : [];
-        for (var bi = 0; bi < _bs.length; bi++) window.hljs.highlightElement(_bs[bi]);
+    var _deferAll2 = window.hljsDeferHighlightAll;
+    for (var hi = 0; hi < nodes.length; hi++) {
+      if (!nodes[hi].querySelectorAll) continue;
+      if (_deferAll2) {
+        _deferAll2(nodes[hi]);
+      } else if (window.hljs) {
+        var _bs2 = nodes[hi].querySelectorAll('pre code:not(.hljs)');
+        for (var bi = 0; bi < _bs2.length; bi++) window.hljs.highlightElement(_bs2[bi]);
       }
     }
 
     this._endIdx = upTo;
-    console.debug('[chatHistory] Load newer: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
+    console.log('[chatHistory] Load newer: msgs %d–%d, +%d DOM nodes', from, upTo - 1, nodes.length);
 
     // Symmetric with _loadOlder: cap historical DOM from the top when scrolling down.
     // Without this, a full up-then-down cycle loads the entire session into the DOM.
     var hist = this._histChildCount();
     if (hist > BIDI_CAP) {
       var toPrune  = hist - BIDI_CAP;
+      var _nAnchor = this._viewportAnchor();
       var before   = this._c.scrollHeight;
       var removed  = 0;
       var highIdx  = this._startIdx - 1;
+      var _nMsgPx  = {};   // chIdx -> summed node px, for _recordPruneHeights
       var cur      = this._c.firstElementChild;
       while (cur && removed < toPrune) {
         var next = cur.nextElementSibling;
@@ -482,6 +953,7 @@
         if (!isCtl) {
           var cidx = (cur.dataset && cur.dataset.chIdx !== undefined)
             ? parseInt(cur.dataset.chIdx, 10) : null;
+          if (cidx !== null) _nMsgPx[cidx] = (_nMsgPx[cidx] || 0) + cur.getBoundingClientRect().height;
           cur.remove();
           removed++;
           if (cidx !== null && cidx > highIdx) highIdx = cidx;
@@ -499,6 +971,7 @@
           if (isPeekCtl) { peek = peek.nextElementSibling; continue; }
           if (peek.dataset && parseInt(peek.dataset.chIdx, 10) === highIdx) {
             var peekNext = peek.nextElementSibling;
+            _nMsgPx[highIdx] = (_nMsgPx[highIdx] || 0) + peek.getBoundingClientRect().height;
             peek.remove();
             removed++;
             peek = peekNext;
@@ -512,22 +985,35 @@
         // sentinel height change (e.g. adding a new sentinel when _startIdx
         // crosses 0) is included in the delta and the viewport does not jump.
         this._attachSentinel();
+        // Compensated context: record the exact pass delta, fold the estimator,
+        // recompute the honesty spacer — all before the scroll adjustment below,
+        // which absorbs the net height change above the viewport.
+        this._recordPruneHeights(_nMsgPx, before - this._c.scrollHeight);
+        this._estFold();
+        this._updateTopSpacer();
         if (atBottom) {
           // User wants to be at the bottom (button press): snap to new bottom so
           // the rAF chain condition (_isAtBottom) stays true and continues loading.
           this._c.scrollTop = this._c.scrollHeight - this._c.clientHeight;
-        } else {
-          // User is scrolling slowly through history: compensate for removed height
-          // above the viewport so their visual position does not jump.
+        } else if (!this._restoreAnchor(_nAnchor)) {
+          // User is scrolling slowly through history: compensate for removed
+          // height above the viewport so their visual position does not jump.
+          // Anchor-restore when content is visible (idempotent under native
+          // scroll anchoring); net formula as the blank-spacer fallback.
           this._c.scrollTop -= (before - this._c.scrollHeight);
         }
       }
     }
 
+    this._restoreFocusIfLost(_hadFocusN);
     this._attachBottomSentinel();
+    // The rendered batch replaced part of the bottom spacer's range; recompute
+    // it (below the viewport — no compensation needed).
+    this._updateBottomSpacer();
     var self = this;
     var _ngen = this._gen;
     requestAnimationFrame(function () {
+      self._clearBusy();
       if (self._gen !== _ngen) { self._draining = false; return; }
       self._loading = false;
 
@@ -538,7 +1024,18 @@
       // remaining batch and snaps to the true bottom. Without this gate, a scroll
       // that brings the sentinel within _isAtBottom()'s 120px proximity window
       // recursed to the end and behaved like the scroll-to-bottom button.
-      if (!self._draining) return;
+      // Exception: while the BOTTOM SPACER is inside the viewport the user is
+      // parked in blank filler (deep thumb-drag down); the spacer shrinking
+      // generates no scroll events, so chain until real content fills the view.
+      if (!self._draining) {
+        if (self._botSpacer && self._botSpacer.parentNode &&
+            self._endIdx < self._all.length) {
+          var _bR = self._botSpacer.getBoundingClientRect();
+          var _cR2 = self._c.getBoundingClientRect();
+          if (_bR.top < _cR2.bottom) self._loadNewer();   // blank still in view
+        }
+        return;
+      }
 
       if (self._endIdx < self._all.length) {
         // Drain mode: snap before the continuity check so hljs height inflation
@@ -640,14 +1137,10 @@
     }
     if (!toRemove.length) return;
 
+    var _hadFocusE = this._captureFocus();
     var savedScrollTop = this._c.scrollTop;
     var before = this._c.scrollHeight;
 
-    // Per-node teardown before removal. The timer-clearing idiom
-    // (clearInterval(_waveInterval/_elapsedTicker) + null, recursing into
-    // descendants) is adapted from upstream PR #4661 (holden093)'s
-    // _trimChatHistoryDOM() teardown, and extended here to also release
-    // _streamRenderer and the hljs-defer observer refs.
     for (var i = 0; i < toRemove.length; i++) {
       var el = toRemove[i];
       // Stop any live timers/intervals before removing the node.
@@ -677,6 +1170,10 @@
     }
 
     this._updateEvictNotice();
+    this._restoreFocusIfLost(_hadFocusE);
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(function () {}, { timeout: 3000 });
+    }
   };
 
   // Show or update the in-place notice above the live section after eviction.
@@ -738,9 +1235,11 @@
     // immediately clamps scrollTop to the new scrollHeight-clientHeight. The spacer
     // restores scrollHeight but not the clamped scrollTop, causing a visible jump.
     var savedScrollTop = this._c.scrollTop;
+    var _hadFocusP = this._captureFocus();
     var before   = this._c.scrollHeight;
     var removed  = 0;
     var highIdx  = -1;
+    var _msgPx   = {};   // chIdx -> summed node px, for _recordPruneHeights
     // Walk firstElementChild → nextElementSibling; capture next before removal
     // so we never touch the live HTMLCollection after mutating it.
     var ch = this._c.firstElementChild;
@@ -753,14 +1252,24 @@
           ch.classList.contains('chat-history-spacer')) { ch = next; continue; }
       var cidx = (ch.dataset && ch.dataset.chIdx !== undefined)
         ? parseInt(ch.dataset.chIdx, 10) : -1;
+      if (ch._waveInterval)   { clearInterval(ch._waveInterval);   ch._waveInterval   = null; }
+      if (ch._elapsedTicker)  { clearInterval(ch._elapsedTicker);  ch._elapsedTicker  = null; }
+      if (ch._streamRenderer) { ch._streamRenderer = null; }
+      var _ptDesc = ch.querySelectorAll('*');
+      for (var _pi = 0; _pi < _ptDesc.length; _pi++) {
+        if (_ptDesc[_pi]._waveInterval)   { clearInterval(_ptDesc[_pi]._waveInterval);   _ptDesc[_pi]._waveInterval   = null; }
+        if (_ptDesc[_pi]._elapsedTicker)  { clearInterval(_ptDesc[_pi]._elapsedTicker);  _ptDesc[_pi]._elapsedTicker  = null; }
+        if (_ptDesc[_pi]._streamRenderer) { _ptDesc[_pi]._streamRenderer = null; }
+      }
       if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(ch);
+      if (cidx >= 0) _msgPx[cidx] = (_msgPx[cidx] || 0) + ch.getBoundingClientRect().height;
       ch.remove();
       removed++;
       if (cidx > highIdx) highIdx = cidx;
       ch = next;
     }
     if (removed === 0) return;
-    console.debug('[chatHistory] Phase 2 prune: removed %d nodes, startIdx → %d', removed, highIdx + 1);
+    console.log('[chatHistory] Phase 2 prune: removed %d nodes, startIdx → %d', removed, highIdx + 1);
 
     // A single _all[i] entry may span multiple DOM children with the same chIdx.
     // Remove any remaining siblings at the boundary that share highIdx so the
@@ -773,7 +1282,11 @@
         if (isPeekCtl) { peek = peek.nextElementSibling; continue; }
         if (peek.dataset && parseInt(peek.dataset.chIdx, 10) === highIdx) {
           var peekNext = peek.nextElementSibling;
+          if (peek._waveInterval)   { clearInterval(peek._waveInterval);   peek._waveInterval   = null; }
+          if (peek._elapsedTicker)  { clearInterval(peek._elapsedTicker);  peek._elapsedTicker  = null; }
+          if (peek._streamRenderer) { peek._streamRenderer = null; }
           if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(peek);
+          _msgPx[highIdx] = (_msgPx[highIdx] || 0) + peek.getBoundingClientRect().height;
           peek.remove();
           removed++;
           peek = peekNext;
@@ -786,42 +1299,29 @@
 
     this._attachSentinel();
 
-    // Collapse any leftover spacers from previous prune events into one
+    // Collapse any stray spacers (never the estimator spacer, recomputed below)
     var existingSpacers = this._c.querySelectorAll('.chat-history-spacer');
     for (var ei = 0; ei < existingSpacers.length; ei++) {
-      existingSpacers[ei].remove();
+      if (existingSpacers[ei] !== this._topSpacer) existingSpacers[ei].remove();
     }
 
-    // Compute needed spacer height AFTER all DOM changes (node removal, sentinel
-    // update, spacer removal). Computing it earlier misses the sentinel's height
-    // contribution when a new sentinel is added (e.g. _startIdx crossing 0→N),
-    // which causes the spacer to overshoot and leaves slack equal to sentinel height.
+    // Compute the exact pass delta AFTER all DOM changes (node removal, sentinel
+    // update, stray-spacer removal) so sentinel height changes are included.
+    // Recording it distributes the exact loss over the removed messages, so the
+    // estimator-spacer recompute grows by precisely this delta: scrollHeight is
+    // preserved to the pixel and savedScrollTop remains a valid position.
+    // (Uncompensated context — samples go to the pending pool, the live
+    // estimator average must not move here or unmeasured spacer terms shift.)
     var totalDelta = before - this._c.scrollHeight;
-    if (totalDelta > 0) {
-      var spacer = document.createElement('div');
-      spacer.className  = 'chat-history-spacer';
-      spacer.style.cssText = (
-        'height:' + totalDelta + 'px;flex-shrink:0;display:flex;' +
-        'align-items:center;justify-content:center;' +
-        'color:var(--fg);opacity:0.35;font-size:0.8rem'
-      );
-      // Only set text when the spacer is tall enough to display it legibly.
-      // min-height on the spacer would add extra height beyond totalDelta,
-      // creating a scroll geometry mismatch that causes visible position jumps.
-      if (totalDelta >= 32) {
-        spacer.textContent = 'Earlier messages pruned — scroll up to reload';
-      }
-      var afterSentinel = this._sentinel ? this._sentinel.nextSibling : null;
-      if (afterSentinel) {
-        this._c.insertBefore(spacer, afterSentinel);
-      } else {
-        this._c.prepend(spacer);
-      }
-    }
-    // Spacer height ≈ removed nodes height, so scrollHeight ≈ original and
-    // savedScrollTop is still a valid position. Restoring it undoes the browser
-    // clamp that occurred during node removal.
+    this._recordPruneHeights(_msgPx, totalDelta);
+    this._updateTopSpacer();
     this._c.scrollTop = savedScrollTop;
+
+    this._restoreFocusIfLost(_hadFocusP);
+    // Yield to idle after prune so V8 can run incremental GC on the detached subtrees.
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(function () {}, { timeout: 3000 });
+    }
   };
 
   // Remove `count` historical DOM nodes from just above _histSep.
@@ -829,6 +1329,8 @@
   // produces multiple top-level DOM children (e.g. agent multi-round messages).
   MessageWindow.prototype._pruneBottom = function (count) {
     var removed    = 0;
+    var _beforeH   = this._c.scrollHeight;
+    var _pbMsgPx   = {};   // chIdx -> summed node px, for _recordPruneHeights
     var lowestIdx  = this._endIdx;  // track the lowest _all index removed
     var ref = this._histSep
       ? this._histSep.previousSibling
@@ -846,7 +1348,17 @@
         var idx = (ref.dataset && ref.dataset.chIdx !== undefined)
           ? parseInt(ref.dataset.chIdx, 10)
           : null;
+        if (ref._waveInterval)   { clearInterval(ref._waveInterval);   ref._waveInterval   = null; }
+        if (ref._elapsedTicker)  { clearInterval(ref._elapsedTicker);  ref._elapsedTicker  = null; }
+        if (ref._streamRenderer) { ref._streamRenderer = null; }
+        var _pbDesc = ref.querySelectorAll('*');
+        for (var _pbi = 0; _pbi < _pbDesc.length; _pbi++) {
+          if (_pbDesc[_pbi]._waveInterval)   { clearInterval(_pbDesc[_pbi]._waveInterval);   _pbDesc[_pbi]._waveInterval   = null; }
+          if (_pbDesc[_pbi]._elapsedTicker)  { clearInterval(_pbDesc[_pbi]._elapsedTicker);  _pbDesc[_pbi]._elapsedTicker  = null; }
+          if (_pbDesc[_pbi]._streamRenderer) { _pbDesc[_pbi]._streamRenderer = null; }
+        }
         if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(ref);
+        if (idx !== null) _pbMsgPx[idx] = (_pbMsgPx[idx] || 0) + ref.getBoundingClientRect().height;
         ref.remove();
         removed++;
         if (idx !== null && idx < lowestIdx) lowestIdx = idx;
@@ -866,7 +1378,11 @@
              !check.classList.contains('chat-history-spacer')) {
         if (check.dataset && parseInt(check.dataset.chIdx, 10) === lowestIdx) {
           var prevCheck = check.previousElementSibling;
+          if (check._waveInterval)   { clearInterval(check._waveInterval);   check._waveInterval   = null; }
+          if (check._elapsedTicker)  { clearInterval(check._elapsedTicker);  check._elapsedTicker  = null; }
+          if (check._streamRenderer) { check._streamRenderer = null; }
           if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(check);
+          _pbMsgPx[lowestIdx] = (_pbMsgPx[lowestIdx] || 0) + check.getBoundingClientRect().height;
           check.remove();
           check = prevCheck;
         } else {
@@ -875,6 +1391,13 @@
       }
       this._endIdx = lowestIdx;
       this._attachBottomSentinel();
+      // Below-viewport geometry: record the exact removed height and restore it
+      // as bottom spacer so the scrollbar keeps representing the pruned range.
+      this._recordPruneHeights(_pbMsgPx, _beforeH - this._c.scrollHeight);
+      this._updateBottomSpacer();
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(function () {}, { timeout: 3000 });
+      }
     }
   };
 

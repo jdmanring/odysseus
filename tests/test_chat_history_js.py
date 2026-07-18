@@ -440,8 +440,12 @@ def test_spacer_has_class_name():
 
 
 def test_spacer_uses_height_delta():
-    assert "delta" in _SRC
-    assert "height:" in _SRC
+    # Prune passes must record the EXACT measured scrollHeight delta (not an
+    # estimate) so the estimator-spacer recompute reproduces the removed height
+    # to the pixel and the saved scrollTop restore does not jump.
+    assert "before - this._c.scrollHeight" in _SRC
+    assert "_recordPruneHeights(_msgPx, totalDelta)" in _SRC
+    assert ".style.height = h + 'px'" in _SRC
 
 
 def test_spacer_excluded_from_live_count():
@@ -837,9 +841,9 @@ def test_load_logs_console_log():
     )
 
 
-def test_prune_top_logs_debug():
-    # Phase 2 prune fires frequently during streaming — kept at console.debug (opt-in).
-    assert "console.debug" in _prune_top_body(), (
+def test_prune_top_logs_console_log():
+    # Temporarily promoted to console.log for active OOM debugging.
+    assert "console.log" in _prune_top_body(), (
         "_pruneTop must log the prune count and new startIdx"
     )
 
@@ -851,16 +855,16 @@ def test_evict_live_logs_console_log():
     )
 
 
-def test_load_older_logs_debug():
-    # Batch load fires on every scroll-up step — kept at console.debug (opt-in).
-    assert "console.debug" in _load_older_body(), (
+def test_load_older_logs_console_log():
+    # Temporarily promoted to console.log for active OOM debugging.
+    assert "console.log" in _load_older_body(), (
         "_loadOlder must log the batch range and node count"
     )
 
 
-def test_load_newer_logs_debug():
-    # Batch load fires on every scroll-down step — kept at console.debug (opt-in).
-    assert "console.debug" in _load_newer_body(), (
+def test_load_newer_logs_console_log():
+    # Temporarily promoted to console.log for active OOM debugging.
+    assert "console.log" in _load_newer_body(), (
         "_loadNewer must log the batch range and node count"
     )
 
@@ -878,6 +882,48 @@ def test_all_logs_use_consistent_prefix():
     assert not bad, (
         "These console calls are missing the '[chatHistory]' prefix: " + str(bad)
     )
+
+
+# ---------------------------------------------------------------------------
+# GC micro-improvements: idle yield + teardown gap
+# ---------------------------------------------------------------------------
+
+def _evict_live_block() -> str:
+    start = _SRC.index("MessageWindow.prototype._evictLive")
+    end = _SRC.index("MessageWindow.prototype._updateEvictNotice", start)
+    return _SRC[start:end]
+
+
+def _prune_top_block() -> str:
+    start = _SRC.index("MessageWindow.prototype._pruneTop")
+    end = _SRC.index("MessageWindow.prototype._pruneBottom", start)
+    return _SRC[start:end]
+
+
+def _prune_bottom_block() -> str:
+    start = _SRC.index("MessageWindow.prototype._pruneBottom")
+    end = _SRC.index("// ---------------------------------------------------------------------------\n  // Singleton", start)
+    return _SRC[start:end]
+
+
+def test_evict_live_yields_to_idle():
+    """_evictLive must signal idle after removing nodes so V8/Oilpan can collect them."""
+    assert "requestIdleCallback" in _evict_live_block()
+
+
+def test_prune_bottom_yields_to_idle():
+    """_pruneBottom must signal idle after removing nodes (mirrors _pruneTop pattern)."""
+    assert "requestIdleCallback" in _prune_bottom_block()
+
+
+def test_prune_top_clears_intervals_before_remove():
+    """_pruneTop must clear _waveInterval before .remove() (mirrors _evictLive teardown)."""
+    assert "_waveInterval" in _prune_top_block()
+
+
+def test_prune_bottom_clears_intervals_before_remove():
+    """_pruneBottom must clear _waveInterval before .remove() (mirrors _evictLive teardown)."""
+    assert "_waveInterval" in _prune_bottom_block()
 
 
 # ---------------------------------------------------------------------------
@@ -900,9 +946,16 @@ def test_load_newer_recursion_gated_on_draining_only():
     assert "self._draining || self._isAtBottom()" not in body, (
         "scroll-down must not cascade on _isAtBottom() proximity; gate on _draining only"
     )
-    assert "if (!self._draining) return;" in body, (
-        "non-draining (scroll) loads must early-return after one batch"
-    )
+    # The non-draining path must early-return after one batch. Its only
+    # permitted chain is the bottom-spacer catch-up: when the viewport is
+    # parked inside the blank honesty spacer (deep thumb-drag), the spacer
+    # shrinking generates no scroll events, so the load must self-continue.
+    # That is NOT a proximity cascade — the check is against the spacer rect,
+    # never _isAtBottom().
+    gate = body.index("if (!self._draining) {")
+    block = body[gate:body.index("return;\n", gate) + len("return;")]
+    assert "_botSpacer" in block, "non-drain chain must be gated on the bottom spacer"
+    assert "_isAtBottom" not in block
 
 
 def test_load_newer_end_snap_is_drain_only():
@@ -910,7 +963,7 @@ def test_load_newer_end_snap_is_drain_only():
     # settle loop, so a scroll that reaches the newest message stops at the
     # user's position instead of yanking to the bottom.
     body = _load_newer_body()
-    gate = body.index("if (!self._draining) return;")
+    gate = body.index("if (!self._draining) {")
     end_snap = body.index("scrollHeight - self._c.clientHeight", gate)
     # The settle loop (drain-only re-snap) must come after the gate.
     assert "_settle" in body[gate:], "settle loop must be inside the drain-only path"
@@ -924,13 +977,59 @@ def test_bottom_sentinel_says_newer_not_earlier():
 
 
 def test_sentinel_observer_reads_newest_entry():
-    # IntersectionObserver queues one entry per transition between deliveries;
-    # under a busy main thread (batch render) the sentinel can leave and
-    # re-enter the trigger zone before delivery, so one callback carries
-    # [leave, enter]. Reading entries[0] (the oldest) sees the stale leave,
-    # returns without disconnecting, and discards the enter -- scroll-up
-    # paging then dead-ends permanently at the top (captured live: a single
-    # delivery with isIntersecting [false, true]). The callback must act on
-    # the NEWEST queued entry.
+    # IO queues one entry per transition between deliveries; under a
+    # busy main thread (batch render) the sentinel can leave and re-enter before
+    # delivery, so one callback carries [leave, enter]. Reading entries[0] (the
+    # oldest) sees the stale leave, returns without disconnecting, and discards
+    # the enter — paging dead-ends permanently at the top (captured live: a
+    # single delivery with isIntersecting [false, true]). The callback must act
+    # on the NEWEST queued entry.
     assert "entries[entries.length - 1].isIntersecting" in _SRC
     assert "entries[0].isIntersecting" not in _SRC
+
+
+# --- Scrollbar honesty spacer (top estimator) -------------------------------
+
+def test_top_spacer_is_idempotent_recompute():
+    # The spacer height must be recomputed from per-message records + estimate
+    # each time, never accumulated incrementally: estimated increments compound
+    # error over a deep walk (measured ~220k px short in a benchmark arm that
+    # accumulated). The recompute loop walks the absolute range with a
+    # per-message fallback to the running estimate.
+    upd = _SRC[_SRC.index("MessageWindow.prototype._updateTopSpacer"):]
+    upd = upd[:upd.index("MessageWindow.prototype._attachSentinel")]
+    assert "for (var abs = 0; abs < count; abs++)" in upd
+    assert "this._hpx[abs]" in upd
+    assert "+=" not in upd.replace("h += ", "")  # only the recompute sum
+
+
+def test_height_records_use_absolute_db_index():
+    # chIdx shifts on every server prepend (the retag bug class); height records
+    # must be keyed by absolute DB index, which never shifts.
+    assert "this._serverOffset + chIdx" in _SRC
+
+
+def test_estimator_folds_only_in_compensated_contexts():
+    # The estimator average may only change where a scrollTop compensation
+    # absorbs the resulting spacer resize (_loadOlder/_loadNewer). Prune paths
+    # record into the pending pool; folding there would shift every unmeasured
+    # spacer term above the viewport with no compensation -> visible jump.
+    prune_top = _SRC[_SRC.index("MessageWindow.prototype._pruneTop"):]
+    prune_top = prune_top[:prune_top.index("MessageWindow.prototype._pruneBottom")]
+    assert "_estFold" not in prune_top
+    assert "_estPendSum" in _SRC and "_estPendCount" in _SRC
+    assert _SRC.count("this._estFold();") == 2  # _loadOlder + _loadNewer only
+
+
+def test_deep_drag_assist_and_catchup_chain():
+    # A thumb drag into the spacer parks the viewport where the sentinel cannot
+    # fire; the scroll listener must trigger paging, and the load-completion
+    # rAF must re-check (the spacer shrinking above the viewport generates no
+    # scroll events, so without the re-check the catch-up dead-ends). The
+    # condition must be BLANK IN VIEW (spacer edge crossing the viewport), not
+    # a proximity margin: with a margin, every ordinary scroll-up near the
+    # sentinel would chain-drain the entire history and every server page.
+    assert _SRC.count("_sR.bottom > _cR.top)") == 1
+    assert "sRect.bottom > cRect.top)" in _SRC
+    assert "_sR.bottom > _cR.top - 300" not in _SRC
+    assert "_bR.top < _cR2.bottom)" in _SRC
