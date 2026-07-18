@@ -16,8 +16,15 @@ what its status is, and what branch carries the fix.
 2. Determine branch origin:
    - upstream-candidate → branch from upstream-mirror
    - fork-only          → branch from develop
+   - upstream-candidate work on a file that exists only on develop (a staged
+     contribution not yet upstream) → branch from develop. File location forces
+     the origin, NOT the classification — the work is still upstream-candidate
+     and folds into the staged branch before its PR is filed.
 3. Do the work on that branch (upstream-candidate: one clean commit, fork files only)
-4. Merge/cherry-pick to develop; close the fork issue when fix is verified
+4. Merge/cherry-pick to develop. Closing the issue depends on classification:
+   fork-only closes when the fix is verified on develop; upstream-candidate
+   STAYS OPEN until the upstream PR carrying the fix is filed — the filed PR
+   is the only thing that closes it.
 5. If upstream-candidate:
    - Write PR draft in docs/fork/upstream/pr-drafts/<name>.md
    - Write issue draft in docs/fork/upstream/issue-drafts/<name>.md
