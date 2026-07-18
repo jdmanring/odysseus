@@ -741,3 +741,143 @@ def test_server_paging_drops_stale_result_after_reset(browser_page):
     dom_text = browser_page.evaluate("document.getElementById('chat-history').textContent")
     assert "Old" not in dom_text, "stale server page leaked after reset (gen guard failed)"
     assert "FreshChat" in dom_text
+
+
+# ---------------------------------------------------------------------------
+# Part-4.2 coverage additions — drain/snap transition and runtime teardown
+# ---------------------------------------------------------------------------
+
+def test_scroll_to_bottom_drains_to_newest_and_stays_bounded(browser_page):
+    """scrollToBottom() from deep in history must drain to the newest message,
+    clear _draining, and keep the DOM bounded while doing so.
+
+    This is the snap/drain transition: the rAF chain renders every remaining
+    batch, snapping to the bottom between batches, while _loadNewer's inline
+    top-prune holds the window cap. Static tests verify the code shape; this
+    verifies the runtime outcome.
+    """
+    _load_harness(browser_page)
+
+    browser_page.evaluate("""
+        const msgs = Array.from({length: 200}, (_, i) => ({
+            role: 'user', content: 'Msg ' + i, modelName: null, meta: null
+        }));
+        window.chatHistory.load(msgs);
+    """)
+    browser_page.wait_for_timeout(200)
+
+    # Scroll deep into history so the bottom of the window is pruned away.
+    for _ in range(6):
+        browser_page.evaluate("document.getElementById('chat-history').scrollTop = 0")
+        browser_page.wait_for_timeout(600)
+
+    assert browser_page.evaluate("window.chatHistory._endIdx") < 200, (
+        "Setup: scroll-up must have pruned the bottom (_endIdx < total)"
+    )
+
+    browser_page.evaluate("window.chatHistory.scrollToBottom()")
+    browser_page.wait_for_timeout(1500)
+
+    end_idx = browser_page.evaluate("window.chatHistory._endIdx")
+    assert end_idx == 200, f"drain stalled: _endIdx={end_idx}, expected 200"
+
+    draining = browser_page.evaluate("window.chatHistory._draining")
+    assert draining is False, "_draining latched after a completed drain"
+
+    at_bottom = browser_page.evaluate("""
+        (function() {
+            var c = document.getElementById('chat-history');
+            return c.scrollHeight - c.scrollTop - c.clientHeight < 30;
+        })()
+    """)
+    assert at_bottom, "drain finished but viewport is not at the bottom"
+
+    newest_visible = browser_page.evaluate(
+        "document.getElementById('chat-history').textContent.includes('Msg 199')"
+    )
+    assert newest_visible, "newest message not rendered after drain"
+
+    hist_count = browser_page.evaluate("""
+        (function() {
+            var c = document.getElementById('chat-history');
+            var n = 0;
+            for (var i = 0; i < c.children.length; i++) {
+                var cls = c.children[i].classList;
+                if (!cls.contains('chat-history-sentinel') &&
+                    !cls.contains('chat-history-spacer') &&
+                    !cls.contains('chat-history-bottom-sentinel') &&
+                    !cls.contains('chat-history-sep')) n++;
+            }
+            return n;
+        })()
+    """)
+    assert hist_count <= 145, (
+        f"drain unbounded the DOM: {hist_count} nodes (expected <= 145, "
+        f"BIDI_CAP=120 + BATCH_SIZE=25)"
+    )
+
+
+def test_teardown_fires_at_runtime_when_nodes_are_pruned(browser_page):
+    """Removal paths must actually release resources at runtime: timers on the
+    removed node cleared, and hljsDeferForgetNode invoked for it.
+
+    The static suite proves every removal site calls _teardownNode; this proves
+    _teardownNode does its job in a live browser when Phase-2 pruning removes
+    nodes (the leak class this branch exists to close).
+    """
+    _load_harness(browser_page)
+
+    # Record hljsDeferForgetNode calls before any pruning can happen.
+    browser_page.evaluate("""
+        window.__forgotten = [];
+        window.hljsDeferForgetNode = function(el) { window.__forgotten.push(el); };
+    """)
+
+    browser_page.evaluate("""
+        const msgs = Array.from({length: 50}, (_, i) => ({
+            role: 'user', content: 'Hist ' + i, modelName: null, meta: null
+        }));
+        window.chatHistory.load(msgs);
+    """)
+    browser_page.wait_for_timeout(200)
+
+    # Arm the first historical message with live resources and keep a reference
+    # so we can inspect it after removal.
+    browser_page.evaluate("""
+        var c = document.getElementById('chat-history');
+        for (var i = 0; i < c.children.length; i++) {
+            var cls = c.children[i].classList;
+            if (!cls.contains('chat-history-sentinel') &&
+                !cls.contains('chat-history-spacer')) {
+                window.__armed = c.children[i];
+                break;
+            }
+        }
+        window.__armed._waveInterval = setInterval(function(){}, 100000);
+        window.__armed._streamRenderer = { live: true };
+    """)
+
+    # Push past PRUNE_AT (80) while at the bottom so _pruneTop removes the
+    # armed node (it is the oldest historical child).
+    browser_page.evaluate("""
+        for (var i = 0; i < 35; i++) {
+            window.chatModule.addMessage('assistant', 'Live ' + i, null, null);
+        }
+        var c = document.getElementById('chat-history');
+        c.scrollTop = c.scrollHeight;
+    """)
+    browser_page.wait_for_timeout(400)
+
+    removed = browser_page.evaluate("!window.__armed.isConnected")
+    assert removed, "Setup: armed node should have been pruned (PRUNE_AT=80 exceeded)"
+
+    interval_cleared = browser_page.evaluate("window.__armed._waveInterval === null")
+    assert interval_cleared, "_waveInterval not cleared on the pruned node"
+
+    renderer_released = browser_page.evaluate("window.__armed._streamRenderer === null")
+    assert renderer_released, "_streamRenderer not released on the pruned node"
+
+    forgotten = browser_page.evaluate(
+        "window.__forgotten.indexOf(window.__armed) !== -1"
+    )
+    assert forgotten, "hljsDeferForgetNode was not called for the pruned node"
