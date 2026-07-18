@@ -10,12 +10,12 @@
   },
   "server_handler_latency": {
     "500": {
-      "median_ms": 1.99,
-      "spread_ms": 4.96
+      "median_ms": 2.15,
+      "spread_ms": 6.69
     },
     "2000": {
-      "median_ms": 2.06,
-      "spread_ms": 5.03
+      "median_ms": 2.56,
+      "spread_ms": 5.54
     }
   },
   "results": [
@@ -25,12 +25,12 @@
       "repeats_kept": 3,
       "complete": true,
       "complete_runs": "3/3",
-      "walk_ms": 3608,
-      "walk_ms_spread": 5,
+      "walk_ms": 3602,
+      "walk_ms_spread": 1,
       "walk_ms_raw": [
-        3608,
-        3608,
-        3613
+        3602,
+        3601,
+        3602
       ],
       "pages": 4,
       "pages_spread": 0,
@@ -60,12 +60,12 @@
       "repeats_kept": 3,
       "complete": true,
       "complete_runs": "3/3",
-      "walk_ms": 3681,
-      "walk_ms_spread": 60,
+      "walk_ms": 3651,
+      "walk_ms_spread": 50,
       "walk_ms_raw": [
-        3667,
-        3681,
-        3727
+        3651,
+        3601,
+        3651
       ],
       "pages": 4,
       "pages_spread": 0,
@@ -95,12 +95,12 @@
       "repeats_kept": 3,
       "complete": true,
       "complete_runs": "3/3",
-      "walk_ms": 4199,
-      "walk_ms_spread": 4,
+      "walk_ms": 4201,
+      "walk_ms_spread": 0,
       "walk_ms_raw": [
         4201,
-        4199,
-        4197
+        4201,
+        4201
       ],
       "pages": 4,
       "pages_spread": 0,
@@ -130,12 +130,12 @@
       "repeats_kept": 3,
       "complete": true,
       "complete_runs": "3/3",
-      "walk_ms": 21342,
-      "walk_ms_spread": 577,
+      "walk_ms": 15601,
+      "walk_ms_spread": 18,
       "walk_ms_raw": [
-        21652,
-        21342,
-        21075
+        15602,
+        15584,
+        15601
       ],
       "pages": 19,
       "pages_spread": 0,
@@ -165,12 +165,12 @@
       "repeats_kept": 3,
       "complete": true,
       "complete_runs": "3/3",
-      "walk_ms": 21755,
-      "walk_ms_spread": 286,
+      "walk_ms": 15701,
+      "walk_ms_spread": 216,
       "walk_ms_raw": [
-        21608,
-        21894,
-        21755
+        15701,
+        15850,
+        15634
       ],
       "pages": 19,
       "pages_spread": 0,
@@ -200,12 +200,12 @@
       "repeats_kept": 3,
       "complete": true,
       "complete_runs": "3/3",
-      "walk_ms": 23818,
-      "walk_ms_spread": 245,
+      "walk_ms": 18451,
+      "walk_ms_spread": 0,
       "walk_ms_raw": [
-        23818,
-        23981,
-        23736
+        18451,
+        18451,
+        18451
       ],
       "pages": 19,
       "pages_spread": 0,

@@ -6,15 +6,15 @@ Real `app.py` under uvicorn; real `/api/history`; the fork's real MessageWindow 
 
 ## Server handler latency (no browser): one cold 100-message page
 
-- n=500: 1.99 ms ±4.96
-- n=2000: 2.06 ms ±5.03
+- n=500: 2.15 ms ±6.69
+- n=2000: 2.56 ms ±5.54
 
 ## Full walk to the oldest message — wall ms (real paging, RTT-emulated)
 
 | n | RTT 0ms | RTT 40ms | RTT 150ms |
 |---|---|---|---|
-| 500 | 3608 ±5 | 3681 ±60 | 4199 ±4 |
-| 2000 | 21342 ±577 | 21755 ±286 | 23818 ±245 |
+| 500 | 3602 ±1 | 3651 ±50 | 4201 ±0 |
+| 2000 | 15601 ±18 | 15701 ±216 | 18451 ±0 |
 
 ## Pages fetched / bytes on the wire during the walk
 
