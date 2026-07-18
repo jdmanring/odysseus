@@ -319,3 +319,69 @@ def test_scrollbar_honesty_scales_with_history(live_server):
                 f"or losing height (#126 bug class)")
         finally:
             browser.close()
+
+
+def test_scrolldown_batch_joins_content_edge(live_server):
+    """After a scroll-down load over real spacer geometry, rendered message
+    order must be coherent: data-ch-idx strictly non-decreasing in DOM order,
+    with the bottom spacer BELOW every rendered historical message.
+
+    Guards issue #132 (a #127 regression): _loadNewer inserted its batch before
+    _histSep, which sits below the bottom honesty spacer — so the batch
+    rendered UNDER the blank representing it, corrupting visual order, and the
+    blank-in-view chain never filled (125 messages loaded on one trigger).
+    Count-based assertions cannot see this class; only DOM order can.
+    """
+    from playwright.sync_api import sync_playwright
+    base = live_server
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_context(viewport={"width": 900, "height": 700}).new_page()
+        try:
+            page.goto(base + "/", wait_until="networkidle", timeout=30000)
+            page.wait_for_selector("#chat-history", timeout=15000)
+            page.evaluate("async (sid)=>{await window.sessionModule.loadSessions();"
+                          " await window.sessionModule.selectSession(sid);}", SID_LONG)
+            page.wait_for_function(
+                "()=>document.querySelectorAll('#chat-history .msg,#chat-history .agent-thread').length>0",
+                timeout=15000)
+            page.wait_for_timeout(300)
+            with open(os.path.join(REPO, "tests", "bench", "scroll_driver.js")) as fh:
+                page.evaluate(fh.read())
+            walk = page.evaluate(
+                "async () => window.scrollDriver.walkToOldest(document.getElementById('chat-history'))")
+            assert walk["complete"], f"setup walk failed: {walk}"
+
+            st = page.evaluate("""
+                async () => {
+                    const c = document.getElementById('chat-history');
+                    const w = window.chatHistory;
+                    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+                    // scroll down to expose the bottom sentinel -> one load cycle
+                    const bs = c.querySelector('.chat-history-bottom-sentinel');
+                    c.scrollTop = bs.offsetTop - c.clientHeight + 100;
+                    c.dispatchEvent(new Event('scroll'));
+                    await sleep(500);
+                    // DOM order of tags, and the spacer's position among them
+                    const kids = [...c.children];
+                    const tags = [];
+                    let spacerSeen = false, tagAfterSpacer = false;
+                    for (const k of kids) {
+                        if (k === w._botSpacer) { spacerSeen = true; continue; }
+                        if (k.dataset && k.dataset.chIdx !== undefined) {
+                            tags.push(+k.dataset.chIdx);
+                            if (spacerSeen) tagAfterSpacer = true;
+                        }
+                    }
+                    const monotonic = tags.every((t, i) => i === 0 || t >= tags[i - 1]);
+                    return { monotonic, tagAfterSpacer, nTags: tags.length,
+                             endIdx: w._endIdx, sample: tags.slice(-6) };
+                }
+            """)
+            assert st["monotonic"], (
+                f"rendered message order corrupted after scroll-down: {st} (#132)")
+            assert not st["tagAfterSpacer"], (
+                f"historical messages rendered BELOW the bottom honesty spacer: {st} (#132)")
+        finally:
+            browser.close()
