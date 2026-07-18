@@ -104,30 +104,43 @@ prune). Investigate the scroll-down handler vs the sentinel-driven `_loadNewer()
 `BIDI_CAP`, the bottom sentinel). Fix so downward scrolling mirrors upward scrolling:
 incremental, position-preserving, not a jump to bottom.
 
-3.2 **Snap-to-bottom hardening for the Thinking-box transition (bug).** When sticky-to-bottom
-is active, a "Thinking" box appears, grows the content, then is removed before the real
-message renders. The bottom position moves twice (grow, then shrink, then grow), and the
-current settling loop (`chatHistory.js`:101-116, which re-snaps only while `scrollHeight`
-grows) does not re-attach across the shrink. Harden the sticky logic to track intended-sticky
-state across rapid bottom-position transitions and re-attach after the Thinking box is
-swapped for the message. Add a regression test that simulates grow/shrink/grow.
+3.2 **DONE (verified 2026-07-18).** Superseded by the stick-to-bottom observer
+(`fix/chat-stick-to-bottom`, #104): one observer is the source of truth for staying pinned
+(`isPinned` read from the pre-growth position; MutationObserver + per-child ResizeObserver).
+The Thinking-transition path was behaviorally confirmed 2026-06-25; the remaining unconfirmed
+leg — the per-child ResizeObserver on pure layout growth — was confirmed 2026-07-18 in the
+real app: pinned + late 600px child growth → re-pins; pinned + shrink-then-grow (900px,
+the Thinking shape) → re-pins; scrolled-up + same growth → held within 4px, no yank.
+Evidence on #104. 8 static guards in `tests/test_chat_stick_to_bottom_js.py`.
 
-3.3 **Thinking message as an overlay (improvement, after 3.2).** Render the live "Thinking"
-indicator as an absolutely-positioned overlay rather than an in-flow chat box, so it does not
-change the document's bottom position. The real message then replaces it with no layout jump,
-which also makes 3.2 easier to keep correct. Verify it does not regress the thinking-block
-rendering on completion (`chatRenderer.js` `processWithThinking`).
+3.3 **DONE (2026-07-18, `feat/thinking-overlay` from `upstream-mirror`, develop `163cbc52`;
+issue #133; stays open until filed).** The indicator is a zero-footprint sticky overlay:
+height:0 `position:sticky` anchor as the log's last child, bubble absolutely positioned above
+it. Measured in the running app: scrollHeight and pinned bottom-distance identical across
+append/replace/remove; the indicator stays visible at the viewport bottom when scrolled up
+(a UX gain the in-flow box never had). `role=status` for AT; `agent-thinking-dots` kept
+inside the log so cleanup queries and aria-busy ownership are unchanged; no
+transform/will-change. 7 static guards; PR draft `pr-drafts/feat-thinking-overlay.md`.
+`processWithThinking` (thinking-BLOCK rendering) untouched — different subsystem, verified by
+the streaming suites. The plan's original 3.2/3.3 texts are preserved in git history.
 
-3.4 **Usability / user-friendliness sweep.** A dedicated pass for the chat scroll experience:
-- No visible jump when eviction or load fires (scroll position is preserved to the pixel).
-- Reload of evicted messages on scroll-up is fast and does not flash.
-- The "new messages" / scroll-to-bottom affordance is discoverable and behaves predictably.
-- Keyboard and wheel and touch scrolling all behave consistently.
-- Behaviour during active streaming (auto-follow) vs when the user has scrolled up (do not
-  yank them to the bottom).
-- Lazy-loaded images do not cause late jumps (the settling loop already addresses some of
-  this; verify).
-Produce a checklist with expected behaviour for each, verified manually in the running app.
+3.4 **Usability sweep — measured where an agent can measure; the rest is an explicit manual
+list (status 2026-07-18):**
+- No visible jump on eviction/load: **MEASURED.** Anchor-restore compensation 0px drift at
+  mid-history and boundary batches; prune spacer growth exact to the pixel; DOM-order
+  coherence after scroll-down (#132 evidence matrix).
+- Evicted-message reload speed: **MEASURED.** Handler ~2 ms/page; deep scroll-back cost is
+  serialized pages × RTT (network arm). Flash-on-reload: MANUAL — needs eyes on a real
+  session.
+- Scroll-to-bottom affordance: **PARTIALLY MEASURED.** Bottom sentinel is keyboard-accessible
+  (role=button/tabindex/Enter, a11y guards); drain reaches and holds the true bottom
+  (scenario C). Discoverability: MANUAL.
+- Keyboard/wheel/touch consistency: **MANUAL** — agent cannot generate trusted touch input.
+- Streaming auto-follow vs scrolled-up: **MEASURED at the mechanism level** (pinned re-pins,
+  unpinned held within 4px — 3.2 evidence). End-to-end with a live model: MANUAL smoke.
+- Lazy-image late jumps: **MECHANISM COVERED** (load()'s one-shot img listeners + settle loop
+  + the stick observer); decode-timing on real large images: MANUAL.
+Manual items above are the 3.5 long-session pass's checklist; nothing else blocks on them.
 
 3.5 **In-app long-session verification.** Run a long agent session; confirm the DOM node
 count stays bounded, scroll-up reload works, and the snap behaviour is correct throughout.
