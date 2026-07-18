@@ -963,3 +963,15 @@ def test_bottom_sentinel_says_newer_not_earlier():
     # Scroll-down loads newer messages; the bottom sentinel wording must reflect that.
     assert "newer messages, scroll down to load" in _SRC
     assert "earlier messages — scroll down" not in _SRC
+
+
+def test_sentinel_observer_reads_newest_entry():
+    # Issue #130: IO queues one entry per transition between deliveries; under a
+    # busy main thread (batch render) the sentinel can leave and re-enter before
+    # delivery, so one callback carries [leave, enter]. Reading entries[0] (the
+    # oldest) sees the stale leave, returns without disconnecting, and discards
+    # the enter — paging dead-ends permanently at the top (captured live: a
+    # single delivery with isIntersecting [false, true]). The callback must act
+    # on the NEWEST queued entry.
+    assert "entries[entries.length - 1].isIntersecting" in _SRC
+    assert "entries[0].isIntersecting" not in _SRC
