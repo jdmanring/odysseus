@@ -520,6 +520,17 @@ All fixes are upstream-candidates.
 
 ### Attribution
 
+> **CORRECTION (2026-07-18, plan Part 1.2 — applies to the `_evictLive()` bullet below;
+> the historical text is preserved unrewritten).** The "_evictLive teardown adapted from
+> #4661" claim is retracted as an overclaim, and so is the recon's counter-claim of proven
+> independence. Primary-source facts: the teardown was authored 2026-06-21 01:55 UTC,
+> ~5h after #4661 opened (timeline proves nothing either way); the only overlapping lines
+> clear this app's own `_waveInterval`/`_elapsedTicker` handles, an idiom forced on any
+> implementation that removes these nodes; `_trimChatHistoryDOM()` itself was never used.
+> The filed PR makes no influence claim in either direction and acknowledges #4661 as
+> parallel work. The Fix A and background-stream bullets below are separate branches and
+> their attribution claims are unaffected by this correction.
+
 The following elements were adapted from upstream PR #4661 ("fix(ui): prevent browser OOM during long agent interactions") by holden093:
 
 - **Fix A thinking-block approach** (`fix/dom-oom-streaming-throttle`): The `textContent` substitution for `_liveThinkInner` during streaming and the deferred single rich render on block close. The root cause was independently confirmed from `/proc/PID/maps` analysis, but the specific fix approach matches PR #4661's implementation.

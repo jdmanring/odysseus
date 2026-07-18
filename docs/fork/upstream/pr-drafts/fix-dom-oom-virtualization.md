@@ -5,22 +5,26 @@
 > is a small **eviction graft** on top of the maintainer's pager — see
 > `docs/fork/upstream/pr-drafts/fix-history-route-shadowing.md` (prerequisite route
 > fix) and the eviction graft on branch `fix/chat-history-dom-eviction`. Also
-> **retracted:** the "adapted from #4661 teardown" claim below — primary-source
-> verification (recon §7/§8) shows the teardown was written independently; the only
-> resemblance is clearing the app's own `_waveInterval`/`_elapsedTicker` fields.
-> Do not file this draft as-is.
+> **retracted:** the "adapted from #4661 teardown" claim below (recon §7/§8). The
+> resolved, exactly-true framing is in plan Part 1.2 (2026-07-18): no influence claim
+> in either direction — the teardown was authored ~5h after #4661 opened (timeline
+> proves nothing), the only resemblance is clearing the app's own
+> `_waveInterval`/`_elapsedTicker` fields (an idiom any removal path must use), and
+> #4661's mechanism was never used. Do not file this draft as-is.
 
 # PR Draft — fix/dom-oom-virtualization
 
 **Branch**: `fix/dom-oom-virtualization` (from `upstream-mirror`)
 **Issue**: jdmanring/odysseus#2
 **Upstream issue**: file before filing PR
-**Status**: Not yet submittable. This is a more complete alternative to open upstream PR
-#4661 with an **independent architecture** (timeline-verified, predates #4661), whose
-per-node teardown cleanup is **adapted from #4661 and extended** (see "Relationship to
-upstream #4661" below). Offered on its technical merits, with credit to #4661, not as a
-replacement of
-someone else's effort.
+**Status**: Not yet submittable; the draft body needs a full rewrite at file time (plan
+Part 5). Provenance framing corrected 2026-07-18 (plan Part 1.2, primary-source verified):
+**independent architecture, timeline-proven** — authored from 2026-06-11 (author dates),
+nine days before #4661 opened. The `_evictLive` teardown makes **no influence claim in
+either direction**: authored ~5h after #4661 opened (timeline proves nothing), its only
+overlap with #4661 is clearing this app's own timer handles (an idiom forced on any
+implementation removing these nodes), and #4661's actual mechanism was never used. #4661
+is acknowledged as parallel work on the same leak class — nothing more is claimed.
 
 ---
 
@@ -66,9 +70,9 @@ When the user scrolls up through loaded history, `_loadOlder()` caps the histori
 - `overflow-anchor:none` on sentinel and spacer elements prevents the browser from double-compensating programmatic `scrollTop` assignments
 - `will-change` removed from chat container and input bar elements that were promoting unnecessary compositor layers
 
-## Teardown pattern attribution
+## Teardown pattern provenance
 
-The per-node cleanup pattern (`_waveInterval`, `_elapsedTicker` clearing) in `_evictLive()` is adapted from upstream PR #4661's `_trimChatHistoryDOM()`. That function cannot be used directly because it destroys chatHistory.js control elements (sentinel, spacer, histSep).
+The per-node cleanup in `_evictLive()` clears this app's own `_waveInterval`/`_elapsedTicker` handles before removing an element -- an idiom forced on any implementation that removes these nodes, and the only lines overlapping #4661's `_trimChatHistoryDOM()`. That function itself is not used: it destroys chatHistory.js control elements (sentinel, spacer, histSep). No influence claim is made in either direction (plan Part 1.2).
 
 ## What was NOT done (and why)
 
@@ -104,15 +108,17 @@ This change and open upstream PR #4661 (holden093, `fix/browser-memory-leak`) ta
 same problem: an unbounded chat-history DOM that causes the long-session OOM (#4644). The
 relationship is precise, and stated honestly:
 
-- **Architecture is independent and predates #4661.** This branch's first commit ("virtual
-  message window and scroll fixes to prevent renderer OOM") is 2026-06-20 01:42 UTC; #4661
-  was opened 2026-06-20 21:07 UTC, about 19 hours later. The `MessageWindow` design,
-  bidirectional windowing, and eviction model were developed before #4661 was visible.
-- **The per-node teardown cleanup is adapted from #4661, with attribution.** The pattern of
-  clearing `_waveInterval`/`_elapsedTicker` before removing each element mirrors the teardown
-  block in #4661's `_trimChatHistoryDOM()`. `_trimChatHistoryDOM()` itself is not used (it
-  destroys this implementation's control elements: sentinel, spacer, histSep).
-- **The teardown is extended beyond #4661.** In addition to those interval clears, this
+- **Architecture is independent and predates #4661 by nine days.** This branch's first
+  commit ("virtual message window and scroll fixes to prevent renderer OOM") was AUTHORED
+  2026-06-11 20:47 UTC (author date; an earlier record cited the rebase commit-date of
+  2026-06-20 01:42 UTC); #4661 opened 2026-06-20 21:07 UTC. The `MessageWindow` design,
+  bidirectional windowing, and eviction model predate #4661's existence.
+- **The per-node teardown: no influence claim, either direction.** It was authored ~5h
+  after #4661 opened, so the timeline proves nothing; its only overlap with #4661's
+  `_trimChatHistoryDOM()` is clearing this app's own `_waveInterval`/`_elapsedTicker`
+  handles, which any removal path must clear. `_trimChatHistoryDOM()` itself is not used
+  (it destroys this implementation's control elements: sentinel, spacer, histSep).
+- **The teardown goes beyond anything in #4661.** In addition to those interval clears, this
   releases `_streamRenderer` references, disconnects the IntersectionObserver (`_sObs`), and
   releases hljs-defer observer references via `hljsDeferForgetNode`. Those uncleaned
   observers and renderers were confirmed leak sources in the fork's OOM investigation
@@ -123,11 +129,10 @@ relationship is precise, and stated honestly:
   messages in place.
 
 Trade-off, stated plainly: #4661 is smaller and lower review cost; this is larger, with an
-independent architecture, a teardown that builds on and extends #4661's cleanup pattern, and
-scroll-up. A maintainer may reasonably prefer either. This is offered on its technical
-merits, with credit to #4661 where its teardown pattern was adapted, and full respect for it
-as parallel work. If the maintainer prefers #4661's direction, the extended teardown and
-windowing here can instead be contributed on top of it.
+independent architecture, a fuller teardown, and bidirectional scroll-up. A maintainer may
+reasonably prefer either. This is offered on its technical merits, acknowledging #4661 as
+parallel work on the same leak class. If the maintainer prefers #4661's direction, the
+extended teardown and windowing here can instead be contributed on top of it.
 
 ## Related
 
