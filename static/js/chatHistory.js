@@ -321,6 +321,20 @@
         self._all      = msgs.concat(self._all);
         self._startIdx += msgs.length;
         self._endIdx   += msgs.length;
+        // The prepend shifted the _all index space; every rendered node's chIdx
+        // tag is now stale by msgs.length. Left stale, tags from successive
+        // pages collide (measured: a 300-message walk left the DOM tagged 0-99
+        // against _endIdx 280), and every chIdx consumer misreads: the Phase-3
+        // scroll-up prune compares a stale (too small) tag against a
+        // current-space target and breaks at the first node -- removing nothing,
+        // ever -- which is how the DOM reached ~1,980 of 2,000 messages
+        // (issue #129). Retag before anything else reads the tags.
+        for (var ci = 0; ci < self._c.children.length; ci++) {
+          var _ch = self._c.children[ci];
+          if (_ch.dataset && _ch.dataset.chIdx !== undefined) {
+            _ch.dataset.chIdx = String(parseInt(_ch.dataset.chIdx, 10) + msgs.length);
+          }
+        }
       }
       self._serverOffset  = (res && typeof res.offset === 'number') ? res.offset : offset;
       self._serverHasMore = !!(res && res.hasMore) && self._serverOffset > 0;
