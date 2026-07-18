@@ -40,6 +40,7 @@ CHAT_HISTORY_JS = ROOT / "tests/bench/vendor/messageWindow_fork.js"
 LIVE_CHAT_HISTORY_JS = ROOT / "static/js/chatHistory.js"
 VENDOR_4998 = ROOT / "tests/bench/vendor/chatVirtualizer_4998.js"
 HYBRID_JS = ROOT / "tests/bench/vendor/hybrid_bench.js"
+VENDOR_4661 = ROOT / "tests/bench/vendor/trimChatHistory_4661.js"
 RESULTS_DIR = ROOT / "tests/bench/results"
 
 VIEWPORT = {"width": 900, "height": 700}
@@ -348,6 +349,13 @@ def load_arm(page, arm: str, n: int):
     elif arm == "hybrid":
         page.add_script_tag(path=str(HYBRID_JS))
         page.evaluate("() => { window.hybridBench.load(window.CORPUS); }")
+    elif arm == "trim4661":
+        # Upstream PR #4661's trim-and-bar strategy (vendored from 27f35e1c).
+        # Reload is CLICK-driven, not scroll-driven, so the scroll excursions
+        # below stall and their cells are withheld by the completeness guard;
+        # the click path is measured separately via trim4661.loadOlderAll().
+        page.add_script_tag(path=str(VENDOR_4661))
+        page.evaluate("() => { window.trim4661.load(window.CORPUS); }")
     else:
         raise ValueError(arm)
 
@@ -501,6 +509,17 @@ def run_cell(pw, arm: str, n: int) -> dict:
         # at the top so the evict arm's _all retention and the detach arm's kept-node
         # retention are both measured (fairness cuts both ways).
         sweep = page.evaluate(_scroll_sweep_js())
+
+        # --- trim4661's reload path is CLICK-driven (the "Show N older" bar), so
+        # the scroll excursions above legitimately stall for it (their cells are
+        # withheld by the completeness guards). Measure its own path: click the
+        # bar to exhaustion and record wall time + the resulting DOM state --
+        # note this reloads EVERYTHING (no eviction behind the reload), so the
+        # peak memory sample below reflects that unbounded reload by design.
+        click_reload = None
+        if arm == "trim4661":
+            click_reload = page.evaluate("async () => window.trim4661.loadOlderAll()")
+
         mem_peak = sample_mem(page, cdp)
         # GC-settle before the OS memory read so USS reflects retained, not transient.
         page.evaluate("window.gc && (window.gc(), window.gc());")
@@ -536,6 +555,11 @@ def run_cell(pw, arm: str, n: int) -> dict:
             if db["complete"] else None,
             "append_layout_ms": round(lay_after["layout_ms"] - lay_before["layout_ms"], 2),
             "append_style_ms": round(lay_after["style_ms"] - lay_before["style_ms"], 2),
+            # trim4661 only: click-driven full reload of offloaded history
+            # (its scroll cells are withheld; this is its actual reload path).
+            "click_reload_ms": click_reload["ms"] if click_reload else None,
+            "click_reload_clicks": click_reload["clicks"] if click_reload else None,
+            "click_reload_incomplete": (click_reload["remaining"] > 0) if click_reload else None,
         }
     finally:
         ctx.close()
@@ -554,7 +578,8 @@ def median_cell(pw, arm, n, repeats):
             "scrollback_layout_ms", "scrollback_style_ms",
             "deepback_mean_ms", "deepback_worst_ms",
             "deepback_layout_ms", "deepback_style_ms", "deepback_moved_msgs",
-            "append_layout_ms", "append_style_ms")
+            "append_layout_ms", "append_style_ms",
+            "click_reload_ms", "click_reload_clicks")
     for k in keys:
         vals = [r[k] for r in runs if r[k] is not None]
         if not vals:
