@@ -360,9 +360,11 @@ The function walks DOM children after `_histSep`, finds the oldest `count` messa
 
 **Step 4 — Handle `_loadOlderMessages()` correctly**: upstream PR's `_loadOlderMessages()` bypasses `_all[]` and breaks multi-round agent messages. Phase 1's IntersectionObserver already handles loading older messages from `_all[]` on scroll-up — by routing evicted live messages through `_all[]`, Phase 1 handles the reload automatically with no special "load older" bar needed.
 
-#### What to take from upstream PR #4661's DOM cap approach
+#### Per-node cleanup on removal (upstream PR #4661's `_trimChatHistoryDOM()` does the same, for the same reason)
 
-The cleanup code in upstream PR #4661's `_trimChatHistoryDOM()` before removing each element is correct and reusable. This pattern was adapted into `_evictLive()`:
+Any code removing these nodes must clear the app's own per-node handles before removal —
+`_evictLive()` does, and so does #4661's `_trimChatHistoryDOM()` (parallel work; see plan
+Part 1.2 for the settled framing):
 ```js
 if (el._waveInterval) { clearInterval(el._waveInterval); el._waveInterval = null; }
 if (el._elapsedTicker) { clearInterval(el._elapsedTicker); el._elapsedTicker = null; }
@@ -520,22 +522,18 @@ All fixes are upstream-candidates.
 
 ### Attribution
 
-> **CORRECTION (2026-07-18, plan Part 1.2 — applies to the `_evictLive()` bullet below;
-> the historical text is preserved unrewritten).** The "_evictLive teardown adapted from
-> #4661" claim is retracted as an overclaim, and so is the recon's counter-claim of proven
-> independence. Primary-source facts: the teardown was authored 2026-06-21 01:55 UTC,
-> ~5h after #4661 opened (timeline proves nothing either way); the only overlapping lines
-> clear this app's own `_waveInterval`/`_elapsedTicker` handles, an idiom forced on any
-> implementation that removes these nodes; `_trimChatHistoryDOM()` itself was never used.
-> The filed PR makes no influence claim in either direction and acknowledges #4661 as
-> parallel work. The Fix A and background-stream bullets below are separate branches and
-> their attribution claims are unaffected by this correction.
+The following elements of `fix/dom-oom-streaming-throttle` were adapted from upstream PR
+#4661 ("fix(ui): prevent browser OOM during long agent interactions") by holden093:
 
-The following elements were adapted from upstream PR #4661 ("fix(ui): prevent browser OOM during long agent interactions") by holden093:
+- **Fix A thinking-block approach**: The `textContent` substitution for `_liveThinkInner` during streaming and the deferred single rich render on block close. The root cause was independently confirmed from `/proc/PID/maps` analysis, but the specific fix approach matches PR #4661's implementation.
+- **Background stream cleanup**: Clearing `accumulated`, `sourcesHtml`, `findingsData` on `[DONE]`. PR #4661 cleared only `accumulated` and `abortCtrl`; `sourcesHtml` and `findingsData` were added here.
 
-- **Fix A thinking-block approach** (`fix/dom-oom-streaming-throttle`): The `textContent` substitution for `_liveThinkInner` during streaming and the deferred single rich render on block close. The root cause was independently confirmed from `/proc/PID/maps` analysis, but the specific fix approach matches PR #4661's implementation.
-- **Background stream cleanup** (`fix/dom-oom-streaming-throttle`): Clearing `accumulated`, `sourcesHtml`, `findingsData` on `[DONE]`. PR #4661 cleared only `accumulated` and `abortCtrl`; `sourcesHtml` and `findingsData` were added here.
-- **`_evictLive()` teardown pattern** (`fix/dom-oom-phase2-guard`): The per-node cleanup (clear `_waveInterval`, `_elapsedTicker`, `_streamRenderer`, recurse into descendants) mirrors the teardown block inside PR #4661's `_trimChatHistoryDOM()`. That function could not be used directly because it destroys chatHistory.js control elements.
+The `_evictLive()` per-node teardown (`fix/dom-oom-phase2-guard`) clears this app's own
+`_waveInterval`/`_elapsedTicker`/`_streamRenderer` handles — which any code removing these
+nodes must clear — and recurses into descendants. #4661's `_trimChatHistoryDOM()` is not
+used: it destroys chatHistory.js control elements. Provenance framing for the
+virtualization branch: plan Part 1.2 of
+`docs/fork/plans/dom-oom-virtualization-upstream-plan.md` (settled).
 
 What was NOT taken from PR #4661:
 - `_trimChatHistoryDOM()` — incompatible with chatHistory.js virtualization system
