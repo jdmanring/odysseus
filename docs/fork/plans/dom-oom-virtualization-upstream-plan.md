@@ -86,7 +86,16 @@ tradeoff is stated.
 The virtualization is not submittable until behaviour is correct. Known issues from user
 testing:
 
-3.1 **Scroll-down inverse behaviour is wrong (bug).** Scroll-up correctly reads in older
+3.1 **DONE (2026-07-18, pending only the #2 filing).** Fixed 2026-06-25 (`8fc0dcdc`: drain-only
+recursion and end-snap, "newer" wording, static guards) — the fork issue (#103) lagged the fix.
+Behavioral verification in the real app surfaced a fresh #127-spacer regression on the same path
+(#132: batches inserted below the bottom honesty spacer, order corrupted) — fixed (`4cf6325b`),
+DOM-order-coherence regression test red-verified, staged branch re-converged (the #131 guard
+fired on its first live drift and forced it). Measured end state: one scroll-down trigger loads
+exactly one batch (80→105), stops, no drain, no yank. Original item text kept below for the
+record:
+
+~~3.1~~ **Scroll-down inverse behaviour is wrong (bug).** Scroll-up correctly reads in older
 content at the top and prunes the bottom. Scroll-down should be the inverse (read in newer
 content at the bottom, prune the top), but currently behaves like the existing "scroll to
 bottom" (it drains via `scrollToBottom()` instead of incremental `_loadNewer()` + top
