@@ -1,6 +1,6 @@
 {
   "env": {
-    "platform": "Linux-7.1.3-artix1-1-x86_64-with-glibc2.43",
+    "platform": "Linux-7.1.3-artix1-3-x86_64-with-glibc2.43",
     "python": "3.14.6",
     "chromium_version": "148.0.7778.96",
     "cpu_count": 24,
@@ -63,23 +63,23 @@
         0,
         0
       ],
-      "uss_mb": 31.54,
-      "uss_mb_spread": 0.53,
+      "uss_mb": 31.28,
+      "uss_mb_spread": 0.65,
       "uss_mb_raw": [
-        31.54,
         31.08,
-        31.58,
-        31.61,
-        31.14
+        31.57,
+        30.97,
+        31.62,
+        31.28
       ],
-      "rss_mb": 117.26,
-      "rss_mb_spread": 0.61,
+      "rss_mb": 117.49,
+      "rss_mb_spread": 0.82,
       "rss_mb_raw": [
-        117.26,
-        116.96,
-        117.57,
-        117.17,
-        117.27
+        116.81,
+        117.58,
+        117.28,
+        117.49,
+        117.63
       ],
       "scroll_mean_ms": 16.67,
       "scroll_mean_ms_spread": 0.0,
@@ -99,23 +99,23 @@
         0,
         0
       ],
-      "scrollback_mean_ms": 5.93,
-      "scrollback_mean_ms_spread": 5.4,
+      "scrollback_mean_ms": 6,
+      "scrollback_mean_ms_spread": 0.24,
       "scrollback_mean_ms_raw": [
+        6.07,
+        5.83,
+        6.03,
         5.93,
-        5.9,
-        11.3,
-        5.9,
-        5.93
+        6
       ],
       "scrollback_worst_ms": 16.7,
-      "scrollback_worst_ms_spread": 0.5,
+      "scrollback_worst_ms_spread": 1.5,
       "scrollback_worst_ms_raw": [
+        17.3,
         16.7,
-        16.6,
-        17.1,
-        16.6,
-        16.7
+        16.7,
+        16.9,
+        15.8
       ],
       "scrollback_layout_ms": 0.0,
       "scrollback_layout_ms_spread": 0.0,
@@ -135,23 +135,23 @@
         0.0,
         0.0
       ],
-      "deepback_mean_ms": 16.29,
-      "deepback_mean_ms_spread": 0.07,
+      "deepback_mean_ms": 16.34,
+      "deepback_mean_ms_spread": 0.02,
       "deepback_mean_ms_raw": [
-        16.28,
-        16.29,
         16.34,
         16.35,
-        16.29
+        16.34,
+        16.36,
+        16.34
       ],
       "deepback_worst_ms": 17.6,
-      "deepback_worst_ms_spread": 2.3,
+      "deepback_worst_ms_spread": 1.2,
       "deepback_worst_ms_raw": [
-        17.4,
-        17.9,
-        19.4,
         17.1,
-        17.6
+        18,
+        17.6,
+        17.7,
+        16.8
       ],
       "deepback_layout_ms": 0.0,
       "deepback_layout_ms_spread": 0.0,
@@ -180,24 +180,28 @@
         200,
         200
       ],
-      "append_layout_ms": 6.98,
-      "append_layout_ms_spread": 0.76,
+      "append_layout_ms": 6.22,
+      "append_layout_ms_spread": 2.82,
       "append_layout_ms_raw": [
-        6.98,
-        7.24,
-        6.72,
-        6.48,
-        7.02
+        6.04,
+        6.22,
+        5.81,
+        6.29,
+        8.63
       ],
-      "append_style_ms": 0.87,
-      "append_style_ms_spread": 0.25,
+      "append_style_ms": 0.64,
+      "append_style_ms_spread": 0.37,
       "append_style_ms_raw": [
-        0.96,
-        1.03,
-        0.86,
-        0.78,
-        0.87
+        0.66,
+        0.61,
+        0.64,
+        0.55,
+        0.92
       ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": true,
@@ -252,29 +256,222 @@
         14,
         14
       ],
-      "uss_mb": 32.76,
-      "uss_mb_spread": 0.38,
+      "uss_mb": 32.69,
+      "uss_mb_spread": 0.54,
       "uss_mb_raw": [
-        32.47,
-        32.76,
-        32.54,
-        32.85,
-        32.84
+        33.03,
+        32.49,
+        32.84,
+        32.69,
+        32.62
       ],
-      "rss_mb": 118.15,
-      "rss_mb_spread": 0.68,
+      "rss_mb": 118.25,
+      "rss_mb_spread": 3.07,
       "rss_mb_raw": [
-        118.14,
-        117.99,
-        118.18,
-        118.67,
-        118.15
+        118.41,
+        117.88,
+        120.95,
+        118.25,
+        118.1
       ],
       "scroll_mean_ms": 16.67,
       "scroll_mean_ms_spread": 0.0,
       "scroll_mean_ms_raw": [
         16.67,
         16.67,
+        16.67,
+        16.67,
+        16.67
+      ],
+      "scroll_long_frames": 0,
+      "scroll_long_frames_spread": 0,
+      "scroll_long_frames_raw": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scrollback_mean_ms": 5.9,
+      "scrollback_mean_ms_spread": 5.47,
+      "scrollback_mean_ms_raw": [
+        5.83,
+        5.9,
+        5.9,
+        5.87,
+        11.3
+      ],
+      "scrollback_worst_ms": 16.2,
+      "scrollback_worst_ms_spread": 0.9,
+      "scrollback_worst_ms_raw": [
+        16.2,
+        16.2,
+        16.2,
+        16.3,
+        17.1
+      ],
+      "scrollback_layout_ms": 0.83,
+      "scrollback_layout_ms_spread": 0.03,
+      "scrollback_layout_ms_raw": [
+        0.84,
+        0.85,
+        0.82,
+        0.83,
+        0.83
+      ],
+      "scrollback_style_ms": 0.14,
+      "scrollback_style_ms_spread": 0.04,
+      "scrollback_style_ms_raw": [
+        0.14,
+        0.15,
+        0.14,
+        0.13,
+        0.17
+      ],
+      "deepback_mean_ms": 16.33,
+      "deepback_mean_ms_spread": 0.32,
+      "deepback_mean_ms_raw": [
+        16.34,
+        16.03,
+        16.03,
+        16.35,
+        16.33
+      ],
+      "deepback_worst_ms": 16.8,
+      "deepback_worst_ms_spread": 0.9,
+      "deepback_worst_ms_raw": [
+        16.8,
+        16.8,
+        16.8,
+        17.4,
+        17.7
+      ],
+      "deepback_layout_ms": 30.85,
+      "deepback_layout_ms_spread": 7.3,
+      "deepback_layout_ms_raw": [
+        31.67,
+        29.11,
+        30.65,
+        36.41,
+        30.85
+      ],
+      "deepback_style_ms": 3.77,
+      "deepback_style_ms_spread": 1.08,
+      "deepback_style_ms_raw": [
+        3.9,
+        3.4,
+        3.77,
+        4.48,
+        3.74
+      ],
+      "deepback_moved_msgs": 200,
+      "deepback_moved_msgs_spread": 0,
+      "deepback_moved_msgs_raw": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "append_layout_ms": 6.27,
+      "append_layout_ms_spread": 0.42,
+      "append_layout_ms_raw": [
+        6.11,
+        6.27,
+        6.27,
+        6.12,
+        6.53
+      ],
+      "append_style_ms": 0.69,
+      "append_style_ms_spread": 0.28,
+      "append_style_ms_raw": [
+        0.61,
+        0.68,
+        0.78,
+        0.69,
+        0.89
+      ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
+      "scrollback_complete": true,
+      "scrollback_complete_runs": "5/5",
+      "deepback_complete": true,
+      "deepback_complete_runs": "5/5"
+    },
+    {
+      "arm": "evict",
+      "n": 250,
+      "repeats_kept": 5,
+      "nodes_loaded": 411,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        411,
+        411,
+        411,
+        411,
+        411
+      ],
+      "nodes_peak": 720,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        720,
+        720,
+        720,
+        720,
+        720
+      ],
+      "jsheap_loaded": 1580516,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        1580516,
+        1580516,
+        1580516,
+        1580516,
+        1580516
+      ],
+      "jsheap_peak": 1743212,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        1743212,
+        1743212,
+        1743212,
+        1743212,
+        1743212
+      ],
+      "listeners_peak": 17,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        17,
+        17,
+        17,
+        17,
+        17
+      ],
+      "uss_mb": 33.43,
+      "uss_mb_spread": 0.47,
+      "uss_mb_raw": [
+        33.69,
+        33.22,
+        33.37,
+        33.43,
+        33.44
+      ],
+      "rss_mb": 119.05,
+      "rss_mb_spread": 3.24,
+      "rss_mb_raw": [
+        119.85,
+        118.92,
+        122.12,
+        118.88,
+        119.05
+      ],
+      "scroll_mean_ms": 16.67,
+      "scroll_mean_ms_spread": 0.01,
+      "scroll_mean_ms_raw": [
+        16.66,
+        16.66,
         16.67,
         16.67,
         16.67
@@ -289,211 +486,22 @@
         0
       ],
       "scrollback_mean_ms": 5.97,
-      "scrollback_mean_ms_spread": 5.36,
-      "scrollback_mean_ms_raw": [
-        5.97,
-        5.87,
-        11.23,
-        5.97,
-        10.93
-      ],
-      "scrollback_worst_ms": 16.5,
-      "scrollback_worst_ms_spread": 1.6,
-      "scrollback_worst_ms_raw": [
-        16.5,
-        16.2,
-        16.9,
-        16.4,
-        17.8
-      ],
-      "scrollback_layout_ms": 0.76,
-      "scrollback_layout_ms_spread": 0.31,
-      "scrollback_layout_ms_raw": [
-        0.76,
-        0.78,
-        0.74,
-        0.75,
-        1.05
-      ],
-      "scrollback_style_ms": 0.15,
-      "scrollback_style_ms_spread": 0.05,
-      "scrollback_style_ms_raw": [
-        0.16,
-        0.14,
-        0.11,
-        0.15,
-        0.15
-      ],
-      "deepback_mean_ms": 16.34,
-      "deepback_mean_ms_spread": 0.32,
-      "deepback_mean_ms_raw": [
-        16.03,
-        16.35,
-        16.34,
-        16.35,
-        16.34
-      ],
-      "deepback_worst_ms": 16.9,
-      "deepback_worst_ms_spread": 2.2,
-      "deepback_worst_ms_raw": [
-        16.8,
-        16.9,
-        16.8,
-        17.1,
-        19
-      ],
-      "deepback_layout_ms": 31.88,
-      "deepback_layout_ms_spread": 3.52,
-      "deepback_layout_ms_raw": [
-        32.02,
-        33.5,
-        30.86,
-        31.88,
-        29.98
-      ],
-      "deepback_style_ms": 4.1,
-      "deepback_style_ms_spread": 0.89,
-      "deepback_style_ms_raw": [
-        3.85,
-        4.74,
-        4.1,
-        4.03,
-        4.14
-      ],
-      "deepback_moved_msgs": 200,
-      "deepback_moved_msgs_spread": 0,
-      "deepback_moved_msgs_raw": [
-        200,
-        200,
-        200,
-        200,
-        200
-      ],
-      "append_layout_ms": 6.52,
-      "append_layout_ms_spread": 1.33,
-      "append_layout_ms_raw": [
-        6.52,
-        5.91,
-        5.96,
-        7.24,
-        6.71
-      ],
-      "append_style_ms": 0.88,
-      "append_style_ms_spread": 0.43,
-      "append_style_ms_raw": [
-        1.03,
-        0.72,
-        0.72,
-        1.15,
-        0.88
-      ],
-      "scrollback_complete": true,
-      "scrollback_complete_runs": "5/5",
-      "deepback_complete": true,
-      "deepback_complete_runs": "5/5"
-    },
-    {
-      "arm": "evict",
-      "n": 250,
-      "repeats_kept": 5,
-      "nodes_loaded": 409,
-      "nodes_loaded_spread": 0,
-      "nodes_loaded_raw": [
-        409,
-        409,
-        409,
-        409,
-        409
-      ],
-      "nodes_peak": 718,
-      "nodes_peak_spread": 0,
-      "nodes_peak_raw": [
-        718,
-        718,
-        718,
-        718,
-        718
-      ],
-      "jsheap_loaded": 1554828,
-      "jsheap_loaded_spread": 0,
-      "jsheap_loaded_raw": [
-        1554828,
-        1554828,
-        1554828,
-        1554828,
-        1554828
-      ],
-      "jsheap_peak": 1697216,
-      "jsheap_peak_spread": 0,
-      "jsheap_peak_raw": [
-        1697216,
-        1697216,
-        1697216,
-        1697216,
-        1697216
-      ],
-      "listeners_peak": 17,
-      "listeners_peak_spread": 0,
-      "listeners_peak_raw": [
-        17,
-        17,
-        17,
-        17,
-        17
-      ],
-      "uss_mb": 31.17,
-      "uss_mb_spread": 0.7,
-      "uss_mb_raw": [
-        31.36,
-        31.35,
-        30.74,
-        30.66,
-        31.17
-      ],
-      "rss_mb": 117.35,
-      "rss_mb_spread": 3.28,
-      "rss_mb_raw": [
-        117.35,
-        116.97,
-        119.04,
-        119.76,
-        116.48
-      ],
-      "scroll_mean_ms": 16.67,
-      "scroll_mean_ms_spread": 0.0,
-      "scroll_mean_ms_raw": [
-        16.67,
-        16.67,
-        16.67,
-        16.67,
-        16.67
-      ],
-      "scroll_long_frames": 0,
-      "scroll_long_frames_spread": 0,
-      "scroll_long_frames_raw": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "scrollback_mean_ms": 5.93,
-      "scrollback_mean_ms_spread": 0.17,
+      "scrollback_mean_ms_spread": 0.3,
       "scrollback_mean_ms_raw": [
         5.9,
-        5.83,
+        5.8,
         6,
-        5.93,
-        5.93
+        5.97,
+        6.1
       ],
       "scrollback_worst_ms": 16.4,
       "scrollback_worst_ms_spread": 0.6,
       "scrollback_worst_ms_raw": [
+        16.2,
+        16.7,
+        16.2,
         16.4,
-        16,
-        16.6,
-        16.6,
-        16.1
+        16.8
       ],
       "scrollback_layout_ms": 0.0,
       "scrollback_layout_ms_spread": 0.0,
@@ -513,14 +521,42 @@
         0.0,
         0.0
       ],
-      "deepback_mean_ms": null,
-      "deepback_mean_ms_spread": null,
-      "deepback_worst_ms": null,
-      "deepback_worst_ms_spread": null,
-      "deepback_layout_ms": null,
-      "deepback_layout_ms_spread": null,
-      "deepback_style_ms": null,
-      "deepback_style_ms_spread": null,
+      "deepback_mean_ms": 16.17,
+      "deepback_mean_ms_spread": 0.5,
+      "deepback_mean_ms_raw": [
+        16.15,
+        16.17,
+        15.67,
+        16.17,
+        16.17
+      ],
+      "deepback_worst_ms": 17.5,
+      "deepback_worst_ms_spread": 0.7,
+      "deepback_worst_ms_raw": [
+        17.4,
+        17.1,
+        17.8,
+        17.5,
+        17.7
+      ],
+      "deepback_layout_ms": 8.35,
+      "deepback_layout_ms_spread": 2.34,
+      "deepback_layout_ms_raw": [
+        8.88,
+        8.35,
+        8.35,
+        10.55,
+        8.21
+      ],
+      "deepback_style_ms": 1.08,
+      "deepback_style_ms_spread": 0.18,
+      "deepback_style_ms_raw": [
+        1.15,
+        1.04,
+        1.09,
+        1.08,
+        0.97
+      ],
       "deepback_moved_msgs": 200,
       "deepback_moved_msgs_spread": 0,
       "deepback_moved_msgs_raw": [
@@ -530,29 +566,32 @@
         200,
         200
       ],
-      "append_layout_ms": 2.91,
-      "append_layout_ms_spread": 0.73,
+      "append_layout_ms": 2.72,
+      "append_layout_ms_spread": 0.81,
       "append_layout_ms_raw": [
-        2.94,
-        2.91,
         2.8,
-        2.5,
-        3.23
+        2.7,
+        2.72,
+        2.27,
+        3.08
       ],
-      "append_style_ms": 0.58,
-      "append_style_ms_spread": 0.27,
+      "append_style_ms": 0.56,
+      "append_style_ms_spread": 0.35,
       "append_style_ms_raw": [
-        0.66,
-        0.58,
-        0.58,
-        0.44,
-        0.71
+        0.56,
+        0.53,
+        0.57,
+        0.37,
+        0.72
       ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
-      "deepback_complete": false,
-      "deepback_complete_runs": "0/5",
-      "deepback_withheld_reason": "return walk never reached the newest message (scroll anchoring defeats a stepped scrollTop walk); a stalled walk is not a fast one"
+      "deepback_complete": true,
+      "deepback_complete_runs": "5/5"
     },
     {
       "arm": "hybrid",
@@ -585,13 +624,13 @@
         1515708,
         1515708
       ],
-      "jsheap_peak": 1660660,
+      "jsheap_peak": 1660612,
       "jsheap_peak_spread": 48,
       "jsheap_peak_raw": [
         1660660,
+        1660660,
         1660612,
-        1660660,
-        1660660,
+        1660612,
         1660612
       ],
       "listeners_peak": 14,
@@ -603,23 +642,189 @@
         14,
         14
       ],
-      "uss_mb": 30.08,
-      "uss_mb_spread": 0.71,
+      "uss_mb": 30.04,
+      "uss_mb_spread": 0.51,
       "uss_mb_raw": [
-        30.49,
-        29.91,
-        30.04,
-        30.08,
-        30.62
+        30.27,
+        30.24,
+        29.86,
+        29.76,
+        30.04
       ],
-      "rss_mb": 118.62,
-      "rss_mb_spread": 1.0,
+      "rss_mb": 118.84,
+      "rss_mb_spread": 0.33,
       "rss_mb_raw": [
-        118.62,
-        118.51,
-        118.59,
-        119.16,
-        119.51
+        118.68,
+        118.86,
+        118.84,
+        119.01,
+        118.82
+      ],
+      "scroll_mean_ms": 16.67,
+      "scroll_mean_ms_spread": 0.01,
+      "scroll_mean_ms_raw": [
+        16.67,
+        16.67,
+        16.66,
+        16.67,
+        16.67
+      ],
+      "scroll_long_frames": 0,
+      "scroll_long_frames_spread": 0,
+      "scroll_long_frames_raw": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scrollback_mean_ms": 6,
+      "scrollback_mean_ms_spread": 5.27,
+      "scrollback_mean_ms_raw": [
+        5.93,
+        6.03,
+        11.1,
+        5.83,
+        6
+      ],
+      "scrollback_worst_ms": 16.7,
+      "scrollback_worst_ms_spread": 0.3,
+      "scrollback_worst_ms_raw": [
+        16.4,
+        16.7,
+        16.7,
+        16.4,
+        16.7
+      ],
+      "scrollback_layout_ms": 0.55,
+      "scrollback_layout_ms_spread": 0.26,
+      "scrollback_layout_ms_raw": [
+        0.56,
+        0.55,
+        0.7,
+        0.44,
+        0.53
+      ],
+      "scrollback_style_ms": 0.13,
+      "scrollback_style_ms_spread": 0.09,
+      "scrollback_style_ms_raw": [
+        0.14,
+        0.13,
+        0.19,
+        0.1,
+        0.12
+      ],
+      "deepback_mean_ms": null,
+      "deepback_mean_ms_spread": null,
+      "deepback_worst_ms": null,
+      "deepback_worst_ms_spread": null,
+      "deepback_layout_ms": null,
+      "deepback_layout_ms_spread": null,
+      "deepback_style_ms": null,
+      "deepback_style_ms_spread": null,
+      "deepback_moved_msgs": 116,
+      "deepback_moved_msgs_spread": 0,
+      "deepback_moved_msgs_raw": [
+        116,
+        116,
+        116,
+        116,
+        116
+      ],
+      "append_layout_ms": 3.19,
+      "append_layout_ms_spread": 1.61,
+      "append_layout_ms_raw": [
+        4.23,
+        3.65,
+        2.7,
+        3.19,
+        2.62
+      ],
+      "append_style_ms": 0.6,
+      "append_style_ms_spread": 0.61,
+      "append_style_ms_raw": [
+        0.6,
+        1.05,
+        0.44,
+        0.6,
+        0.5
+      ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
+      "scrollback_complete": true,
+      "scrollback_complete_runs": "5/5",
+      "deepback_complete": false,
+      "deepback_complete_runs": "0/5",
+      "deepback_withheld_reason": "excursion fell short: traversed 116 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
+    },
+    {
+      "arm": "trim4661",
+      "n": 250,
+      "repeats_kept": 5,
+      "nodes_loaded": 1188,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        1188,
+        1188,
+        1188,
+        1188,
+        1188
+      ],
+      "nodes_peak": 2041,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        2041,
+        2041,
+        2041,
+        2041,
+        2041
+      ],
+      "jsheap_loaded": 1482176,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        1482176,
+        1482176,
+        1482176,
+        1482176,
+        1482176
+      ],
+      "jsheap_peak": 1565080,
+      "jsheap_peak_spread": 0,
+      "jsheap_peak_raw": [
+        1565080,
+        1565080,
+        1565080,
+        1565080,
+        1565080
+      ],
+      "listeners_peak": 14,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 33.7,
+      "uss_mb_spread": 0.95,
+      "uss_mb_raw": [
+        33.7,
+        34.08,
+        33.46,
+        33.31,
+        34.26
+      ],
+      "rss_mb": 119.29,
+      "rss_mb_spread": 0.46,
+      "rss_mb_raw": [
+        118.91,
+        119.29,
+        118.94,
+        119.32,
+        119.37
       ],
       "scroll_mean_ms": 16.67,
       "scroll_mean_ms_spread": 0.0,
@@ -639,41 +844,41 @@
         0,
         0
       ],
-      "scrollback_mean_ms": 6,
-      "scrollback_mean_ms_spread": 0.1,
+      "scrollback_mean_ms": 5.97,
+      "scrollback_mean_ms_spread": 0.14,
       "scrollback_mean_ms_raw": [
         5.97,
-        5.93,
-        6,
-        6.03,
-        6
+        5.97,
+        5.87,
+        5.97,
+        5.83
       ],
-      "scrollback_worst_ms": 16.5,
-      "scrollback_worst_ms_spread": 0.2,
+      "scrollback_worst_ms": 16.2,
+      "scrollback_worst_ms_spread": 2.0,
       "scrollback_worst_ms_raw": [
         16.4,
-        16.5,
-        16.5,
-        16.5,
-        16.6
+        15.2,
+        16.2,
+        16.7,
+        14.7
       ],
-      "scrollback_layout_ms": 0.52,
-      "scrollback_layout_ms_spread": 0.11,
+      "scrollback_layout_ms": 0.0,
+      "scrollback_layout_ms_spread": 0.0,
       "scrollback_layout_ms_raw": [
-        0.54,
-        0.46,
-        0.45,
-        0.56,
-        0.52
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ],
-      "scrollback_style_ms": 0.13,
-      "scrollback_style_ms_spread": 0.04,
+      "scrollback_style_ms": 0.0,
+      "scrollback_style_ms_spread": 0.0,
       "scrollback_style_ms_raw": [
-        0.16,
-        0.12,
-        0.12,
-        0.14,
-        0.13
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
       ],
       "deepback_mean_ms": null,
       "deepback_mean_ms_spread": null,
@@ -683,38 +888,56 @@
       "deepback_layout_ms_spread": null,
       "deepback_style_ms": null,
       "deepback_style_ms_spread": null,
-      "deepback_moved_msgs": 116,
+      "deepback_moved_msgs": 166,
       "deepback_moved_msgs_spread": 0,
       "deepback_moved_msgs_raw": [
-        116,
-        116,
-        116,
-        116,
-        116
+        166,
+        166,
+        166,
+        166,
+        166
       ],
-      "append_layout_ms": 3.17,
-      "append_layout_ms_spread": 1.31,
+      "append_layout_ms": 4.59,
+      "append_layout_ms_spread": 1.34,
       "append_layout_ms_raw": [
-        4.01,
-        3.12,
-        3.17,
-        3.89,
-        2.7
+        5.64,
+        4.3,
+        4.88,
+        4.59,
+        4.42
       ],
-      "append_style_ms": 0.65,
-      "append_style_ms_spread": 0.38,
+      "append_style_ms": 0.67,
+      "append_style_ms_spread": 0.43,
       "append_style_ms_raw": [
-        0.96,
-        0.59,
-        0.65,
+        0.67,
+        1.08,
+        0.74,
+        0.66,
+        0.65
+      ],
+      "click_reload_ms": 0.9,
+      "click_reload_ms_spread": 0.3,
+      "click_reload_ms_raw": [
         0.9,
-        0.58
+        0.8,
+        0.9,
+        1.1,
+        1
+      ],
+      "click_reload_clicks": 2,
+      "click_reload_clicks_spread": 0,
+      "click_reload_clicks_raw": [
+        2,
+        2,
+        2,
+        2,
+        2
       ],
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": false,
       "deepback_complete_runs": "0/5",
-      "deepback_withheld_reason": "excursion fell short: traversed 116 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
+      "deepback_withheld_reason": "excursion fell short: traversed 166 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
     },
     {
       "arm": "naive",
@@ -748,13 +971,13 @@
         1606772
       ],
       "jsheap_peak": 1685016,
-      "jsheap_peak_spread": 104,
+      "jsheap_peak_spread": 144,
       "jsheap_peak_raw": [
         1685016,
-        1685120,
         1685016,
         1685016,
-        1685120
+        1685160,
+        1685160
       ],
       "listeners_peak": 0,
       "listeners_peak_spread": 0,
@@ -765,23 +988,23 @@
         0,
         0
       ],
-      "uss_mb": 48.21,
-      "uss_mb_spread": 1.98,
+      "uss_mb": 47.94,
+      "uss_mb_spread": 0.88,
       "uss_mb_raw": [
-        48.36,
-        48.21,
-        47.72,
-        47.96,
-        49.7
+        47.61,
+        47.94,
+        48.49,
+        48.24,
+        47.62
       ],
-      "rss_mb": 134.55,
-      "rss_mb_spread": 1.62,
+      "rss_mb": 134.47,
+      "rss_mb_spread": 1.72,
       "rss_mb_raw": [
-        134.94,
-        134.55,
-        134.29,
+        134.47,
         134.3,
-        135.91
+        135.67,
+        134.79,
+        133.95
       ],
       "scroll_mean_ms": 16.67,
       "scroll_mean_ms_spread": 0.0,
@@ -801,23 +1024,23 @@
         0,
         0
       ],
-      "scrollback_mean_ms": 5.9,
-      "scrollback_mean_ms_spread": 5.47,
+      "scrollback_mean_ms": 5.93,
+      "scrollback_mean_ms_spread": 5.23,
       "scrollback_mean_ms_raw": [
-        5.8,
-        5.9,
-        5.83,
         5.93,
-        11.27
+        11.1,
+        11.07,
+        5.87,
+        5.87
       ],
-      "scrollback_worst_ms": 16.8,
-      "scrollback_worst_ms_spread": 0.5,
+      "scrollback_worst_ms": 16.7,
+      "scrollback_worst_ms_spread": 0.9,
       "scrollback_worst_ms_raw": [
         16.8,
-        16.8,
+        17.6,
         16.7,
-        16.6,
-        17.1
+        16.7,
+        16.7
       ],
       "scrollback_layout_ms": 0.0,
       "scrollback_layout_ms_spread": 0.0,
@@ -838,22 +1061,22 @@
         0.0
       ],
       "deepback_mean_ms": 16.32,
-      "deepback_mean_ms_spread": 0.02,
+      "deepback_mean_ms_spread": 0.01,
       "deepback_mean_ms_raw": [
+        16.32,
+        16.32,
         16.31,
         16.32,
-        16.32,
-        16.33,
-        16.32
+        16.31
       ],
-      "deepback_worst_ms": 16.8,
-      "deepback_worst_ms_spread": 0.0,
+      "deepback_worst_ms": 17.6,
+      "deepback_worst_ms_spread": 0.9,
       "deepback_worst_ms_raw": [
         16.8,
-        16.8,
-        16.8,
-        16.8,
-        16.8
+        17.7,
+        17.7,
+        17.3,
+        17.6
       ],
       "deepback_layout_ms": 0.0,
       "deepback_layout_ms_spread": 0.0,
@@ -882,24 +1105,28 @@
         200,
         200
       ],
-      "append_layout_ms": 20.7,
-      "append_layout_ms_spread": 0.8,
+      "append_layout_ms": 21.39,
+      "append_layout_ms_spread": 5.82,
       "append_layout_ms_raw": [
-        20.48,
-        20.94,
-        21.09,
-        20.7,
-        20.29
+        24.89,
+        21.39,
+        20.56,
+        22.71,
+        19.07
       ],
-      "append_style_ms": 1.28,
-      "append_style_ms_spread": 0.23,
+      "append_style_ms": 1.13,
+      "append_style_ms_spread": 0.59,
       "append_style_ms_raw": [
-        1.17,
-        1.27,
-        1.4,
-        1.28,
-        1.32
+        1.47,
+        1.61,
+        1.07,
+        1.13,
+        1.02
       ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": true,
@@ -928,22 +1155,22 @@
         7891
       ],
       "jsheap_loaded": 2328564,
-      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_spread": 16112,
       "jsheap_loaded_raw": [
         2328564,
         2328564,
         2328564,
         2328564,
-        2328564
+        2344676
       ],
-      "jsheap_peak": 1478648,
-      "jsheap_peak_spread": 84,
+      "jsheap_peak": 1478772,
+      "jsheap_peak_spread": 13208,
       "jsheap_peak_raw": [
+        1478772,
         1478648,
+        1478772,
         1478648,
-        1478732,
-        1478732,
-        1478648
+        1491856
       ],
       "listeners_peak": 14,
       "listeners_peak_spread": 0,
@@ -954,23 +1181,23 @@
         14,
         14
       ],
-      "uss_mb": 44.2,
-      "uss_mb_spread": 1.46,
+      "uss_mb": 44.14,
+      "uss_mb_spread": 0.9,
       "uss_mb_raw": [
-        44.56,
-        43.86,
-        43.75,
-        45.21,
-        44.2
+        44.14,
+        43.98,
+        44.37,
+        44.42,
+        43.52
       ],
-      "rss_mb": 130.46,
-      "rss_mb_spread": 1.35,
+      "rss_mb": 130.33,
+      "rss_mb_spread": 0.81,
       "rss_mb_raw": [
-        130.95,
-        130.11,
-        130.46,
-        131.46,
-        130.15
+        130.3,
+        130.33,
+        130.47,
+        130.5,
+        129.69
       ],
       "scroll_mean_ms": 16.67,
       "scroll_mean_ms_spread": 0.0,
@@ -990,77 +1217,77 @@
         0,
         0
       ],
-      "scrollback_mean_ms": 11.2,
-      "scrollback_mean_ms_spread": 0.2,
+      "scrollback_mean_ms": 10.57,
+      "scrollback_mean_ms_spread": 5.24,
       "scrollback_mean_ms_raw": [
-        11.23,
-        11.33,
-        11.13,
-        11.2,
-        11.2
+        10.9,
+        10.57,
+        11.07,
+        5.83,
+        6.03
       ],
-      "scrollback_worst_ms": 16.8,
-      "scrollback_worst_ms_spread": 0.5,
+      "scrollback_worst_ms": 16.9,
+      "scrollback_worst_ms_spread": 0.8,
       "scrollback_worst_ms_raw": [
-        16.8,
-        17.2,
+        16.9,
+        16.6,
+        17.4,
         16.7,
-        16.8,
-        16.8
+        17.3
       ],
-      "scrollback_layout_ms": 1.85,
-      "scrollback_layout_ms_spread": 0.22,
+      "scrollback_layout_ms": 2.62,
+      "scrollback_layout_ms_spread": 1.45,
       "scrollback_layout_ms_raw": [
-        1.93,
-        1.82,
-        1.71,
-        1.85,
-        1.85
+        3.01,
+        2.62,
+        2.93,
+        1.56,
+        1.81
       ],
-      "scrollback_style_ms": 0.24,
-      "scrollback_style_ms_spread": 0.04,
+      "scrollback_style_ms": 0.27,
+      "scrollback_style_ms_spread": 0.3,
       "scrollback_style_ms_raw": [
-        0.24,
-        0.26,
-        0.24,
-        0.22,
-        0.22
+        0.44,
+        0.27,
+        0.46,
+        0.16,
+        0.19
       ],
-      "deepback_mean_ms": 16.33,
-      "deepback_mean_ms_spread": 0.01,
+      "deepback_mean_ms": 16.31,
+      "deepback_mean_ms_spread": 0.08,
       "deepback_mean_ms_raw": [
-        16.33,
-        16.33,
+        16.28,
+        16.25,
         16.32,
-        16.33,
+        16.31,
         16.33
       ],
-      "deepback_worst_ms": 16.8,
-      "deepback_worst_ms_spread": 0.1,
+      "deepback_worst_ms": 17.5,
+      "deepback_worst_ms_spread": 1.0,
       "deepback_worst_ms_raw": [
         16.8,
-        16.8,
-        16.8,
-        16.7,
+        17.5,
+        17.7,
+        17.8,
         16.8
       ],
-      "deepback_layout_ms": 96.0,
-      "deepback_layout_ms_spread": 3.39,
+      "deepback_layout_ms": 116.39,
+      "deepback_layout_ms_spread": 52.92,
       "deepback_layout_ms_raw": [
-        94.29,
-        96.45,
-        95.44,
-        97.68,
-        96.0
+        152.4,
+        163.91,
+        116.39,
+        110.99,
+        112.49
       ],
-      "deepback_style_ms": 5.77,
-      "deepback_style_ms_spread": 0.53,
+      "deepback_style_ms": 6.98,
+      "deepback_style_ms_spread": 3.27,
       "deepback_style_ms_raw": [
-        5.38,
-        5.77,
-        5.58,
-        5.89,
-        5.91
+        6.98,
+        9.59,
+        9.12,
+        6.59,
+        6.32
       ],
       "deepback_moved_msgs": 200,
       "deepback_moved_msgs_spread": 0,
@@ -1071,24 +1298,28 @@
         200,
         200
       ],
-      "append_layout_ms": 19.28,
-      "append_layout_ms_spread": 4.37,
+      "append_layout_ms": 28.95,
+      "append_layout_ms_spread": 16.9,
       "append_layout_ms_raw": [
-        18.48,
-        19.28,
-        22.44,
-        18.07,
-        19.35
+        35.55,
+        28.95,
+        32.59,
+        22.82,
+        18.65
       ],
-      "append_style_ms": 1.36,
-      "append_style_ms_spread": 1.52,
+      "append_style_ms": 2.4,
+      "append_style_ms_spread": 2.25,
       "append_style_ms_raw": [
-        1.0,
-        1.36,
-        2.49,
-        0.97,
-        1.51
+        3.58,
+        1.33,
+        3.36,
+        1.43,
+        2.4
       ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": true,
@@ -1098,14 +1329,14 @@
       "arm": "evict",
       "n": 1000,
       "repeats_kept": 5,
-      "nodes_loaded": 409,
+      "nodes_loaded": 411,
       "nodes_loaded_spread": 0,
       "nodes_loaded_raw": [
-        409,
-        409,
-        409,
-        409,
-        409
+        411,
+        411,
+        411,
+        411,
+        411
       ],
       "nodes_peak": 720,
       "nodes_peak_spread": 0,
@@ -1116,23 +1347,23 @@
         720,
         720
       ],
-      "jsheap_loaded": 2507216,
+      "jsheap_loaded": 2597416,
       "jsheap_loaded_spread": 0,
       "jsheap_loaded_raw": [
-        2507216,
-        2507216,
-        2507216,
-        2507216,
-        2507216
+        2597416,
+        2597416,
+        2597416,
+        2597416,
+        2597416
       ],
-      "jsheap_peak": 2614808,
-      "jsheap_peak_spread": 0,
+      "jsheap_peak": 2538232,
+      "jsheap_peak_spread": 68,
       "jsheap_peak_raw": [
-        2614808,
-        2614808,
-        2614808,
-        2614808,
-        2614808
+        2538228,
+        2538232,
+        2538232,
+        2538232,
+        2538296
       ],
       "listeners_peak": 17,
       "listeners_peak_spread": 0,
@@ -1143,31 +1374,390 @@
         17,
         17
       ],
-      "uss_mb": 32.85,
-      "uss_mb_spread": 0.47,
+      "uss_mb": 36.3,
+      "uss_mb_spread": 0.67,
       "uss_mb_raw": [
-        32.85,
-        32.74,
-        32.98,
-        33.15,
-        32.68
+        35.96,
+        36.63,
+        36.41,
+        36.14,
+        36.3
       ],
-      "rss_mb": 118.55,
-      "rss_mb_spread": 0.58,
+      "rss_mb": 122.29,
+      "rss_mb_spread": 3.12,
       "rss_mb_raw": [
-        118.3,
-        118.55,
-        118.45,
-        118.83,
-        118.88
+        124.51,
+        121.99,
+        122.29,
+        121.67,
+        124.79
       ],
       "scroll_mean_ms": 16.67,
-      "scroll_mean_ms_spread": 0.01,
+      "scroll_mean_ms_spread": 0.0,
       "scroll_mean_ms_raw": [
         16.67,
         16.67,
         16.67,
+        16.67,
+        16.67
+      ],
+      "scroll_long_frames": 0,
+      "scroll_long_frames_spread": 0,
+      "scroll_long_frames_raw": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scrollback_mean_ms": 5.97,
+      "scrollback_mean_ms_spread": 0.27,
+      "scrollback_mean_ms_raw": [
+        6,
+        5.83,
+        6.1,
+        5.97,
+        5.93
+      ],
+      "scrollback_worst_ms": 16.4,
+      "scrollback_worst_ms_spread": 0.7,
+      "scrollback_worst_ms_raw": [
+        16.4,
+        16.7,
+        16.8,
+        16.3,
+        16.1
+      ],
+      "scrollback_layout_ms": 0.0,
+      "scrollback_layout_ms_spread": 0.0,
+      "scrollback_layout_ms_raw": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scrollback_style_ms": 0.0,
+      "scrollback_style_ms_spread": 0.0,
+      "scrollback_style_ms_raw": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "deepback_mean_ms": 15.68,
+      "deepback_mean_ms_spread": 0.52,
+      "deepback_mean_ms_raw": [
+        15.68,
+        15.66,
+        16.17,
+        16.14,
+        15.65
+      ],
+      "deepback_worst_ms": 17.5,
+      "deepback_worst_ms_spread": 0.3,
+      "deepback_worst_ms_raw": [
+        17.5,
+        17.5,
+        17.5,
+        17.4,
+        17.2
+      ],
+      "deepback_layout_ms": 8.65,
+      "deepback_layout_ms_spread": 1.91,
+      "deepback_layout_ms_raw": [
+        8.49,
+        10.03,
+        8.12,
+        8.65,
+        8.86
+      ],
+      "deepback_style_ms": 1.11,
+      "deepback_style_ms_spread": 0.62,
+      "deepback_style_ms_raw": [
+        0.99,
+        1.24,
+        0.99,
+        1.61,
+        1.11
+      ],
+      "deepback_moved_msgs": 200,
+      "deepback_moved_msgs_spread": 0,
+      "deepback_moved_msgs_raw": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "append_layout_ms": 2.5,
+      "append_layout_ms_spread": 0.46,
+      "append_layout_ms_raw": [
+        2.5,
+        2.54,
+        2.87,
+        2.46,
+        2.41
+      ],
+      "append_style_ms": 0.45,
+      "append_style_ms_spread": 0.21,
+      "append_style_ms_raw": [
+        0.36,
+        0.49,
+        0.57,
+        0.45,
+        0.45
+      ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
+      "scrollback_complete": true,
+      "scrollback_complete_runs": "5/5",
+      "deepback_complete": true,
+      "deepback_complete_runs": "5/5"
+    },
+    {
+      "arm": "hybrid",
+      "n": 1000,
+      "repeats_kept": 5,
+      "nodes_loaded": 410,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        410,
+        410,
+        410,
+        410,
+        410
+      ],
+      "nodes_peak": 1814,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        1814,
+        1814,
+        1814,
+        1814,
+        1814
+      ],
+      "jsheap_loaded": 2451088,
+      "jsheap_loaded_spread": 11356,
+      "jsheap_loaded_raw": [
+        2451088,
+        2451088,
+        2462444,
+        2451088,
+        2451088
+      ],
+      "jsheap_peak": 2618920,
+      "jsheap_peak_spread": 10872,
+      "jsheap_peak_raw": [
+        2608224,
+        2619084,
+        2619096,
+        2618920,
+        2618920
+      ],
+      "listeners_peak": 14,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 41.49,
+      "uss_mb_spread": 27.12,
+      "uss_mb_raw": [
+        29.86,
+        56.98,
+        42.14,
+        41.49,
+        40.91
+      ],
+      "rss_mb": 128.09,
+      "rss_mb_spread": 61.53,
+      "rss_mb_raw": [
+        67.74,
+        85.43,
+        129.27,
+        128.6,
+        128.09
+      ],
+      "scroll_mean_ms": 16.67,
+      "scroll_mean_ms_spread": 0.97,
+      "scroll_mean_ms_raw": [
+        17.63,
         16.66,
+        16.67,
+        16.67,
+        16.67
+      ],
+      "scroll_long_frames": 0,
+      "scroll_long_frames_spread": 2,
+      "scroll_long_frames_raw": [
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scrollback_mean_ms": 5.87,
+      "scrollback_mean_ms_spread": 5.37,
+      "scrollback_mean_ms_raw": [
+        5.8,
+        11.17,
+        5.83,
+        5.87,
+        5.87
+      ],
+      "scrollback_worst_ms": 16.1,
+      "scrollback_worst_ms_spread": 1.2,
+      "scrollback_worst_ms_raw": [
+        16.7,
+        16.6,
+        15.5,
+        15.8,
+        16.1
+      ],
+      "scrollback_layout_ms": 0.58,
+      "scrollback_layout_ms_spread": 0.12,
+      "scrollback_layout_ms_raw": [
+        0.55,
+        0.63,
+        0.51,
+        0.58,
+        0.59
+      ],
+      "scrollback_style_ms": 0.15,
+      "scrollback_style_ms_spread": 0.09,
+      "scrollback_style_ms_raw": [
+        0.19,
+        0.24,
+        0.15,
+        0.15,
+        0.15
+      ],
+      "deepback_mean_ms": null,
+      "deepback_mean_ms_spread": null,
+      "deepback_worst_ms": null,
+      "deepback_worst_ms_spread": null,
+      "deepback_layout_ms": null,
+      "deepback_layout_ms_spread": null,
+      "deepback_style_ms": null,
+      "deepback_style_ms_spread": null,
+      "deepback_moved_msgs": 116,
+      "deepback_moved_msgs_spread": 0,
+      "deepback_moved_msgs_raw": [
+        116,
+        116,
+        116,
+        116,
+        116
+      ],
+      "append_layout_ms": 4.4,
+      "append_layout_ms_spread": 16.69,
+      "append_layout_ms_raw": [
+        5.24,
+        19.47,
+        2.78,
+        4.4,
+        2.88
+      ],
+      "append_style_ms": 0.97,
+      "append_style_ms_spread": 3.24,
+      "append_style_ms_raw": [
+        0.97,
+        3.68,
+        0.44,
+        1.44,
+        0.52
+      ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
+      "scrollback_complete": true,
+      "scrollback_complete_runs": "5/5",
+      "deepback_complete": false,
+      "deepback_complete_runs": "0/5",
+      "deepback_withheld_reason": "excursion fell short: traversed 116 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
+    },
+    {
+      "arm": "trim4661",
+      "n": 1000,
+      "repeats_kept": 5,
+      "nodes_loaded": 1188,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        1188,
+        1188,
+        1188,
+        1188,
+        1188
+      ],
+      "nodes_peak": 7891,
+      "nodes_peak_spread": 5,
+      "nodes_peak_raw": [
+        7891,
+        7891,
+        7896,
+        7891,
+        7891
+      ],
+      "jsheap_loaded": 2180408,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        2180408,
+        2180408,
+        2180408,
+        2180408,
+        2180408
+      ],
+      "jsheap_peak": 2286424,
+      "jsheap_peak_spread": 48,
+      "jsheap_peak_raw": [
+        2286424,
+        2286456,
+        2286408,
+        2286408,
+        2286440
+      ],
+      "listeners_peak": 14,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 51.42,
+      "uss_mb_spread": 1.35,
+      "uss_mb_raw": [
+        51.04,
+        52.39,
+        51.49,
+        51.42,
+        51.1
+      ],
+      "rss_mb": 136.87,
+      "rss_mb_spread": 0.3,
+      "rss_mb_raw": [
+        136.87,
+        137.0,
+        136.8,
+        136.99,
+        136.7
+      ],
+      "scroll_mean_ms": 16.67,
+      "scroll_mean_ms_spread": 0.0,
+      "scroll_mean_ms_raw": [
+        16.67,
+        16.67,
+        16.67,
+        16.67,
         16.67
       ],
       "scroll_long_frames": 0,
@@ -1180,22 +1770,22 @@
         0
       ],
       "scrollback_mean_ms": 5.93,
-      "scrollback_mean_ms_spread": 5.5,
+      "scrollback_mean_ms_spread": 5.16,
       "scrollback_mean_ms_raw": [
-        6,
+        11.03,
         5.9,
-        11.33,
-        5.93,
-        5.83
+        5.87,
+        10.97,
+        5.93
       ],
-      "scrollback_worst_ms": 16.6,
-      "scrollback_worst_ms_spread": 0.9,
+      "scrollback_worst_ms": 16.2,
+      "scrollback_worst_ms_spread": 0.7,
       "scrollback_worst_ms_raw": [
         16.6,
-        16.4,
-        17.3,
-        16.5,
-        16.8
+        16,
+        16,
+        16.7,
+        16.2
       ],
       "scrollback_layout_ms": 0.0,
       "scrollback_layout_ms_spread": 0.0,
@@ -1223,200 +1813,56 @@
       "deepback_layout_ms_spread": null,
       "deepback_style_ms": null,
       "deepback_style_ms_spread": null,
-      "deepback_moved_msgs": 200,
+      "deepback_moved_msgs": 166,
       "deepback_moved_msgs_spread": 0,
       "deepback_moved_msgs_raw": [
-        200,
-        200,
-        200,
-        200,
-        200
+        166,
+        166,
+        166,
+        166,
+        166
       ],
-      "append_layout_ms": 2.92,
-      "append_layout_ms_spread": 0.23,
+      "append_layout_ms": 5.11,
+      "append_layout_ms_spread": 2.98,
       "append_layout_ms_raw": [
-        2.72,
-        2.85,
-        2.95,
-        2.94,
-        2.92
+        6.56,
+        4.96,
+        5.12,
+        5.11,
+        3.58
       ],
-      "append_style_ms": 0.59,
-      "append_style_ms_spread": 0.08,
+      "append_style_ms": 0.89,
+      "append_style_ms_spread": 0.84,
       "append_style_ms_raw": [
-        0.6,
-        0.57,
-        0.64,
-        0.56,
-        0.59
+        1.23,
+        0.85,
+        0.89,
+        1.01,
+        0.39
+      ],
+      "click_reload_ms": 6.9,
+      "click_reload_ms_spread": 2.2,
+      "click_reload_ms_raw": [
+        7.5,
+        8.6,
+        6.9,
+        6.8,
+        6.4
+      ],
+      "click_reload_clicks": 17,
+      "click_reload_clicks_spread": 0,
+      "click_reload_clicks_raw": [
+        17,
+        17,
+        17,
+        17,
+        17
       ],
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": false,
       "deepback_complete_runs": "0/5",
-      "deepback_withheld_reason": "return walk never reached the newest message (scroll anchoring defeats a stepped scrollTop walk); a stalled walk is not a fast one"
-    },
-    {
-      "arm": "hybrid",
-      "n": 1000,
-      "repeats_kept": 5,
-      "nodes_loaded": 410,
-      "nodes_loaded_spread": 0,
-      "nodes_loaded_raw": [
-        410,
-        410,
-        410,
-        410,
-        410
-      ],
-      "nodes_peak": 1814,
-      "nodes_peak_spread": 0,
-      "nodes_peak_raw": [
-        1814,
-        1814,
-        1814,
-        1814,
-        1814
-      ],
-      "jsheap_loaded": 2451088,
-      "jsheap_loaded_spread": 12,
-      "jsheap_loaded_raw": [
-        2451088,
-        2451088,
-        2451100,
-        2451088,
-        2451088
-      ],
-      "jsheap_peak": 2618932,
-      "jsheap_peak_spread": 224,
-      "jsheap_peak_raw": [
-        2618872,
-        2619096,
-        2618932,
-        2618932,
-        2618932
-      ],
-      "listeners_peak": 14,
-      "listeners_peak_spread": 0,
-      "listeners_peak_raw": [
-        14,
-        14,
-        14,
-        14,
-        14
-      ],
-      "uss_mb": 41.91,
-      "uss_mb_spread": 1.19,
-      "uss_mb_raw": [
-        41.91,
-        42.38,
-        42.05,
-        41.66,
-        41.19
-      ],
-      "rss_mb": 129.2,
-      "rss_mb_spread": 0.93,
-      "rss_mb_raw": [
-        129.2,
-        129.72,
-        129.29,
-        128.79,
-        129.12
-      ],
-      "scroll_mean_ms": 16.67,
-      "scroll_mean_ms_spread": 0.0,
-      "scroll_mean_ms_raw": [
-        16.67,
-        16.67,
-        16.67,
-        16.67,
-        16.67
-      ],
-      "scroll_long_frames": 0,
-      "scroll_long_frames_spread": 0,
-      "scroll_long_frames_raw": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "scrollback_mean_ms": 6,
-      "scrollback_mean_ms_spread": 5.36,
-      "scrollback_mean_ms_raw": [
-        6,
-        5.9,
-        5.87,
-        11.23,
-        6.03
-      ],
-      "scrollback_worst_ms": 16.6,
-      "scrollback_worst_ms_spread": 0.7,
-      "scrollback_worst_ms_raw": [
-        16.6,
-        16.2,
-        16.1,
-        16.8,
-        16.8
-      ],
-      "scrollback_layout_ms": 0.53,
-      "scrollback_layout_ms_spread": 0.22,
-      "scrollback_layout_ms_raw": [
-        0.43,
-        0.53,
-        0.5,
-        0.65,
-        0.6
-      ],
-      "scrollback_style_ms": 0.14,
-      "scrollback_style_ms_spread": 0.08,
-      "scrollback_style_ms_raw": [
-        0.09,
-        0.14,
-        0.13,
-        0.17,
-        0.16
-      ],
-      "deepback_mean_ms": null,
-      "deepback_mean_ms_spread": null,
-      "deepback_worst_ms": null,
-      "deepback_worst_ms_spread": null,
-      "deepback_layout_ms": null,
-      "deepback_layout_ms_spread": null,
-      "deepback_style_ms": null,
-      "deepback_style_ms_spread": null,
-      "deepback_moved_msgs": 116,
-      "deepback_moved_msgs_spread": 0,
-      "deepback_moved_msgs_raw": [
-        116,
-        116,
-        116,
-        116,
-        116
-      ],
-      "append_layout_ms": 3.5,
-      "append_layout_ms_spread": 0.74,
-      "append_layout_ms_raw": [
-        2.95,
-        3.5,
-        3.69,
-        3.54,
-        3.35
-      ],
-      "append_style_ms": 0.71,
-      "append_style_ms_spread": 0.29,
-      "append_style_ms_raw": [
-        0.54,
-        0.71,
-        0.77,
-        0.83,
-        0.65
-      ],
-      "scrollback_complete": true,
-      "scrollback_complete_runs": "5/5",
-      "deepback_complete": false,
-      "deepback_complete_runs": "0/5",
-      "deepback_withheld_reason": "excursion fell short: traversed 116 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
+      "deepback_withheld_reason": "excursion fell short: traversed 166 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
     },
     {
       "arm": "naive",
@@ -1450,12 +1896,12 @@
         2500408
       ],
       "jsheap_peak": 2575924,
-      "jsheap_peak_spread": 35960,
+      "jsheap_peak_spread": 60,
       "jsheap_peak_raw": [
-        2611652,
         2575924,
-        2575692,
         2575924,
+        2575924,
+        2575864,
         2575924
       ],
       "listeners_peak": 0,
@@ -1467,31 +1913,31 @@
         0,
         0
       ],
-      "uss_mb": 66.13,
-      "uss_mb_spread": 0.88,
+      "uss_mb": 65.02,
+      "uss_mb_spread": 1.03,
       "uss_mb_raw": [
-        66.49,
-        66.13,
-        66.13,
-        65.66,
-        65.61
+        64.88,
+        65.02,
+        65.16,
+        64.81,
+        65.84
       ],
-      "rss_mb": 152.49,
-      "rss_mb_spread": 0.83,
+      "rss_mb": 150.97,
+      "rss_mb_spread": 1.26,
       "rss_mb_raw": [
-        152.84,
-        152.7,
-        152.21,
-        152.01,
-        152.49
+        150.7,
+        151.3,
+        150.97,
+        150.97,
+        151.96
       ],
       "scroll_mean_ms": 16.67,
-      "scroll_mean_ms_spread": 0.0,
+      "scroll_mean_ms_spread": 0.01,
       "scroll_mean_ms_raw": [
         16.67,
+        16.66,
         16.67,
-        16.67,
-        16.67,
+        16.66,
         16.67
       ],
       "scroll_long_frames": 0,
@@ -1503,23 +1949,23 @@
         0,
         0
       ],
-      "scrollback_mean_ms": 11.23,
+      "scrollback_mean_ms": 5.93,
       "scrollback_mean_ms_spread": 5.47,
       "scrollback_mean_ms_raw": [
-        11.27,
-        11.17,
-        11.23,
+        5.9,
         5.83,
-        11.3
+        10.93,
+        11.3,
+        5.93
       ],
-      "scrollback_worst_ms": 16.8,
-      "scrollback_worst_ms_spread": 0.4,
+      "scrollback_worst_ms": 16.7,
+      "scrollback_worst_ms_spread": 0.5,
       "scrollback_worst_ms_raw": [
-        17,
+        16.6,
         16.7,
         16.8,
-        16.7,
-        17.1
+        17.1,
+        16.7
       ],
       "scrollback_layout_ms": 0.0,
       "scrollback_layout_ms_spread": 0.0,
@@ -1540,22 +1986,22 @@
         0.0
       ],
       "deepback_mean_ms": 16.28,
-      "deepback_mean_ms_spread": 0.02,
+      "deepback_mean_ms_spread": 0.03,
       "deepback_mean_ms_raw": [
         16.29,
-        16.27,
         16.28,
-        16.28,
-        16.29
+        16.26,
+        16.29,
+        16.28
       ],
-      "deepback_worst_ms": 18.6,
-      "deepback_worst_ms_spread": 6.6,
+      "deepback_worst_ms": 17.6,
+      "deepback_worst_ms_spread": 1.0,
       "deepback_worst_ms_raw": [
-        19.3,
-        23.5,
-        16.9,
-        18.6,
-        17.6
+        17.6,
+        17.7,
+        17.6,
+        16.8,
+        17.8
       ],
       "deepback_layout_ms": 0.0,
       "deepback_layout_ms_spread": 0.0,
@@ -1584,24 +2030,28 @@
         200,
         200
       ],
-      "append_layout_ms": 40.64,
-      "append_layout_ms_spread": 6.41,
+      "append_layout_ms": 43.16,
+      "append_layout_ms_spread": 10.69,
       "append_layout_ms_raw": [
-        37.75,
-        44.16,
-        41.69,
-        40.64,
-        40.56
+        43.02,
+        49.59,
+        43.16,
+        50.67,
+        39.98
       ],
-      "append_style_ms": 2.65,
-      "append_style_ms_spread": 1.24,
+      "append_style_ms": 3.53,
+      "append_style_ms_spread": 2.89,
       "append_style_ms_raw": [
-        1.79,
-        3.03,
         2.65,
-        2.9,
-        2.44
+        3.58,
+        3.53,
+        4.65,
+        1.76
       ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": true,
@@ -1639,12 +2089,12 @@
         1651696
       ],
       "jsheap_peak": 1753084,
-      "jsheap_peak_spread": 252,
+      "jsheap_peak_spread": 624,
       "jsheap_peak_raw": [
-        1752832,
+        1752628,
+        1753252,
         1753084,
         1753084,
-        1752832,
         1753084
       ],
       "listeners_peak": 14,
@@ -1656,113 +2106,113 @@
         14,
         14
       ],
-      "uss_mb": 52.21,
-      "uss_mb_spread": 0.55,
+      "uss_mb": 51.96,
+      "uss_mb_spread": 0.86,
       "uss_mb_raw": [
-        52.18,
-        52.21,
-        52.11,
-        52.66,
-        52.46
+        52.28,
+        51.65,
+        51.96,
+        51.93,
+        52.51
       ],
-      "rss_mb": 141.54,
-      "rss_mb_spread": 0.53,
+      "rss_mb": 140.8,
+      "rss_mb_spread": 0.94,
       "rss_mb_raw": [
-        141.54,
-        141.74,
-        141.21,
-        141.51,
-        141.54
+        141.42,
+        140.8,
+        140.63,
+        140.48,
+        141.41
       ],
-      "scroll_mean_ms": 16.82,
-      "scroll_mean_ms_spread": 0.2,
+      "scroll_mean_ms": 19.59,
+      "scroll_mean_ms_spread": 2.09,
       "scroll_mean_ms_raw": [
-        16.97,
-        16.95,
-        16.77,
-        16.79,
-        16.82
+        18.91,
+        19.59,
+        19.38,
+        20.1,
+        21
       ],
       "scroll_long_frames": 0,
-      "scroll_long_frames_spread": 0,
+      "scroll_long_frames_spread": 1,
       "scroll_long_frames_raw": [
         0,
         0,
         0,
         0,
-        0
+        1
       ],
-      "scrollback_mean_ms": 11.07,
-      "scrollback_mean_ms_spread": 0.17,
+      "scrollback_mean_ms": 10.87,
+      "scrollback_mean_ms_spread": 0.87,
       "scrollback_mean_ms_raw": [
-        11.17,
-        11.03,
-        11.07,
-        11.1,
-        11
+        11.2,
+        10.9,
+        10.87,
+        10.43,
+        10.33
       ],
       "scrollback_worst_ms": 16.7,
-      "scrollback_worst_ms_spread": 0.1,
+      "scrollback_worst_ms_spread": 0.4,
       "scrollback_worst_ms_raw": [
+        16.9,
         16.7,
-        16.7,
-        16.6,
+        16.5,
         16.7,
         16.6
       ],
-      "scrollback_layout_ms": 3.07,
-      "scrollback_layout_ms_spread": 0.33,
+      "scrollback_layout_ms": 4.26,
+      "scrollback_layout_ms_spread": 1.42,
       "scrollback_layout_ms_raw": [
-        3.28,
-        3.16,
-        2.95,
-        3.07,
-        3.0
+        3.76,
+        3.54,
+        4.96,
+        4.26,
+        4.86
       ],
-      "scrollback_style_ms": 0.29,
-      "scrollback_style_ms_spread": 0.05,
+      "scrollback_style_ms": 0.49,
+      "scrollback_style_ms_spread": 0.17,
       "scrollback_style_ms_raw": [
-        0.32,
-        0.3,
-        0.29,
-        0.28,
-        0.27
+        0.41,
+        0.49,
+        0.49,
+        0.56,
+        0.39
       ],
-      "deepback_mean_ms": 16.29,
-      "deepback_mean_ms_spread": 0.02,
+      "deepback_mean_ms": 16.28,
+      "deepback_mean_ms_spread": 0.04,
       "deepback_mean_ms_raw": [
         16.28,
-        16.29,
         16.27,
         16.29,
-        16.29
+        16.25,
+        16.28
       ],
-      "deepback_worst_ms": 18.5,
-      "deepback_worst_ms_spread": 2.7,
+      "deepback_worst_ms": 17.3,
+      "deepback_worst_ms_spread": 1.2,
       "deepback_worst_ms_raw": [
-        20,
         17.3,
-        19.5,
-        18.5,
-        17.5
+        18,
+        16.8,
+        17.9,
+        16.8
       ],
-      "deepback_layout_ms": 196.24,
-      "deepback_layout_ms_spread": 30.68,
+      "deepback_layout_ms": 235.78,
+      "deepback_layout_ms_spread": 28.32,
       "deepback_layout_ms_raw": [
-        198.13,
-        192.53,
-        186.47,
-        196.24,
-        217.15
+        225.05,
+        235.78,
+        240.57,
+        253.37,
+        233.05
       ],
-      "deepback_style_ms": 9.55,
-      "deepback_style_ms_spread": 5.19,
+      "deepback_style_ms": 12.55,
+      "deepback_style_ms_spread": 4.91,
       "deepback_style_ms_raw": [
-        9.18,
-        9.83,
-        8.16,
-        9.55,
-        13.35
+        9.05,
+        13.26,
+        13.96,
+        9.64,
+        12.55
       ],
       "deepback_moved_msgs": 200,
       "deepback_moved_msgs_spread": 0,
@@ -1773,24 +2223,28 @@
         200,
         200
       ],
-      "append_layout_ms": 36.73,
-      "append_layout_ms_spread": 1.13,
+      "append_layout_ms": 48.87,
+      "append_layout_ms_spread": 18.84,
       "append_layout_ms_raw": [
-        36.73,
-        36.78,
-        37.19,
-        36.24,
-        36.06
+        51.09,
+        45.95,
+        58.18,
+        39.34,
+        48.87
       ],
-      "append_style_ms": 2.51,
-      "append_style_ms_spread": 0.36,
+      "append_style_ms": 3.65,
+      "append_style_ms_spread": 2.81,
       "append_style_ms_raw": [
-        2.57,
-        2.35,
-        2.45,
-        2.71,
-        2.51
+        3.65,
+        5.1,
+        4.47,
+        2.36,
+        2.29
       ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": true,
@@ -1800,68 +2254,427 @@
       "arm": "evict",
       "n": 2000,
       "repeats_kept": 5,
-      "nodes_loaded": 409,
+      "nodes_loaded": 411,
       "nodes_loaded_spread": 0,
       "nodes_loaded_raw": [
-        409,
-        409,
-        409,
-        409,
-        409
+        411,
+        411,
+        411,
+        411,
+        411
       ],
-      "nodes_peak": 720,
-      "nodes_peak_spread": 0,
+      "nodes_peak": 723,
+      "nodes_peak_spread": 786,
       "nodes_peak_raw": [
         720,
+        723,
+        1506,
         720,
-        720,
-        720,
-        720
+        723
       ],
-      "jsheap_loaded": 3784012,
-      "jsheap_loaded_spread": 0,
+      "jsheap_loaded": 3809704,
+      "jsheap_loaded_spread": 80,
       "jsheap_loaded_raw": [
-        3784012,
-        3784012,
-        3784012,
-        3784012,
-        3784012
+        3809704,
+        3809704,
+        3809704,
+        3809624,
+        3809704
       ],
-      "jsheap_peak": 3891080,
-      "jsheap_peak_spread": 0,
+      "jsheap_peak": 1621720,
+      "jsheap_peak_spread": 1901820,
       "jsheap_peak_raw": [
-        3891080,
-        3891080,
-        3891080,
-        3891080,
-        3891080
+        1608340,
+        3510160,
+        1613336,
+        1621720,
+        1621772
       ],
       "listeners_peak": 17,
-      "listeners_peak_spread": 0,
+      "listeners_peak_spread": 2,
       "listeners_peak_raw": [
         17,
         17,
-        17,
+        19,
         17,
         17
       ],
-      "uss_mb": 34.87,
-      "uss_mb_spread": 0.57,
+      "uss_mb": 39.16,
+      "uss_mb_spread": 2.22,
       "uss_mb_raw": [
-        35.25,
-        34.71,
-        34.68,
-        35.04,
-        34.87
+        39.3,
+        40.96,
+        39.16,
+        38.74,
+        39.12
       ],
-      "rss_mb": 120.77,
-      "rss_mb_spread": 0.8,
+      "rss_mb": 127.75,
+      "rss_mb_spread": 3.24,
       "rss_mb_raw": [
-        120.92,
-        120.77,
-        120.12,
-        120.85,
-        120.16
+        127.86,
+        126.5,
+        127.99,
+        124.75,
+        127.75
+      ],
+      "scroll_mean_ms": 16.67,
+      "scroll_mean_ms_spread": 0.01,
+      "scroll_mean_ms_raw": [
+        16.66,
+        16.67,
+        16.67,
+        16.67,
+        16.67
+      ],
+      "scroll_long_frames": 0,
+      "scroll_long_frames_spread": 0,
+      "scroll_long_frames_raw": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scrollback_mean_ms": 5.97,
+      "scrollback_mean_ms_spread": 0.26,
+      "scrollback_mean_ms_raw": [
+        6.13,
+        6,
+        5.9,
+        5.87,
+        5.97
+      ],
+      "scrollback_worst_ms": 16.5,
+      "scrollback_worst_ms_spread": 0.9,
+      "scrollback_worst_ms_raw": [
+        16.9,
+        16.5,
+        16,
+        16.7,
+        16.5
+      ],
+      "scrollback_layout_ms": 0.0,
+      "scrollback_layout_ms_spread": 0.0,
+      "scrollback_layout_ms_raw": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scrollback_style_ms": 0.0,
+      "scrollback_style_ms_spread": 0.0,
+      "scrollback_style_ms_raw": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "deepback_mean_ms": 15.69,
+      "deepback_mean_ms_spread": 0.52,
+      "deepback_mean_ms_raw": [
+        15.65,
+        16.16,
+        15.69,
+        16.17,
+        15.65
+      ],
+      "deepback_worst_ms": 17.2,
+      "deepback_worst_ms_spread": 1.0,
+      "deepback_worst_ms_raw": [
+        16.8,
+        17.7,
+        17.8,
+        17.1,
+        17.2
+      ],
+      "deepback_layout_ms": 9.01,
+      "deepback_layout_ms_spread": 2.53,
+      "deepback_layout_ms_raw": [
+        9.09,
+        10.48,
+        7.95,
+        9.01,
+        8.99
+      ],
+      "deepback_style_ms": 1.06,
+      "deepback_style_ms_spread": 0.15,
+      "deepback_style_ms_raw": [
+        1.08,
+        1.15,
+        1.02,
+        1.0,
+        1.06
+      ],
+      "deepback_moved_msgs": 200,
+      "deepback_moved_msgs_spread": 0,
+      "deepback_moved_msgs_raw": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "append_layout_ms": 3.07,
+      "append_layout_ms_spread": 1.56,
+      "append_layout_ms_raw": [
+        3.07,
+        4.19,
+        3.1,
+        2.63,
+        2.66
+      ],
+      "append_style_ms": 0.65,
+      "append_style_ms_spread": 1.5,
+      "append_style_ms_raw": [
+        0.6,
+        1.98,
+        0.69,
+        0.65,
+        0.48
+      ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
+      "scrollback_complete": true,
+      "scrollback_complete_runs": "5/5",
+      "deepback_complete": true,
+      "deepback_complete_runs": "5/5"
+    },
+    {
+      "arm": "hybrid",
+      "n": 2000,
+      "repeats_kept": 5,
+      "nodes_loaded": 410,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        410,
+        410,
+        410,
+        410,
+        410
+      ],
+      "nodes_peak": 1814,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        1814,
+        1814,
+        1814,
+        1814,
+        1814
+      ],
+      "jsheap_loaded": 3704672,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        3704672,
+        3704672,
+        3704672,
+        3704672,
+        3704672
+      ],
+      "jsheap_peak": 2212576,
+      "jsheap_peak_spread": 188,
+      "jsheap_peak_raw": [
+        2212552,
+        2212576,
+        2212576,
+        2212740,
+        2212576
+      ],
+      "listeners_peak": 14,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 39.39,
+      "uss_mb_spread": 0.82,
+      "uss_mb_raw": [
+        38.94,
+        39.39,
+        39.72,
+        39.76,
+        39.16
+      ],
+      "rss_mb": 126.48,
+      "rss_mb_spread": 0.55,
+      "rss_mb_raw": [
+        126.21,
+        126.48,
+        126.63,
+        126.21,
+        126.76
+      ],
+      "scroll_mean_ms": 16.67,
+      "scroll_mean_ms_spread": 0.01,
+      "scroll_mean_ms_raw": [
+        16.68,
+        16.67,
+        16.67,
+        16.67,
+        16.67
+      ],
+      "scroll_long_frames": 0,
+      "scroll_long_frames_spread": 0,
+      "scroll_long_frames_raw": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scrollback_mean_ms": 6,
+      "scrollback_mean_ms_spread": 5.36,
+      "scrollback_mean_ms_raw": [
+        5.97,
+        6,
+        11.33,
+        6,
+        5.97
+      ],
+      "scrollback_worst_ms": 16.6,
+      "scrollback_worst_ms_spread": 2.0,
+      "scrollback_worst_ms_raw": [
+        15.5,
+        15.2,
+        17.2,
+        16.6,
+        16.6
+      ],
+      "scrollback_layout_ms": 0.51,
+      "scrollback_layout_ms_spread": 0.05,
+      "scrollback_layout_ms_raw": [
+        0.49,
+        0.54,
+        0.51,
+        0.49,
+        0.53
+      ],
+      "scrollback_style_ms": 0.13,
+      "scrollback_style_ms_spread": 0.03,
+      "scrollback_style_ms_raw": [
+        0.13,
+        0.13,
+        0.15,
+        0.14,
+        0.12
+      ],
+      "deepback_mean_ms": null,
+      "deepback_mean_ms_spread": null,
+      "deepback_worst_ms": null,
+      "deepback_worst_ms_spread": null,
+      "deepback_layout_ms": null,
+      "deepback_layout_ms_spread": null,
+      "deepback_style_ms": null,
+      "deepback_style_ms_spread": null,
+      "deepback_moved_msgs": 116,
+      "deepback_moved_msgs_spread": 0,
+      "deepback_moved_msgs_raw": [
+        116,
+        116,
+        116,
+        116,
+        116
+      ],
+      "append_layout_ms": 3.03,
+      "append_layout_ms_spread": 0.74,
+      "append_layout_ms_raw": [
+        3.13,
+        3.02,
+        3.03,
+        3.74,
+        3.0
+      ],
+      "append_style_ms": 0.6,
+      "append_style_ms_spread": 0.06,
+      "append_style_ms_raw": [
+        0.6,
+        0.62,
+        0.56,
+        0.6,
+        0.57
+      ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
+      "scrollback_complete": true,
+      "scrollback_complete_runs": "5/5",
+      "deepback_complete": false,
+      "deepback_complete_runs": "0/5",
+      "deepback_withheld_reason": "excursion fell short: traversed 116 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
+    },
+    {
+      "arm": "trim4661",
+      "n": 2000,
+      "repeats_kept": 5,
+      "nodes_loaded": 1188,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        1188,
+        1188,
+        1188,
+        1188,
+        1188
+      ],
+      "nodes_peak": 15691,
+      "nodes_peak_spread": 0,
+      "nodes_peak_raw": [
+        15691,
+        15691,
+        15691,
+        15691,
+        15691
+      ],
+      "jsheap_loaded": 3108188,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        3108188,
+        3108188,
+        3108188,
+        3108188,
+        3108188
+      ],
+      "jsheap_peak": 3247380,
+      "jsheap_peak_spread": 32,
+      "jsheap_peak_raw": [
+        3247380,
+        3247412,
+        3247412,
+        3247380,
+        3247380
+      ],
+      "listeners_peak": 14,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 70.76,
+      "uss_mb_spread": 0.85,
+      "uss_mb_raw": [
+        71.45,
+        70.72,
+        71.14,
+        70.76,
+        70.6
+      ],
+      "rss_mb": 156.45,
+      "rss_mb_spread": 0.61,
+      "rss_mb_raw": [
+        156.36,
+        156.59,
+        156.78,
+        156.45,
+        156.17
       ],
       "scroll_mean_ms": 16.67,
       "scroll_mean_ms_spread": 0.0,
@@ -1881,23 +2694,23 @@
         0,
         0
       ],
-      "scrollback_mean_ms": 11.17,
-      "scrollback_mean_ms_spread": 5.4,
+      "scrollback_mean_ms": 5.93,
+      "scrollback_mean_ms_spread": 5.53,
       "scrollback_mean_ms_raw": [
-        5.97,
-        5.97,
-        11.37,
-        11.17,
-        11.37
+        11.33,
+        5.93,
+        5.9,
+        5.8,
+        5.93
       ],
-      "scrollback_worst_ms": 16.8,
-      "scrollback_worst_ms_spread": 1.5,
+      "scrollback_worst_ms": 16.4,
+      "scrollback_worst_ms_spread": 1.2,
       "scrollback_worst_ms_raw": [
-        15.7,
-        16.5,
         17.2,
-        16.8,
-        17.1
+        16.4,
+        16.3,
+        16,
+        16.4
       ],
       "scrollback_layout_ms": 0.0,
       "scrollback_layout_ms_spread": 0.0,
@@ -1925,200 +2738,56 @@
       "deepback_layout_ms_spread": null,
       "deepback_style_ms": null,
       "deepback_style_ms_spread": null,
-      "deepback_moved_msgs": 200,
+      "deepback_moved_msgs": 166,
       "deepback_moved_msgs_spread": 0,
       "deepback_moved_msgs_raw": [
-        200,
-        200,
-        200,
-        200,
-        200
+        166,
+        166,
+        166,
+        166,
+        166
       ],
-      "append_layout_ms": 2.81,
-      "append_layout_ms_spread": 0.52,
+      "append_layout_ms": 4.32,
+      "append_layout_ms_spread": 1.7,
       "append_layout_ms_raw": [
-        2.57,
-        3.09,
-        2.81,
-        2.91,
-        2.59
+        3.62,
+        4.32,
+        4.26,
+        4.34,
+        5.32
       ],
-      "append_style_ms": 0.56,
-      "append_style_ms_spread": 0.14,
+      "append_style_ms": 0.57,
+      "append_style_ms_spread": 0.19,
       "append_style_ms_raw": [
-        0.49,
-        0.63,
-        0.56,
-        0.58,
-        0.5
+        0.47,
+        0.57,
+        0.6,
+        0.66,
+        0.56
+      ],
+      "click_reload_ms": 13.8,
+      "click_reload_ms_spread": 4.7,
+      "click_reload_ms_raw": [
+        14,
+        16.9,
+        12.2,
+        13.2,
+        13.8
+      ],
+      "click_reload_clicks": 37,
+      "click_reload_clicks_spread": 0,
+      "click_reload_clicks_raw": [
+        37,
+        37,
+        37,
+        37,
+        37
       ],
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": false,
       "deepback_complete_runs": "0/5",
-      "deepback_withheld_reason": "return walk never reached the newest message (scroll anchoring defeats a stepped scrollTop walk); a stalled walk is not a fast one"
-    },
-    {
-      "arm": "hybrid",
-      "n": 2000,
-      "repeats_kept": 5,
-      "nodes_loaded": 410,
-      "nodes_loaded_spread": 0,
-      "nodes_loaded_raw": [
-        410,
-        410,
-        410,
-        410,
-        410
-      ],
-      "nodes_peak": 1814,
-      "nodes_peak_spread": 312,
-      "nodes_peak_raw": [
-        1814,
-        1814,
-        1814,
-        1814,
-        2126
-      ],
-      "jsheap_loaded": 3704672,
-      "jsheap_loaded_spread": 12,
-      "jsheap_loaded_raw": [
-        3704672,
-        3704672,
-        3704672,
-        3704672,
-        3704684
-      ],
-      "jsheap_peak": 2212576,
-      "jsheap_peak_spread": 48556,
-      "jsheap_peak_raw": [
-        2212740,
-        2212576,
-        2212576,
-        2212576,
-        2261132
-      ],
-      "listeners_peak": 14,
-      "listeners_peak_spread": 0,
-      "listeners_peak_raw": [
-        14,
-        14,
-        14,
-        14,
-        14
-      ],
-      "uss_mb": 39.95,
-      "uss_mb_spread": 0.75,
-      "uss_mb_raw": [
-        40.48,
-        39.92,
-        39.95,
-        39.75,
-        40.5
-      ],
-      "rss_mb": 127.32,
-      "rss_mb_spread": 0.96,
-      "rss_mb_raw": [
-        127.32,
-        127.15,
-        128.01,
-        127.05,
-        127.66
-      ],
-      "scroll_mean_ms": 16.67,
-      "scroll_mean_ms_spread": 0.01,
-      "scroll_mean_ms_raw": [
-        16.67,
-        16.67,
-        16.67,
-        16.67,
-        16.66
-      ],
-      "scroll_long_frames": 0,
-      "scroll_long_frames_spread": 0,
-      "scroll_long_frames_raw": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "scrollback_mean_ms": 10.47,
-      "scrollback_mean_ms_spread": 6.06,
-      "scrollback_mean_ms_raw": [
-        5.97,
-        10.47,
-        12.03,
-        6.53,
-        11.27
-      ],
-      "scrollback_worst_ms": 16.8,
-      "scrollback_worst_ms_spread": 2.6,
-      "scrollback_worst_ms_raw": [
-        16.1,
-        16.6,
-        18.7,
-        18.1,
-        16.8
-      ],
-      "scrollback_layout_ms": 0.77,
-      "scrollback_layout_ms_spread": 0.42,
-      "scrollback_layout_ms_raw": [
-        0.49,
-        0.91,
-        0.73,
-        0.77,
-        0.83
-      ],
-      "scrollback_style_ms": 0.18,
-      "scrollback_style_ms_spread": 0.12,
-      "scrollback_style_ms_raw": [
-        0.13,
-        0.25,
-        0.18,
-        0.16,
-        0.22
-      ],
-      "deepback_mean_ms": null,
-      "deepback_mean_ms_spread": null,
-      "deepback_worst_ms": null,
-      "deepback_worst_ms_spread": null,
-      "deepback_layout_ms": null,
-      "deepback_layout_ms_spread": null,
-      "deepback_style_ms": null,
-      "deepback_style_ms_spread": null,
-      "deepback_moved_msgs": 116,
-      "deepback_moved_msgs_spread": 0,
-      "deepback_moved_msgs_raw": [
-        116,
-        116,
-        116,
-        116,
-        116
-      ],
-      "append_layout_ms": 4.82,
-      "append_layout_ms_spread": 1.93,
-      "append_layout_ms_raw": [
-        3.8,
-        5.68,
-        4.82,
-        4.49,
-        5.73
-      ],
-      "append_style_ms": 1.22,
-      "append_style_ms_spread": 0.61,
-      "append_style_ms_raw": [
-        0.84,
-        1.45,
-        1.22,
-        0.89,
-        1.43
-      ],
-      "scrollback_complete": true,
-      "scrollback_complete_runs": "5/5",
-      "deepback_complete": false,
-      "deepback_complete_runs": "0/5",
-      "deepback_withheld_reason": "excursion fell short: traversed 116 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
+      "deepback_withheld_reason": "excursion fell short: traversed 166 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
     },
     {
       "arm": "naive",
@@ -2127,9 +2796,9 @@
       "nodes_loaded": 39014,
       "nodes_loaded_spread": 1,
       "nodes_loaded_raw": [
-        39014,
         39013,
         39014,
+        39013,
         39014,
         39014
       ],
@@ -2143,20 +2812,20 @@
         39088
       ],
       "jsheap_loaded": 5428744,
-      "jsheap_loaded_spread": 12,
+      "jsheap_loaded_spread": 0,
       "jsheap_loaded_raw": [
         5428744,
         5428744,
-        5428756,
+        5428744,
         5428744,
         5428744
       ],
       "jsheap_peak": 5505036,
-      "jsheap_peak_spread": 100,
+      "jsheap_peak_spread": 0,
       "jsheap_peak_raw": [
         5505036,
         5505036,
-        5505136,
+        5505036,
         5505036,
         5505036
       ],
@@ -2169,31 +2838,31 @@
         0,
         0
       ],
-      "uss_mb": 110.89,
-      "uss_mb_spread": 6.28,
+      "uss_mb": 119.84,
+      "uss_mb_spread": 1.31,
       "uss_mb_raw": [
-        110.99,
-        110.61,
-        110.89,
-        110.83,
-        116.89
+        120.62,
+        120.06,
+        119.84,
+        119.47,
+        119.31
       ],
-      "rss_mb": 200.49,
-      "rss_mb_spread": 6.52,
+      "rss_mb": 206.04,
+      "rss_mb_spread": 0.57,
       "rss_mb_raw": [
-        200.43,
-        200.49,
-        200.3,
-        200.87,
-        206.82
+        205.96,
+        206.04,
+        206.05,
+        206.17,
+        205.6
       ],
       "scroll_mean_ms": 16.67,
       "scroll_mean_ms_spread": 0.01,
       "scroll_mean_ms_raw": [
         16.67,
-        16.67,
-        16.67,
         16.66,
+        16.66,
+        16.67,
         16.67
       ],
       "scroll_long_frames": 0,
@@ -2205,23 +2874,23 @@
         0,
         0
       ],
-      "scrollback_mean_ms": 9.4,
-      "scrollback_mean_ms_spread": 1.3,
+      "scrollback_mean_ms": 11.17,
+      "scrollback_mean_ms_spread": 0.23,
       "scrollback_mean_ms_raw": [
-        9.4,
-        9.63,
-        9.13,
-        8.9,
-        10.2
+        11.17,
+        11.2,
+        11.17,
+        10.97,
+        11.13
       ],
-      "scrollback_worst_ms": 17.1,
-      "scrollback_worst_ms_spread": 1.0,
+      "scrollback_worst_ms": 16.7,
+      "scrollback_worst_ms_spread": 0.2,
       "scrollback_worst_ms_raw": [
-        17.1,
-        17.6,
         16.7,
+        16.8,
         16.7,
-        17.7
+        16.6,
+        16.7
       ],
       "scrollback_layout_ms": 0.0,
       "scrollback_layout_ms_spread": 0.0,
@@ -2241,23 +2910,23 @@
         0.0,
         0.0
       ],
-      "deepback_mean_ms": 16.15,
-      "deepback_mean_ms_spread": 0.28,
+      "deepback_mean_ms": 16.17,
+      "deepback_mean_ms_spread": 0.05,
       "deepback_mean_ms_raw": [
-        16.15,
+        16.17,
+        16.17,
+        16.18,
         16.13,
-        16.37,
-        16.23,
-        16.09
+        16.13
       ],
-      "deepback_worst_ms": 23.5,
-      "deepback_worst_ms_spread": 12.5,
+      "deepback_worst_ms": 17.4,
+      "deepback_worst_ms_spread": 0.9,
       "deepback_worst_ms_raw": [
-        23.5,
-        20.3,
-        22.4,
-        24.1,
-        32.8
+        17.4,
+        17,
+        17.7,
+        16.8,
+        17.6
       ],
       "deepback_layout_ms": 0.0,
       "deepback_layout_ms_spread": 0.0,
@@ -2286,24 +2955,28 @@
         200,
         200
       ],
-      "append_layout_ms": 241.23,
-      "append_layout_ms_spread": 73.15,
+      "append_layout_ms": 101.28,
+      "append_layout_ms_spread": 6.04,
       "append_layout_ms_raw": [
-        249.68,
-        250.38,
-        177.23,
-        205.38,
-        241.23
+        105.21,
+        99.17,
+        101.17,
+        101.28,
+        104.71
       ],
-      "append_style_ms": 7.81,
-      "append_style_ms_spread": 12.49,
+      "append_style_ms": 3.47,
+      "append_style_ms_spread": 1.14,
       "append_style_ms_raw": [
-        17.09,
-        7.81,
-        4.6,
-        5.27,
-        9.61
+        3.47,
+        3.97,
+        4.12,
+        3.41,
+        2.98
       ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": true,
@@ -2331,22 +3004,22 @@
         39091,
         39091
       ],
-      "jsheap_loaded": 2475024,
-      "jsheap_loaded_spread": 64,
+      "jsheap_loaded": 2475008,
+      "jsheap_loaded_spread": 16,
       "jsheap_loaded_raw": [
-        2475072,
+        2475024,
+        2475024,
         2475008,
-        2475024,
-        2475024,
-        2475056
+        2475008,
+        2475008
       ],
       "jsheap_peak": 2571060,
-      "jsheap_peak_spread": 180,
+      "jsheap_peak_spread": 120,
       "jsheap_peak_raw": [
-        2571000,
-        2571060,
         2571060,
         2571180,
+        2571060,
+        2571060,
         2571060
       ],
       "listeners_peak": 14,
@@ -2358,113 +3031,113 @@
         14,
         14
       ],
-      "uss_mb": 80.2,
-      "uss_mb_spread": 2.42,
+      "uss_mb": 80.17,
+      "uss_mb_spread": 22.01,
       "uss_mb_raw": [
-        81.92,
-        81.6,
-        80.2,
-        79.72,
-        79.5
+        80.17,
+        79.66,
+        69.04,
+        91.05,
+        81.45
       ],
-      "rss_mb": 168.35,
-      "rss_mb_spread": 5.11,
+      "rss_mb": 166.08,
+      "rss_mb_spread": 58.74,
       "rss_mb_raw": [
-        168.35,
-        170.73,
-        170.08,
-        166.57,
-        165.62
+        166.08,
+        168.59,
+        146.24,
+        109.85,
+        167.79
       ],
-      "scroll_mean_ms": 128.05,
-      "scroll_mean_ms_spread": 18.9,
+      "scroll_mean_ms": 88.13,
+      "scroll_mean_ms_spread": 20.01,
       "scroll_mean_ms_raw": [
-        131.78,
-        114.9,
-        128.05,
-        133.8,
-        122.03
+        72.88,
+        92.89,
+        77.81,
+        88.75,
+        88.13
       ],
-      "scroll_long_frames": 62,
-      "scroll_long_frames_spread": 3,
+      "scroll_long_frames": 61,
+      "scroll_long_frames_spread": 0,
       "scroll_long_frames_raw": [
-        64,
-        62,
-        62,
+        61,
+        61,
+        61,
         61,
         61
       ],
-      "scrollback_mean_ms": 9,
-      "scrollback_mean_ms_spread": 1.87,
+      "scrollback_mean_ms": 10.2,
+      "scrollback_mean_ms_spread": 3.37,
       "scrollback_mean_ms_raw": [
-        10,
-        9,
-        8.13,
-        9.4,
-        8.13
+        10.6,
+        10.67,
+        7.53,
+        10.2,
+        7.3
       ],
-      "scrollback_worst_ms": 16.6,
-      "scrollback_worst_ms_spread": 3.5,
+      "scrollback_worst_ms": 16.7,
+      "scrollback_worst_ms_spread": 0.3,
       "scrollback_worst_ms_raw": [
-        20.1,
         16.6,
-        19.8,
         16.6,
-        16.6
+        16.9,
+        16.7,
+        16.7
       ],
-      "scrollback_layout_ms": 18.37,
-      "scrollback_layout_ms_spread": 12.69,
+      "scrollback_layout_ms": 10.21,
+      "scrollback_layout_ms_spread": 3.79,
       "scrollback_layout_ms_raw": [
-        24.86,
-        12.17,
-        23.39,
-        15.09,
-        18.37
+        7.15,
+        10.21,
+        10.94,
+        9.81,
+        10.81
       ],
-      "scrollback_style_ms": 1.16,
-      "scrollback_style_ms_spread": 0.62,
+      "scrollback_style_ms": 0.57,
+      "scrollback_style_ms_spread": 0.43,
       "scrollback_style_ms_raw": [
-        1.07,
-        1.16,
-        1.69,
-        1.07,
-        1.63
+        0.52,
+        0.57,
+        0.95,
+        0.93,
+        0.53
       ],
-      "deepback_mean_ms": 21.62,
-      "deepback_mean_ms_spread": 12.33,
+      "deepback_mean_ms": 16.22,
+      "deepback_mean_ms_spread": 0.06,
       "deepback_mean_ms_raw": [
-        24.77,
-        21.62,
-        20.52,
-        28.83,
-        16.5
+        16.22,
+        16.18,
+        16.23,
+        16.22,
+        16.17
       ],
-      "deepback_worst_ms": 69.9,
-      "deepback_worst_ms_spread": 66.4,
+      "deepback_worst_ms": 22.3,
+      "deepback_worst_ms_spread": 9.1,
       "deepback_worst_ms_raw": [
-        98,
-        69.9,
-        63.9,
-        71.9,
-        31.6
+        17.7,
+        23.1,
+        20.4,
+        26.8,
+        22.3
       ],
-      "deepback_layout_ms": 903.06,
-      "deepback_layout_ms_spread": 526.38,
+      "deepback_layout_ms": 569.67,
+      "deepback_layout_ms_spread": 146.06,
       "deepback_layout_ms_raw": [
-        1034.67,
-        903.06,
-        863.44,
-        1218.18,
-        691.8
+        459.68,
+        605.74,
+        545.61,
+        589.12,
+        569.67
       ],
-      "deepback_style_ms": 28.33,
-      "deepback_style_ms_spread": 33.95,
+      "deepback_style_ms": 17.8,
+      "deepback_style_ms_spread": 3.4,
       "deepback_style_ms_raw": [
-        30.13,
-        28.33,
-        27.35,
-        48.05,
-        14.1
+        15.28,
+        18.68,
+        17.8,
+        17.48,
+        18.57
       ],
       "deepback_moved_msgs": 200,
       "deepback_moved_msgs_spread": 0,
@@ -2475,24 +3148,28 @@
         200,
         200
       ],
-      "append_layout_ms": 206.45,
-      "append_layout_ms_spread": 125.77,
+      "append_layout_ms": 109.59,
+      "append_layout_ms_spread": 31.27,
       "append_layout_ms_raw": [
-        268.04,
-        170.35,
-        206.45,
-        223.92,
-        142.27
+        91.39,
+        91.66,
+        113.77,
+        109.59,
+        122.66
       ],
-      "append_style_ms": 10.4,
-      "append_style_ms_spread": 5.5,
+      "append_style_ms": 5.44,
+      "append_style_ms_spread": 3.37,
       "append_style_ms_raw": [
-        10.4,
-        9.78,
-        10.89,
-        12.14,
-        6.64
+        4.54,
+        5.23,
+        5.62,
+        5.44,
+        7.91
       ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": true,
@@ -2502,74 +3179,433 @@
       "arm": "evict",
       "n": 5000,
       "repeats_kept": 5,
-      "nodes_loaded": 409,
+      "nodes_loaded": 411,
       "nodes_loaded_spread": 0,
       "nodes_loaded_raw": [
-        409,
-        409,
-        409,
-        409,
-        409
+        411,
+        411,
+        411,
+        411,
+        411
       ],
-      "nodes_peak": 720,
-      "nodes_peak_spread": 20,
+      "nodes_peak": 2196,
+      "nodes_peak_spread": 1061,
       "nodes_peak_raw": [
-        720,
-        740,
-        720,
-        720,
-        734
+        2196,
+        1965,
+        2202,
+        1914,
+        2975
       ],
-      "jsheap_loaded": 7622124,
+      "jsheap_loaded": 7717632,
       "jsheap_loaded_spread": 0,
       "jsheap_loaded_raw": [
-        7622124,
-        7622124,
-        7622124,
-        7622124,
-        7622124
+        7717632,
+        7717632,
+        7717632,
+        7717632,
+        7717632
       ],
-      "jsheap_peak": 7727584,
-      "jsheap_peak_spread": 96,
+      "jsheap_peak": 6932556,
+      "jsheap_peak_spread": 4519172,
       "jsheap_peak_raw": [
-        7727584,
-        7727680,
-        7727584,
-        7727584,
-        7727632
+        6932928,
+        6927560,
+        6932556,
+        2418656,
+        6937828
       ],
-      "listeners_peak": 17,
-      "listeners_peak_spread": 0,
+      "listeners_peak": 27,
+      "listeners_peak_spread": 4,
       "listeners_peak_raw": [
-        17,
-        17,
-        17,
-        17,
-        17
+        27,
+        25,
+        27,
+        25,
+        29
       ],
-      "uss_mb": 42.17,
-      "uss_mb_spread": 0.23,
+      "uss_mb": 62.54,
+      "uss_mb_spread": 5.76,
       "uss_mb_raw": [
-        42.18,
-        42.18,
-        41.95,
-        42.07,
-        42.17
+        62.17,
+        62.54,
+        62.66,
+        57.59,
+        63.35
       ],
-      "rss_mb": 128.54,
-      "rss_mb_spread": 1.01,
+      "rss_mb": 149.21,
+      "rss_mb_spread": 8.04,
       "rss_mb_raw": [
-        128.68,
-        127.67,
-        128.47,
-        128.65,
-        128.54
+        151.12,
+        149.21,
+        149.15,
+        143.08,
+        149.63
       ],
       "scroll_mean_ms": 16.67,
-      "scroll_mean_ms_spread": 0.02,
+      "scroll_mean_ms_spread": 0.0,
       "scroll_mean_ms_raw": [
-        16.66,
-        16.68,
+        16.67,
+        16.67,
+        16.67,
+        16.67,
+        16.67
+      ],
+      "scroll_long_frames": 0,
+      "scroll_long_frames_spread": 0,
+      "scroll_long_frames_raw": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scrollback_mean_ms": 5.87,
+      "scrollback_mean_ms_spread": 5.7,
+      "scrollback_mean_ms_raw": [
+        5.8,
+        5.87,
+        5.9,
+        11.5,
+        5.83
+      ],
+      "scrollback_worst_ms": 16.6,
+      "scrollback_worst_ms_spread": 1.3,
+      "scrollback_worst_ms_raw": [
+        16.6,
+        16.8,
+        16,
+        17.3,
+        16.1
+      ],
+      "scrollback_layout_ms": 0.0,
+      "scrollback_layout_ms_spread": 0.0,
+      "scrollback_layout_ms_raw": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scrollback_style_ms": 0.0,
+      "scrollback_style_ms_spread": 0.0,
+      "scrollback_style_ms_raw": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "deepback_mean_ms": 16.12,
+      "deepback_mean_ms_spread": 0.52,
+      "deepback_mean_ms_raw": [
+        15.65,
+        16.12,
+        16.07,
+        16.13,
+        16.17
+      ],
+      "deepback_worst_ms": 17.3,
+      "deepback_worst_ms_spread": 0.9,
+      "deepback_worst_ms_raw": [
+        17.7,
+        16.9,
+        17.3,
+        17.8,
+        17.2
+      ],
+      "deepback_layout_ms": 9.59,
+      "deepback_layout_ms_spread": 5.68,
+      "deepback_layout_ms_raw": [
+        9.59,
+        8.57,
+        14.25,
+        9.1,
+        9.6
+      ],
+      "deepback_style_ms": 1.11,
+      "deepback_style_ms_spread": 0.78,
+      "deepback_style_ms_raw": [
+        1.11,
+        1.06,
+        1.84,
+        1.22,
+        1.11
+      ],
+      "deepback_moved_msgs": 200,
+      "deepback_moved_msgs_spread": 0,
+      "deepback_moved_msgs_raw": [
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "append_layout_ms": 3.22,
+      "append_layout_ms_spread": 0.85,
+      "append_layout_ms_raw": [
+        3.3,
+        3.22,
+        2.89,
+        3.74,
+        3.05
+      ],
+      "append_style_ms": 0.72,
+      "append_style_ms_spread": 0.41,
+      "append_style_ms_raw": [
+        0.72,
+        0.43,
+        0.84,
+        0.77,
+        0.68
+      ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
+      "scrollback_complete": true,
+      "scrollback_complete_runs": "5/5",
+      "deepback_complete": true,
+      "deepback_complete_runs": "5/5"
+    },
+    {
+      "arm": "hybrid",
+      "n": 5000,
+      "repeats_kept": 5,
+      "nodes_loaded": 410,
+      "nodes_loaded_spread": 0,
+      "nodes_loaded_raw": [
+        410,
+        410,
+        410,
+        410,
+        410
+      ],
+      "nodes_peak": 1814,
+      "nodes_peak_spread": 312,
+      "nodes_peak_raw": [
+        1814,
+        2126,
+        1814,
+        1814,
+        1814
+      ],
+      "jsheap_loaded": 7471632,
+      "jsheap_loaded_spread": 0,
+      "jsheap_loaded_raw": [
+        7471632,
+        7471632,
+        7471632,
+        7471632,
+        7471632
+      ],
+      "jsheap_peak": 3598464,
+      "jsheap_peak_spread": 136836,
+      "jsheap_peak_raw": [
+        3598420,
+        3615056,
+        3605116,
+        3478220,
+        3598464
+      ],
+      "listeners_peak": 14,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 41.43,
+      "uss_mb_spread": 29.86,
+      "uss_mb_raw": [
+        41.81,
+        40.37,
+        69.57,
+        41.43,
+        39.71
+      ],
+      "rss_mb": 128.85,
+      "rss_mb_spread": 28.76,
+      "rss_mb_raw": [
+        130.19,
+        128.85,
+        101.5,
+        130.26,
+        128.02
+      ],
+      "scroll_mean_ms": 16.67,
+      "scroll_mean_ms_spread": 0.0,
+      "scroll_mean_ms_raw": [
+        16.67,
+        16.67,
+        16.67,
+        16.67,
+        16.67
+      ],
+      "scroll_long_frames": 0,
+      "scroll_long_frames_spread": 0,
+      "scroll_long_frames_raw": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "scrollback_mean_ms": 5.97,
+      "scrollback_mean_ms_spread": 5.37,
+      "scrollback_mean_ms_raw": [
+        11.13,
+        5.93,
+        11.3,
+        5.93,
+        5.97
+      ],
+      "scrollback_worst_ms": 16.4,
+      "scrollback_worst_ms_spread": 1,
+      "scrollback_worst_ms_raw": [
+        16.7,
+        16.4,
+        17,
+        16,
+        16.2
+      ],
+      "scrollback_layout_ms": 0.53,
+      "scrollback_layout_ms_spread": 0.13,
+      "scrollback_layout_ms_raw": [
+        0.52,
+        0.52,
+        0.56,
+        0.65,
+        0.53
+      ],
+      "scrollback_style_ms": 0.14,
+      "scrollback_style_ms_spread": 0.05,
+      "scrollback_style_ms_raw": [
+        0.14,
+        0.13,
+        0.16,
+        0.18,
+        0.14
+      ],
+      "deepback_mean_ms": null,
+      "deepback_mean_ms_spread": null,
+      "deepback_worst_ms": null,
+      "deepback_worst_ms_spread": null,
+      "deepback_layout_ms": null,
+      "deepback_layout_ms_spread": null,
+      "deepback_style_ms": null,
+      "deepback_style_ms_spread": null,
+      "deepback_moved_msgs": 66,
+      "deepback_moved_msgs_spread": 0,
+      "deepback_moved_msgs_raw": [
+        66,
+        66,
+        66,
+        66,
+        66
+      ],
+      "append_layout_ms": 3.53,
+      "append_layout_ms_spread": 1.23,
+      "append_layout_ms_raw": [
+        2.8,
+        3.21,
+        4.03,
+        3.67,
+        3.53
+      ],
+      "append_style_ms": 0.85,
+      "append_style_ms_spread": 0.54,
+      "append_style_ms_raw": [
+        0.51,
+        0.68,
+        1.05,
+        0.92,
+        0.85
+      ],
+      "click_reload_ms": null,
+      "click_reload_ms_spread": null,
+      "click_reload_clicks": null,
+      "click_reload_clicks_spread": null,
+      "scrollback_complete": true,
+      "scrollback_complete_runs": "5/5",
+      "deepback_complete": false,
+      "deepback_complete_runs": "0/5",
+      "deepback_withheld_reason": "excursion fell short: traversed 66 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
+    },
+    {
+      "arm": "trim4661",
+      "n": 5000,
+      "repeats_kept": 5,
+      "nodes_loaded": 1274,
+      "nodes_loaded_spread": 51,
+      "nodes_loaded_raw": [
+        1297,
+        1280,
+        1246,
+        1274,
+        1252
+      ],
+      "nodes_peak": 39092,
+      "nodes_peak_spread": 2,
+      "nodes_peak_raw": [
+        39091,
+        39092,
+        39093,
+        39091,
+        39092
+      ],
+      "jsheap_loaded": 5876984,
+      "jsheap_loaded_spread": 216,
+      "jsheap_loaded_raw": [
+        5876944,
+        5877136,
+        5876984,
+        5876984,
+        5876920
+      ],
+      "jsheap_peak": 6111740,
+      "jsheap_peak_spread": 16,
+      "jsheap_peak_raw": [
+        6111740,
+        6111740,
+        6111740,
+        6111740,
+        6111756
+      ],
+      "listeners_peak": 14,
+      "listeners_peak_spread": 0,
+      "listeners_peak_raw": [
+        14,
+        14,
+        14,
+        14,
+        14
+      ],
+      "uss_mb": 122.86,
+      "uss_mb_spread": 1.41,
+      "uss_mb_raw": [
+        123.68,
+        122.27,
+        122.86,
+        122.97,
+        122.29
+      ],
+      "rss_mb": 208.25,
+      "rss_mb_spread": 1.55,
+      "rss_mb_raw": [
+        209.6,
+        208.11,
+        208.25,
+        208.38,
+        208.05
+      ],
+      "scroll_mean_ms": 16.67,
+      "scroll_mean_ms_spread": 0.01,
+      "scroll_mean_ms_raw": [
+        16.67,
+        16.67,
         16.67,
         16.67,
         16.66
@@ -2583,23 +3619,23 @@
         0,
         0
       ],
-      "scrollback_mean_ms": 11.17,
+      "scrollback_mean_ms": 11.27,
       "scrollback_mean_ms_spread": 5.5,
       "scrollback_mean_ms_raw": [
-        11.17,
-        11.2,
-        10.6,
-        5.83,
-        11.33
+        5.93,
+        11.33,
+        11.27,
+        11.33,
+        5.83
       ],
-      "scrollback_worst_ms": 16.7,
-      "scrollback_worst_ms_spread": 0.3,
+      "scrollback_worst_ms": 17,
+      "scrollback_worst_ms_spread": 1.2,
       "scrollback_worst_ms_raw": [
-        16.7,
-        16.7,
-        16.7,
-        16.8,
-        17
+        16,
+        17.2,
+        17,
+        17,
+        16.6
       ],
       "scrollback_layout_ms": 0.0,
       "scrollback_layout_ms_spread": 0.0,
@@ -2627,200 +3663,56 @@
       "deepback_layout_ms_spread": null,
       "deepback_style_ms": null,
       "deepback_style_ms_spread": null,
-      "deepback_moved_msgs": 200,
+      "deepback_moved_msgs": 166,
       "deepback_moved_msgs_spread": 0,
       "deepback_moved_msgs_raw": [
-        200,
-        200,
-        200,
-        200,
-        200
+        166,
+        166,
+        166,
+        166,
+        166
       ],
-      "append_layout_ms": 4.48,
-      "append_layout_ms_spread": 1.17,
+      "append_layout_ms": 4.73,
+      "append_layout_ms_spread": 2.12,
       "append_layout_ms_raw": [
-        4.23,
-        5.24,
-        4.72,
-        4.48,
-        4.07
+        3.27,
+        5.39,
+        5.1,
+        4.39,
+        4.73
       ],
-      "append_style_ms": 0.93,
-      "append_style_ms_spread": 0.25,
+      "append_style_ms": 0.64,
+      "append_style_ms_spread": 0.63,
       "append_style_ms_raw": [
-        0.91,
-        1.16,
-        1.11,
-        0.92,
-        0.93
+        0.36,
+        0.99,
+        0.68,
+        0.46,
+        0.64
+      ],
+      "click_reload_ms": 40.2,
+      "click_reload_ms_spread": 11.5,
+      "click_reload_ms_raw": [
+        37,
+        38.5,
+        48.5,
+        45.4,
+        40.2
+      ],
+      "click_reload_clicks": 97,
+      "click_reload_clicks_spread": 0,
+      "click_reload_clicks_raw": [
+        97,
+        97,
+        97,
+        97,
+        97
       ],
       "scrollback_complete": true,
       "scrollback_complete_runs": "5/5",
       "deepback_complete": false,
       "deepback_complete_runs": "0/5",
-      "deepback_withheld_reason": "return walk never reached the newest message (scroll anchoring defeats a stepped scrollTop walk); a stalled walk is not a fast one"
-    },
-    {
-      "arm": "hybrid",
-      "n": 5000,
-      "repeats_kept": 5,
-      "nodes_loaded": 410,
-      "nodes_loaded_spread": 0,
-      "nodes_loaded_raw": [
-        410,
-        410,
-        410,
-        410,
-        410
-      ],
-      "nodes_peak": 1814,
-      "nodes_peak_spread": 312,
-      "nodes_peak_raw": [
-        1814,
-        1814,
-        2126,
-        1814,
-        1817
-      ],
-      "jsheap_loaded": 7471632,
-      "jsheap_loaded_spread": 12,
-      "jsheap_loaded_raw": [
-        7471644,
-        7471632,
-        7471632,
-        7471632,
-        7471632
-      ],
-      "jsheap_peak": 3598468,
-      "jsheap_peak_spread": 21884,
-      "jsheap_peak_raw": [
-        3598468,
-        3598464,
-        3620324,
-        3598440,
-        3605196
-      ],
-      "listeners_peak": 14,
-      "listeners_peak_spread": 0,
-      "listeners_peak_raw": [
-        14,
-        14,
-        14,
-        14,
-        14
-      ],
-      "uss_mb": 42.63,
-      "uss_mb_spread": 0.55,
-      "uss_mb_raw": [
-        42.63,
-        42.98,
-        42.56,
-        43.05,
-        42.5
-      ],
-      "rss_mb": 132.06,
-      "rss_mb_spread": 0.38,
-      "rss_mb_raw": [
-        131.93,
-        132.19,
-        132.1,
-        132.06,
-        131.81
-      ],
-      "scroll_mean_ms": 16.67,
-      "scroll_mean_ms_spread": 0.01,
-      "scroll_mean_ms_raw": [
-        16.66,
-        16.67,
-        16.67,
-        16.67,
-        16.67
-      ],
-      "scroll_long_frames": 0,
-      "scroll_long_frames_spread": 0,
-      "scroll_long_frames_raw": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "scrollback_mean_ms": 11.17,
-      "scrollback_mean_ms_spread": 6.24,
-      "scrollback_mean_ms_raw": [
-        5.93,
-        11.23,
-        12.07,
-        11.17,
-        5.83
-      ],
-      "scrollback_worst_ms": 16.9,
-      "scrollback_worst_ms_spread": 4.4,
-      "scrollback_worst_ms_raw": [
-        16.2,
-        16.9,
-        19.9,
-        17,
-        15.5
-      ],
-      "scrollback_layout_ms": 0.86,
-      "scrollback_layout_ms_spread": 0.53,
-      "scrollback_layout_ms_raw": [
-        0.66,
-        0.92,
-        1.08,
-        0.86,
-        0.55
-      ],
-      "scrollback_style_ms": 0.26,
-      "scrollback_style_ms_spread": 0.14,
-      "scrollback_style_ms_raw": [
-        0.18,
-        0.28,
-        0.27,
-        0.26,
-        0.14
-      ],
-      "deepback_mean_ms": null,
-      "deepback_mean_ms_spread": null,
-      "deepback_worst_ms": null,
-      "deepback_worst_ms_spread": null,
-      "deepback_layout_ms": null,
-      "deepback_layout_ms_spread": null,
-      "deepback_style_ms": null,
-      "deepback_style_ms_spread": null,
-      "deepback_moved_msgs": 66,
-      "deepback_moved_msgs_spread": 0,
-      "deepback_moved_msgs_raw": [
-        66,
-        66,
-        66,
-        66,
-        66
-      ],
-      "append_layout_ms": 5.24,
-      "append_layout_ms_spread": 1.21,
-      "append_layout_ms_raw": [
-        5.21,
-        5.69,
-        5.68,
-        4.48,
-        5.24
-      ],
-      "append_style_ms": 1.38,
-      "append_style_ms_spread": 0.37,
-      "append_style_ms_raw": [
-        1.42,
-        1.38,
-        1.4,
-        1.05,
-        1.33
-      ],
-      "scrollback_complete": true,
-      "scrollback_complete_runs": "5/5",
-      "deepback_complete": false,
-      "deepback_complete_runs": "0/5",
-      "deepback_withheld_reason": "excursion fell short: traversed 66 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
+      "deepback_withheld_reason": "excursion fell short: traversed 166 of 200 messages (the arm cannot walk that far; its spacer under-models history)"
     }
   ]
 }
