@@ -169,8 +169,16 @@ def test_prototype_prune_top():
     assert "MessageWindow.prototype._pruneTop" in _SRC
 
 
-def test_prototype_prune_bottom():
-    assert "MessageWindow.prototype._pruneBottom" in _SRC
+def test_prototype_teardown_node():
+    assert "MessageWindow.prototype._teardownNode" in _SRC
+
+
+def test_no_dead_prune_bottom():
+    # _pruneBottom lost its last call site when the Phase-3 bottom prune moved
+    # inline into _loadOlder (with spacer/estimator integration the standalone
+    # version lacked). Dead code must not ship upstream — and its presence once
+    # hid a real defect: the inline path forgot the teardown _pruneBottom had.
+    assert "_pruneBottom" not in _SRC
 
 
 def test_prototype_total_child_count():
@@ -195,7 +203,7 @@ def test_bottom_sentinel_has_class_name():
 
 def test_scroll_listener_drives_bidi_load():
     # Phase 3 downward loading must use a scroll event, NOT IntersectionObserver.
-    # IO fires on any visibility change including the one _pruneBottom() causes
+    # IO fires on any visibility change including the one the Phase-3 bottom prune causes
     # (content removed below makes sentinel visible immediately), which would
     # restore pruned content immediately — defeating the whole pruning step.
     sl = _SRC[_SRC.index("MessageWindow.prototype._initScrollListener"):]
@@ -306,7 +314,7 @@ def test_prune_top_updates_start_idx():
 
 def test_prune_top_calls_attach_sentinel():
     pt = _SRC[_SRC.index("MessageWindow.prototype._pruneTop"):]
-    pt = pt[:pt.index("MessageWindow.prototype._pruneBottom")]
+    pt = pt[:pt.index("window.chatHistory = new MessageWindow")]
     assert "_attachSentinel" in pt
 
 
@@ -338,51 +346,70 @@ def test_load_older_phase3_uses_msg_count():
     )
 
 
-def test_prune_bottom_tracks_end_idx():
-    # New implementation sets _endIdx = lowestIdx (data-attribute based) rather
-    # than decrementing per DOM node, so multi-child messages track correctly.
-    pb = _SRC[_SRC.index("MessageWindow.prototype._pruneBottom"):]
-    pb = pb[:pb.index("window.chatHistory = new MessageWindow")]
-    assert "this._endIdx" in pb, "_pruneBottom must update _endIdx"
+def test_load_older_phase3_tracks_end_idx_via_ch_idx():
+    # The inline Phase-3 bottom prune sets _endIdx = _pruneLowest (data-attribute
+    # based) rather than decrementing per DOM node, so multi-child messages track
+    # correctly.
+    lo = _SRC[_SRC.index("MessageWindow.prototype._loadOlder"):]
+    lo = lo[:lo.index("MessageWindow.prototype._isAtVeryBottom")]
+    assert "this._endIdx = _pruneLowest" in lo
+    assert "chIdx" in lo
 
 
-def test_prune_bottom_uses_data_ch_idx():
-    pb = _SRC[_SRC.index("MessageWindow.prototype._pruneBottom"):]
-    pb = pb[:pb.index("window.chatHistory = new MessageWindow")]
-    assert "chIdx" in pb, (
-        "_pruneBottom must read data-ch-idx for accurate _endIdx tracking "
-        "when a single _all entry creates multiple DOM children"
+def test_load_older_phase3_teardown_before_remove():
+    # The inline bottom prune removes nodes that the very same function just
+    # registered with the hljs-defer observer (deferHighlightAll on each batch).
+    # Skipping teardown here retains every cycled code block in the shared
+    # observer — the exact leak class this file exists to close. Both the main
+    # loop and the boundary peek must tear down before .remove().
+    lo = _SRC[_SRC.index("MessageWindow.prototype._loadOlder"):]
+    lo = lo[:lo.index("MessageWindow.prototype._isAtVeryBottom")]
+    main_td = lo.index("this._teardownNode(_pRef)")
+    assert main_td < lo.index("_pRef.remove()", main_td), (
+        "_loadOlder Phase-3 main loop must call _teardownNode before _pRef.remove()"
+    )
+    peek_td = lo.index("this._teardownNode(_pPeek)")
+    assert peek_td < lo.index("_pPeek.remove()", peek_td), (
+        "_loadOlder Phase-3 boundary peek must call _teardownNode before _pPeek.remove()"
     )
 
 
-def test_prune_bottom_attaches_bottom_sentinel():
-    pb = _SRC[_SRC.index("MessageWindow.prototype._pruneBottom"):]
-    pb = pb[:pb.index("window.chatHistory = new MessageWindow")]
-    assert "_attachBottomSentinel" in pb
+def test_load_newer_phase3_teardown_before_remove():
+    # Same contract for the inline top prune in _loadNewer (main + boundary peek).
+    ln = _load_newer_body()
+    main_td = ln.index("this._teardownNode(cur)")
+    assert main_td < ln.index("cur.remove()", main_td), (
+        "_loadNewer Phase-3 main loop must call _teardownNode before cur.remove()"
+    )
+    peek_td = ln.index("this._teardownNode(peek)")
+    assert peek_td < ln.index("peek.remove()", peek_td), (
+        "_loadNewer Phase-3 boundary peek must call _teardownNode before peek.remove()"
+    )
 
 
-def _prune_bottom_body() -> str:
-    start = _SRC.index("MessageWindow.prototype._pruneBottom")
-    end   = _SRC.index("window.chatHistory = new MessageWindow", start)
+def _teardown_node_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._teardownNode")
+    end   = _SRC.index("MessageWindow.prototype._pruneTop", start)
     return _SRC[start:end]
 
 
-def test_prune_bottom_calls_forget_node_before_remove():
-    body = _prune_bottom_body()
-    forget_pos = body.index("hljsDeferForgetNode")
-    remove_pos = body.index("ref.remove()", forget_pos - 200)
-    assert forget_pos < remove_pos, (
-        "_pruneBottom must call hljsDeferForgetNode before ref.remove()"
-    )
+def test_teardown_node_releases_full_reference_set():
+    # The helper is the single definition of "what a removed node retains":
+    # timer handles, the StreamRenderer reference, and the hljs-defer observer
+    # registration — on the node itself AND its descendants.
+    body = _teardown_node_body()
+    assert "_waveInterval" in body
+    assert "_elapsedTicker" in body
+    assert "_streamRenderer" in body
+    assert "querySelectorAll('*')" in body
+    assert "window.hljsDeferForgetNode" in body
 
 
-def test_prune_bottom_boundary_pass_calls_forget_node():
-    body = _prune_bottom_body()
-    first  = body.index("hljsDeferForgetNode")
-    second = body.index("hljsDeferForgetNode", first + 1)
-    assert second > first, (
-        "_pruneBottom boundary-cleanup pass must also call hljsDeferForgetNode"
-    )
+def test_every_removal_path_uses_teardown_node():
+    # Seven removal sites: _pruneTop (main + peek), _evictLive, _loadOlder
+    # Phase-3 (main + peek), _loadNewer Phase-3 (main + peek). The helper is
+    # called at all of them; no removal path may hand-roll its own subset.
+    assert _SRC.count("this._teardownNode(") >= 7
 
 
 def test_load_newer_updates_end_idx():
@@ -469,7 +496,7 @@ def test_total_child_count_excludes_evict_notice():
 
 def test_prune_top_excludes_hist_sep():
     pt = _SRC[_SRC.index("MessageWindow.prototype._pruneTop"):]
-    pt = pt[:pt.index("MessageWindow.prototype._pruneBottom")]
+    pt = pt[:pt.index("window.chatHistory = new MessageWindow")]
     assert "this._histSep" in pt
 
 
@@ -531,19 +558,20 @@ def test_maybe_prune_routes_to_evict_live():
 
 
 def test_evict_live_clears_wave_interval():
-    body = _evict_live_body()
+    # Timer teardown lives in the shared _teardownNode helper; _evictLive must
+    # invoke it for every removed node.
+    assert "_teardownNode" in _evict_live_body()
+    body = _teardown_node_body()
     assert "_waveInterval" in body
     assert "clearInterval" in body
 
 
 def test_evict_live_clears_elapsed_ticker():
-    body = _evict_live_body()
-    assert "_elapsedTicker" in body
+    assert "_elapsedTicker" in _teardown_node_body()
 
 
 def test_evict_live_clears_stream_renderer():
-    body = _evict_live_body()
-    assert "_streamRenderer" in body
+    assert "_streamRenderer" in _teardown_node_body()
 
 
 def test_evict_live_calls_update_notice():
@@ -683,16 +711,18 @@ def test_evict_live_iterates_descendants():
     # Teardown must recurse into every descendant via querySelectorAll('*').
     # Intervals and streamRenderers are attached to child nodes (e.g. the
     # inner div of a thinking block), not always the top-level round element.
-    body = _evict_live_body()
+    # The walk lives in the shared _teardownNode helper.
+    body = _teardown_node_body()
     assert ("querySelectorAll('*')" in body or 'querySelectorAll("*")' in body), (
-        "_evictLive must walk all descendants with querySelectorAll('*')"
+        "_teardownNode must walk all descendants with querySelectorAll('*')"
     )
 
 
 def test_evict_live_teardown_applied_to_descendants():
     # The same _waveInterval / _elapsedTicker / _streamRenderer cleanup that
-    # runs on the top-level node must also run on each descendant `d`.
-    body = _evict_live_body()
+    # runs on the top-level node must also run on each descendant `d` — the
+    # shared _teardownNode helper carries that contract for every removal path.
+    body = _teardown_node_body()
     assert "d._waveInterval" in body
     assert "d._elapsedTicker" in body
     assert "d._streamRenderer" in body
@@ -764,42 +794,36 @@ def test_update_evict_notice_inserts_after_hist_sep():
 # is only present when chat.js has initialised) so the tests verify that the
 # call is made and that it precedes removal in both eviction paths.
 
-def test_prune_top_calls_forget_node_before_remove():
+def test_prune_top_teardown_before_remove():
+    # Observer refs, timers and StreamRenderer refs are released via
+    # _teardownNode; both the main loop and the boundary peek must call it
+    # before .remove().
     body = _prune_top_body()
-    forget_pos = body.index("hljsDeferForgetNode")
-    remove_pos = body.index("ch.remove()", forget_pos - 200)
-    assert forget_pos < remove_pos, (
-        "_pruneTop must call hljsDeferForgetNode before ch.remove()"
+    main_td = body.index("this._teardownNode(ch)")
+    assert main_td < body.index("ch.remove()", main_td), (
+        "_pruneTop must call _teardownNode before ch.remove()"
+    )
+    peek_td = body.index("this._teardownNode(peek)")
+    assert peek_td < body.index("peek.remove()", peek_td), (
+        "_pruneTop boundary-cleanup pass must call _teardownNode before peek.remove()"
     )
 
 
-def test_prune_top_boundary_pass_calls_forget_node():
-    # _pruneTop has a second removal pass (boundary cleanup for multi-DOM
-    # messages sharing the same chIdx). This pass must also release observer refs.
-    body = _prune_top_body()
-    # First forgetNode call is in the main loop; find the second.
-    first  = body.index("hljsDeferForgetNode")
-    second = body.index("hljsDeferForgetNode", first + 1)
-    assert second > first, (
-        "_pruneTop boundary-cleanup pass must also call hljsDeferForgetNode"
-    )
-
-
-def test_evict_live_calls_forget_node_before_remove():
+def test_evict_live_teardown_before_remove():
     body = _evict_live_body()
-    forget_pos = body.index("hljsDeferForgetNode")
-    remove_pos = body.index("el.remove()", forget_pos - 200)
-    assert forget_pos < remove_pos, (
-        "_evictLive must call hljsDeferForgetNode before el.remove()"
+    td_pos = body.index("this._teardownNode(el)")
+    remove_pos = body.index("el.remove()", td_pos)
+    assert td_pos < remove_pos, (
+        "_evictLive must call _teardownNode before el.remove()"
     )
 
 
 def test_forget_node_calls_guarded_by_window_check():
     # chatHistory.js is loaded before chat.js sets the global; the guard
     # prevents a ReferenceError during the window between page load and init.
-    body = _prune_top_body() + _evict_live_body()
-    assert "window.hljsDeferForgetNode" in body, (
-        "hljsDeferForgetNode must be accessed via window to allow the guard"
+    body = _teardown_node_body()
+    assert "if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(" in body, (
+        "hljsDeferForgetNode must be accessed via window with a presence guard"
     )
 
 
@@ -818,7 +842,7 @@ def _load_body() -> str:
 
 def _prune_top_body() -> str:
     start = _SRC.index("MessageWindow.prototype._pruneTop")
-    end   = _SRC.index("MessageWindow.prototype._pruneBottom")
+    end   = _SRC.index("window.chatHistory = new MessageWindow", start)
     return _SRC[start:end]
 
 
@@ -896,12 +920,6 @@ def _evict_live_block() -> str:
 
 def _prune_top_block() -> str:
     start = _SRC.index("MessageWindow.prototype._pruneTop")
-    end = _SRC.index("MessageWindow.prototype._pruneBottom", start)
-    return _SRC[start:end]
-
-
-def _prune_bottom_block() -> str:
-    start = _SRC.index("MessageWindow.prototype._pruneBottom")
     end = _SRC.index("// ---------------------------------------------------------------------------\n  // Singleton", start)
     return _SRC[start:end]
 
@@ -911,19 +929,24 @@ def test_evict_live_yields_to_idle():
     assert "requestIdleCallback" in _evict_live_block()
 
 
-def test_prune_bottom_yields_to_idle():
-    """_pruneBottom must signal idle after removing nodes (mirrors _pruneTop pattern)."""
-    assert "requestIdleCallback" in _prune_bottom_block()
+def test_prune_top_yields_to_idle():
+    """_pruneTop must signal idle after removing nodes."""
+    assert "requestIdleCallback" in _prune_top_block()
+
+
+def test_inline_phase3_prunes_yield_to_idle():
+    """Both inline Phase-3 prunes (_loadOlder bottom, _loadNewer top) must
+    signal idle after removing nodes, mirroring _pruneTop/_evictLive."""
+    lo = _SRC[_SRC.index("MessageWindow.prototype._loadOlder"):]
+    lo = lo[:lo.index("MessageWindow.prototype._isAtVeryBottom")]
+    assert "requestIdleCallback" in lo
+    assert "requestIdleCallback" in _load_newer_body()
 
 
 def test_prune_top_clears_intervals_before_remove():
-    """_pruneTop must clear _waveInterval before .remove() (mirrors _evictLive teardown)."""
-    assert "_waveInterval" in _prune_top_block()
-
-
-def test_prune_bottom_clears_intervals_before_remove():
-    """_pruneBottom must clear _waveInterval before .remove() (mirrors _evictLive teardown)."""
-    assert "_waveInterval" in _prune_bottom_block()
+    """_pruneTop must release timer handles (via _teardownNode) before .remove()."""
+    assert "_teardownNode" in _prune_top_block()
+    assert "_waveInterval" in _teardown_node_body()
 
 
 # ---------------------------------------------------------------------------
@@ -1015,7 +1038,7 @@ def test_estimator_folds_only_in_compensated_contexts():
     # record into the pending pool; folding there would shift every unmeasured
     # spacer term above the viewport with no compensation -> visible jump.
     prune_top = _SRC[_SRC.index("MessageWindow.prototype._pruneTop"):]
-    prune_top = prune_top[:prune_top.index("MessageWindow.prototype._pruneBottom")]
+    prune_top = prune_top[:prune_top.index("window.chatHistory = new MessageWindow")]
     assert "_estFold" not in prune_top
     assert "_estPendSum" in _SRC and "_estPendCount" in _SRC
     assert _SRC.count("this._estFold();") == 2  # _loadOlder + _loadNewer only
@@ -1033,3 +1056,39 @@ def test_deep_drag_assist_and_catchup_chain():
     assert "sRect.bottom > cRect.top)" in _SRC
     assert "_sR.bottom > _cR.top - 300" not in _SRC
     assert "_bR.top < _cR2.bottom)" in _SRC
+
+
+# ---------------------------------------------------------------------------
+# Part-4 audit fixes: drain latch + stale-generation rAF ordering
+# ---------------------------------------------------------------------------
+
+def _scroll_to_bottom_body() -> str:
+    start = _SRC.index("MessageWindow.prototype.scrollToBottom")
+    end   = _SRC.index("MessageWindow.prototype.", start + 1)
+    return _SRC[start:end]
+
+
+def test_scroll_to_bottom_clears_draining_when_nothing_to_drain():
+    # scrollToBottom() with everything already rendered has no _loadNewer drain
+    # to run, and a completed drain is the only other thing that clears
+    # _draining. A latched flag suppresses the bottom honesty spacer and makes
+    # the next scroll-up prune's rAF re-enter drain mode, yanking the user back
+    # to the bottom.
+    body = _scroll_to_bottom_body()
+    assert "this._draining = false" in body, (
+        "scrollToBottom must clear _draining when _endIdx >= _all.length"
+    )
+
+
+def test_stale_gen_raf_checks_gen_before_touching_state():
+    # A stale rAF (session switched between schedule and fire) must return on
+    # the generation check BEFORE calling _clearBusy or touching _draining:
+    # reset() already cleared both for the new session, and a late _clearBusy
+    # would clear an aria-busy the new session's load just set.
+    import re
+    assert not re.search(
+        r"self\._clearBusy\(\);\s*\n\s*if \(self\._gen !==", _SRC
+    ), "gen check must precede _clearBusy in load-completion rAFs"
+    assert "{ self._draining = false; return; }" not in _SRC, (
+        "stale-gen path must not touch _draining (reset() owns it)"
+    )
