@@ -10,6 +10,7 @@ SQLite DB, real HTTP on 127.0.0.1.
 Consumers own their corpus: pass `seed` as a callable(db_url) or use
 seed_session() for the common one-session shape.
 """
+import json
 import os
 import pathlib
 import signal
@@ -32,8 +33,33 @@ def free_port() -> int:
     return p
 
 
+def seed_endpoint(db_url: str, base_url: str, models=("mock-model",),
+                  name: str = "Mock Endpoint") -> None:
+    """Register a ModelEndpoint so chat sending passes the session/endpoint
+    match validation in chat_routes. Point `base_url` at a mock_llm.MockLLM
+    (or any OpenAI-compatible server) and give sessions the same endpoint_url
+    plus a model from `models`."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from core.database import Base, ModelEndpoint
+
+    engine = create_engine(db_url)
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+    try:
+        db.add(ModelEndpoint(id=str(uuid.uuid4()), name=name, base_url=base_url,
+                             is_enabled=True, endpoint_kind="local",
+                             model_refresh_mode="manual",
+                             cached_models=json.dumps(list(models)),
+                             owner=None))
+        db.commit()
+    finally:
+        db.close()
+
+
 def seed_session(db_url: str, sid: str, contents, name: str = "Bench Session",
-                 model: str = "bench-model") -> None:
+                 model: str = "bench-model",
+                 endpoint_url: str = "http://localhost/v1") -> None:
     """Create one session holding `contents` (list of message strings; roles
     alternate user/assistant by index, timestamps strictly increasing)."""
     from sqlalchemy import create_engine
@@ -44,7 +70,7 @@ def seed_session(db_url: str, sid: str, contents, name: str = "Bench Session",
     Base.metadata.create_all(bind=engine)
     db = sessionmaker(bind=engine)()
     try:
-        db.add(DbSession(id=sid, name=name, endpoint_url="http://localhost/v1",
+        db.add(DbSession(id=sid, name=name, endpoint_url=endpoint_url,
                          model=model, owner=None))
         t = datetime(2026, 1, 1)
         for i, content in enumerate(contents):
@@ -60,7 +86,9 @@ class LiveApp:
     """The real app, running. `seed` is a callable(db_url) that populates the DB
     before boot. Use as a context manager or call stop() yourself."""
 
-    def __init__(self, datadir: str, seed):
+    def __init__(self, datadir: str, seed, log_path: str = None):
+        """`log_path`: optional file to receive the app's stdout/stderr
+        (default: discarded). Pass one when debugging a 500 from a route."""
         self.datadir = datadir
         db_url = f"sqlite:///{datadir}/app.db"
         seed(db_url)
@@ -74,7 +102,8 @@ class LiveApp:
              f"import uvicorn, app; uvicorn.run(app.app, host='127.0.0.1', "
              f"port={self.port}, log_level='warning')"],
             cwd=str(ROOT), env=env,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            stdout=(open(log_path, "w") if log_path else subprocess.DEVNULL),
+            stderr=subprocess.STDOUT if log_path else subprocess.DEVNULL)
         self.base = f"http://127.0.0.1:{self.port}"
         for _ in range(120):
             try:
