@@ -147,7 +147,20 @@ verified). Re-verify before filing.
 
 ## Part 4.5 — Server-paging fold: MANDATORY companion fixes (added 2026-07-17)
 
-The staged snapshot pre-dates server paging and walks only the in-memory buffer. The plan of
+> **STATUS UPDATE (2026-07-17, later): the FILE portion of this fold is DONE.** Commit
+> `463526b0` converged the branch's `static/js/chatHistory.js` and its three test suites
+> (static contract, browser harness, a11y) to the maintained develop version, byte-identical
+> except fork-issue references scrubbed from comments. That carries the #129 retag fix, the
+> #130 newest-entry fix, and the #127 honesty estimator (both edges, anchor-restore
+> compensation, blank-in-view chain gating) — all verified green on this branch (143 converged
+> tests + full suite, exit code checked). The server-paging code is INERT on this branch until
+> `load()` is handed an `olderLoader`. **Still remaining at rebuild time:** the sessions.js
+> `olderLoader` wiring, the backend paging contract (which depends on the #125 route-shadowing
+> fix, staged separately), the `live_app.py`/`scroll_driver.js` test infrastructure, and the
+> server-paged Playwright regressions (`test_scrollup_dom_stays_bounded`,
+> `test_pinned_top_walk_completes`, `test_scrollbar_honesty_scales_with_history`).
+
+The staged snapshot pre-dated server paging and walks only the in-memory buffer. The plan of
 record folds the server-paging work (`fix/chat-history-server-paging`, develop `6fac912d`)
 into this branch at rebuild time so a filed PR does not dead-end at the backend's 100-message
 page cap. **That fold carries a known defect unless two companions travel with it:**
@@ -175,9 +188,11 @@ page cap. **That fold carries a known defect unless two companions travel with i
   issue numbers.** At fold time, carry the Playwright pinned-top walk regression alongside
   the server-paging infra (it needs `live_app.py`/`scroll_driver.js`).
 
-Known open defects in the same code to re-check at fold time: #127 (scrollbar spacer).
-Filing with #127 open is a disclosure decision, not a blocker; filing with #129 or #130
-unfixed would ship defects we have already measured, named, and fixed.
+All three measured defects in this code (#127 scrollbar honesty, #129 retag, #130 sentinel
+newest-entry) are now fixed on develop AND carried by the branch via the `463526b0`
+convergence — none remain as disclosure items. At rebuild time, re-verify the convergence is
+still current (the snapshot-drift discipline: the branch file must match the then-current
+maintained file, fork references scrubbed).
 
 ## Part 5 — Sequencing and exit criteria
 
