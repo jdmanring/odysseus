@@ -72,9 +72,12 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 
 ## Test plan
 
-- `tests/test_chat_history_js.py`: 109 static-analysis tests
-- `tests/test_chat_history_playwright.py`: 11 parametrized Playwright integration test
-  functions (require a running server)
+- `tests/test_chat_history_js.py`: 123 static-analysis tests
+- `tests/test_chat_history_playwright.py`: 16 Playwright integration test functions
+  (self-contained harness page; no running server needed) — includes runtime coverage of
+  scroll-down windowing, the scroll-to-bottom drain/snap transition, and teardown
+  (timers cleared + `hljsDeferForgetNode` called when pruning removes nodes)
+- `tests/test_chat_history_a11y_js.py`: 8 accessibility contract tests
 - Manual: run a long agent session (80+ exchanges) and confirm DOM child count stays bounded via `document.getElementById('chat-history').children.length` in the browser console
 - Manual: confirm the eviction notice appears after enough exchanges and the text is correct
 - Manual: confirm `scrollTop` does not jump when eviction fires
@@ -89,6 +92,7 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 - `static/style.css` — `overflow-anchor:none`, `will-change` cleanup
 - `tests/test_chat_history_js.py` — static-analysis tests
 - `tests/test_chat_history_playwright.py` — Playwright integration tests
+- `tests/test_chat_history_a11y_js.py` — accessibility contract tests
 
 ## Measured evidence (comparison matrix)
 
