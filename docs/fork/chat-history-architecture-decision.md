@@ -96,6 +96,16 @@ refutation with data is the deliverable. Known defect in that arm: fork issue #1
 drifts; its deep-scroll-back timing cells are withheld by the harness's completeness guard rather than
 published). The refutation does not depend on those cells.
 
+**Known defect in the kept architecture:** fork issue #127 — the scrollbar misrepresents history.
+Measured across the length curve (2026-07-17, probe + raw data inlined in the issue): reported
+`scrollHeight` is a *constant* (8,401 px at load, 13,420 px after paging the full history in) for
+n=100..5000, so scrollbar honesty is ~50/n — 50% at n=100 down to 1% at n=5000. The prune-spacer
+contribution caps at ~5,019 px regardless of how many messages were pruned, so a fix cannot reuse the
+`_pruneTop` spacer arithmetic; the estimator must own the entire unrendered range (and #126 documents
+how such an estimator drifts). This is a UX defect, not a memory one — it does not weaken the RSS
+argument above, but it is a real cost of eviction that detach-preserve (#4998) does not pay, and it
+must be stated wherever this decision is defended.
+
 **Revisit only if** upstream ships real DOM eviction of its own, or if the network cost of cold-tail
 refetch is shown to dominate — the one axis the harness excludes (it serves cold pages from memory,
 which biases *against* eviction, the honest direction).
