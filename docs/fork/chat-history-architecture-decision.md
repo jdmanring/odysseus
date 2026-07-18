@@ -128,6 +128,16 @@ constant-bound assertion, not the existing `< N` one) for this decision to stand
 grounds. A related trigger defect, #130 (one-shot IntersectionObserver dead-end at the top), was
 found on the same walk.
 
+**2026-07-17, later — #129 fixed and the premise re-verified.** Root cause was not a missing prune
+but a corrupted index space: `_fetchOlderFromServer` shifted `_startIdx`/`_endIdx` on prepend without
+retagging rendered nodes' `data-ch-idx`, so tags from successive pages collided and the Phase-3 prune
+broke at the first stale tag. Fixed by retagging on prepend (develop merge `dd645129`); the real-app
+n=2000 walk now holds exactly `BIDI_MSG_CAP` (80) messages in DOM with a coherent tag space, and
+scroll-down after real pruning reaches the newest message cleanly. Guarded by a constant-bound (130)
++ tag-coherence regression test in `test_chat_history_render_paging_playwright.py`, red-verified
+against the unfixed code. The RSS-bound premise of this decision holds in the real app again.
+#130 remains open.
+
 ## What we learned from theirs
 
 - **#4998's detach-and-preserve** round-trips node state (`<details>`, highlight, listeners) with no
