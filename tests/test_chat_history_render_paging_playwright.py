@@ -262,3 +262,60 @@ def test_pinned_top_walk_completes(live_server):
                 f"walk 'completed' with history remaining: {st}")
         finally:
             browser.close()
+
+
+def test_scrollbar_honesty_scales_with_history(live_server):
+    """The container's scrollHeight must reflect the conversation, not the
+    rendered window.
+
+    Guards issue #127: load() rendered only WINDOW_SIZE messages and created no
+    spacer for the unrendered range, so scrollHeight was a CONSTANT (~2.5% of a
+    2000-message conversation) for any history length. With the top estimator
+    spacer, reported height scales with the history: the 2000-message session
+    must report several times the height of the 300-message one (truth ratio
+    ~6.7; estimator-based should be close; broken code reports ~1.0). The walk
+    then re-checks stability: the bar must not balloon or collapse as real
+    heights replace estimates (idempotent recompute, no compounding drift).
+    """
+    from playwright.sync_api import sync_playwright
+    base = live_server
+
+    def _load_and_measure(page, sid):
+        page.evaluate("async (sid)=>{await window.sessionModule.loadSessions();"
+                      " await window.sessionModule.selectSession(sid);}", sid)
+        page.wait_for_function(
+            "()=>document.querySelectorAll('#chat-history .msg,#chat-history .agent-thread').length>0",
+            timeout=15000)
+        page.wait_for_timeout(300)
+        return page.evaluate("()=>document.getElementById('chat-history').scrollHeight")
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_context(viewport={"width": 900, "height": 700}).new_page()
+        try:
+            page.goto(base + "/", wait_until="networkidle", timeout=30000)
+            page.wait_for_selector("#chat-history", timeout=15000)
+            h_short = _load_and_measure(page, SID)
+            h_long = _load_and_measure(page, SID_LONG)
+            ratio = h_long / h_short
+            assert ratio >= 4, (
+                f"scrollHeight does not scale with history: n={N_LONG} reports "
+                f"{h_long}px vs n={N_MESSAGES} at {h_short}px (ratio {ratio:.2f}; "
+                f"truth ratio ~{N_LONG/N_MESSAGES:.1f}) — no honesty spacer (#127)")
+
+            # Stability across a full walk: real heights replace estimates as
+            # pages render and prune; the recompute is idempotent, so the bar
+            # must stay in the same regime, not balloon or collapse.
+            with open(os.path.join(REPO, "tests", "bench", "scroll_driver.js")) as fh:
+                page.evaluate(fh.read())
+            walk = page.evaluate(
+                "async () => window.scrollDriver.walkToOldest(document.getElementById('chat-history'))")
+            assert walk["complete"], f"walk failed: {walk}"
+            h_after = page.evaluate("()=>document.getElementById('chat-history').scrollHeight")
+            drift = h_after / h_long
+            assert 0.5 <= drift <= 1.5, (
+                f"honesty bar drifted across the walk: {h_long}px at load -> "
+                f"{h_after}px at top (x{drift:.2f}) — estimator is compounding "
+                f"or losing height (#126 bug class)")
+        finally:
+            browser.close()
