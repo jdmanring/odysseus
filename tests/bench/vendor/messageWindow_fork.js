@@ -1,7 +1,7 @@
 // messageWindow_fork.js -- VENDORED SNAPSHOT. Not shipping code; benchmark input only.
 //
 // Source: static/js/chatHistory.js on the fork's `develop` branch.
-//   blob 846471549ce26ac7d2915df2dabaa98b40c7f67c
+//   blob e515d68291735b235184fd2fd90bb3c34b504e87
 //
 // WHY THIS IS VENDORED, AND WHAT IT IS NOT
 // ----------------------------------------
@@ -288,9 +288,17 @@
     this._c.scrollTop = this._c.scrollHeight - this._c.clientHeight;
     if (this._endIdx < this._all.length && !this._loading) {
       this._loadNewer();
+    } else if (this._endIdx >= this._all.length) {
+      // Nothing to drain: everything below is already rendered, the snap above
+      // is the whole job. _draining must not stay latched — the only thing that
+      // clears it is a completed _loadNewer drain, which will never run here,
+      // and a latched flag makes the next scroll-up prune's rAF re-enter drain
+      // mode and yank the user straight back to the bottom.
+      this._draining = false;
     }
-    // If _loading=true, the in-progress _loadNewer() rAF chain will see _draining=true
-    // and snap + continue regardless of _isAtBottom().
+    // If _loading=true (with messages remaining), the in-progress _loadNewer()
+    // rAF chain will see _draining=true and snap + continue regardless of
+    // _isAtBottom().
   };
 
   // ---------------------------------------------------------------------------
@@ -299,8 +307,8 @@
 
   // Renders _all[_startIdx.._endIdx-1] into the container and appends the
   // invisible history/live separator. Each top-level DOM child is tagged with
-  // data-ch-idx so _pruneBottom can accurately track _endIdx regardless of how
-  // many children a single addMessage() call produces.
+  // data-ch-idx so the Phase-3 bottom prune can accurately track _endIdx
+  // regardless of how many children a single addMessage() call produces.
   MessageWindow.prototype._renderTail = function () {
     for (var i = this._startIdx; i < this._endIdx; i++) {
       var snap = this._c.children.length;
@@ -617,7 +625,7 @@
   // Bottom sentinel (Phase 3 — reload pruned content on scroll-down)
   //
   // NOTE: IO is NOT used here. IO fires on any visibility change including ones
-  // caused by _pruneBottom() itself (content removed below makes sentinel visible
+  // caused by the Phase-3 bottom prune itself (content removed below makes sentinel visible
   // immediately), which defeats the pruning — restored immediately after prune.
   // Instead a scroll event listener (see _initScrollListener) watches whether the
   // sentinel is near the visible area and triggers _loadNewer() on user intent.
@@ -832,6 +840,7 @@
             ? parseInt(_pRef.dataset.chIdx, 10) : null;
           if (_pIdx === null || _pIdx < _pruneTarget) break;
           _bMsgPx[_pIdx] = (_bMsgPx[_pIdx] || 0) + _pRef.getBoundingClientRect().height;
+          this._teardownNode(_pRef);
           _pRef.remove();
           _pruneRemoved++;
           if (_pIdx < _pruneLowest) _pruneLowest = _pIdx;
@@ -849,6 +858,7 @@
           if (_pPeek.dataset && parseInt(_pPeek.dataset.chIdx, 10) === _pruneLowest) {
             var _pPeekNext = _pPeek.previousElementSibling;
             _bMsgPx[_pruneLowest] = (_bMsgPx[_pruneLowest] || 0) + _pPeek.getBoundingClientRect().height;
+            this._teardownNode(_pPeek);
             _pPeek.remove();
             _pPeek = _pPeekNext;
           } else { break; }
@@ -869,6 +879,11 @@
           _beforePruneTop,
           Math.max(0, this._c.scrollHeight - this._c.clientHeight)
         );
+        // Yield to idle so V8 can collect the detached subtrees (same pattern
+        // as _pruneTop/_evictLive).
+        if (typeof requestIdleCallback !== 'undefined') {
+          requestIdleCallback(function () {}, { timeout: 3000 });
+        }
       }
     }
     // If the Phase-3 bottom prune above evicted the node holding focus, move it
@@ -877,8 +892,11 @@
     var self = this;
     var _ogen = this._gen;
     requestAnimationFrame(function () {
-      self._clearBusy();
+      // Stale generation: reset() already cleared busy/draining for the new
+      // session — touching them here would clobber the new session's state
+      // (e.g. clearing an aria-busy the new load just set).
       if (self._gen !== _ogen) return;
+      self._clearBusy();
       self._loading = false;
       // If scrollToBottom() was called while _loadOlder() was running, restart drain
       if (self._draining && self._endIdx < self._all.length) {
@@ -991,6 +1009,7 @@
           var cidx = (cur.dataset && cur.dataset.chIdx !== undefined)
             ? parseInt(cur.dataset.chIdx, 10) : null;
           if (cidx !== null) _nMsgPx[cidx] = (_nMsgPx[cidx] || 0) + cur.getBoundingClientRect().height;
+          this._teardownNode(cur);
           cur.remove();
           removed++;
           if (cidx !== null && cidx > highIdx) highIdx = cidx;
@@ -1009,6 +1028,7 @@
           if (peek.dataset && parseInt(peek.dataset.chIdx, 10) === highIdx) {
             var peekNext = peek.nextElementSibling;
             _nMsgPx[highIdx] = (_nMsgPx[highIdx] || 0) + peek.getBoundingClientRect().height;
+            this._teardownNode(peek);
             peek.remove();
             removed++;
             peek = peekNext;
@@ -1039,6 +1059,11 @@
           // scroll anchoring); net formula as the blank-spacer fallback.
           this._c.scrollTop -= (before - this._c.scrollHeight);
         }
+        // Yield to idle so V8 can collect the detached subtrees (same pattern
+        // as _pruneTop/_evictLive).
+        if (typeof requestIdleCallback !== 'undefined') {
+          requestIdleCallback(function () {}, { timeout: 3000 });
+        }
       }
     }
 
@@ -1050,8 +1075,10 @@
     var self = this;
     var _ngen = this._gen;
     requestAnimationFrame(function () {
+      // Stale generation: reset() already cleared busy/draining for the new
+      // session; do not clobber state the new session may have set since.
+      if (self._gen !== _ngen) return;
       self._clearBusy();
-      if (self._gen !== _ngen) { self._draining = false; return; }
       self._loading = false;
 
       // A scroll-driven load (not draining) processes exactly ONE batch and
@@ -1181,17 +1208,7 @@
     for (var i = 0; i < toRemove.length; i++) {
       var el = toRemove[i];
       // Stop any live timers/intervals before removing the node.
-      if (el._waveInterval)   { clearInterval(el._waveInterval);   el._waveInterval   = null; }
-      if (el._elapsedTicker)  { clearInterval(el._elapsedTicker);  el._elapsedTicker  = null; }
-      if (el._streamRenderer) { el._streamRenderer = null; }
-      var descendants = el.querySelectorAll('*');
-      for (var j = 0; j < descendants.length; j++) {
-        var d = descendants[j];
-        if (d._waveInterval)   { clearInterval(d._waveInterval);   d._waveInterval   = null; }
-        if (d._elapsedTicker)  { clearInterval(d._elapsedTicker);  d._elapsedTicker  = null; }
-        if (d._streamRenderer) { d._streamRenderer = null; }
-      }
-      if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(el);
+      this._teardownNode(el);
       el.remove();
       this._evictedLiveCount++;
     }
@@ -1248,7 +1265,7 @@
   };
 
   // Count historical DOM children (before _histSep), excluding control elements.
-  // Used by _loadOlder to decide when to call _pruneBottom.
+  // Used by _loadNewer to decide when the Phase-3 top prune must run.
   MessageWindow.prototype._histChildCount = function () {
     var n        = 0;
     var children = this._c.children;
@@ -1266,6 +1283,28 @@
   // ---------------------------------------------------------------------------
   // Prune helpers
   // ---------------------------------------------------------------------------
+
+  // Release everything a removed node retains beyond the DOM: live timer
+  // handles (thinking-wave interval, elapsed ticker), the StreamRenderer
+  // reference, and the hljs-defer IntersectionObserver's registration (the
+  // shared observer holds strong references to observed code blocks, so an
+  // unforgotten block keeps its whole detached subtree alive). Every removal
+  // path must call this before el.remove().
+  MessageWindow.prototype._teardownNode = function (el) {
+    if (el._waveInterval)   { clearInterval(el._waveInterval);   el._waveInterval   = null; }
+    if (el._elapsedTicker)  { clearInterval(el._elapsedTicker);  el._elapsedTicker  = null; }
+    if (el._streamRenderer) { el._streamRenderer = null; }
+    if (el.querySelectorAll) {
+      var _tdDesc = el.querySelectorAll('*');
+      for (var _ti = 0; _ti < _tdDesc.length; _ti++) {
+        var d = _tdDesc[_ti];
+        if (d._waveInterval)   { clearInterval(d._waveInterval);   d._waveInterval   = null; }
+        if (d._elapsedTicker)  { clearInterval(d._elapsedTicker);  d._elapsedTicker  = null; }
+        if (d._streamRenderer) { d._streamRenderer = null; }
+      }
+    }
+    if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(el);
+  };
 
   MessageWindow.prototype._pruneTop = function (count) {
     // Save before any DOM mutation. Node removal reduces scrollHeight and the browser
@@ -1289,16 +1328,7 @@
           ch.classList.contains('chat-history-spacer')) { ch = next; continue; }
       var cidx = (ch.dataset && ch.dataset.chIdx !== undefined)
         ? parseInt(ch.dataset.chIdx, 10) : -1;
-      if (ch._waveInterval)   { clearInterval(ch._waveInterval);   ch._waveInterval   = null; }
-      if (ch._elapsedTicker)  { clearInterval(ch._elapsedTicker);  ch._elapsedTicker  = null; }
-      if (ch._streamRenderer) { ch._streamRenderer = null; }
-      var _ptDesc = ch.querySelectorAll('*');
-      for (var _pi = 0; _pi < _ptDesc.length; _pi++) {
-        if (_ptDesc[_pi]._waveInterval)   { clearInterval(_ptDesc[_pi]._waveInterval);   _ptDesc[_pi]._waveInterval   = null; }
-        if (_ptDesc[_pi]._elapsedTicker)  { clearInterval(_ptDesc[_pi]._elapsedTicker);  _ptDesc[_pi]._elapsedTicker  = null; }
-        if (_ptDesc[_pi]._streamRenderer) { _ptDesc[_pi]._streamRenderer = null; }
-      }
-      if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(ch);
+      this._teardownNode(ch);
       if (cidx >= 0) _msgPx[cidx] = (_msgPx[cidx] || 0) + ch.getBoundingClientRect().height;
       ch.remove();
       removed++;
@@ -1319,10 +1349,7 @@
         if (isPeekCtl) { peek = peek.nextElementSibling; continue; }
         if (peek.dataset && parseInt(peek.dataset.chIdx, 10) === highIdx) {
           var peekNext = peek.nextElementSibling;
-          if (peek._waveInterval)   { clearInterval(peek._waveInterval);   peek._waveInterval   = null; }
-          if (peek._elapsedTicker)  { clearInterval(peek._elapsedTicker);  peek._elapsedTicker  = null; }
-          if (peek._streamRenderer) { peek._streamRenderer = null; }
-          if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(peek);
+          this._teardownNode(peek);
           _msgPx[highIdx] = (_msgPx[highIdx] || 0) + peek.getBoundingClientRect().height;
           peek.remove();
           removed++;
@@ -1358,83 +1385,6 @@
     // Yield to idle after prune so V8 can run incremental GC on the detached subtrees.
     if (typeof requestIdleCallback !== 'undefined') {
       requestIdleCallback(function () {}, { timeout: 3000 });
-    }
-  };
-
-  // Remove `count` historical DOM nodes from just above _histSep.
-  // Uses data-ch-idx to accurately track _endIdx even when a single _all entry
-  // produces multiple top-level DOM children (e.g. agent multi-round messages).
-  MessageWindow.prototype._pruneBottom = function (count) {
-    var removed    = 0;
-    var _beforeH   = this._c.scrollHeight;
-    var _pbMsgPx   = {};   // chIdx -> summed node px, for _recordPruneHeights
-    var lowestIdx  = this._endIdx;  // track the lowest _all index removed
-    var ref = this._histSep
-      ? this._histSep.previousSibling
-      : this._c.lastElementChild;
-
-    while (ref && removed < count) {
-      var prev = ref.previousSibling;
-      var isControl = (
-        ref === this._sentinel  ||
-        ref === this._bSentinel ||
-        ref === this._histSep   ||
-        ref.classList.contains('chat-history-spacer')
-      );
-      if (!isControl) {
-        var idx = (ref.dataset && ref.dataset.chIdx !== undefined)
-          ? parseInt(ref.dataset.chIdx, 10)
-          : null;
-        if (ref._waveInterval)   { clearInterval(ref._waveInterval);   ref._waveInterval   = null; }
-        if (ref._elapsedTicker)  { clearInterval(ref._elapsedTicker);  ref._elapsedTicker  = null; }
-        if (ref._streamRenderer) { ref._streamRenderer = null; }
-        var _pbDesc = ref.querySelectorAll('*');
-        for (var _pbi = 0; _pbi < _pbDesc.length; _pbi++) {
-          if (_pbDesc[_pbi]._waveInterval)   { clearInterval(_pbDesc[_pbi]._waveInterval);   _pbDesc[_pbi]._waveInterval   = null; }
-          if (_pbDesc[_pbi]._elapsedTicker)  { clearInterval(_pbDesc[_pbi]._elapsedTicker);  _pbDesc[_pbi]._elapsedTicker  = null; }
-          if (_pbDesc[_pbi]._streamRenderer) { _pbDesc[_pbi]._streamRenderer = null; }
-        }
-        if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(ref);
-        if (idx !== null) _pbMsgPx[idx] = (_pbMsgPx[idx] || 0) + ref.getBoundingClientRect().height;
-        ref.remove();
-        removed++;
-        if (idx !== null && idx < lowestIdx) lowestIdx = idx;
-      }
-      ref = prev;
-    }
-
-    if (removed > 0) {
-      // Partial-message cleanup: if the loop stopped mid-message (a single _all entry
-      // spans multiple DOM children), remove the remaining fragments at the boundary.
-      // Without this, _loadNewer renders the message again over the orphaned nodes,
-      // duplicating it in the DOM.
-      var check = this._histSep
-        ? this._histSep.previousElementSibling
-        : this._c.lastElementChild;
-      while (check && check !== this._sentinel && check !== this._bSentinel &&
-             !check.classList.contains('chat-history-spacer')) {
-        if (check.dataset && parseInt(check.dataset.chIdx, 10) === lowestIdx) {
-          var prevCheck = check.previousElementSibling;
-          if (check._waveInterval)   { clearInterval(check._waveInterval);   check._waveInterval   = null; }
-          if (check._elapsedTicker)  { clearInterval(check._elapsedTicker);  check._elapsedTicker  = null; }
-          if (check._streamRenderer) { check._streamRenderer = null; }
-          if (window.hljsDeferForgetNode) window.hljsDeferForgetNode(check);
-          _pbMsgPx[lowestIdx] = (_pbMsgPx[lowestIdx] || 0) + check.getBoundingClientRect().height;
-          check.remove();
-          check = prevCheck;
-        } else {
-          break;
-        }
-      }
-      this._endIdx = lowestIdx;
-      this._attachBottomSentinel();
-      // Below-viewport geometry: record the exact removed height and restore it
-      // as bottom spacer so the scrollbar keeps representing the pruned range.
-      this._recordPruneHeights(_pbMsgPx, _beforeH - this._c.scrollHeight);
-      this._updateBottomSpacer();
-      if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(function () {}, { timeout: 3000 });
-      }
     }
   };
 
