@@ -269,6 +269,24 @@ convergence — none remain as disclosure items. At rebuild time, re-verify the 
 still current (the snapshot-drift discipline: the branch file must match the then-current
 maintained file, fork references scrubbed).
 
+> **STATUS UPDATE (2026-07-18): Part 4.5 fold and Part 5 rebuild are DONE.** The staged
+> branch's merge-base turned out to be the PRE-INGEST upstream mirror (`16026741`) — the
+> current mirror (`c67deaa6`, post-#5283) already ships upstream's own paginated
+> `/api/history` (`has_more_before`), `_historyUrl`, and a prepend-only pager cluster the
+> old branch never saw. Instead of a 21-commit rebase, the contribution was rebuilt clean
+> on the current mirror (`wip/dom-oom-rebuild`) and `fix/dom-oom-virtualization` repointed
+> to it (old tip preserved at `backup/prerebuild-dom-oom-virtualization`): a 2-commit
+> series (`e22d3dde` core + suites, `ddc4e4f2` end-to-end paging suite + infra). The
+> rebuild also removed a history commit whose message violated the Part-1 provenance
+> framing. sessions.js now wires `olderLoader` against upstream's own pagination contract
+> and keeps upstream's `_displayHistoryContent`/`_stripUserVisionBlocks` filters (develop's
+> extracted mapper had dropped them — regression fixed on develop, `3b4d1d2b`). The paging
+> suite probes the backend at startup and SKIPS until the #125 route-shadowing fix (staged
+> separately) unblocks the paginated endpoint; with #125 applied locally: 152 passed,
+> exit 0; without it: 147 passed + 5 skipped, exit 0. Convergence guard expanded to 7
+> files (adds the paging suite, `live_app.py`, `scroll_driver.js`). Remaining before
+> filing: 3.5 manual long-session pass (human) and the file-time exit-check re-runs.
+
 ## Part 5 — Sequencing and exit criteria
 
 Recommended order (each is its own fork issue + branch where it is a code change; issue
