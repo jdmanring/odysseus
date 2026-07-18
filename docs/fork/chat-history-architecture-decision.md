@@ -27,15 +27,18 @@ this is not re-litigated and so a merge of upstream's PRs does not blindside us.
 | Pager `_installHistoryPager` (commit `45ee5a71`, direct to `dev`, **not** a PR) | **merged** | Prepends older pages on scroll-up. Never removes a node. | ❌ DOM grows monotonically |
 | Issue **#4644** "browser OOM during long agent interactions" | **open** | Asks explicitly that old messages be *"collapsed or removed from the DOM."* The canonical OOM issue. | — (the ask) |
 | Issue **#2869** "Chat Freeze" after ~20 messages | **open** | Symptom report; no concrete design. | — |
-| PR **#4661** "prevent browser OOM during long agent interactions" (Fixes #4644) | **open** | "Show N older" bar: server paging (`?limit`/`total`/`has_more_before`) + throttled thinking render. | ❌ paging only — adds, never removes |
+| PR **#4661** "prevent browser OOM during long agent interactions" (Fixes #4644) | **open** | "Show N older" bar: server paging (`?limit`/`total`/`has_more_before`) + throttled thinking render + `_trimChatHistoryDOM()`: 150-child DOM cap with real removal, per-node teardown, and image data-URI blanking, re-applied on each append. | ⚠️ bounds *steady state* (measured: ~1.19k nodes at every n, vendored arm in `tests/bench/`), but the "Show older" click-reload path restores the full history with **no re-trim until the next message** — at top of history it equals naive (n=5000: 39k nodes, 122.9 MB USS vs naive's 119.8) — and it does not preserve scroll position |
 | PR **#4998** "virtualize #chat-history to fix long-chat lag" (`chatVirtualizer.js`) | **open** | Per-message IntersectionObserver: for far-off-screen nodes, **detaches child nodes into a JS array and pins the wrapper height**, restores on scroll-back. Preserves `<details>`/highlight/listeners. | ⚠️ bounds *layout/paint* (lag), **not RSS** — detached children stay referenced in heap, one shell per message retained forever |
 | ROADMAP.md | — | No chat-history / virtualization / renderer-memory item at all. Has a generic "Accessibility pass (incl. reduced motion)". | — |
 
 **Consequence:** upstream's *merged* code still has no bounded-DOM story — our supersession claim holds
 against `dev`. But two open PRs and an open issue are now circling this exact area. Neither open PR
-bounds memory: #4661 is paging-only; #4998 targets lag and keeps detached nodes in heap. So the fork's
-requirement — a true RSS bound via node removal + server refetch — is **unmet by everything upstream,
-merged or in-flight.** That is the specific, on-the-record justification for the divergence (answers
+fully bounds memory: #4661 bounds the steady state (its `_trimChatHistoryDOM` really removes nodes)
+but its click-reload path is transiently unbounded — reading old history restores everything and
+nothing evicts until the next message re-trims — and it loses scroll position; #4998 targets lag and
+keeps detached nodes in heap. So the fork's requirement — a memory bound that *holds while reading
+old history*, via windowed removal + server refetch — is **unmet by everything upstream, merged or
+in-flight.** That is the specific, on-the-record justification for the divergence (answers
 "a workbench shouldn't diverge": we diverge exactly where upstream has no solution to the fork's
 scarce-resource problem).
 

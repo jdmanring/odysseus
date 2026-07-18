@@ -9,8 +9,10 @@ Last updated: 2026-06-25. Lighter-rectangle raster tint fixed: `--enable-low-end
 **2026-07-08 — Chat-history architecture: decided + audited.** The fork's `MessageWindow`
 (`chatHistory.js`, DOM eviction + bidirectional server paging) is kept on `develop`: it bounds RSS
 (true node removal), which upstream does not — the merged pager (`45ee5a71`) is prepend-only, and
-**both open upstream PRs miss the memory bound** (#4661 paging-only; #4998 `chatVirtualizer.js` detaches
-children but keeps them in heap = lag fix, not RSS). Open issue **#4644** asks for DOM removal —
+**neither open upstream PR holds the memory bound while reading old history** (#4661's
+`_trimChatHistoryDOM` bounds the steady state — measured ~1.19k nodes via the vendored bench arm —
+but its click-reload restores everything with no re-trim until the next message and loses scroll
+position; #4998 `chatVirtualizer.js` detaches children but keeps them in heap = lag fix, not RSS). Open issue **#4644** asks for DOM removal —
 attach our eviction PR there (issue-first). If #4998 merges it becomes a substrate → contribute
 eviction on top, retire most of `MessageWindow`. Upstream research: ROADMAP/issues/PRs/discussions
 surveyed; CONTRIBUTING constraints captured (agent PRs issue-first + human-filed, screenshots, no emoji).
