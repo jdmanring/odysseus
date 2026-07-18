@@ -1025,6 +1025,11 @@ def test_deep_drag_assist_and_catchup_chain():
     # A thumb drag into the spacer parks the viewport where the sentinel cannot
     # fire; the scroll listener must trigger paging, and the load-completion
     # rAF must re-check (the spacer shrinking above the viewport generates no
-    # scroll events, so without the re-check the catch-up dead-ends).
-    assert _SRC.count("_sR.bottom > _cR.top - 300") == 1
-    assert "sRect.bottom > cRect.top - 300" in _SRC
+    # scroll events, so without the re-check the catch-up dead-ends). The
+    # condition must be BLANK IN VIEW (spacer edge crossing the viewport), not
+    # a proximity margin: with a margin, every ordinary scroll-up near the
+    # sentinel would chain-drain the entire history and every server page.
+    assert _SRC.count("_sR.bottom > _cR.top)") == 1
+    assert "sRect.bottom > cRect.top)" in _SRC
+    assert "_sR.bottom > _cR.top - 300" not in _SRC
+    assert "_bR.top < _cR2.bottom)" in _SRC

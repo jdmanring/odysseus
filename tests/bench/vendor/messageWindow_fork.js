@@ -1,7 +1,7 @@
 // messageWindow_fork.js -- VENDORED SNAPSHOT. Not shipping code; benchmark input only.
 //
 // Source: static/js/chatHistory.js on the fork's `develop` branch.
-//   blob acb19cff55124c97f0188301fe0422e434ab34ee
+//   blob 355705ce6e35e14d592bffe64825091613e6b84d
 //
 // WHY THIS IS VENDORED, AND WHAT IT IS NOT
 // ----------------------------------------
@@ -351,6 +351,42 @@
   // spacer for the duration of a drain (the drain renders everything anyway).
   // ---------------------------------------------------------------------------
 
+  // Viewport anchor for prepend/prune compensation. Chromium's native scroll
+  // anchoring ALSO restores the anchored node when content above it mutates,
+  // so a blind `scrollTop += heightDelta` double-compensates whenever the net
+  // delta is non-zero (measured: +36px — exactly the removed sentinel — on the
+  // batch that reaches the oldest message). Anchor-restore is idempotent under
+  // native anchoring: if the browser already restored the node, the correction
+  // is zero. Returns null when no content node straddles the viewport top
+  // (viewport in blank spacer, where native anchoring is suppressed by the
+  // spacer's overflow-anchor:none and the net formula must be used instead —
+  // anchoring the content edge there would pin it and the deep-drag catch-up
+  // could never converge on the held position).
+  MessageWindow.prototype._viewportAnchor = function () {
+    var cTop = this._c.getBoundingClientRect().top;
+    var ch = this._c.firstElementChild;
+    while (ch) {
+      var isCtl = (ch === this._sentinel || ch === this._bSentinel ||
+                   ch === this._histSep ||
+                   ch.classList.contains('chat-history-spacer'));
+      if (!isCtl) {
+        var r = ch.getBoundingClientRect();
+        if (r.bottom > cTop) {
+          return (r.top <= cTop + this._c.clientHeight)
+            ? { el: ch, top: r.top } : null;   // below the viewport: in blank
+        }
+      }
+      ch = ch.nextElementSibling;
+    }
+    return null;
+  };
+
+  MessageWindow.prototype._restoreAnchor = function (a) {
+    if (!a || !a.el.isConnected) return false;
+    this._c.scrollTop += a.el.getBoundingClientRect().top - a.top;
+    return true;
+  };
+
   MessageWindow.prototype._estFold = function () {
     // Promote prune-time samples into the live average. Compensated contexts only.
     if (this._estPendCount > 0) {
@@ -645,7 +681,11 @@
           !self._topPending && (self._startIdx > 0 || self._serverHasMore)) {
         var sRect = self._topSpacer.getBoundingClientRect();
         var cRect = self._c.getBoundingClientRect();
-        if (sRect.bottom > cRect.top - 300) {
+        // Blank actually in view (spacer bottom below the viewport top) --
+        // NOT a proximity margin. With a margin, every ordinary scroll-up
+        // near the sentinel would chain-drain the entire history (and every
+        // server page with it); the sentinel owns the one-batch lookahead.
+        if (sRect.bottom > cRect.top) {
           self._topPending = true;
           var _tgen = self._gen;
           requestAnimationFrame(function () {
@@ -692,10 +732,11 @@
     }
 
     // Measure before any DOM mutation so the spacer height is included in the
-    // baseline. The scroll adjustment at the end is scrollHeight_after - before,
-    // which gives the net change (content_height - spacer_height). Computing
-    // before after spacer removal drops the spacer from the baseline and then
-    // overcorrects scrollTop by the full content height regardless of spacer size.
+    // baseline. The net formula (scrollHeight_after - before) is the FALLBACK
+    // compensation, used only when the viewport sits in blank spacer; when a
+    // content node is visible at the viewport top, anchor-restore is used
+    // instead (see _viewportAnchor for why both exist).
+    var _anchor = this._viewportAnchor();
     var before = this._c.scrollHeight;
 
     // Remove any stray spacers before computing insertRef — but never the
@@ -763,7 +804,9 @@
     // refined) lands above the viewport and is absorbed by the net correction.
     this._estFold();
     this._updateTopSpacer();
-    this._c.scrollTop += this._c.scrollHeight - before;
+    if (!this._restoreAnchor(_anchor)) {
+      this._c.scrollTop += this._c.scrollHeight - before;
+    }
 
     // Phase 3: cap historical DOM size; pruned content reloads on scroll-down.
     // Guard is message count (_endIdx - _startIdx), not DOM node count — agent
@@ -851,7 +894,7 @@
           (self._startIdx > 0 || self._serverHasMore)) {
         var _sR = self._topSpacer.getBoundingClientRect();
         var _cR = self._c.getBoundingClientRect();
-        if (_sR.bottom > _cR.top - 300) self._loadOlder();
+        if (_sR.bottom > _cR.top) self._loadOlder();   // blank still in view
       }
     });
   };
@@ -922,6 +965,7 @@
     var hist = this._histChildCount();
     if (hist > BIDI_CAP) {
       var toPrune  = hist - BIDI_CAP;
+      var _nAnchor = this._viewportAnchor();
       var before   = this._c.scrollHeight;
       var removed  = 0;
       var highIdx  = this._startIdx - 1;
@@ -977,9 +1021,11 @@
           // User wants to be at the bottom (button press): snap to new bottom so
           // the rAF chain condition (_isAtBottom) stays true and continues loading.
           this._c.scrollTop = this._c.scrollHeight - this._c.clientHeight;
-        } else {
-          // User is scrolling slowly through history: compensate for removed height
-          // above the viewport so their visual position does not jump.
+        } else if (!this._restoreAnchor(_nAnchor)) {
+          // User is scrolling slowly through history: compensate for removed
+          // height above the viewport so their visual position does not jump.
+          // Anchor-restore when content is visible (idempotent under native
+          // scroll anchoring); net formula as the blank-spacer fallback.
           this._c.scrollTop -= (before - this._c.scrollHeight);
         }
       }
@@ -1012,7 +1058,7 @@
             self._endIdx < self._all.length) {
           var _bR = self._botSpacer.getBoundingClientRect();
           var _cR2 = self._c.getBoundingClientRect();
-          if (_bR.top < _cR2.bottom + BIDI_MARGIN) self._loadNewer();
+          if (_bR.top < _cR2.bottom) self._loadNewer();   // blank still in view
         }
         return;
       }
