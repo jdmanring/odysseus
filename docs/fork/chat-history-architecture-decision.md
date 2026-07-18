@@ -110,6 +110,24 @@ must be stated wherever this decision is defended.
 refetch is shown to dominate — the one axis the harness excludes (it serves cold pages from memory,
 which biases *against* eviction, the honest direction).
 
+**2026-07-17 — the network axis is now measured and it does not dominate.**
+`tests/bench/network_arm_bench.py` (real `app.py` under uvicorn, real `/api/history`, the real
+`MessageWindow` + `olderLoader` wiring, RTT emulated via CDP): deep scroll-back's added cost is
+serialized pages × RTT, confirmed empirically at both lengths, with server handler cost ~2 ms/page
+and a full 2000-message walk costing 19 requests / ~50 kB gzipped. At mobile-class RTT that is
+seconds per *full-history* walk, incurred only when the user actually walks; #4998's zero-network
+scroll-back is real but bounded by this slope. Current numbers live in the generated
+`tests/bench/results/network_arm.md` — do not transcribe them here. The revisit clause above is
+therefore resolved in eviction's favour on present evidence.
+
+**But the same measurement found the decision's premise failing in the real app (fork issue #129):**
+during a sustained scroll-up walk, `MessageWindow` never pruned — the DOM reached ~1,980 of 2,000
+messages at the top. The RSS bound this document's whole argument rests on holds in the synthetic
+harness but **not on the real scroll-up paging path**. #129 must be fixed (and guarded by a
+constant-bound assertion, not the existing `< N` one) for this decision to stand on its stated
+grounds. A related trigger defect, #130 (one-shot IntersectionObserver dead-end at the top), was
+found on the same walk.
+
 ## What we learned from theirs
 
 - **#4998's detach-and-preserve** round-trips node state (`<details>`, highlight, listeners) with no
