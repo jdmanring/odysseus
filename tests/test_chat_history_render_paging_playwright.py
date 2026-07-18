@@ -125,3 +125,69 @@ def test_history_renders_and_pages(live_server):
             assert max_dom < N_MESSAGES, f"DOM held the entire history ({max_dom}) — not bounded"
         finally:
             browser.close()
+
+
+# Constant DOM bound during a full scroll-up walk (issue #129).
+#
+# The bound is a CONSTANT derived from the window geometry, not `< N`: the old
+# assertion above passed while the DOM held ~280 of 300 messages, because "less
+# than all of them" is trivially true one batch before the end. The real
+# invariant is BIDI_MSG_CAP (80) historical messages plus one BATCH_SIZE (25)
+# overshoot before the prune runs, plus slack.
+_DOM_MSG_BOUND = 130
+
+
+def test_scrollup_dom_stays_bounded(live_server):
+    """Walk to the oldest message over real server paging; the DOM must stay at
+    a constant size and the chIdx tag space must stay coherent.
+
+    Guards issue #129: _fetchOlderFromServer prepends to _all and shifts the
+    index space without retagging rendered nodes, so tags from successive pages
+    collide (measured: a full 300-message walk left tags 0-99 against _endIdx
+    280) and the Phase-3 prune breaks at the first stale tag, removing nothing.
+    """
+    from playwright.sync_api import sync_playwright
+    base = live_server
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_context(viewport={"width": 900, "height": 700}).new_page()
+        try:
+            page.goto(base + "/", wait_until="networkidle", timeout=30000)
+            page.wait_for_selector("#chat-history", timeout=15000)
+            page.evaluate("async (sid)=>{await window.sessionModule.loadSessions();"
+                          " await window.sessionModule.selectSession(sid);}", SID)
+            page.wait_for_function(
+                "()=>document.querySelectorAll('#chat-history .msg,#chat-history .agent-thread').length>0",
+                timeout=15000)
+            page.wait_for_timeout(300)
+
+            # Shared driver (CSP blocks add_script_tag on the real app; evaluate()
+            # rides CDP, which page CSP does not govern).
+            with open(os.path.join(REPO, "tests", "bench", "scroll_driver.js")) as fh:
+                page.evaluate(fh.read())
+            walk = page.evaluate(
+                "async () => window.scrollDriver.walkToOldest(document.getElementById('chat-history'))")
+            assert walk["complete"], f"walk never reached the oldest message: {walk}"
+
+            st = page.evaluate("""() => {
+              const w = window.chatHistory, box = document.getElementById('chat-history');
+              const tags = [...box.querySelectorAll('[data-ch-idx]')].map(e => +e.dataset.chIdx);
+              return { taggedNodes: tags.length,
+                       distinctMsgs: new Set(tags).size,
+                       maxTag: tags.length ? Math.max(...tags) : null,
+                       endIdx: w._endIdx, startIdx: w._startIdx };
+            }""")
+            # The bound: rendered historical messages, counted in MESSAGES (a
+            # message may span several DOM children, so distinct tags, not nodes).
+            assert st["distinctMsgs"] <= _DOM_MSG_BOUND, (
+                f"DOM holds {st['distinctMsgs']} messages after the walk "
+                f"(bound {_DOM_MSG_BOUND}) — scroll-up prune is not running (#129)")
+            # Tag-space coherence: the bottom-most rendered message's tag must be
+            # in the CURRENT _all index space. Stale tags collide across pages and
+            # silently disable every chIdx consumer (prune, scroll-down reload).
+            assert st["maxTag"] == st["endIdx"] - 1, (
+                f"chIdx tag space is stale: max tag {st['maxTag']} vs _endIdx "
+                f"{st['endIdx']} — nodes were not retagged after a server prepend")
+        finally:
+            browser.close()
