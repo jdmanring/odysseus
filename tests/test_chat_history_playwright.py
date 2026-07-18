@@ -105,9 +105,9 @@ def test_sentinel_appears_when_session_exceeds_window(browser_page):
     # Give IO one frame to settle — sentinel should NOT fire (container is at bottom)
     browser_page.wait_for_timeout(100)
 
-    # DOM should have 50 messages + 1 sentinel + 1 hist-sep = 52 children
+    # DOM: 50 messages + sentinel + hist-sep + honesty spacer = 53 children
     total = browser_page.evaluate("document.getElementById('chat-history').children.length")
-    assert total == 52, f"expected 52 children (50 msgs + sentinel + sep), got {total}"
+    assert total == 53, f"expected 53 children (50 msgs + sentinel + sep + spacer), got {total}"
 
     sentinel_text = browser_page.evaluate(
         "document.querySelector('.chat-history-sentinel').textContent"
@@ -149,22 +149,27 @@ def test_load_older_prepends_batch_on_scroll(browser_page):
     # load() scrolls to bottom; wait for IO to settle (sentinel must NOT fire yet)
     browser_page.wait_for_timeout(200)
 
-    # Initial: 50 msgs + sentinel + hist-sep = 52
+    # Initial: 50 msgs + sentinel + hist-sep + honesty spacer = 53
     before = browser_page.evaluate(
         "document.getElementById('chat-history').children.length"
     )
-    assert before == 52, f"expected 52 initial children, got {before}"
+    assert before == 53, f"expected 53 initial children, got {before}"
 
-    # Scroll to top — sentinel enters viewport, IntersectionObserver fires
+    # Scroll to the absolute top. With the honesty spacer this is a position
+    # inside the estimated unrendered range, so the catch-up chain drains
+    # batches until real content reaches the held position — i.e. the oldest
+    # message — while the DOM stays bounded by the Phase-3 caps.
     browser_page.evaluate("document.getElementById('chat-history').scrollTop = 0")
     browser_page.wait_for_timeout(500)
 
-    after = browser_page.evaluate(
-        "document.getElementById('chat-history').children.length"
-    )
-    # 25 older messages loaded, sentinel updated (startIdx=25 → still shown)
-    # Total: 50 original + 25 new + 1 sentinel + 1 hist-sep = 77
-    assert after == 77, f"expected 77 after scroll-up load, got {after}"
+    assert browser_page.evaluate("window.chatHistory._startIdx") == 0
+    dom_text = browser_page.evaluate("document.getElementById('chat-history').textContent")
+    assert "Msg 0" in dom_text, "oldest message must be rendered after top-pinned load"
+    n_msgs = browser_page.evaluate("""
+        new Set([...document.querySelectorAll('#chat-history [data-ch-idx]')]
+            .map(e => e.dataset.chIdx)).size
+    """)
+    assert n_msgs < 100, f"DOM must stay bounded during the drain, got {n_msgs} msgs"
 
 
 def test_scroll_position_preserved_after_load_older(browser_page):
@@ -179,24 +184,31 @@ def test_scroll_position_preserved_after_load_older(browser_page):
     """)
     browser_page.wait_for_timeout(200)
 
-    # Scroll to a known position near the top of rendered content
-    browser_page.evaluate("document.getElementById('chat-history').scrollTop = 200")
-    scroll_before = browser_page.evaluate(
-        "document.getElementById('chat-history').scrollTop"
+    # Message-anchored invariant (measure in messages, not pixels): position
+    # the viewport on a RENDERED message just below the honesty spacer, prepend
+    # a batch, and the anchor message must not move in the viewport. The old
+    # pixel assertion (scrollTop != 0 after compensation) is meaningless now
+    # that scrollTop=0 is a valid held position inside the estimated range.
+    anchor_top_before = browser_page.evaluate("""
+        (() => {
+            const c = document.getElementById('chat-history');
+            const first = c.querySelector('[data-ch-idx]');
+            c.scrollTop = first.offsetTop + 400;  // rendered content, beyond the 300px rootMargin (no IO overlap)
+            window.__anchor = first;
+            return first.getBoundingClientRect().top;
+        })()
+    """)
+    browser_page.evaluate("window.chatHistory._loadOlder()")
+    browser_page.wait_for_timeout(300)
+    anchor_top_after = browser_page.evaluate(
+        "window.__anchor.getBoundingClientRect().top"
     )
-
-    # Trigger load — the container must compensate for prepended height
-    browser_page.evaluate("document.getElementById('chat-history').scrollTop = 0")
-    browser_page.wait_for_timeout(500)
-
-    scroll_after = browser_page.evaluate(
-        "document.getElementById('chat-history').scrollTop"
+    assert abs(anchor_top_after - anchor_top_before) <= 2, (
+        f"anchor message moved {anchor_top_after - anchor_top_before:+.0f}px in "
+        f"the viewport after a prepend — compensation broken"
     )
-    # scrollTop should have been adjusted upward (more content above)
-    # It must NOT be 0 (which would mean a visible jump)
-    assert scroll_after > 0, (
-        "scrollTop stayed at 0 after prepend — visible content likely jumped"
-    )
+    # And the batch really was prepended.
+    assert browser_page.evaluate("window.chatHistory._startIdx") == 5
 
 
 # ---------------------------------------------------------------------------
@@ -624,8 +636,14 @@ def test_server_paging_fetches_older_page_on_scroll(browser_page):
     assert calls[0]["sid"] == "s1"
     assert calls[0]["limit"] == 100 and calls[0]["offset"] == 0, calls[0]
 
+    # Holding the absolute top chain-drains to the oldest message (the honesty
+    # spacer keeps blank in view until the range is rendered), so the fetched
+    # page's tail has already been rendered and bottom-pruned by the time we
+    # look. The proof server paging worked end to end is the OLDEST message:
+    # it only exists on the fetched page.
     dom_text = browser_page.evaluate("document.getElementById('chat-history').textContent")
-    assert "Msg 99" in dom_text, "server-paged older message must be rendered on scroll-up"
+    assert "Msg 0" in dom_text, "oldest server-paged message must be reachable on scroll-up"
+    assert browser_page.evaluate("window.chatHistory._startIdx") == 0
 
 
 def test_server_paging_iterates_multiple_pages_then_terminates(browser_page):
