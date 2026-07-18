@@ -121,6 +121,9 @@ append/replace/remove; the indicator stays visible at the viewport bottom when s
 (a UX gain the in-flow box never had). `role=status` for AT; `agent-thinking-dots` kept
 inside the log so cleanup queries and aria-busy ownership are unchanged; no
 transform/will-change. 7 static guards; PR draft `pr-drafts/feat-thinking-overlay.md`.
+Verification scope: the probe measured the geometry of the exact structure the function
+builds (static guards pin the equivalence); driving `_showThinkingSpinner` end-to-end needs
+a live model → on the 3.5 manual-smoke checklist.
 `processWithThinking` (thinking-BLOCK rendering) untouched — different subsystem, verified by
 the streaming suites. The plan's original 3.2/3.3 texts are preserved in git history.
 
