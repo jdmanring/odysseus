@@ -168,11 +168,12 @@ page cap. **That fold carries a known defect unless two companions travel with i
   delivery under a busy main thread, and reading the stale oldest entry discards the enter,
   dead-ending scroll-up paging permanently at the top (captured live). Companions: its
   Playwright regression `test_pinned_top_walk_completes` and static guard
-  `test_sentinel_observer_reads_newest_entry`. **Unlike #129, this defect is in the CURRENT
-  staged snapshot** (verified 2026-07-17: `entries[0].isIntersecting` at its line 197) — the
-  trigger is a busy main thread during a batch render, no server paging required, so
-  in-memory scroll-up can dead-end the same way. The fix must reach the branch even if the
-  server-paging fold were abandoned.
+  `test_sentinel_observer_reads_newest_entry`. **Unlike #129, this defect was in the CURRENT
+  staged snapshot** (the trigger is a busy main thread during a batch render — no server
+  paging required, so in-memory scroll-up dead-ends the same way). **APPLIED to the branch
+  directly (commit `661be326`, 2026-07-17): code fix + static guard, worded without fork
+  issue numbers.** At fold time, carry the Playwright pinned-top walk regression alongside
+  the server-paging infra (it needs `live_app.py`/`scroll_driver.js`).
 
 Known open defects in the same code to re-check at fold time: #127 (scrollbar spacer).
 Filing with #127 open is a disclosure decision, not a blocker; filing with #129 or #130
