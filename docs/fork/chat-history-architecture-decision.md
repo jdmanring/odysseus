@@ -138,6 +138,16 @@ scroll-down after real pruning reaches the newest message cleanly. Guarded by a 
 against the unfixed code. The RSS-bound premise of this decision holds in the real app again.
 #130 remains open.
 
+**2026-07-17, later still — #130 fixed.** The dead-end was not the one-shot disconnect dance: the
+sentinel observer's callback read `entries[0]` — the oldest queued entry — and IO batches a
+leave+enter pair into one delivery when the main thread is busy rendering a batch, so the stale
+leave was read and the enter discarded, leaving an armed observer that could never fire again
+(captured live: one delivery with `isIntersecting [false, true]`). Fixed by reading the newest
+entry (`entries[entries.length-1]`). A 9-cell RTT × pin-cadence probe sweep dead-ended in 2 cells
+pre-fix and completes in all 9 post-fix; guarded by a pinned-top full-walk Playwright test plus a
+deterministic static guard. Note the reach: this bug needs no server paging (busy main thread is
+the trigger), so it also lives in the staged #2 snapshot — recorded in plan Part 4.5.
+
 ## What we learned from theirs
 
 - **#4998's detach-and-preserve** round-trips node state (`<details>`, highlight, listeners) with no
