@@ -8,8 +8,7 @@ human to file.
 
 Status of inputs (already done):
 - Branch contamination removed (the fork PR-draft `.md` is no longer on the branch).
-- Provenance reframed to the precise truth (see Part 1). Earlier "full code independence" was
-  wrong and is corrected.
+- Provenance settled (Part 1.2 — the only framing to use, anywhere).
 
 ---
 
@@ -17,38 +16,28 @@ Status of inputs (already done):
 
 The claim must be exactly true, no more and no less, because a reviewer can read both diffs.
 
-1.1 **Timeline locked with primary evidence (re-verified 2026-07-18, author-date precision).**
-`31d0bbb5` (first branch commit, "virtual message window and scroll fixes"): AUTHOR date
-2026-06-11T13:47:10-07:00 = **2026-06-11 20:47 UTC**; its previously recorded "2026-06-20
-01:42 UTC" was the rebase COMMIT date, not authorship. #4661 opened 2026-06-20T21:07:50Z
-(`gh pr view 4661 --json createdAt`, re-verified; still OPEN). The architecture therefore
-predates #4661 by **nine days**, not 19 hours. The `_evictLive` teardown commit `7c959338`:
-author date 2026-06-20T18:55:06-07:00 = **2026-06-21 01:55 UTC**, ~4h48m after #4661 opened.
+1.1 **Timeline (primary evidence, author dates).** First branch commit `31d0bbb5` ("virtual
+message window and scroll fixes"): authored 2026-06-11 20:47 UTC. #4661 opened
+2026-06-20 21:07 UTC (`gh pr view 4661 --json createdAt`; OPEN). The architecture predates
+#4661 by nine days.
 
-1.2 **Provenance framing — RESOLVED 2026-07-18 (supersedes the earlier "adapted, credited"
-framing; adopts and sharpens the recon §7 retraction).** The draft header's 2026-07-07
-retraction and the plan's older "adapted from #4661" instruction contradicted each other;
-this is the reconciled, exactly-true statement — every clause verifiable:
-- **Independent, timeline-proven:** the `MessageWindow` architecture, bidirectional
-  windowing, eviction model, and message-count caps (authored 9 days before #4661 existed).
-- **The `_evictLive` teardown: no influence claim in either direction.** Authored ~5h after
-  #4661 opened, so timeline proves nothing. The overlapping lines clear this app's own
-  `_waveInterval`/`_elapsedTicker` handles — an idiom forced on ANY implementation that
-  removes these nodes; #4661's actual mechanism (`_trimChatHistoryDOM`) was never used and
-  is architecturally incompatible with the control elements. Ours additionally releases
-  `_streamRenderer`, disconnects `_sObs`, and calls `hljsDeferForgetNode` — beyond anything
-  in #4661.
-- **No in-code #4661 attribution** (the transient attribution comment from `0e9ff11f` was
-  dropped at the 463526b0 convergence — correct). The PR description acknowledges #4661 as
-  parallel work on the same leak class, states these facts, and claims nothing more.
+1.2 **Relationship to #4661 — SETTLED. State it exactly this way, everywhere, always:**
+- The `MessageWindow` architecture, bidirectional windowing, eviction model, and
+  message-count caps are independent work that predates #4661's existence (1.1).
+- The per-node teardown is described by what it does: it clears this app's own
+  `_waveInterval`/`_elapsedTicker` handles (which any code removing these nodes must
+  clear), releases `_streamRenderer`, disconnects the IntersectionObserver, and releases
+  hljs-defer references. #4661's `_trimChatHistoryDOM` is not used — it destroys this
+  implementation's control elements.
+- #4661 is acknowledged as parallel work on the same problem. No adaptation claim, no
+  attribution, no provenance discussion beyond these facts — in code, drafts, or docs.
 
-1.3 **Reconcile every #4661 reference to the 1.2 framing.** Re-run before filing. Audited
-2026-07-18: the draft, `memory-explosion-research.md`, pr-status, active-work updated to the
-facts-only framing; no document may claim either full independence of the teardown OR
-adaptation from #4661 — both overclaim what the evidence supports.
+1.3 **Exit check:** before filing, grep the draft and all fork docs for `4661`; every
+reference must match 1.2 verbatim in substance. Nothing may claim adaptation from #4661 and
+nothing may argue about influence.
 
-1.4 **Exit check:** a reviewer comparing the two diffs finds nothing we claimed as original
-that is actually #4661's, and finds clear credit where we did adapt.
+1.4 **Exit check:** a reviewer comparing the two diffs finds every claim verifiable and
+nothing argued about provenance beyond the 1.2 facts.
 
 ---
 
