@@ -1,0 +1,233 @@
+{
+  "env": {
+    "platform": "Linux-7.1.3-artix1-3-x86_64-with-glibc2.43",
+    "python": "3.14.6",
+    "repeats_kept": 3,
+    "warmup_runs_discarded": 1,
+    "server": "real app.py under uvicorn, real /api/history, seeded SQLite",
+    "rtt_emulation": "CDP Network.emulateNetworkConditions, applied after app load",
+    "detach_comparison": "structurally 0 pages / 0 bytes on scroll-back (#4998 restores from in-heap __vChildren); not a measured cell"
+  },
+  "server_handler_latency": {
+    "500": {
+      "median_ms": 1.99,
+      "spread_ms": 4.96
+    },
+    "2000": {
+      "median_ms": 2.06,
+      "spread_ms": 5.03
+    }
+  },
+  "results": [
+    {
+      "n": 500,
+      "rtt_ms": 0,
+      "repeats_kept": 3,
+      "complete": true,
+      "complete_runs": "3/3",
+      "walk_ms": 3608,
+      "walk_ms_spread": 5,
+      "walk_ms_raw": [
+        3608,
+        3608,
+        3613
+      ],
+      "pages": 4,
+      "pages_spread": 0,
+      "pages_raw": [
+        4,
+        4,
+        4
+      ],
+      "wire_bytes": 10616,
+      "wire_bytes_spread": 0,
+      "wire_bytes_raw": [
+        10616,
+        10616,
+        10616
+      ],
+      "iters": 18,
+      "iters_spread": 0,
+      "iters_raw": [
+        18,
+        18,
+        18
+      ]
+    },
+    {
+      "n": 500,
+      "rtt_ms": 40,
+      "repeats_kept": 3,
+      "complete": true,
+      "complete_runs": "3/3",
+      "walk_ms": 3681,
+      "walk_ms_spread": 60,
+      "walk_ms_raw": [
+        3667,
+        3681,
+        3727
+      ],
+      "pages": 4,
+      "pages_spread": 0,
+      "pages_raw": [
+        4,
+        4,
+        4
+      ],
+      "wire_bytes": 10616,
+      "wire_bytes_spread": 0,
+      "wire_bytes_raw": [
+        10616,
+        10616,
+        10616
+      ],
+      "iters": 18,
+      "iters_spread": 0,
+      "iters_raw": [
+        18,
+        18,
+        18
+      ]
+    },
+    {
+      "n": 500,
+      "rtt_ms": 150,
+      "repeats_kept": 3,
+      "complete": true,
+      "complete_runs": "3/3",
+      "walk_ms": 4199,
+      "walk_ms_spread": 4,
+      "walk_ms_raw": [
+        4201,
+        4199,
+        4197
+      ],
+      "pages": 4,
+      "pages_spread": 0,
+      "pages_raw": [
+        4,
+        4,
+        4
+      ],
+      "wire_bytes": 10616,
+      "wire_bytes_spread": 0,
+      "wire_bytes_raw": [
+        10616,
+        10616,
+        10616
+      ],
+      "iters": 18,
+      "iters_spread": 0,
+      "iters_raw": [
+        18,
+        18,
+        18
+      ]
+    },
+    {
+      "n": 2000,
+      "rtt_ms": 0,
+      "repeats_kept": 3,
+      "complete": true,
+      "complete_runs": "3/3",
+      "walk_ms": 21342,
+      "walk_ms_spread": 577,
+      "walk_ms_raw": [
+        21652,
+        21342,
+        21075
+      ],
+      "pages": 19,
+      "pages_spread": 0,
+      "pages_raw": [
+        19,
+        19,
+        19
+      ],
+      "wire_bytes": 50486,
+      "wire_bytes_spread": 0,
+      "wire_bytes_raw": [
+        50486,
+        50486,
+        50486
+      ],
+      "iters": 78,
+      "iters_spread": 0,
+      "iters_raw": [
+        78,
+        78,
+        78
+      ]
+    },
+    {
+      "n": 2000,
+      "rtt_ms": 40,
+      "repeats_kept": 3,
+      "complete": true,
+      "complete_runs": "3/3",
+      "walk_ms": 21755,
+      "walk_ms_spread": 286,
+      "walk_ms_raw": [
+        21608,
+        21894,
+        21755
+      ],
+      "pages": 19,
+      "pages_spread": 0,
+      "pages_raw": [
+        19,
+        19,
+        19
+      ],
+      "wire_bytes": 50486,
+      "wire_bytes_spread": 0,
+      "wire_bytes_raw": [
+        50486,
+        50486,
+        50486
+      ],
+      "iters": 78,
+      "iters_spread": 0,
+      "iters_raw": [
+        78,
+        78,
+        78
+      ]
+    },
+    {
+      "n": 2000,
+      "rtt_ms": 150,
+      "repeats_kept": 3,
+      "complete": true,
+      "complete_runs": "3/3",
+      "walk_ms": 23818,
+      "walk_ms_spread": 245,
+      "walk_ms_raw": [
+        23818,
+        23981,
+        23736
+      ],
+      "pages": 19,
+      "pages_spread": 0,
+      "pages_raw": [
+        19,
+        19,
+        19
+      ],
+      "wire_bytes": 50486,
+      "wire_bytes_spread": 0,
+      "wire_bytes_raw": [
+        50486,
+        50486,
+        50486
+      ],
+      "iters": 78,
+      "iters_spread": 0,
+      "iters_raw": [
+        78,
+        78,
+        78
+      ]
+    }
+  ]
+}
