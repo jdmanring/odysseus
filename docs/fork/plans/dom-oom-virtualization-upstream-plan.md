@@ -35,6 +35,10 @@ message window and scroll fixes"): authored 2026-06-11 20:47 UTC. #4661 opened
 1.3 **Exit check:** before filing, grep the draft and all fork docs for `4661`; every
 reference must match 1.2 verbatim in substance. Nothing may claim adaptation from #4661 and
 nothing may argue about influence.
+**Run 2026-07-18: PASS** (draft, decision record, pr-status, eviction draft all conform;
+the one nonconforming phrase found — this plan's own closing line said "and credit" — was
+corrected to the 1.2 framing). The streaming-throttle branch's genuine adaptation credits
+are a different branch and are out of scope. Re-run once more at file time.
 
 1.4 **Exit check:** a reviewer comparing the two diffs finds every claim verifiable and
 nothing argued about provenance beyond the 1.2 facts.
@@ -88,6 +92,12 @@ and verified.
 2.4 **Honest tradeoff, stated up front.** Ours is ~873 lines vs #4661's ~145. Cite the
 maintainability cost honestly; do not bury it. The pitch is "more complete and measured,"
 not "theirs is bad."
+**Verified 2026-07-18 — the old counts were stale and understated our size.** Measured:
+#4661's trim is 142 lines (the vendored file); the branch's source diff is ~1,432
+insertions across 5 files, plus ~2,202 test lines
+(`git diff --shortstat upstream-mirror...fix/dom-oom-virtualization`). Draft matrix row
+and prose corrected to the measured numbers. Re-measure after the Part-5 rebuild (the
+fold will grow the diff further).
 
 2.5 **Exit check:** every row of the matrix has a number and a verified citation, and the
 tradeoff is stated.
@@ -283,4 +293,4 @@ first):
   claims, no fork-internal leaks).
 
 Until then the branch stays unfiled. #4661 being open is not a blocker; it is the reference
-we measure against and credit.
+we measure against, acknowledged as parallel work per Part 1.2.
