@@ -172,6 +172,21 @@ scroll-down, snap-transition, and overlay behaviours.
 4.1 **Code audit** of `chatHistory.js`: edge cases (empty history, single message, rapid
 session switching, eviction during streaming), correctness of `_endIdx`/`_startIdx`
 bookkeeping, and that every removal path tears down the full reference set from Part 1.2.
+**DONE (2026-07-18, commit `81b462c7` on develop, converged to the branch).** Full-file
+read with those lenses. Passed clean: empty/single-message load, streaming eviction
+(the newest ~60 nodes always survive `_evictLive`'s count arithmetic), index
+bookkeeping (all paths track via `data-ch-idx`, boundary peeks included). Four real
+defects found and fixed: (1) the inline Phase-3 prunes in `_loadOlder`/`_loadNewer`
+removed nodes with NO teardown while registering every rendered batch with the
+hljs-defer observer — unbounded detached-subtree retention on deep scroll, the exact
+leak class the branch closes; all seven removal sites now go through a single
+`_teardownNode` helper. (2) `scrollToBottom()` with nothing to drain latched
+`_draining=true` forever (suppressed bottom spacer; next scroll-up prune's rAF
+re-entered drain and yanked the user to the bottom). (3) stale-generation rAFs touched
+`_clearBusy`/`_draining` before the gen check, clobbering new-session state. (4)
+`_pruneBottom` was dead code (zero call sites — the inline prune superseded it and lost
+its teardown en route); deleted, with a guard test preventing return. Static guards
+updated (123 pass); bench snapshot re-vendored; full suite + convergence guard green.
 
 4.2 **Test-coverage audit:** the branch has 109 static-analysis tests plus 11 Playwright
 functions. Confirm they actually exercise scroll-down windowing, the snap transition, and
@@ -180,6 +195,9 @@ in the stale-count audit; keep them accurate as tests are added.)
 
 4.3 **Cleanliness audit:** branch carries only source and tests (contamination removed,
 verified). Re-verify before filing.
+**Re-verified 2026-07-18:** `git diff --name-only upstream-mirror...fix/dom-oom-virtualization`
+lists exactly 5 source files + 3 test files; no fork-management or bench-infra files.
+(Re-verify once more at file time, after the Part-5 rebuild.)
 
 ---
 
