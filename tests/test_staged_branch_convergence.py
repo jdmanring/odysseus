@@ -36,6 +36,8 @@ CONVERGED_FILES = [
     ("tests/test_chat_history_render_paging_playwright.py", "#"),
     ("tests/bench/live_app.py", "#"),
     ("tests/bench/scroll_driver.js", "//"),
+    ("tests/bench/mock_llm.py", "#"),
+    ("tests/test_chat_history_longsession_playwright.py", "#"),
 ]
 
 
