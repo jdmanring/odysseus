@@ -192,6 +192,15 @@ updated (123 pass); bench snapshot re-vendored; full suite + convergence guard g
 functions. Confirm they actually exercise scroll-down windowing, the snap transition, and
 teardown completeness; add tests where they do not. (Note: the draft's counts were corrected
 in the stale-count audit; keep them accurate as tests are added.)
+**DONE (2026-07-18).** Scroll-down windowing was already covered at runtime
+(`test_bidi_cap_held_during_scroll_down`, `test_load_newer_fires_on_bottom_sentinel`); the
+drain/snap transition and teardown were static-only. Added two Playwright tests:
+`test_scroll_to_bottom_drains_to_newest_and_stays_bounded` (drain from deep history reaches
+`_endIdx == n`, clears `_draining`, lands at the bottom with the newest message rendered,
+DOM stays ≤ BIDI_CAP + batch) and `test_teardown_fires_at_runtime_when_nodes_are_pruned`
+(armed node's `_waveInterval`/`_streamRenderer` nulled and `hljsDeferForgetNode` called when
+Phase-2 pruning removes it; non-vacuity asserted — the node is confirmed removed first).
+Suite now 123 static + 16 Playwright + 8 a11y; draft's test plan updated to match.
 
 4.3 **Cleanliness audit:** branch carries only source and tests (contamination removed,
 verified). Re-verify before filing.
