@@ -95,11 +95,17 @@ Walk back 20 messages, return to the bottom, then walk back again; the second pa
 Walk back 200 messages (past the window, so the bounded arms pruned the bottom), then measure the return to the newest message. Designed as the axis the detach family owns — `detach` holds every message's children in `__vChildren`, while `evict`/`hybrid` must re-render from data.
 
 
-**Both bounded arms' cells are withheld, for two different reasons, and neither is a result.** `evict` walks its full 200 messages but its scroll anchoring defeats the driver's `scrollTop +=` walk, so it never reaches the newest message. `hybrid`'s top spacer drifts (fork issue #126), so its excursion falls short of 200. A stalled walk is not a fast one: the harness reports `complete`/`moved` and blanks the cell rather than publishing a near-zero. **What survives here is only `detach` vs `naive`** — and it is brutal for `detach`, for the same `offsetHeight`-reflow reason as the scroll-jank row. No claim about eviction's deep scroll-back cost is supported by this table.
+**The `hybrid` and `trim4661` cells are withheld, for two different reasons, and neither blank is a result.** `hybrid`'s top spacer drifts (fork issue #126), so its excursion falls short of 200 (66–116 traversed). `trim4661`'s history beyond its trim window is reachable only through the click-driven "Show older" bar, which a scroll driver never presses, so its walk stalls at 166. A stalled walk is not a fast one: the harness reports `complete`/`moved` and blanks the cell rather than publishing a near-zero. `evict` completes the full 200-message walk (see the traversed table below) and its numbers stand. The comparison is brutal for `detach`, for the same `offsetHeight`-reflow reason as the scroll-jank row.
 
 
 (`detach` at n=5000 carries a wide spread from one outlier run; the median is robust and every kept run exceeds 470ms. Raw per-run values are in `bench.json`.)
 
+| n | naive | detach | evict | hybrid | trim4661 |
+|---|---|---|---|---|---|
+| 250 | 0.0 | 30.85 ±7.3 | 8.35 ±2.34 | — | — |
+| 1000 | 0.0 | 116.39 ±52.92 | 8.65 ±1.91 | — | — |
+| 2000 | 0.0 | 235.78 ±28.32 | 9.01 ±2.53 | — | — |
+| 5000 | 0.0 | 569.67 ±146.06 | 9.59 ±5.68 | — | — |
 
 Messages actually traversed by the excursion (`evict`'s spacer compresses unrendered history, so a fixed message target overshoots — it walks *further* than the others, which biases this table against it):
 
@@ -109,12 +115,6 @@ Messages actually traversed by the excursion (`evict`'s spacer compresses unrend
 | 1000 | 200 | 200 | 200 | 116 | 166 |
 | 2000 | 200 | 200 | 200 | 116 | 166 |
 | 5000 | 200 | 200 | 200 | 66 | 166 |
-| n | naive | detach | evict | hybrid | trim4661 |
-|---|---|---|---|---|---|
-| 250 | 0.0 | 30.85 ±7.3 | 8.35 ±2.34 | — | — |
-| 1000 | 0.0 | 116.39 ±52.92 | 8.65 ±1.91 | — | — |
-| 2000 | 0.0 | 235.78 ±28.32 | 9.01 ±2.53 | — | — |
-| 5000 | 0.0 | 569.67 ±146.06 | 9.59 ±5.68 | — | — |
 
 ## Deep scroll-back — STYLE-recalc ms
 

@@ -615,9 +615,20 @@ def main():
     ap.add_argument("--lengths", default="100,500,2000")
     ap.add_argument("--arms", default="naive,detach,evict")
     ap.add_argument("--repeats", type=int, default=7)
+    ap.add_argument("--render-only", action="store_true",
+                    help="re-render bench.md from the existing bench.json without re-running")
     args = ap.parse_args()
     lengths = [int(x) for x in args.lengths.split(",")]
     arms = [a.strip() for a in args.arms.split(",")]
+
+    if args.render_only:
+        data = json.loads((RESULTS_DIR / "bench.json").read_text())
+        rows = data["results"]
+        lengths = sorted({r["n"] for r in rows})
+        arms = list(dict.fromkeys(r["arm"] for r in rows))
+        _write_markdown(rows, lengths, arms, data["env"])
+        print(f"Re-rendered {RESULTS_DIR/'bench.md'} from bench.json")
+        return
 
     try:
         from playwright.sync_api import sync_playwright
@@ -723,21 +734,22 @@ def _write_markdown(rows, lengths, arms, env):
              "measure the return to the newest message. Designed as the axis the detach family owns — "
              "`detach` holds every message's children in `__vChildren`, while `evict`/`hybrid` must "
              "re-render from data.\n")
-    L.append("\n**Both bounded arms' cells are withheld, for two different reasons, and neither is a "
-             "result.** `evict` walks its full 200 messages but its scroll anchoring defeats the "
-             "driver's `scrollTop +=` walk, so it never reaches the newest message. `hybrid`'s top "
-             "spacer drifts (fork issue #126), so its excursion falls short of 200. A stalled walk is "
-             "not a fast one: the harness reports `complete`/`moved` and blanks the cell rather than "
-             "publishing a near-zero. **What survives here is only `detach` vs `naive`** — and it is "
-             "brutal for `detach`, for the same `offsetHeight`-reflow reason as the scroll-jank row. "
-             "No claim about eviction's deep scroll-back cost is supported by this table.\n")
+    L.append("\n**The `hybrid` and `trim4661` cells are withheld, for two different reasons, and "
+             "neither blank is a result.** `hybrid`'s top spacer drifts (fork issue #126), so its "
+             "excursion falls short of 200 (66–116 traversed). `trim4661`'s history beyond its trim "
+             "window is reachable only through the click-driven \"Show older\" bar, which a scroll "
+             "driver never presses, so its walk stalls at 166. A stalled walk is not a fast one: the "
+             "harness reports `complete`/`moved` and blanks the cell rather than publishing a "
+             "near-zero. `evict` completes the full 200-message walk (see the traversed table below) "
+             "and its numbers stand. The comparison is brutal for `detach`, for the same "
+             "`offsetHeight`-reflow reason as the scroll-jank row.\n")
     L.append("\n(`detach` at n=5000 carries a wide spread from one outlier run; the median is robust and "
              "every kept run exceeds 470ms. Raw per-run values are in `bench.json`.)\n")
+    L += _table(by, lengths, arms, "deepback_layout_ms")
     L.append("\nMessages actually traversed by the excursion (`evict`'s spacer compresses unrendered "
              "history, so a fixed message target overshoots — it walks *further* than the others, "
              "which biases this table against it):\n")
     L += _table(by, lengths, arms, "deepback_moved_msgs")
-    L += _table(by, lengths, arms, "deepback_layout_ms")
     L.append("\n## Deep scroll-back — STYLE-recalc ms\n")
     L.append("Style recalc is where the re-parse shows: re-appending detached nodes skips `innerHTML` "
              "parse and style resolution; re-rendering from data does not.\n")

@@ -206,15 +206,14 @@ Two rules follow, and they are load-bearing:
   eviction — the arm the conclusion favours, i.e. the honest direction. `deepback_moved_msgs` is
   published so the asymmetry is auditable. (That the spacer misreports also means eviction's *scrollbar
   lies to the user* in the real app — a separate, real finding.)
-- **Neither bounded arm produces a deep-scroll-back number**, for two different reasons, and the table
-  says so rather than showing a flattering zero. `hybrid`'s top spacer drifts (fork issue #126) so its
-  excursion falls short. `evict` walks the full excursion but its scroll anchoring defeats the driver's
-  `scrollTop +=` walk and it never reaches the newest message. **Consequence: this benchmark supports no
-  claim about eviction's deep scroll-back cost.** The refutation of the hybrid does not rest on those
-  cells (it rests on memory, which is structural).
-- **That `evict` cannot be driven back to the bottom is itself a lead, not just a harness quirk** — it
-  may indicate a real "scrolling down never reaches the newest message" bug under programmatic scroll.
-  Unverified in the real app; do not report it as a bug until reproduced there.
+- **Two arms produce no deep-scroll-back number**, for two different reasons, and the table says so
+  rather than showing a flattering zero. `hybrid`'s top spacer drifts (fork issue #126) so its
+  excursion falls short (66–116 of 200 traversed). `trim4661`'s history beyond its trim window is
+  reachable only through the click-driven "Show older" bar, which the scroll driver never presses, so
+  its walk stalls at 166. `evict` completes the full 200-message walk and returns to the newest
+  message; its cells (~8–10 ms flat across n) are published results. (An earlier run stalled on
+  `evict`'s scroll anchoring; that no longer reproduces — the current `bench.json` records
+  `deepback_complete: true` at every n.)
 - **Network is excluded.** `evict`/`hybrid` refetch cold pages from the server in the real app; the
   harness serves them from memory. Their scroll-back numbers are a **lower bound**. Again: biased
   against the conclusion.
