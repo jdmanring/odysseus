@@ -174,6 +174,28 @@ Manual items above are the 3.5 long-session pass's checklist; nothing else block
 count stays bounded, scroll-up reload works, and the snap behaviour is correct throughout.
 This is the gate active-work has always flagged.
 
+> **AUTOMATED (2026-07-18) — the core of this gate no longer needs a human or a live
+> model.** `tests/test_chat_history_longsession_playwright.py` + `tests/bench/mock_llm.py`
+> (stdlib-only OpenAI-compatible SSE server; the app treats unknown hosts as
+> OpenAI-compatible, so the REAL send path runs unmodified): 55 real composer→
+> `/api/chat_stream`→SSE→render exchanges in headless Chromium. Asserts per exchange:
+> completion (ACK marker), DOM bound (≤145 children across the live-prune threshold —
+> 110 messages streamed), auto-follow; plus both thinking indicators (initial
+> `.ai-spinner`, mid-stream `.agent-thinking-dots` overlay — closing 3.3's "needs a live
+> model" leg), scroll-up walk to message 0 bounded, scroll-to-bottom re-pin, zero page
+> errors. ~90s; three consecutive green runs; on develop and converged to the staged
+> branch (send-path skip-probe there). **Its first run caught a real ingested upstream
+> bug: every `/api/chat_stream` 500'd (`_explicit_web_intent` NameError, upstream
+> `264da651` removed the definition and kept 3 reads; only static AST tests covered the
+> route). Fixed: fork #134, branch `fix/chat-stream-web-intent-nameerror` (from
+> upstream-mirror, staged for upstream), cherry-picked to develop with a symtable
+> undefined-global-read guard closing the class.**
+>
+> **Still genuinely manual (eyes/hardware, one short pass):** touch/wheel input feel
+> (trusted touch events can't be synthesized), flash-on-reload perception, lazy-image
+> decode timing on real large images, scroll-to-bottom affordance discoverability, and
+> QtWebEngine ecological validity (the suite runs stock Chromium, not the Qt runtime).
+
 3.6 **Exit check:** 3.1-3.5 all pass with reproducible steps; new regression tests cover the
 scroll-down, snap-transition, and overlay behaviours.
 

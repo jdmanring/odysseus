@@ -83,6 +83,12 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
   mapping, server paging, the full deep-back walk, and DOM bounding against the live
   `/api/history` contract (skips with an explicit reason until the separately-staged
   route-shadowing fix unblocks the paginated endpoint)
+- `tests/test_chat_history_longsession_playwright.py`: automated long-session soak — a
+  local mock OpenAI-compatible server (`tests/bench/mock_llm.py`) streams SSE replies so
+  the real send path runs end-to-end in headless Chromium for 55 exchanges; asserts every
+  exchange completes, the DOM stays bounded across the live-prune threshold, auto-follow
+  holds, both thinking indicators appear and clear, scroll-up walks back to the first
+  message bounded, and scroll-to-bottom re-pins (~90s, no model required)
 - Manual: run a long agent session (80+ exchanges) and confirm DOM child count stays bounded via `document.getElementById('chat-history').children.length` in the browser console
 - Manual: confirm the eviction notice appears after enough exchanges and the text is correct
 - Manual: confirm `scrollTop` does not jump when eviction fires
@@ -102,8 +108,11 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 - `tests/test_chat_history_a11y_js.py` — accessibility contract tests
 - `tests/test_chat_history_render_paging_playwright.py` — end-to-end render/paging
   regression suite against the live app
-- `tests/bench/live_app.py`, `tests/bench/scroll_driver.js` — real-app bootstrap and
-  scroll-walk driver the end-to-end suite runs on
+- `tests/test_chat_history_longsession_playwright.py` — automated long-session streaming
+  soak (real send path, mock model)
+- `tests/bench/live_app.py`, `tests/bench/scroll_driver.js`, `tests/bench/mock_llm.py` —
+  real-app bootstrap, scroll-walk driver, and mock OpenAI-compatible model server the
+  end-to-end suites run on
 
 Dependency: the end-to-end paging suite requires the paginated `/api/history` endpoint
 to actually be reachable. A legacy unpaginated route currently shadows it; that
