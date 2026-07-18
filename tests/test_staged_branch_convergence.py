@@ -33,6 +33,9 @@ CONVERGED_FILES = [
     ("tests/test_chat_history_js.py", "#"),
     ("tests/test_chat_history_playwright.py", "#"),
     ("tests/test_chat_history_a11y_js.py", "#"),
+    ("tests/test_chat_history_render_paging_playwright.py", "#"),
+    ("tests/bench/live_app.py", "#"),
+    ("tests/bench/scroll_driver.js", "//"),
 ]
 
 
@@ -53,6 +56,11 @@ def _normalize(text: str, comment_prefix: str) -> str:
     for line in text.split("\n"):
         s = line.strip()
         if not s or s.startswith(comment_prefix):
+            continue
+        # For JS files, whole-line block-comment lines (/* ... */ bodies) are
+        # comments too -- fork-issue refs live there and may be scrubbed on the
+        # staged branch just like // lines.
+        if comment_prefix == "//" and (s.startswith("*") or s.startswith("/*")):
             continue
         kept.append(line)
     return "\n".join(kept)

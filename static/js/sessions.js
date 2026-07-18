@@ -76,6 +76,32 @@ function _nextPaint() {
   return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 }
 
+function _displayHistoryContent(content) {
+  const text = String(content || '');
+  if (text.length <= HISTORY_DISPLAY_CHAR_LIMIT) return text;
+  const head = text.slice(0, HISTORY_DISPLAY_CHAR_LIMIT - HISTORY_DISPLAY_TAIL_CHARS);
+  const tail = text.slice(-HISTORY_DISPLAY_TAIL_CHARS);
+  const omitted = text.length - head.length - tail.length;
+  return [
+    `> Large message display clipped (${omitted.toLocaleString()} characters omitted). Full content remains stored in chat history/export.`,
+    '',
+    head,
+    '',
+    '```text',
+    `[... ${omitted.toLocaleString()} characters omitted from on-screen history render ...]`,
+    '```',
+    '',
+    tail,
+  ].join('\n');
+}
+
+function _stripUserVisionBlocks(text) {
+  return String(text || '').replace(
+    /\n*\[Image: ([^\]]+)\]\n[\s\S]*?(?=\n*\[Image: |\n*\[Image attached: |\n*=== File: |\n*\[PDF content\]:|$)/g,
+    ''
+  ).trim();
+}
+
 function _historyUrl(id, { limit = null, offset = null } = {}) {
   const url = new URL(`${API_BASE}/api/history/${id}`);
   if (limit != null) url.searchParams.set('limit', String(limit));
@@ -94,13 +120,14 @@ function _mapHistoryMessages(rawMsgs, modelName) {
     const meta = msg.metadata ? { ...msg.metadata, _fromHistory: true } : null;
     let displayContent;
     if (typeof msg.content === 'string') {
-      displayContent = msg.content;
+      displayContent = _displayHistoryContent(msg.content);
     } else if (Array.isArray(msg.content)) {
-      displayContent = msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n').trim();
+      displayContent = _displayHistoryContent(msg.content.filter(p => p.type === 'text').map(p => p.text).join('\n').trim());
     } else {
       displayContent = '';
     }
     if (msg.role === 'user') {
+      displayContent = _stripUserVisionBlocks(displayContent);
       if (displayContent.trim() === 'Continue where you left off' || displayContent.trim().startsWith('Your message was cut off.') || displayContent.trim().startsWith('Your previous response was interrupted.') || displayContent.includes('[Instruction: Rewrite') || displayContent.includes('[Instruction: Explain')) continue;
       const docEditMatch = displayContent.match(/^In the document, edit this specific text \((lines? [\d-]+)\):\n```\n([\s\S]*?)\n```\n\nInstruction: ([\s\S]*)$/);
       if (docEditMatch) {
