@@ -97,7 +97,9 @@ not "theirs is bad."
 insertions across 5 files, plus ~2,202 test lines
 (`git diff --shortstat upstream-mirror...fix/dom-oom-virtualization`). Draft matrix row
 and prose corrected to the measured numbers. Re-measure after the Part-5 rebuild (the
-fold will grow the diff further).
+fold will grow the diff further). **Re-measured post-rebuild 2026-07-18: 1,486 source
+insertions / 140 deletions across 5 files, 2,826 test lines (11 files total); draft
+matrix updated to ~1,490 / ~2,830.**
 
 2.5 **Exit check:** every row of the matrix has a number and a verified citation, and the
 tradeoff is stated.
