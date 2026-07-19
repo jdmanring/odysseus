@@ -102,6 +102,10 @@
           if (_sm === 'mini') document.documentElement.classList.add('ody-sidebar-mini');
           else if (_sm === 'off') document.documentElement.classList.add('ody-sidebar-off');
         }
+      // Apply chat column width early (same no-flash rationale as ui-scale).
+      try {
+        var _cw = parseInt(localStorage.getItem('odysseus-chat-width'), 10);
+        if (_cw && _cw !== 800) document.documentElement.style.setProperty('--chat-max-user', Math.max(600, Math.min(1600, _cw)) + 'px');
       } catch(e){}
       // Apply background pattern on body once available
       if (t && t.bgPattern && t.bgPattern !== 'none') {
@@ -646,6 +650,15 @@
             <select id="theme-text-size-select" class="theme-fd-select" aria-label="Text size">
               <option value="100">Default</option>
               <option value="125">Larger</option>
+            </select>
+          </div>
+          <div class="theme-fd-group">
+            <label class="theme-fd-label">Chat width</label>
+            <select id="theme-chat-width-select" class="theme-fd-select" aria-label="Chat column width">
+              <option value="800">Default (63 ch)</option>
+              <option value="900">Wide (72 ch)</option>
+              <option value="1000">80 columns</option>
+              <option value="1200">Extra wide (96 ch)</option>
             </select>
           </div>
           <div class="theme-fd-group" id="theme-frosted-group">

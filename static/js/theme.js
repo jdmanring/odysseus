@@ -394,6 +394,22 @@ export function applyFontDensity(font, density) {
 const UI_SCALE_KEY = 'odysseus-ui-scale';
 const DEFAULT_UI_SCALE = '100';
 
+// Chat column width (px). The chat renders in a monospace font by default, so
+// this is effectively a characters-per-line preference: 800px = 63 ch (the
+// historical default), 1000px = 80 ch at default text size. Applied as a CSS
+// custom property that style.css's .chat-history --chat-max falls back from.
+const CHAT_WIDTH_KEY = 'odysseus-chat-width';
+const DEFAULT_CHAT_WIDTH = '800';
+
+export function applyChatWidth(px) {
+  const n = Math.max(600, Math.min(1600, parseInt(px, 10) || 800));
+  if (n === 800) {
+    document.documentElement.style.removeProperty('--chat-max-user');
+  } else {
+    document.documentElement.style.setProperty('--chat-max-user', n + 'px');
+  }
+}
+
 export function applyUiScale(scale) {
   const s = scale || DEFAULT_UI_SCALE;
   // Only one non-default scale ('125'). Remove any legacy classes too so an
@@ -1158,6 +1174,19 @@ export function initThemeUI() {
     nts.addEventListener('change', () => {
       applyUiScale(nts.value);
       try { localStorage.setItem(UI_SCALE_KEY, nts.value); } catch (e) {}
+    });
+  }
+  const chatWidthSelect = document.getElementById('theme-chat-width-select');
+  if (chatWidthSelect) {
+    const ncw = chatWidthSelect.cloneNode(true); chatWidthSelect.parentNode.replaceChild(ncw, chatWidthSelect);
+    let initWidth = DEFAULT_CHAT_WIDTH;
+    try { initWidth = localStorage.getItem(CHAT_WIDTH_KEY) || DEFAULT_CHAT_WIDTH; } catch (e) {}
+    ncw.value = initWidth;
+    if (!ncw.value) ncw.value = DEFAULT_CHAT_WIDTH;  // stored value not among the presets
+    applyChatWidth(initWidth);
+    ncw.addEventListener('change', () => {
+      applyChatWidth(ncw.value);
+      try { localStorage.setItem(CHAT_WIDTH_KEY, ncw.value); } catch (e) {}
     });
   }
   if (patternSelect) {
