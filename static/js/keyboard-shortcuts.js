@@ -92,8 +92,8 @@ export function initKeyboardShortcuts(modules) {
     }
   }, true);
 
-  // ── "Toggle Window" — close whatever tool window is open, or reopen the
-  // last one. Maps each window's modal element to the button/title that
+  // ── "Toggle Window" — close whatever tool window is open, else open
+  // Settings. Maps each window's modal element to the button/title that
   // opens it (mirrors modalManager's _AUTO_WIRE, plus email's section title).
   const _WINDOW_TRIGGERS = {
     'settings-modal':         'user-bar-settings',
@@ -109,7 +109,6 @@ export function initKeyboardShortcuts(modules) {
     'calendar-modal':         'tool-calendar-btn',
     'email-lib-modal':        'email-section-title',
   };
-  let _lastWindow = 'settings-modal';
 
   const _windowVisible = (id) => {
     const m = document.getElementById(id);
@@ -120,24 +119,23 @@ export function initKeyboardShortcuts(modules) {
   };
 
   const _toggleActiveWindow = () => {
-    // Close the first open window (remembering it), else reopen the last one.
+    // Close the first open tool window, else open Settings.
     let openId = null;
     for (const id in _WINDOW_TRIGGERS) {
       if (_windowVisible(id)) { openId = id; break; }
     }
     if (openId) {
-      _lastWindow = openId;
       const m = document.getElementById(openId);
       const closeBtn = m && m.querySelector('.close-btn, .modal-close, [data-close]');
       if (closeBtn) closeBtn.click();
       else if (openId === 'settings-modal' && settingsModule) settingsModule.close();
       else { const t = el(_WINDOW_TRIGGERS[openId]); if (t) t.click(); }
-    } else if (_lastWindow === 'settings-modal') {
-      if (settingsModule) settingsModule.open();
     } else {
-      const t = el(_WINDOW_TRIGGERS[_lastWindow]);
-      if (t) t.click();
-      else if (settingsModule) settingsModule.open();
+      // Nothing open: open Settings — this is the settings keybind. Never
+      // reopen a remembered tool window here; that made windows appear to
+      // open themselves (close Brain with this shortcut once and every
+      // later press resurrected it on its last tab).
+      if (settingsModule) settingsModule.open();
     }
   };
 
