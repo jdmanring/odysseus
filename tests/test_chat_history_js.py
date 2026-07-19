@@ -305,6 +305,51 @@ def test_is_at_bottom_method_exists():
     assert "MessageWindow.prototype._isAtBottom" in _SRC
 
 
+# ---------------------------------------------------------------------------
+# Phase 2 — sticky pin gate (#141)
+# The prune check runs in a mutation's rAF, after an append grew scrollHeight
+# but before the stick-to-bottom autoscroll restores the pin, so instantaneous
+# _isAtBottom() reports false for a user who never left the bottom. Successive
+# single appends taller than the 120px slack then defer pruning indefinitely
+# (confirmed live 2026-07-19: 6 pinned appends, total 78→84 > PRUNE_AT, zero
+# prunes). The gate must consult _pinned — at-bottom *intent*, changed only by
+# real scroll events — with geometry as fallback, never geometry alone.
+# ---------------------------------------------------------------------------
+
+def _maybe_prune_body() -> str:
+    start = _SRC.index("MessageWindow.prototype._maybePrune = function ()")
+    end = _SRC.index("MessageWindow.prototype.", start + 1)
+    return _SRC[start:end]
+
+
+def test_pinned_initialized_true_and_reset_true():
+    # Both construction and reset() land the view at the bottom of a session,
+    # so both must (re)arm the sticky pin.
+    assert _SRC.count("this._pinned     = true;") == 2, (
+        "_pinned must be set true in the constructor and again in reset()"
+    )
+
+
+def test_scroll_listener_maintains_pinned_first():
+    # The assignment must lead the scroll handler: every later concern in the
+    # handler (deep-drag assist, Phase 3 load) may early-return, and the pin
+    # bookkeeping must not be skippable.
+    start = _SRC.index("MessageWindow.prototype._initScrollListener")
+    body = _SRC[start:_SRC.index("MessageWindow.prototype.", start + 1)]
+    pin = body.index("self._pinned = self._isAtBottom();")
+    assert pin < body.index("_topSpacer"), (
+        "pin tracking must precede the deep-drag assist's early returns"
+    )
+
+
+def test_maybePrune_gates_on_pin_intent_not_bare_geometry():
+    body = _maybe_prune_body()
+    assert "if (!this._pinned && !this._isAtBottom()) return;" in body
+    assert "if (!this._isAtBottom()) return;" not in body, (
+        "bare instantaneous-geometry gate races the stick-to-bottom autoscroll (#141)"
+    )
+
+
 def test_prune_top_updates_start_idx():
     # Implementation uses data-ch-idx to find the highest index pruned,
     # then sets _startIdx = highIdx + 1 (not += removed, which would be
