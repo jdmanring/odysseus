@@ -195,6 +195,9 @@ This is the gate active-work has always flagged.
 > (trusted touch events can't be synthesized), flash-on-reload perception, lazy-image
 > decode timing on real large images, scroll-to-bottom affordance discoverability, and
 > QtWebEngine ecological validity (the suite runs stock Chromium, not the Qt runtime).
+> Scripted checklist with setup, per-item steps, and pass criteria:
+> `docs/fork/plans/dom-oom-manual-pass-checklist.md` (~10 minutes with the app open;
+> record the result there — 3.6 points to it).
 
 3.6 **Exit check:** 3.1-3.5 all pass with reproducible steps; new regression tests cover the
 scroll-down, snap-transition, and overlay behaviours.
