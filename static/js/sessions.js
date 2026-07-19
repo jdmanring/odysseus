@@ -1951,6 +1951,7 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
           sessionId: id,
           serverOffset: (pageInfo && Number.isFinite(pageInfo.offset)) ? pageInfo.offset : 0,
           serverHasMore: !!(pageInfo && pageInfo.has_more_before),
+          serverTotal: (pageInfo && Number.isFinite(pageInfo.total)) ? pageInfo.total : undefined,
           olderLoader: async (sid, limit, offset) => {
             const r = await fetch(_historyUrl(sid, { limit, offset }));
             const d = await r.json();

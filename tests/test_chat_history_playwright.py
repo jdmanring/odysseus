@@ -881,3 +881,104 @@ def test_teardown_fires_at_runtime_when_nodes_are_pruned(browser_page):
         "window.__forgotten.indexOf(window.__armed) !== -1"
     )
     assert forgotten, "hljsDeferForgetNode was not called for the pruned node"
+
+
+# ---------------------------------------------------------------------------
+# messageCount — conversation-size accounting for the header counter
+# ---------------------------------------------------------------------------
+
+def test_message_count_reports_server_total_not_dom_size(browser_page):
+    """messageCount() returns the backend total; the DOM holds only the window.
+
+    A DOM-derived count would report ~WINDOW_SIZE here — the whole point of the
+    accessor is that it does not shrink to the window.
+    """
+    _load_harness(browser_page)
+
+    browser_page.evaluate("""
+        const msgs = Array.from({length: 100}, (_, i) => ({
+            role: 'user', content: 'Message ' + i, modelName: null, meta: null
+        }));
+        window.chatHistory.load(msgs, { serverTotal: 300, sessionId: 's1' });
+    """)
+    browser_page.wait_for_timeout(150)
+
+    count = browser_page.evaluate("window.chatHistory.messageCount()")
+    assert count == 300, f"expected server total 300, got {count}"
+    dom = browser_page.evaluate(
+        "document.getElementById('chat-history').children.length")
+    assert dom < 300, "sanity: DOM must be windowed well below the total"
+
+
+def test_message_count_null_without_server_total(browser_page):
+    """Legacy loads (no serverTotal) yield null so callers fall back to DOM."""
+    _load_harness(browser_page)
+
+    browser_page.evaluate("""
+        const msgs = Array.from({length: 10}, (_, i) => ({
+            role: 'user', content: 'M' + i, modelName: null, meta: null
+        }));
+        window.chatHistory.load(msgs);
+    """)
+    browser_page.wait_for_timeout(100)
+    assert browser_page.evaluate("window.chatHistory.messageCount()") is None
+
+
+def test_message_count_counts_live_messages_once(browser_page):
+    """Live appends increment by message: continuations and the streaming
+    holder do not count; the holder's canonical replacement counts once."""
+    _load_harness(browser_page)
+
+    browser_page.evaluate("""
+        const msgs = Array.from({length: 10}, (_, i) => ({
+            role: 'user', content: 'M' + i, modelName: null, meta: null
+        }));
+        window.chatHistory.load(msgs, { serverTotal: 10 });
+    """)
+    browser_page.wait_for_timeout(150)
+
+    browser_page.evaluate("""
+        const c = document.getElementById('chat-history');
+        const mk = (cls) => {
+            const d = document.createElement('div');
+            d.className = cls; d.textContent = 'x'; c.appendChild(d); return d;
+        };
+        mk('msg msg-user');                            // +1 (user turn)
+        window.__holder = mk('msg msg-ai streaming');  // +0 (live holder)
+        mk('msg msg-ai msg-continuation streaming');   // +0 (round continuation)
+        mk('not-a-msg');                               // +0
+    """)
+    browser_page.wait_for_timeout(100)
+    assert browser_page.evaluate("window.chatHistory.messageCount()") == 11
+
+    # Finalize: holder replaced by the canonical block — exactly one more.
+    browser_page.evaluate("""
+        window.__holder.remove();
+        const d = document.createElement('div');
+        d.className = 'msg msg-ai'; d.textContent = 'final';
+        document.getElementById('chat-history').appendChild(d);
+    """)
+    browser_page.wait_for_timeout(100)
+    assert browser_page.evaluate("window.chatHistory.messageCount()") == 12
+
+
+def test_message_count_resets_with_session(browser_page):
+    """reset() clears the total; the next total-less load stays null (no stale
+    carry-over from the previous session)."""
+    _load_harness(browser_page)
+
+    browser_page.evaluate("""
+        const msgs = [{role: 'user', content: 'a', modelName: null, meta: null}];
+        window.chatHistory.load(msgs, { serverTotal: 50 });
+    """)
+    browser_page.wait_for_timeout(100)
+    assert browser_page.evaluate("window.chatHistory.messageCount()") == 50
+
+    browser_page.evaluate("window.chatHistory.reset()")
+    assert browser_page.evaluate("window.chatHistory.messageCount()") is None
+
+    browser_page.evaluate("""
+        window.chatHistory.load([{role: 'user', content: 'b', modelName: null, meta: null}]);
+    """)
+    browser_page.wait_for_timeout(100)
+    assert browser_page.evaluate("window.chatHistory.messageCount()") is None

@@ -297,16 +297,23 @@ function initializeEventListeners() {
   });
 
   // Message count in the header — recount on any DOM change in
-  // #chat-history and write "· N msgs" next to the title. Counts top-
-  // level .msg elements (one per user/assistant turn); excludes the
-  // welcome screen since it isn't inside chat-history.
+  // #chat-history and write "· N msgs" next to the title. The window layer's
+  // messageCount() is authoritative: the DOM holds at most the virtualization
+  // window, so counting nodes undercounts long conversations. The DOM count is
+  // the fallback for loads that had no server total, and it counts messages,
+  // not render blocks — a multi-round agent reply is one message but many
+  // .msg elements, all but the first tagged .msg-continuation.
   const _metaCountEl = el('current-meta-count');
   const _chatHistEl = el('chat-history');
   if (_metaCountEl && _chatHistEl) {
     let _countScheduled = false;
     const _updateMsgCount = () => {
       _countScheduled = false;
-      const n = _chatHistEl.querySelectorAll(':scope > .msg').length;
+      const known = (window.chatHistory && window.chatHistory.messageCount)
+        ? window.chatHistory.messageCount() : null;
+      const n = (known !== null && known !== undefined)
+        ? known
+        : _chatHistEl.querySelectorAll(':scope > .msg:not(.msg-continuation)').length;
       _metaCountEl.textContent = n ? `· ${n} msg${n === 1 ? '' : 's'}` : '';
     };
     const _scheduleCount = () => {
