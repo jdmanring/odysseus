@@ -1046,11 +1046,6 @@ def setup_cookbook_routes() -> APIRouter:
         # Fallback to hf download only here — not mid-stream — because the two paths
         # write different filesystem layouts (flat vs hub blob cache) and a mid-stream
         # switch would corrupt partial downloads.
-        if req.use_aria2c and IS_WINDOWS and not req.remote_host:
-            # LOCAL native-Windows serving still launches downloads through a
-            # bash wrapper (Git Bash) — no aria2c runner path there yet. Remote
-            # Windows targets ARE supported via the .ps1 runner (issue #147).
-            req.use_aria2c = False
         if req.use_aria2c and not is_ollama_download:
             try:
                 from tooling.aria2c_download import get_aria2c
@@ -1085,7 +1080,11 @@ def setup_cookbook_routes() -> APIRouter:
                 f"--local-dir {local_dir_quoted} "
                 f"--include {include_quoted}"
             )
-            hf_cmd = f"python3 {_bash_squote(_aria2c_script)} {_aria2c_args}"
+            # Local launches run the bash wrapper — through Git Bash on a
+            # native-Windows server, where bare `python3` does not exist. Use
+            # the server's own interpreter there (POSIX path form for bash).
+            _py_local = Path(sys.executable).as_posix() if IS_WINDOWS else "python3"
+            hf_cmd = f"{_py_local} {_bash_squote(_aria2c_script)} {_aria2c_args}"
             # Remote hosts run the copy scp'd to ~/.cookbook/tooling/ — the
             # server-local absolute path does not exist there.
             _aria2c_remote_cmd = f"python3 ~/.cookbook/tooling/aria2c_download.py {_aria2c_args}"
