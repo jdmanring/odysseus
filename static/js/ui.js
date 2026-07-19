@@ -487,18 +487,17 @@ function _smoothScrollStep() {
     _scrollRafId = null;
     return;
   }
-  const target = box.scrollHeight - box.clientHeight;
-  const current = box.scrollTop;
-  const diff = target - current;
-
-  // Scale drift guard to viewport: large content can shift scrollHeight by
-  // hundreds of px in one frame and falsely trigger a fixed threshold.
-  const viewportHeight = box.clientHeight;
-  const maxAllowedDiff = Math.max(300, viewportHeight * 1.5);
-  if (diff > maxAllowedDiff) {
+  // isPinned carries user intent (direction-based; see _initStickToBottom),
+  // so the lerp needs no distance-based drift guard: a big diff is just
+  // content growth to catch up to, and a wheel-up mid-animation unpins and
+  // stops the loop on the very next frame instead of fighting the user.
+  if (!isPinned) {
     _scrollRafId = null;
     return;
   }
+  const target = box.scrollHeight - box.clientHeight;
+  const current = box.scrollTop;
+  const diff = target - current;
 
   if (diff <= 1) {
     box.scrollTop = target;
