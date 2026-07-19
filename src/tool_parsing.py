@@ -166,6 +166,19 @@ _TOOL_CODE_RE = re.compile(
 _TOOL_CODE_OPEN_RE = re.compile(r"<tool_code>\s*\{", re.IGNORECASE)
 _TOOL_CODE_CLOSE_RE = re.compile(r"\}\s*</tool_code>", re.IGNORECASE)
 
+# Pattern 4-py: <tool_code> blocks with Python function-call syntax (Google
+# Gemma style): bash(command="...") / get_workspace(). The MiniMax delimiters
+# above require a `{` after the tag, so the two cannot overlap.
+_TOOL_CODE_PYCALL_RE = re.compile(
+    r"<tool_code>\s*([\w]+\s*\([^<]*?\))\s*</tool_code>",
+    re.IGNORECASE | re.DOTALL,
+)
+# Bare-tag delimiters used only for stripping: any <tool_code> body that the
+# JSON-shaped pair above missed (pycall or unrecognised formats) must still
+# never leak to the user as raw text.
+_TOOL_CODE_TAG_OPEN_RE = re.compile(r"<tool_code>", re.IGNORECASE)
+_TOOL_CODE_TAG_CLOSE_RE = re.compile(r"</tool_code>", re.IGNORECASE)
+
 # Pattern 4b: Gemma-style <|tool_call|> call:tool_name{args} <tool_call|>
 _GEMMA_TOOL_CALL_RE = re.compile(
     r"<\|?tool_call\|?>\s*call:([\w\d_-]+)\s*(\{[\s\S]*?\})\s*<\|?tool_call\|?>",
@@ -1070,6 +1083,36 @@ def _parse_tool_code_block(raw: str) -> Optional[ToolBlock]:
         return ToolBlock(tool_name, content.strip())
     return None
 
+
+def _parse_tool_code_pycall(content: str) -> Optional[ToolBlock]:
+    """Parse a <tool_code>func(kwarg=val, ...)</tool_code> block (Google Gemma style)."""
+    try:
+        module = ast.parse(content.strip(), mode="exec")
+    except SyntaxError:
+        return None
+    if len(module.body) != 1 or not isinstance(module.body[0], ast.Expr):
+        return None
+    call = module.body[0].value
+    if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
+        return None
+
+    func_name = call.func.id.lower()
+    mapped = _TOOL_NAME_MAP.get(func_name) or (func_name if func_name in TOOL_TAGS else None)
+    if mapped is None:
+        return None
+
+    args: dict = {}
+    for kw in call.keywords:
+        if kw.arg and isinstance(kw.value, ast.Constant):
+            args[kw.arg] = str(kw.value.value)
+
+    from src.tool_schemas import function_call_to_tool_block
+    block = function_call_to_tool_block(mapped, json.dumps(args))
+    if block:
+        return block
+    first_val = next(iter(args.values()), "")
+    return ToolBlock(mapped, first_val)
+
 def _parse_gemma_tool_call(tool_name: str, body: str) -> Optional[ToolBlock]:
     """Parse a Gemma-style call:tool_name{...} block into a ToolBlock."""
     tool_name = tool_name.strip().lower().replace("-", "_")
@@ -1365,6 +1408,13 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
             if block:
                 blocks.append(block)
 
+    # Pattern 4-py: Gemma-style Python calls inside <tool_code> tags.
+    if not blocks:
+        for m in _TOOL_CODE_PYCALL_RE.finditer(text):
+            block = _parse_tool_code_pycall(m.group(1))
+            if block:
+                blocks.append(block)
+
     # Pattern 4b: Gemma-style <|tool_call|> blocks
     if not blocks:
         for m in _GEMMA_TOOL_CALL_RE.finditer(text):
@@ -1435,6 +1485,7 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = _strip_delimited(cleaned, _XML_TOOL_CALL_OPEN_RE, _XML_TOOL_CALL_CLOSE_RE)
     cleaned = _XML_OPEN_TOOL_CALL_RE.sub('', cleaned)
     cleaned = _strip_delimited(cleaned, _TOOL_CODE_OPEN_RE, _TOOL_CODE_CLOSE_RE)
+    cleaned = _strip_delimited(cleaned, _TOOL_CODE_TAG_OPEN_RE, _TOOL_CODE_TAG_CLOSE_RE)
     cleaned = _GEMMA_TOOL_CALL_RE.sub('', cleaned)
     cleaned = _strip_delimited(cleaned, _FUNCTION_MODEL_OPEN_RE, _FUNCTION_MODEL_CLOSE_RE)
     cleaned = _strip_raw_openai_tool_call_json(cleaned)
