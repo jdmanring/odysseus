@@ -114,8 +114,13 @@ re-creatable from this record):
 - **Check 5 Qt validity: PASS.** All of the above ran in QtWebEngine itself. Renderer
   RSS 756 MB → 967 MB during the heavy walk, self-recovered to 694 MB, forced purge
   found only 8 MB more — transient GC lag, no retention.
-- **Check 3 images: NOT COVERED** — the session had zero `<img>` in the window.
-  Verify opportunistically the first time a real image-heavy session exists.
+- **Check 3 images: PARTIALLY COVERED (2026-07-19, driven live)** — a sweep of all
+  52 sessions found zero real rendered images (regex hits were dev-conversation
+  text). Synthetic probe instead: an `<img>` appended inside the live windowed
+  `#chat-history` decoded and painted (`complete=true`, naturalWidth 192,
+  rect visible), so decode inside the virtualized container works. The
+  markdown-image render path and multi-MB decode-under-scroll remain untested
+  until a genuinely image-heavy session exists — verify opportunistically then.
 
 Remaining human items: none blocking. (Touchpad feel and image decode are
 use-it-and-see; file a fork issue if either ever misbehaves.)
