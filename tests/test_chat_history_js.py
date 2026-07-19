@@ -1135,3 +1135,22 @@ def test_header_counter_prefers_message_count_with_dom_fallback():
     assert "window.chatHistory.messageCount" in _APP
     # The fallback must not count round continuations as messages.
     assert ":scope > .msg:not(.msg-continuation)" in _APP
+
+
+def test_every_history_wipe_is_preceded_by_reset():
+    """The window layer's API contract: reset() before clearing the container.
+
+    A wipe without reset leaves the previous session's window state (and its
+    messageCount total) alive behind an empty pane — the header then shows the
+    old session's count on the welcome screen / an empty session.
+    """
+    import re
+    wipes = [m.start() for m in re.finditer(
+        r"(?:chatHistory|el\('chat-history'\))\.innerHTML = ''", _SESS)]
+    assert wipes, "expected chat-history wipes in sessions.js"
+    for pos in wipes:
+        window = _SESS[max(0, pos - 400):pos]
+        assert "window.chatHistory.reset()" in window, (
+            f"chat-history wipe at offset {pos} has no preceding "
+            "window.chatHistory.reset() within 400 chars"
+        )
