@@ -21,13 +21,15 @@ Record results by ticking the boxes and filling the date line at the bottom; the
    venv/bin/python tooling/mem-probe.py counters
    ```
 
-   For a live DOM-children readout while you scroll, the app's DevTools are on
-   http://localhost:9222 (open in Firefox, pick the Odysseus page, Console tab), then
-   paste:
+   For a live DOM-children + distance-from-bottom readout while you scroll (one line
+   per second for 60 seconds), paste this in a second terminal:
 
    ```
-   document.getElementById('chat-history').children.length
+   venv/bin/python tooling/mem-probe.py chatdom -d 60
    ```
+
+   Children should stay ≤ ~145 no matter how far you scroll; "px from bottom: 0" means
+   you're pinned to the newest message.
 
 ## The five checks
 

@@ -30,6 +30,8 @@ Commands:
     mutations[-d SECS]  capture which DOM nodes mutate (periodic DOM producers)
     producers[-d SECS]  animations + raf + mutations together (what is producing churn)
     purge               forciblyPurgeJavaScriptMemory; report RSS before/after
+    chatdom  [-d SECS]  chat-history DOM children + px-from-bottom; one-shot, or
+                        1 line/sec for SECS when -d is given (watch while scrolling)
 
 Requires: websocket-client (already in the venv). Renderer RSS reading is Linux
 (/proc) only; CDP commands work on any platform the wrapper runs on.
@@ -181,6 +183,31 @@ def cmd_counters(cdp, args):
     print(f"live main-document nodes: {live}  (detached/other ≈ {dc.get('nodes', 0) - (live or 0)})")
 
 
+_CHATDOM = """
+(() => {
+  const b = document.getElementById('chat-history');
+  if (!b) return null;
+  return {children: b.children.length,
+          fromBottom: Math.round(b.scrollHeight - b.scrollTop - b.clientHeight)};
+})()
+"""
+
+
+def cmd_chatdom(cdp, args):
+    duration = getattr(args, "duration", None) or 0
+    end = time.time() + duration
+    while True:
+        st = cdp.ev(_CHATDOM)
+        if st is None:
+            print("no #chat-history element (is a chat session open?)")
+            return
+        print(f"chat-history children: {st['children']:>4}   "
+              f"px from bottom: {st['fromBottom']}")
+        if time.time() >= end:
+            return
+        time.sleep(1)
+
+
 def cmd_slope(cdp, args):
     r0 = renderer_rss_mb()
     n0 = cdp.call("Memory.getDOMCounters").get("nodes")
@@ -328,6 +355,9 @@ def main():
     for name in ("slope", "raf", "mutations", "producers"):
         sp = sub.add_parser(name)
         sp.add_argument("-d", "--duration", type=float, default=10.0, help="seconds (default 10)")
+    sp = sub.add_parser("chatdom")
+    sp.add_argument("-d", "--duration", type=float, default=0.0,
+                    help="watch: one line per second for SECS (default: one-shot)")
     args = p.parse_args()
 
     # `stack` is a pure /proc reader — it needs no CDP connection, so it works
@@ -341,6 +371,7 @@ def main():
         {
             "counters": cmd_counters, "slope": cmd_slope, "animations": cmd_animations,
             "raf": cmd_raf, "mutations": cmd_mutations, "producers": cmd_producers, "purge": cmd_purge,
+            "chatdom": cmd_chatdom,
         }[args.cmd](cdp, args)
     finally:
         cdp.close()
