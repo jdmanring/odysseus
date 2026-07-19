@@ -188,6 +188,31 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 
 ## Branch-hygiene notes
 
+- **2026-07-19 parked-branch triage (25 branches conflicted in the post-ingest bulk rebase).**
+  **13 rebased onto `upstream-mirror` `68ba51cb` with per-conflict resolution, tested, force-pushed:**
+  api-hosts-provider-gaps, nvidia-native-tool-calling, css-render-perf (invariant tests caught +
+  fixed 2 new upstream violations), tool-code-pycall-parsing (fully re-ported onto upstream's
+  restructured module — upstream still lacked Gemma pycall parsing; now uses their ReDoS-safe
+  `_strip_delimited`), longcat-tool-parsing, qtwebengine-oilpan-gc, agent-gc-catchup (rebuilt as
+  an explicit stack on oilpan-gc — it was an overlapping draft; file oilpan first),
+  skill-lifecycle-correctness (fix re-ported to `src/tools/system.py` where `do_manage_skills`
+  moved), basicsr-python314-compat, gh-cli-detection (prompt now rides upstream's
+  untrusted-context channel — it embeds an externally-sourced account name), longcat-provider,
+  mcp-lazy-connect (composes with upstream's concurrent-connect rewrite; 148 MCP tests green),
+  logging (**contamination excised**: the old commit reverted upstream's workspace-confinement
+  hardening ($HOME allowlist, deleted `_resolve_tool_path_in_workspace`) and carried unrelated
+  regex churn — restored upstream's security policy, ported only the structlog/timing changes;
+  workspace-confine suite 20/20).
+  **1 deliberately parked:** aria2c-downloader — 15 conflict hunks across 3 files against
+  upstream's own heavily-evolved download stack (their `$ODYSSEUS_HF_CLI` wrapper, retry loops,
+  per-platform prompt suppression); needs a dedicated design-level reconciliation session, not
+  a mechanical rebase. Still at old base `c1446f2a`.
+  **11 verified obsolete (delete):** the five old chat-history fix branches (all headline fixes
+  confirmed in develop's chatHistory.js), staged-branch-convergence-guard + pr-4366 (content on
+  develop), pr-4661 + upstream-pr-4661 (evaluation scaffolding; decision locked),
+  upstream-sync-pipeline (kitchen-sink; every piece landed elsewhere),
+  agent-context-budget-discovery (src fix landed upstream; equivalent test on develop).
+
 - **`fix/brain-panel-oom` (#108) ↔ `fix/gpu-compositor-flicker` — coupling RESOLVED.**
   `test_gpu_compositor_flicker_css.py` had duplicated three memory-synapse-sweep
   tests (a `fix/brain-panel-oom` concern, already covered by
