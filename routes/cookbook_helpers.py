@@ -1064,7 +1064,8 @@ class ModelDownloadRequest(BaseModel):
     ssh_port: str | None = None    # e.g. "8022" for Termux
     platform: str | None = None    # "linux", "termux", or "windows"
     local_dir: str | None = None   # base dir to download into (a per-model subfolder is created under it); None = default HF cache
-    disable_hf_transfer: bool = False  # skip the Rust hf_transfer downloader — slower but far more reliable on large files (used by retries)
+    disable_hf_transfer: bool = True  # skip the Rust hf_transfer downloader — slower but far more reliable on large files (used by retries)
+    use_aria2c: bool = True
 
 
 class ServeRequest(BaseModel):
