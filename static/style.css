@@ -1851,6 +1851,9 @@ body.bg-pattern-sparkles {
       overflow-y:auto;
       overflow-x:hidden;
       overscroll-behavior-y: none;
+      /* JS owns anchoring (isPinned + manual prune compensation); native
+         scroll anchoring moves scrollTop invisibly and fights both. */
+      overflow-anchor: none;
       margin-bottom:8px;
       white-space:normal;
       min-height:0;
