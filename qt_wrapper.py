@@ -412,6 +412,10 @@ except ValueError:
 # detection-core/output-adapter split). This file is the output adapter: it drains
 # qt_psi.psi_event_pending on the Qt main thread and turns each event into an action.
 import qt_psi
+# Renderer-hang detection core (issue #137). Same split as qt_psi: the Qt-free
+# bookkeeping lives in qt_watchdog.py so it is unit-testable under the server
+# venv's stub PyQt6; this file only wires pings/pongs and performs the recovery.
+import qt_watchdog
 
 # Log the selected profile once (diagnosable; notes when an env var overrode it).
 _profile_overridden = bool(
@@ -787,6 +791,61 @@ class OdysseusWindow(QMainWindow):
         self._idle_reclaim_timer.setInterval(4000)
         self._idle_reclaim_timer.timeout.connect(self._maybe_idle_purge)
         self._idle_reclaim_timer.start()
+
+        # Renderer hang watchdog (issue #137). A deadlocked renderer main thread
+        # (observed live: pthread_cond_wait inside libQt6WebEngineCore, zero JS
+        # execution contexts, hover still painting via the GPU compositor) never
+        # dies, so renderProcessTerminated stays silent and the app looks
+        # "partially frozen" until the user kills it. Probe liveness with a
+        # runJavaScript ping: its callback is serviced by the renderer main
+        # thread, so a wedged main thread never answers. After enough
+        # consecutive unanswered pings (thresholds in qt_watchdog), recover with
+        # a browser-process-side CDP Page.reload — the same call that recovered
+        # the live incident; it needs no cooperation from the wedged renderer.
+        # If CDP itself fails, fall back to WebAction.Reload on the next tick
+        # (main thread — triggerAction must not be called from the executor).
+        self._hang_detector = qt_watchdog.HangDetector()
+        self._hang_cdp_failed = [False]
+        page.loadFinished.connect(
+            lambda _ok: self._hang_detector.on_pong())
+
+        def _hang_recover_cdp():
+            res = _cdp_call('Page.reload')
+            print(
+                f'[HANG] CDP Page.reload {"ok" if res is not None else "FAILED"}',
+                flush=True,
+            )
+            if res is None:
+                self._hang_cdp_failed[0] = True
+
+        def _hang_tick():
+            if page.renderProcessPid() is None:
+                # Renderer dead or respawning: the renderProcessTerminated
+                # handler owns that path; judging silence here would double-fire.
+                return
+            if self._hang_cdp_failed[0]:
+                self._hang_cdp_failed[0] = False
+                print('[HANG] CDP reload failed, falling back to '
+                      'WebAction.Reload', flush=True)
+                page.triggerAction(QWebEnginePage.WebAction.Reload)
+                return
+            if self._hang_detector.should_recover():
+                self._hang_detector.record_recovery()
+                print(
+                    f'[HANG] renderer pid={page.renderProcessPid()} '
+                    f'unresponsive {self._hang_detector.silence_s():.0f}s '
+                    f'({qt_watchdog.MIN_MISSED_PINGS}+ pings unanswered), '
+                    f'forcing Page.reload', flush=True,
+                )
+                _cdp_executor.submit(_hang_recover_cdp)
+                return
+            self._hang_detector.on_ping_sent()
+            page.runJavaScript('1', lambda _r: self._hang_detector.on_pong())
+
+        self._hang_timer = QTimer(self)
+        self._hang_timer.setInterval(int(qt_watchdog.PING_INTERVAL_S * 1000))
+        self._hang_timer.timeout.connect(_hang_tick)
+        self._hang_timer.start()
 
         self.browser.setPage(page)
         # Set compositor base-background-colour AFTER setPage() so it is not
