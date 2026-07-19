@@ -117,6 +117,20 @@ function _downloadServeFields(task) {
 // in that case (click → revive the row + reattach the poll loop).
 function _downloadOutputLooksActive(task) {
   if (!task || task.type !== 'download') return false;
+
+  // For aria2c downloads: use the in-memory tracker's last-activity timestamp.
+  // The tracker is stamped each poll tick that sees live progress data and deleted
+  // when DOWNLOAD_OK is found. This avoids false positives from historical aria2c
+  // progress lines that persist in the tmux capture-pane rolling buffer after completion.
+  const tr = _dlFileTracker.get(task.sessionId);
+  if (tr !== undefined) {
+    const out = task.output || '';
+    if (out.includes('DOWNLOAD_OK') || out.includes('DOWNLOAD_FAILED')) return false;
+    if (tr.lastActiveAt === undefined) return false;
+    return (Date.now() - tr.lastActiveAt) < 20_000;
+  }
+
+  // hf-download format (no tracker): fall back to output-content check.
   const out = task.output || '';
   if (!out) return false;
   if (out.includes('DOWNLOAD_OK') || out.includes('DOWNLOAD_FAILED')) return false;
@@ -604,6 +618,633 @@ function _endpointFromAdvertisedUrl(rawUrl, currentHost, fallbackPort = '11434')
   }
 }
 
+// Persistent tracker for multi-batch parallel downloads.
+// aria2c shows only the N active files at a time; files that completed are gone.
+// We track their sizes so overall progress reflects the full model, not just
+// the current batch of 4.
+const _dlFileTracker = new Map();
+// sessionId → { totalFileCount, knownFiles: Map<name,bytes>, activeNames, completedBytes, completedCount }
+
+// ── aria2c download output parser ──
+// Parses the raw tmux capture-pane snapshot from aria2c_download.py into a
+// structured state object used to drive the download progress card.
+
+// Convert an IEC byte string (e.g. "2.5GiB") to a raw byte count.
+function _parseIecBytes(s) {
+  if (!s) return 0;
+  const m = String(s).match(/^([\d.]+)(GiB|MiB|KiB|B)$/i);
+  if (!m) return 0;
+  const n = parseFloat(m[1]);
+  switch (m[2].toUpperCase()) {
+    case 'GIB': return n * 1073741824;
+    case 'MIB': return n * 1048576;
+    case 'KIB': return n * 1024;
+    default:    return n;
+  }
+}
+
+// Format a raw byte count back to a human-readable IEC string.
+function _fmtIecBytes(b) {
+  if (!b) return '0 B';
+  if (b >= 1073741824) return `${(b / 1073741824).toFixed(2)} GiB`;
+  if (b >= 1048576)    return `${(b / 1048576).toFixed(1)} MiB`;
+  if (b >= 1024)       return `${Math.round(b / 1024)} KiB`;
+  return `${Math.round(b)} B`;
+}
+
+function _fmtSpeed(bytesPerSec) {
+  if (!bytesPerSec) return '';
+  if (bytesPerSec >= 1073741824) return `${(bytesPerSec / 1073741824).toFixed(2)} GB/s`;
+  if (bytesPerSec >= 1048576)    return `${(bytesPerSec / 1048576).toFixed(1)} MB/s`;
+  if (bytesPerSec >= 1024)       return `${Math.round(bytesPerSec / 1024)} KB/s`;
+  return `${Math.round(bytesPerSec)} B/s`;
+}
+
+function _fmtEtaSecs(secs) {
+  if (!secs || secs <= 0) return '';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  if (h) return `${h}h ${m}m`;
+  if (m) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function _parseDownloadState(text, sessionId) {
+  const out = String(text || '');
+  const done     = out.includes('DOWNLOAD_OK');
+  const failed   = out.includes('DOWNLOAD_FAILED');
+  const noBinary = /\[!\] aria2c not found/.test(out);
+  const noFiles  = /\[!\] No files matched/.test(out);
+  const resolveErr = /\[!\] Failed to list files/.test(out);
+
+  const filesMatch = out.match(/\[\*\] (\d+) file\(s\) to download/);
+  let totalFiles = filesMatch ? parseInt(filesMatch[1], 10) : 0;
+  const totalSizeMatch = out.match(/\[\*\] Total size: (\d+) bytes/);
+  const reportedTotalBytes = totalSizeMatch ? parseInt(totalSizeMatch[1], 10) : 0;
+
+  // Sequential mode: "[*] [X/Y] rel_path" lines — last occurrence is current file
+  const fileMatches = [...out.matchAll(/\[\*\] \[(\d+)\/(\d+)\] (.+)/g)];
+  const lf = fileMatches.length ? fileMatches[fileMatches.length - 1] : null;
+  const currentFile = lf ? { index: parseInt(lf[1], 10), total: parseInt(lf[2], 10), name: lf[3].trim() } : null;
+
+  // Only parse the LAST summary block — scrollback accumulates all previous blocks
+  // and matching the full output inflates the file/size count as downloads progress.
+  const lastSummaryIdx = out.lastIndexOf('Download Progress Summary');
+  const progressWindow = lastSummaryIdx >= 0 ? out.slice(lastSummaryIdx) : out.slice(-2000);
+  const progressRe = /\[#[0-9a-f]+ ([^\s/]+)\/([^(]+)\((\d+)%\)\s+CN:(\d+)\s+DL:([^\s]+)(?:\s+ETA:([^\]]+))?\]/g;
+  const progMatches = [...progressWindow.matchAll(progressRe)];
+
+  let pct = 0, dlSize = '', totalSize = '', speed = '', eta = '', connections = 0, activeDownloads = 0, totalSpeedBytes = 0;
+  if (progMatches.length > 0) {
+    let totalDlBytes = 0, totalTotalBytes = 0;
+    totalSpeedBytes = 0;
+    for (const m of progMatches) {
+      totalDlBytes    += _parseIecBytes(m[1]);
+      totalTotalBytes += _parseIecBytes(m[2].trim());
+      totalSpeedBytes += _parseIecBytes(m[5]);
+      connections     += parseInt(m[4], 10);
+      if (parseInt(m[4], 10) > 0) activeDownloads++;
+    }
+    if (totalTotalBytes > 0) {
+      pct = Math.min(100, Math.round(totalDlBytes / totalTotalBytes * 100));
+      dlSize    = _fmtIecBytes(totalDlBytes);
+      totalSize = _fmtIecBytes(totalTotalBytes);
+    } else {
+      // Fallback to the last raw pct if byte totals are unavailable
+      pct = parseInt(progMatches[progMatches.length - 1][3], 10);
+    }
+    speed = _fmtSpeed(totalSpeedBytes);
+    if (totalSpeedBytes > 0 && totalTotalBytes > totalDlBytes) {
+      eta = _fmtEtaSecs(Math.round((totalTotalBytes - totalDlBytes) / totalSpeedBytes));
+    }
+  }
+
+  // Per-file progress data: scan line-by-line for [#gid...] + FILE: pairs in the last summary block
+  const perFileData = [];
+  if (progMatches.length > 0) {
+    const pLines = progressWindow.split('\n');
+    const pBlockRe = /^\s*\[#([0-9a-f]+) ([^\s/]+)\/([^(]+)\((\d+)%\)\s+CN:(\d+)\s+DL:([^\s]+)/;
+    for (let _i = 0; _i < pLines.length; _i++) {
+      const bm = pLines[_i].match(pBlockRe);
+      if (!bm) continue;
+      let fileName = '';
+      for (let _j = _i + 1; _j < Math.min(_i + 8, pLines.length); _j++) {
+        const fm = pLines[_j].match(/^\s*FILE:\s*(\S+)/);
+        if (fm) { fileName = fm[1].split('/').pop(); break; }
+      }
+      perFileData.push({
+        gid: bm[1],
+        dlBytes: _parseIecBytes(bm[2]),
+        totalBytes: _parseIecBytes(bm[3].trim()),
+        pct: parseInt(bm[4], 10),
+        connections: parseInt(bm[5], 10),
+        speed: _fmtSpeed(_parseIecBytes(bm[6])),
+        fileName,
+      });
+    }
+  }
+
+  // Cache gid→filename from verbose format so compact-mode can display real names.
+  // Tracker may not exist yet on first tick; create a stub so gidNames survives.
+  if (progMatches.length > 0 && sessionId && !done && !failed) {
+    if (!_dlFileTracker.has(sessionId) && perFileData.length > 0) {
+      _dlFileTracker.set(sessionId, {
+        totalFileCount: 0, reportedTotal: 0, knownFiles: new Map(),
+        gidNames: new Map(), activeNames: new Set(), completedBytes: 0, completedCount: 0,
+      });
+    }
+    const _tr = _dlFileTracker.get(sessionId);
+    if (_tr) {
+      for (const _f of perFileData) {
+        if (_f.gid && _f.fileName && !_tr.gidNames.has(_f.gid)) {
+          _tr.gidNames.set(_f.gid, _f.fileName);
+        }
+      }
+      if (reportedTotalBytes && !_tr.reportedTotal) _tr.reportedTotal = reportedTotalBytes;
+      _tr.lastActiveAt = Date.now();
+    }
+  }
+
+  // Compact one-liner fallback: [DL:speed][#gid dl/total(pct%)]...
+  // The verbose Download Progress Summary scrolls out of the capture window after
+  // ~46s of active download; the compact line is always the most recent state.
+  if (progMatches.length === 0 && !done && !failed) {
+    const _compactLineRe = /^\[DL:[^\]]+\](?:\[#[0-9a-f]+\s[^\]]+\])+/;
+    const _lastCompact = out.split('\n').reverse().find(l => _compactLineRe.test(l.trim()));
+    if (_lastCompact) {
+      const _sm = _lastCompact.match(/^\[DL:([^\]]+)\]/);
+      if (_sm) { totalSpeedBytes = _parseIecBytes(_sm[1]); speed = _fmtSpeed(totalSpeedBytes); }
+      const _ctr = sessionId ? _dlFileTracker.get(sessionId) : null;
+      const _cgRe = /\[#([0-9a-f]+) ([^\s/\]]+)\/([^(\]]+)\((\d+)%\)\]/g;
+      let _cgm;
+      while ((_cgm = _cgRe.exec(_lastCompact)) !== null) {
+        const _gid = _cgm[1];
+        const _cachedName = _ctr?.gidNames?.get(_gid) || '';
+        const _gidVals  = _ctr?.gidNames ? new Set(_ctr.gidNames.values()) : new Set();
+        const _fallback = (!_cachedName && _gidVals.size === 1) ? [..._gidVals][0] : '';
+        const _dispName = _cachedName || _fallback;
+        perFileData.push({
+          gid: _gid,
+          fileName: _dispName || _gid,   // real name from cache; gid as fallback tracker key
+          dlBytes: _parseIecBytes(_cgm[2]),
+          totalBytes: _parseIecBytes(_cgm[3].trim()),
+          pct: parseInt(_cgm[4], 10),
+          connections: 0, speed: '',
+          _syntheticGid: !_dispName,     // true → show "downloading…" in per-file rows
+        });
+      }
+    }
+  }
+
+  // Parallel mode: "[*] N file(s) (M in parallel)" line.
+  // This banner only appears once at the start and scrolls out of the 500-line capture
+  // window after ~60s. We must persist wasParallel immediately when the banner is seen —
+  // the tracker doesn't exist yet at that point (perFileData is still empty), so we
+  // initialize a stub here rather than waiting for the lazy-init block below.
+  const parallelMatch = out.match(/\[\*\] Downloading \d+ file\(s\) \((\d+) in parallel\)/);
+  if (parallelMatch && sessionId && !done && !failed) {
+    if (!_dlFileTracker.has(sessionId)) {
+      _dlFileTracker.set(sessionId, {
+        totalFileCount: 0, reportedTotal: 0, knownFiles: new Map(),
+        gidNames: new Map(), activeNames: new Set(), completedBytes: 0, completedCount: 0,
+        wasParallel: true,
+      });
+    } else {
+      _dlFileTracker.get(sessionId).wasParallel = true;
+    }
+  }
+  const isParallel = !!parallelMatch || !!(sessionId && _dlFileTracker.get(sessionId)?.wasParallel);
+
+  // Detect single-file-split: aria2c --split=N downloads one file in N pieces,
+  // each piece gets its own gid and reports totalBytes = (file_size / N).
+  // When all perFileData entries share the same fileName, we are in this mode.
+  // The raw progMatches pct is already correct (sum of pieces = full file);
+  // the multi-batch tracker would inflate it N× by comparing piece-bytes
+  // against piece-size rather than full-file-size.
+  const _pfNames = new Set(perFileData.filter(f => f.fileName).map(f => f.fileName));
+  const isSingleFileSplit = perFileData.length > 1 && _pfNames.size <= 1;
+
+  // For split downloads, aria2c emits both a parent GID (full file size, CN:N) and N piece
+  // GIDs (each 1/N size, CN:1). Summing all entries doubles totalTotalBytes and inflates
+  // connections. Correct by using parent-entry values (max) when a parent is present, or
+  // summing piece values when only pieces are shown.
+  if (isSingleFileSplit && perFileData.length > 0) {
+    const hasSplitParent = Math.max(...perFileData.map(f => f.connections)) > 1;
+    const trueTotal = (_dlFileTracker.get(sessionId)?.reportedTotal)
+      || (hasSplitParent
+        ? Math.max(...perFileData.map(f => f.totalBytes))
+        : perFileData.reduce((s, f) => s + f.totalBytes, 0));
+    const trueDl    = hasSplitParent
+      ? Math.max(...perFileData.map(f => f.dlBytes))
+      : perFileData.reduce((s, f) => s + f.dlBytes, 0);
+    connections     = hasSplitParent
+      ? Math.max(...perFileData.map(f => f.connections))
+      : perFileData.reduce((s, f) => s + f.connections, 0);
+    if (trueTotal > 0) {
+      pct       = Math.min(100, Math.round(trueDl / trueTotal * 100));
+      dlSize    = _fmtIecBytes(trueDl);
+      totalSize = _fmtIecBytes(trueTotal);
+    }
+  }
+
+  // ── Persistent multi-batch tracker ──
+  // Accumulates completed-file bytes across poll ticks so overall progress
+  // reflects the full model, not just the currently active 4 files.
+  let completedCount = 0;
+  if (sessionId && !done && !failed && perFileData.length > 0 && !isSingleFileSplit) {
+    if (!_dlFileTracker.has(sessionId)) {
+      _dlFileTracker.set(sessionId, {
+        totalFileCount: 0,
+        reportedTotal: 0,
+        knownFiles: new Map(),
+        gidNames: new Map(),
+        activeNames: new Set(),
+        completedBytes: 0,
+        completedCount: 0,
+      });
+    }
+    const tr = _dlFileTracker.get(sessionId);
+
+    // Refresh total file count from script banner (printed before aria2c starts)
+    const countMatch = out.match(/\[\*\] (\d+) file\(s\) to download/);
+    if (countMatch) tr.totalFileCount = parseInt(countMatch[1], 10);
+    // Banner scrolls out of capture window for long downloads — use cached value
+    if (!totalFiles && tr.totalFileCount) totalFiles = tr.totalFileCount;
+    // Capture exact total size from resolver (more accurate than averaging file sizes)
+    if (reportedTotalBytes && !tr.reportedTotal) tr.reportedTotal = reportedTotalBytes;
+
+    // Record sizes of files we see for the first time.
+    // Skip _syntheticGid entries: compact-format ticks use gid as the key, but verbose
+    // ticks use the real filename. If we stored gid here, the first verbose tick would
+    // see all gid keys in activeNames but real names in curNames → false completions →
+    // completedBytes jumps to ~100% of model size immediately.
+    for (const f of perFileData) {
+      if (f._syntheticGid) continue;
+      if (f.fileName && f.totalBytes > 0 && !tr.knownFiles.has(f.fileName)) {
+        tr.knownFiles.set(f.fileName, f.totalBytes);
+      }
+    }
+
+    // Files that were active last tick but aren't now have completed.
+    // Only compare real filenames (not synthetic gid placeholders).
+    const curNames = new Set(perFileData.filter(f => !f._syntheticGid && f.fileName).map(f => f.fileName));
+    if (curNames.size > 0) {
+      for (const name of tr.activeNames) {
+        if (!curNames.has(name) && tr.knownFiles.has(name)) {
+          tr.completedBytes += tr.knownFiles.get(name);
+          tr.completedCount++;
+        }
+      }
+      tr.activeNames = curNames;
+    }
+    // When curNames is empty (all-synthetic compact tick), preserve tr.activeNames.
+    // Treating an empty set as "all completed" causes completedBytes to jump to the
+    // full model size on every compact-only tick where verbose GIDs aren't present.
+    completedCount = tr.completedCount;
+
+    // Recompute pct / dlSize / totalSize / eta using overall model progress
+    {
+      const activeDl  = perFileData.reduce((s, f) => s + f.dlBytes, 0);
+      const overallDl = tr.completedBytes + activeDl;
+      // Prefer the exact total printed by the Python script; fall back to
+      // averaging known file sizes × total file count (less accurate for
+      // models with mixed file sizes, e.g. large shards + tiny config files).
+      let estTotal = 0;
+      if (tr.reportedTotal > 0) {
+        estTotal = tr.reportedTotal;
+      } else if (tr.knownFiles.size > 0) {
+        const knownSizes     = [...tr.knownFiles.values()];
+        const knownSum       = knownSizes.reduce((s, v) => s + v, 0);
+        const avgFileSize    = knownSum / knownSizes.length;
+        const canExtrapolate = tr.knownFiles.size > 1 && tr.totalFileCount > tr.knownFiles.size;
+        const totalCount     = canExtrapolate ? tr.totalFileCount : tr.knownFiles.size;
+        estTotal = Math.round(avgFileSize * totalCount);
+      }
+      if (estTotal > 0) {
+        pct       = Math.min(99, Math.round(overallDl / estTotal * 100));
+        dlSize    = _fmtIecBytes(overallDl);
+        totalSize = _fmtIecBytes(estTotal);
+        if (totalSpeedBytes > 0 && overallDl < estTotal) {
+          eta = _fmtEtaSecs(Math.round((estTotal - overallDl) / totalSpeedBytes));
+        }
+      }
+    }
+  } else if (done && sessionId) {
+    // On completion show 100% and clean up the tracker
+    const tr = _dlFileTracker.get(sessionId);
+    completedCount = tr ? tr.totalFileCount : completedCount;
+    _dlFileTracker.delete(sessionId);
+  }
+
+  const _authAll = [...out.matchAll(/\[\*\] HF auth: (.+)/g)];
+  const authStatus = _authAll.length ? _authAll[_authAll.length - 1][1].trim() : '';
+
+  let phase = 'initializing';
+  if (done)                                                                 phase = 'done';
+  else if (failed || noBinary || noFiles || resolveErr)                     phase = 'error';
+  else if (totalFiles > 0 || progMatches.length > 0 || perFileData.length > 0) phase = 'downloading';
+  else if (out.includes('[*] Resolving file list'))                         phase = 'resolving';
+  else if (out.includes('[*] Using aria2c:'))                               phase = 'starting';
+
+  const failedCount = (out.match(/\[!\] Failed: /g) || []).length;
+  let errorMsg = '';
+  if (noBinary)     errorMsg = 'aria2c binary not found — check installation log';
+  else if (noFiles) errorMsg = 'No matching files found in this repository';
+  else if (resolveErr) {
+    const m = out.match(/\[!\] Failed to list files: (.+)/);
+    errorMsg = m ? m[1].slice(0, 120) : 'Failed to resolve repository file list';
+  } else if (failed) {
+    errorMsg = failedCount ? `${failedCount} file(s) failed to download` : 'Download failed — see log for details';
+  }
+
+  return { phase, totalFiles, currentFile, pct, dlSize, totalSize, speed, eta,
+           connections, activeDownloads, isParallel, isSingleFileSplit, done, failed, errorMsg, perFileData, completedCount, authStatus };
+}
+
+// ── Download progress card ──
+// Replaces the raw <pre> terminal output for download tasks with a structured
+// progress card showing phase, file progress, progress bar, speed, and ETA.
+
+function _midTrunc(s, max = 42) {
+  if (!s || s.length <= max) return s;
+  const half = Math.floor((max - 1) / 2);
+  return s.slice(0, half) + '…' + s.slice(-half);
+}
+
+// Build the HTML for a single per-file progress row (parallel downloads).
+function _buildSingleFileRow(f, hideStats = false) {
+  const sizeStr = !hideStats && f.totalBytes > 0
+    ? `${esc(_fmtIecBytes(f.dlBytes))} / ${esc(_fmtIecBytes(f.totalBytes))}`
+    : '';
+  const connBadge = !hideStats && f.connections > 1
+    ? `<span class="dl-conn-badge">${f.connections}\xd7</span>`
+    : '';
+  const speedStr = !hideStats && f.speed ? `${esc(f.speed)}${connBadge}` : '';
+  const sep = (sizeStr && speedStr) ? `<span class="dl-stat-sep">\xb7</span>` : '';
+  const nameDisplay = f._syntheticGid ? 'downloading…' : _midTrunc(f.fileName, 38);
+  const nameTitle   = f._syntheticGid ? '' : esc(f.fileName);
+  return `<div class="dl-file-row" data-dl-gid="${esc(f.gid)}">
+      <div class="dl-file-row-top">
+        <span class="dl-file-row-name"${nameTitle ? ` title="${nameTitle}"` : ''}>${esc(nameDisplay)}</span>
+        <span class="dl-file-row-pct">${f.pct}%</span>
+      </div>
+      <div class="dl-file-row-bar"><div class="dl-file-row-fill" style="width:${f.pct}%"></div></div>
+      <div class="dl-file-row-stats">${sizeStr}${sep}${speedStr}</div>
+    </div>`;
+}
+
+function _buildAuthPillHtml(authStatus) {
+  if (!authStatus) return '';
+  const _lock   = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+  const _unlock = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a3 3 0 0 1 6 0"/></svg>';
+  if (authStatus.includes('authenticated'))  return `<span class="cookbook-task-auth-badge dl-auth-ok">${_lock} authed</span>`;
+  if (authStatus.includes('token provided')) return `<span class="cookbook-task-auth-badge dl-auth-pending">${_lock} token…</span>`;
+  if (authStatus.includes('no token'))       return `<span class="cookbook-task-auth-badge dl-auth-none">${_unlock} no auth</span>`;
+  return `<span class="cookbook-task-auth-badge dl-auth-none">${esc(authStatus)}</span>`;
+}
+
+function _buildDownloadCardHtml(task, state) {
+  const st = state || _parseDownloadState(task.output || '', task.sessionId);
+  const { pct, dlSize, totalSize, speed, eta, connections, activeDownloads,
+          isParallel, isSingleFileSplit, currentFile, totalFiles, errorMsg, perFileData, completedCount, authStatus } = st;
+  // Allow task.status to override the phase — e.g. 'paused' is set by the Pause
+  // button and is not derivable from the tmux output alone.
+  const phase = task.status === 'paused' ? 'paused' : st.phase;
+
+  const sizeLabel = dlSize && totalSize ? `${dlSize} / ${totalSize}` : '';
+  const connBadge = connections > 1
+    ? `<span class="dl-conn-badge" title="${connections} active connections">${connections}\xd7</span>`
+    : '';
+  const phaseLabels = { initializing: 'Initializing…', starting: 'Starting aria2c…', resolving: 'Resolving file list…' };
+  const phaseLabel = phaseLabels[phase] || phaseLabels.initializing;
+  const pctLabel = pct ? `${pct}%` : '';
+  const fileCtx = totalFiles > 0
+    ? `${completedCount} of ${totalFiles} files`
+    : '';
+  const _hideFileStats = perFileData && perFileData.length === 1;
+  const fileRows = perFileData && perFileData.length > 0 && (isParallel || perFileData.length > 1) && !isSingleFileSplit
+    ? perFileData.map(f => _buildSingleFileRow(f, _hideFileStats)).join('')
+    : '';
+
+  return `<div class="dl-card" data-dl-card data-dl-phase="${esc(phase)}">
+    <div class="dl-phase-init">
+      <span class="dl-phase-spinner"></span>
+      <span class="dl-phase-label" data-dl-phase-label>${esc(phaseLabel)}</span>
+    </div>
+    <div class="dl-phase-paused">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+      <span>Paused</span>
+    </div>
+    <div class="dl-phase-progress">
+      <div class="dl-progress-row">
+        <div class="dl-progress-track"><div class="dl-progress-fill" data-dl-fill style="width:${pct}%"></div></div>
+        <span class="dl-pct-label" data-dl-pct>${esc(pctLabel)}</span>
+      </div>
+      <div class="dl-stats-row">
+        <span class="dl-stat" data-dl-size>${esc(sizeLabel)}</span>
+        <span class="dl-stat-sep" data-dl-size-sep>${sizeLabel ? '\xb7' : ''}</span>
+        <span class="dl-stat dl-stat-speed" data-dl-speed>${esc(speed)}${speed ? connBadge : ''}</span>
+        <span class="dl-stat-sep" data-dl-eta-sep>${eta ? '\xb7' : ''}</span>
+        <span class="dl-stat dl-stat-eta" data-dl-eta>${esc(eta)}</span>
+        <span class="dl-stat-sep dl-file-ctx-sep" data-dl-file-ctx-sep>${fileCtx ? '\xb7' : ''}</span>
+        <span class="dl-stat dl-file-ctx" data-dl-file-ctx>${esc(fileCtx)}</span>
+      </div>
+      <div class="dl-files-list" data-dl-files>${fileRows}</div>
+    </div>
+    <div class="dl-done-banner">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Download complete
+    </div>
+    <div class="dl-error-banner">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      <span data-dl-error-msg>${esc(errorMsg || 'Download failed — see log')}</span>
+    </div>
+    <div class="dl-card-actions">
+      <button type="button" class="dl-action-btn dl-action-pause">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>Pause
+      </button>
+      <button type="button" class="dl-action-btn dl-action-stop">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>Stop
+      </button>
+      <button type="button" class="dl-action-btn dl-action-resume">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>Resume
+      </button>
+      <button type="button" class="dl-action-btn dl-action-restart">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 1 0 2.1-9.4L1 10"/></svg>Retry
+      </button>
+    </div>
+    <button type="button" class="dl-log-toggle" data-dl-log-toggle>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      <span>Show log</span>
+    </button>
+    <pre class="cookbook-output-pre dl-raw-log" style="display:none">${esc(task.output || '')}</pre>
+    <button type="button" class="copy-code cookbook-output-copy dl-copy-btn" style="display:none" title="Copy log"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+  </div>`;
+}
+
+// Update an existing download card in-place without rebuilding it.
+// Called on every background monitor tick after output.textContent is updated.
+function _updateDownloadCard(el, task, snapshot) {
+  const card = el.querySelector('[data-dl-card]');
+  if (!card) return;
+  // Don't update the card if the task is paused — the Pause handler already
+  // set the correct phase and the reconnect loop has been aborted.
+  if (task.status === 'paused') return;
+  const st = _parseDownloadState(snapshot, task.sessionId);
+  const prev = card.dataset.dlPhase;
+
+  if (st.phase !== prev) {
+    card.dataset.dlPhase = st.phase;
+    const phaseLabels = { initializing: 'Initializing\u2026', starting: 'Starting aria2c\u2026', resolving: 'Resolving file list\u2026' };
+    if (phaseLabels[st.phase]) {
+      const lbl = card.querySelector('[data-dl-phase-label]');
+      if (lbl) lbl.textContent = phaseLabels[st.phase];
+    }
+    // Button visibility — driven by phase; CSS shows/hides via [data-dl-phase] rules
+    // but we also override display style here so transitions are immediate.
+    const pauseBtn   = card.querySelector('.dl-action-pause');
+    const stopBtn    = card.querySelector('.dl-action-stop');
+    const resumeBtn  = card.querySelector('.dl-action-resume');
+    const restartBtn = card.querySelector('.dl-action-restart');
+    const activePhases   = ['initializing','starting','resolving','downloading'];
+    const terminalPhases = ['done','error'];
+    if (pauseBtn) {
+      pauseBtn.style.display = activePhases.includes(st.phase) ? 'inline-flex' : 'none';
+      if (activePhases.includes(st.phase)) pauseBtn.disabled = false;
+    }
+    if (stopBtn)    stopBtn.style.display    = activePhases.includes(st.phase) ? 'inline-flex' : 'none';
+    if (resumeBtn)  resumeBtn.style.display  = (st.phase === 'paused') ? 'inline-flex' : 'none';
+    if (restartBtn) restartBtn.style.display = terminalPhases.includes(st.phase) ? 'inline-flex' : 'none';
+    if (st.phase === 'error') {
+      const errEl = card.querySelector('[data-dl-error-msg]');
+      if (errEl) errEl.textContent = st.errorMsg || 'Download failed — see log';
+    }
+  }
+
+  if (st.phase === 'downloading') {
+    const fill = card.querySelector('[data-dl-fill]');
+    if (fill) fill.style.width = st.pct + '%';
+
+    const pctEl = card.querySelector('[data-dl-pct]');
+    if (pctEl) pctEl.textContent = st.pct ? st.pct + '%' : '';
+
+    const sizeLabel = st.dlSize && st.totalSize ? `${st.dlSize} / ${st.totalSize}` : '';
+    const sizeEl = card.querySelector('[data-dl-size]');
+    if (sizeEl) {
+      sizeEl.textContent = sizeLabel;
+      const sep = card.querySelector('[data-dl-size-sep]');
+      if (sep) sep.textContent = sizeLabel ? '\xb7' : '';
+    }
+
+    const speedEl = card.querySelector('[data-dl-speed]');
+    if (speedEl) {
+      const connBadge = st.connections > 1 ? `<span class="dl-conn-badge">${st.connections}\xd7</span>` : '';
+      speedEl.innerHTML = esc(st.speed) + (st.speed ? connBadge : '');
+      const sep = card.querySelector('[data-dl-eta-sep]');
+      if (sep) sep.textContent = st.eta ? '\xb7' : '';
+    }
+
+    const etaEl = card.querySelector('[data-dl-eta]');
+    if (etaEl) etaEl.textContent = st.eta;
+
+    // Files context: "X of N files"
+    const fileCtxEl  = card.querySelector('[data-dl-file-ctx]');
+    const fileCtxSep = card.querySelector('[data-dl-file-ctx-sep]');
+    if (fileCtxEl) {
+      const fileCtx = st.totalFiles > 0 ? `${st.completedCount} of ${st.totalFiles} files` : '';
+      fileCtxEl.textContent = fileCtx;
+      if (fileCtxSep) fileCtxSep.textContent = fileCtx ? '\xb7' : '';
+    }
+
+    // Per-file rows: update in-place by GID; add new rows, remove completed ones.
+    // For isSingleFileSplit (--split=N segments), show one merged row with the real filename.
+    if (st.isSingleFileSplit) {
+      const filesList = card.querySelector('[data-dl-files]');
+      if (filesList) {
+        filesList.querySelectorAll('[data-dl-gid]:not([data-dl-gid="split-merged"])').forEach(r => r.remove());
+        const realEntry = st.perFileData.find(f => !f._syntheticGid && f.fileName);
+        if (realEntry) {
+          let row = filesList.querySelector('[data-dl-gid="split-merged"]');
+          if (!row) {
+            row = document.createElement('div');
+            row.className = 'dl-file-row';
+            row.dataset.dlGid = 'split-merged';
+            row.innerHTML = `<div class="dl-file-row-top">
+              <span class="dl-file-row-name">${esc(_midTrunc(realEntry.fileName, 38))}</span>
+              <span class="dl-file-row-pct">${st.pct}%</span>
+            </div>
+            <div class="dl-file-row-bar"><div class="dl-file-row-fill" style="width:${st.pct}%"></div></div>`;
+            filesList.appendChild(row);
+          } else {
+            const fillEl = row.querySelector('.dl-file-row-fill');
+            if (fillEl) fillEl.style.width = st.pct + '%';
+            const pctEl = row.querySelector('.dl-file-row-pct');
+            if (pctEl) pctEl.textContent = st.pct + '%';
+          }
+        } else {
+          filesList.innerHTML = '';
+        }
+      }
+    }
+
+    if (st.perFileData && st.perFileData.length > 0 && (st.isParallel || st.perFileData.length > 1) && !st.isSingleFileSplit) {
+      const filesList = card.querySelector('[data-dl-files]');
+      const _hideStats = st.perFileData.length === 1;
+      if (filesList) {
+        const gidSet = new Set(st.perFileData.map(f => f.gid));
+        filesList.querySelectorAll('[data-dl-gid]').forEach(r => {
+          if (!gidSet.has(r.dataset.dlGid)) r.remove();
+        });
+        for (const f of st.perFileData) {
+          let row = filesList.querySelector(`[data-dl-gid="${CSS.escape(f.gid)}"]`);
+          if (!row) {
+            if (f.pct >= 100) continue; // pre-completed on resume — don't flash a full bar
+            const tmp = document.createElement('div');
+            tmp.innerHTML = _buildSingleFileRow(f, _hideStats);
+            row = tmp.firstElementChild;
+            filesList.appendChild(row);
+          }
+          const fillEl = row.querySelector('.dl-file-row-fill');
+          if (fillEl) fillEl.style.width = f.pct + '%';
+          const pctEl2 = row.querySelector('.dl-file-row-pct');
+          if (pctEl2) pctEl2.textContent = f.pct + '%';
+          const nameEl2 = row.querySelector('.dl-file-row-name');
+          if (nameEl2 && !f._syntheticGid && f.fileName && f.fileName !== nameEl2.textContent) {
+            nameEl2.title = f.fileName;
+            nameEl2.textContent = _midTrunc(f.fileName, 38);
+          }
+          const statsEl = row.querySelector('.dl-file-row-stats');
+          if (statsEl) {
+            if (_hideStats) {
+              statsEl.innerHTML = '';
+            } else {
+              const sizeStr = f.totalBytes > 0
+                ? `${esc(_fmtIecBytes(f.dlBytes))} / ${esc(_fmtIecBytes(f.totalBytes))}`
+                : '';
+              const connBadge2 = f.connections > 1 ? `<span class="dl-conn-badge">${f.connections}\xd7</span>` : '';
+              const speedStr = f.speed ? `${esc(f.speed)}${connBadge2}` : '';
+              const sep2 = (sizeStr && speedStr) ? `<span class="dl-stat-sep">\xb7</span>` : '';
+              statsEl.innerHTML = `${sizeStr}${sep2}${speedStr}`;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Update HF auth badge in the task header (el, not card)
+  if (st.authStatus) {
+    const authEl = el.querySelector('[data-dl-auth]');
+    if (authEl) {
+      const prev = authEl.dataset.dlAuthStatus || '';
+      if (st.authStatus !== prev) {
+        authEl.dataset.dlAuthStatus = st.authStatus;
+        authEl.innerHTML = _buildAuthPillHtml(st.authStatus);
+      }
+    }
+  }
+}
 function _serveExpectedModel(task) {
   const fields = task?.payload?._fields || {};
   return String(
@@ -713,7 +1354,11 @@ async function _startQueuedDownload(task) {
       return;
     }
     const oldId = task.sessionId;
-    const launchedTask = { ...task, sessionId: data.session_id, id: data.session_id, status: 'running' };
+    const launchedTask = {
+      ...task, sessionId: data.session_id, id: data.session_id, status: 'running',
+      // Record which path actually ran (aria2c vs hf) so the badge parser matches.
+      payload: { ...(task.payload || {}), use_aria2c: !!data.use_aria2c },
+    };
     const key = _downloadDedupeKey(launchedTask);
     let found = false;
     const tasks = _loadTasks().filter(t => {
@@ -1451,8 +2096,6 @@ export async function _syncFromServer() {
 
 // ── Retry download ──
 
-// Bounded auto-retry counter for downloads, keyed by model — network blips on
-// big multi-file downloads are common and HF resumes from the .incomplete parts.
 const _dlRetryCount = new Map();
 const _DL_MAX_AUTO_RETRY = 2;
 
@@ -1507,6 +2150,8 @@ async function _retryDownload(name, payload, replaceSessionId = '') {
       if (replaceSessionId) _updateTask(replaceSessionId, { status: 'crashed', _retrying: false });
       return;
     }
+    // Record which path actually ran (aria2c vs hf) so the badge parser matches.
+    _payload.use_aria2c = !!data.use_aria2c;
     if (replaceSessionId) {
       const tasks = _loadTasks();
       const task = tasks.find(t => t.sessionId === replaceSessionId);
@@ -1519,10 +2164,28 @@ async function _retryDownload(name, payload, replaceSessionId = '') {
         task.ts = Date.now();
         task.payload = _payload;
         task._retrying = false;
+        _tombstoneTask(replaceSessionId);
         _saveTasks(tasks);
-        _soloExpandTaskId = data.session_id;
-        _renderRunningTab();
-        _startBackgroundMonitor();
+        // Update existing DOM card in-place so the user sees the same card continue
+        // rather than a "new window" appearing. _renderRunningTab would rebuild the
+        // card from scratch (resetting phase to "Initializing…" and losing position).
+        const existingEl = document.querySelector(`.cookbook-task[data-task-id="${CSS.escape(replaceSessionId)}"]`);
+        if (existingEl) {
+          existingEl.dataset.taskId = data.session_id;
+          existingEl.dataset.status = 'running';
+          const _badge = existingEl.querySelector('.cookbook-task-status');
+          if (_badge) { _badge.textContent = 'downloading'; _badge.className = 'cookbook-task-status cookbook-task-running'; }
+          const _dlCard = existingEl.querySelector('[data-dl-card]');
+          if (_dlCard) { _dlCard.dataset.dlPhase = 'initializing'; }
+          const _wave = existingEl.querySelector('.cookbook-task-wave');
+          if (_wave) _wave.style.display = '';
+          const _chk = existingEl.querySelector('.cookbook-task-check');
+          if (_chk) _chk.style.display = 'none';
+          if (existingEl._abort) existingEl._abort.abort();
+          _reconnectTask(existingEl, task);
+        } else {
+          _addTask(data.session_id, name, 'download', _payload);
+        }
       } else {
         _addTask(data.session_id, name, 'download', _payload);
       }
@@ -2041,7 +2704,7 @@ export function _renderRunningTab() {
   // event but the matching clear only ran on modal-open, so the highlight
   // persisted indefinitely after tasks finished in the background.
   try {
-    const _activeTasks = _loadPrunedTasks().filter(t => t.status === 'running' || t.status === 'queued' || t.status === 'error');
+    const _activeTasks = _loadPrunedTasks().filter(t => t.status === 'running' || t.status === 'queued' || t.status === 'error' || t.status === 'paused');
     if (!_activeTasks.length) _clearCookbookNotif();
   } catch {}
 
@@ -2251,8 +2914,8 @@ export function _renderRunningTab() {
         return;
       }
       if (!await window.styledConfirm(`Clear ${toRemove.length} finished task${toRemove.length === 1 ? '' : 's'} on ${_serverName(host)}?`, { confirmText: 'Clear' })) return;
+      const remaining = allTasks.filter(t => (t.remoteHost || '') !== host || !_canClearTask(t));
       toRemove.forEach(t => _tombstoneTask(t.sessionId));
-      const remaining = allTasks.filter(t => _taskServerKey(t) !== host || !_canClearTask(t));
       _saveTasks(remaining);
       // Fade/slide each finished card out (same exit as the per-card clear)
       // instead of yanking them instantly.
@@ -2333,7 +2996,7 @@ export function _renderRunningTab() {
       // Type chip doubles as the "finished" badge once a task completes — both
       // download and serve show the same green FINISHED chip.
       const typeChip = el.querySelector('.cookbook-task-type');
-      if (typeChip) {
+      if (typeChip && task.status !== 'paused') {
         // Only DOWNLOAD tasks flip to "finished" when done — serve tasks keep
         // saying "serve" because the model is still running on that port.
         const isDoneDl = isDone && task.type === 'download';
@@ -2341,7 +3004,7 @@ export function _renderRunningTab() {
         typeChip.classList.toggle('cookbook-task-type-done', isDoneDl);
       }
       const badge = el.querySelector('.cookbook-task-status');
-      if (badge) {
+      if (badge && task.status !== 'paused') {
         const _bdg = _taskBadge(task);
         badge.textContent = _bdg.text;
         badge.className = 'cookbook-task-status' + (_bdg.cls ? ' ' + _bdg.cls : '');
@@ -2395,19 +3058,36 @@ export function _renderRunningTab() {
 
     const _bdg = _taskBadge(task);
     const _bdgTitle = (task._unreachable && task.status === 'running') ? ' title="Server not responding — it may have crashed"' : '';
-    const displayName = _taskDisplayName(task);
+    const _isDl = task.type === 'download';
+    const _dlState = _isDl ? _parseDownloadState(task.output || '', task.sessionId) : null;
+    const _queuePos = _isDl && task.status === 'queued'
+      ? (() => { const all = _loadTasks(); const qs = all.filter(t => t.type === 'download' && t.status === 'queued'); return qs.findIndex(t => t.sessionId === task.sessionId) + 1; })()
+      : 0;
+
     const logoName = task.type === 'download' ? (task.payload?.repo_id || task.name) : task.name;
     el.innerHTML = `
       <div class="cookbook-task-header">
-        <span class="cookbook-task-type${(task.status === 'done' && task.type === 'download') ? ' cookbook-task-type-done' : ''}" data-type="${esc(task.type)}">${esc((task.status === 'done' && task.type === 'download') ? 'finished' : task.type)}</span>
+        <span class="cookbook-task-type${(task.status === 'done' && _isDl) ? ' cookbook-task-type-done' : ''}" data-type="${esc(task.type)}">${esc((task.status === 'done' && _isDl) ? 'finished' : task.type)}</span>
         <span class="cookbook-task-name">${modelLogo(logoName)}${esc(displayName)}</span>
         <span class="cookbook-task-indicator"><span class="cookbook-task-wave" style="display:${task.status === 'running' ? '' : 'none'}"></span>${_canLaunchDownloadedTask(task) ? '<button type="button" class="cookbook-task-serve-btn" title="Open in Launch"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Launch</span></button>' : ''}<span class="cookbook-task-check" title="Clear" style="display:${_canClearTask(task) ? '' : 'none'}"><svg class="cookbook-task-check-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#50fa7b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><svg class="cookbook-task-clear-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span class="cookbook-task-done-label">${esc(_clearPillLabel(task))}</span><span class="cookbook-task-clear-label">clear</span></span></span>
-        <button type="button" class="cookbook-task-start-now" title="Start this queued download now" style="display:${(task.type === 'download' && task.status === 'queued') ? '' : 'none'}"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="8 5 19 12 8 19 8 5"/></svg><span>start now</span></button>
+        <button type="button" class="cookbook-task-start-now" title="Start this queued download now" style="display:${(_isDl && task.status === 'queued') ? '' : 'none'}"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="8 5 19 12 8 19 8 5"/></svg><span>start now</span></button>
         <span class="cookbook-task-status ${_bdg.cls}"${_bdgTitle}>${esc(_bdg.text)}</span>
+        ${_isDl ? `<span data-dl-auth>${_dlState?.authStatus ? _buildAuthPillHtml(_dlState.authStatus) : ''}</span>` : ''}
         <button type="button" class="cookbook-task-menu-btn" title="Actions">&#8942;</button>
       </div>
-      <div class="cookbook-task-sub"><span class="cookbook-task-session">${esc(task.sessionId)}</span><span class="cookbook-task-uptime" style="display:${((task.type === 'serve' || task.type === 'download') && task.status === 'running') ? '' : 'none'}"></span>${(task.type === 'download') ? `<span class="cookbook-task-dldir" title="Download destination" style="font-size:9px;color:var(--fg-muted);font-family:'Fira Code',monospace;opacity:0.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40ch;">Dir: ${esc(task.payload?.local_dir || '~/.cache/huggingface/hub')}</span>` : ''}</div>
-      <div class="cookbook-output-wrap cookbook-task-collapsible${(_mobileCollapseDefault && !_shouldAutoExpandTaskOutput(task)) ? ' cookbook-task-collapsed' : ''}"><pre class="cookbook-output-pre">${esc(task.output || '')}</pre><button type="button" class="copy-code cookbook-output-copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
+      <div class="cookbook-task-sub">
+        <span class="cookbook-task-session">${esc(task.sessionId)}</span>
+        <span class="cookbook-task-uptime" style="display:${((task.type === 'serve' || _isDl) && task.status === 'running') ? '' : 'none'}"></span>
+        ${_isDl ? `<span class="cookbook-task-dldir" title="Download destination">${esc(_midTrunc(task.payload?.local_dir || '~/.cache/huggingface/hub', 48))}</span>` : ''}
+      </div>
+      ${_isDl
+        ? `<div class="cookbook-output-wrap cookbook-task-collapsible${(_mobileCollapseDefault && !_shouldAutoExpandTaskOutput(task)) ? ' cookbook-task-collapsed' : ''}">${
+            task.status === 'queued'
+              ? `<div class="dl-card dl-card-queued" data-dl-card data-dl-phase="queued"><div class="dl-queue-row"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Queued${_queuePos > 0 ? ` — position ${_queuePos}` : ''}</span></div><button type="button" class="cookbook-task-start-now dl-start-now-inline"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="8 5 19 12 8 19 8 5"/></svg>Start now</button></div>`
+              : _buildDownloadCardHtml(task, _dlState)
+          }</div>`
+        : `<div class="cookbook-output-wrap cookbook-task-collapsible${_mobileCollapseDefault ? ' cookbook-task-collapsed' : ''}"><pre class="cookbook-output-pre">${esc(task.output || '')}</pre><button type="button" class="copy-code cookbook-output-copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>`
+      }
     `;
 
     const _waveEl = el.querySelector('.cookbook-task-wave');
@@ -2606,6 +3286,7 @@ export function _renderRunningTab() {
           return;
         }
         document.querySelectorAll('.cookbook-task-dropdown').forEach(d => { if (typeof d._dismiss === 'function') d._dismiss(); else d.remove(); });
+        if (_wasOpen) return;
 
         const dropdown = document.createElement('div');
         dropdown.className = 'cookbook-task-dropdown';
@@ -2625,7 +3306,12 @@ export function _renderRunningTab() {
         if (task.status !== 'running' && task.status !== 'queued') {
           items.push({ group: 'run', label: 'Reconnect tmux', action: 'reconnect' });
         }
-        items.push({ group: 'run', label: 'Restart', action: 'retry' });
+        if (task.status === 'running' && task.type !== 'download') {
+          items.push({ group: 'run', label: 'Stop', action: 'stop', danger: true });
+        }
+        if (task.type !== 'download') {
+          items.push({ group: 'run', label: 'Restart', action: 'retry' });
+        }
         // ── Edit section ────────────────────────────────────────────
         // Merged "Edit & relaunch" — opens the structured serve panel
         // pre-filled with this task's config. The old standalone "Edit
@@ -2793,6 +3479,7 @@ export function _renderRunningTab() {
         dropdown.style.top = rect.bottom + 2 + 'px';
         dropdown.style.right = (window.innerWidth - rect.right) + 'px';
         document.body.appendChild(dropdown);
+        menuBtn._myDropdown = dropdown;
         // Clamp into the *visible* area. On mobile (esp. Firefox) window.innerHeight
         // includes the strip hidden under the dynamic toolbar, so a menu that "fits"
         // by innerHeight still lands off-screen at the bottom. visualViewport gives
@@ -2825,6 +3512,7 @@ export function _renderRunningTab() {
         const _cleanup = () => {
           _unreg(); _unreg = () => {};
           dropdown.remove();
+          if (menuBtn._myDropdown === dropdown) menuBtn._myDropdown = null;
           menuBtn.classList.remove('cookbook-menu-active');
           document.removeEventListener('click', closeHandler);
           window.removeEventListener('scroll', scrollClose, true);
@@ -2866,7 +3554,10 @@ export function _renderRunningTab() {
       _reconnectTask(el, task);
     });
 
-    // Wire stop
+    // Wire stop — bound once; reads current session from DOM at click time so Resume
+    // (which updates el.dataset.taskId) doesn't leave a stale kill target.
+    if (!el._stopBound) {
+      el._stopBound = true;
     el.querySelector('.cookbook-task-action-stop').addEventListener('click', async () => {
       // Abort the reconnect loop before sending kill so that a DOWNLOAD_FAILED
       // marker written by the shell wrapper (on SIGINT/non-zero exit) cannot
@@ -2875,7 +3566,9 @@ export function _renderRunningTab() {
       const badge = el.querySelector('.cookbook-task-status');
       if (badge) { badge.textContent = 'stopping...'; badge.className = 'cookbook-task-status cookbook-task-stopping'; }
       el.dataset.status = 'stopped';
-      _updateTask(task.sessionId, { _userStopped: true });
+      // Read current session ID from DOM — may differ from task.sessionId if Resume ran
+      const _curStopSid = el.dataset.taskId;
+      _updateTask(_curStopSid, { _userStopped: true });
       const outputText = el.querySelector('.cookbook-output-pre')?.textContent || task.output || '';
       // Drop the model endpoint so the picker stops listing it.
       if (task.type === 'serve' && task.payload) {
@@ -2892,17 +3585,19 @@ export function _renderRunningTab() {
         } catch {}
       }
       // Gracefully stop (C-c, then kill the session) so it's fully down...
+      const _liveStopTask = { ...task, sessionId: _curStopSid };
       try {
         await fetch('/api/shell/exec', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: _tmuxGracefulKill(task) }),
+          body: JSON.stringify({ command: _tmuxGracefulKill(_liveStopTask) }),
         });
       } catch {}
       // ...then smoothly fade/slide the card out and auto-remove it — no manual
       // ⋮ → Remove needed.
-      _animateOutThenRemove(el, task.sessionId);
+      _animateOutThenRemove(el, _curStopSid);
     });
+    } // end el._stopBound guard
 
     // Wire kill — awaits the SSH/tmux kill and verifies the session is
     // actually gone before removing the row. Previously fire-and-forget,
@@ -2991,6 +3686,113 @@ export function _renderRunningTab() {
       });
     });
 
+    // Wire download card inline buttons (pause, stop, resume, retry, log toggle, copy)
+    if (_isDl) {
+      const _dlCard = el.querySelector('[data-dl-card]');
+      if (_dlCard) {
+        // Pause: send C-c to aria2c in the tmux pane — it exits gracefully and writes
+        // .aria2 sidecar files so the next download resumes from where it left off.
+        const _dlPauseBtn = _dlCard.querySelector('.dl-action-pause');
+        if (_dlPauseBtn && !_dlPauseBtn._bound) {
+          _dlPauseBtn._bound = true;
+          _dlPauseBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            // Read sessionId from the DOM at click time — it may have changed since
+            // this handler was bound if the user paused, then resumed (new session).
+            const _curSid = el.dataset.taskId;
+            if (el._abort) el._abort.abort();
+            _dlPauseBtn.disabled = true;
+            try {
+              await fetch('/api/shell/exec', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: _tmuxCmd(task, `send-keys -t ${_curSid} C-c`) }),
+              });
+            } catch {}
+            _updateTask(_curSid, { status: 'paused', _userStopped: false });
+            el.dataset.status = 'paused';
+            _dlCard.dataset.dlPhase = 'paused';
+            const badge = el.querySelector('.cookbook-task-status');
+            if (badge) { badge.textContent = 'paused'; badge.className = 'cookbook-task-status cookbook-task-paused'; }
+            // Update button visibility for paused state
+            _dlCard.querySelector('.dl-action-pause')?.style && (_dlCard.querySelector('.dl-action-pause').style.display = 'none');
+            _dlCard.querySelector('.dl-action-stop')?.style  && (_dlCard.querySelector('.dl-action-stop').style.display  = 'none');
+            const resumeBtn = _dlCard.querySelector('.dl-action-resume');
+            if (resumeBtn) resumeBtn.style.display = 'inline-flex';
+          });
+        }
+
+        const _dlStopBtn = _dlCard.querySelector('.dl-action-stop');
+        if (_dlStopBtn && !_dlStopBtn._bound) {
+          _dlStopBtn._bound = true;
+          _dlStopBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            el.querySelector('.cookbook-task-action-stop')?.click();
+          });
+        }
+
+        // Resume: same as retry — re-runs aria2c with --continue=true, picking up
+        // from the .aria2 sidecar files written when the download was paused.
+        const _dlResumeBtn = _dlCard.querySelector('.dl-action-resume');
+        if (_dlResumeBtn && !_dlResumeBtn._bound) {
+          _dlResumeBtn._bound = true;
+          _dlResumeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Read current session ID at click time — el.dataset.taskId is updated in-place
+            // by _retryDownload after each resume, so the closure-captured `task` is stale.
+            const _curSid = el.dataset.taskId;
+            const _liveTask = (_loadTasks().find(t => t.sessionId === _curSid)) || { ...task, sessionId: _curSid };
+            _retryTask(el, _liveTask);
+          });
+        }
+
+        const _dlRestartBtn = _dlCard.querySelector('.dl-action-restart');
+        if (_dlRestartBtn) {
+          _dlRestartBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _retryTask(el, task);
+          });
+        }
+        const _dlLogToggle = _dlCard.querySelector('[data-dl-log-toggle]');
+        if (_dlLogToggle) {
+          _dlLogToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const log = _dlCard.querySelector('.dl-raw-log');
+            const copyBtn = _dlCard.querySelector('.dl-copy-btn');
+            const label = _dlLogToggle.querySelector('span');
+            if (!log) return;
+            const shown = log.style.display !== 'none';
+            log.style.display = shown ? 'none' : '';
+            if (copyBtn) copyBtn.style.display = shown ? 'none' : '';
+            // Rotate the SVG chevron rather than swapping text
+            const _ico = _dlLogToggle.querySelector('svg');
+            if (_ico) _ico.style.transform = shown ? '' : 'rotate(90deg)';
+            if (label) label.textContent = shown ? 'Show log' : 'Hide log';
+          });
+        }
+        const _dlStartNowInline = _dlCard.querySelector('.dl-start-now-inline');
+        if (_dlStartNowInline) {
+          _dlStartNowInline.addEventListener('click', (e) => {
+            e.stopPropagation();
+            el.querySelector('.cookbook-task-start-now')?.click();
+          });
+        }
+        const _dlCopyBtn = _dlCard.querySelector('.dl-copy-btn');
+        if (_dlCopyBtn) {
+          _dlCopyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const text = _dlCard.querySelector('.dl-raw-log')?.textContent || '';
+            _copyText(text).then(() => {
+              const origHTML = _dlCopyBtn.innerHTML;
+              _dlCopyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+              _dlCopyBtn.classList.add('copied');
+              setTimeout(() => { _dlCopyBtn.innerHTML = origHTML; _dlCopyBtn.classList.remove('copied'); }, 1500);
+            });
+          });
+        }
+      }
+    }
+
     // Route to the right server section body
     const serverBodyId = `server-body-${(_taskServerKey(task) || 'local').replace(/[^a-zA-Z0-9-]/g, '_')}`;
     const targetBody = document.getElementById(serverBodyId);
@@ -3041,7 +3843,13 @@ async function _reconnectTask(el, task) {
   const wrap = el.querySelector('.cookbook-output-wrap');
   if (!_isRunningTabVisible() || !wrap || wrap.classList.contains('cookbook-task-collapsed')) return;
   if (el._abort && !el._abort.signal?.aborted) return;
-  const output = el.querySelector('.cookbook-output-pre');
+  // For download cards the visible output lives in .dl-raw-log, not
+  // .cookbook-output-pre. Keep .cookbook-output-pre for non-download tasks and
+  // legacy paths that read output.textContent directly.
+  const _isDownloadCard = task.type === 'download';
+  const output = _isDownloadCard
+    ? (el.querySelector('.dl-raw-log') || el.querySelector('.cookbook-output-pre'))
+    : el.querySelector('.cookbook-output-pre');
   if (!output) return;
   const controller = new AbortController();
   el._abort = controller;
@@ -3246,6 +4054,10 @@ async function _reconnectTask(el, task) {
               const _sb = el.querySelector('.cookbook-task-serve-btn'); if (_sb) _sb.style.display = '';
               _showCookbookNotif();
               _refreshDepsAfterInstall(task);
+              if (task.type === 'download') {
+                try { await window.modelsModule?.refreshModels?.(true); } catch {}
+                try { const hwfit = await import('./cookbook-hwfit.js'); await hwfit.refreshCachedModelIds(task.remoteHost || ''); } catch {}
+              }
               _renderRunningTab();
               _processQueue();
               break;
@@ -3300,6 +4112,10 @@ async function _reconnectTask(el, task) {
                   }
                   _showCookbookNotif();
                   _refreshDepsAfterInstall(task);
+                  if (task.type === 'download') {
+                    try { await window.modelsModule?.refreshModels?.(true); } catch {}
+                    try { const hwfit = await import('./cookbook-hwfit.js'); await hwfit.refreshCachedModelIds(task.remoteHost || ''); } catch {}
+                  }
                   _renderRunningTab();
                   _processQueue();
                 } catch { /* swallow — next polling cycle will retry */ }
@@ -3323,8 +4139,15 @@ async function _reconnectTask(el, task) {
         output.textContent = snapshot;
         if (_atBottom) output.scrollTop = output.scrollHeight;
 
+        // Update the structured download card UI on every poll tick
+        if (_isDownloadCard) _updateDownloadCard(el, task, snapshot);
+
         // Live status parsing for download tasks
         if (task.type === 'download') {
+          // Don't overwrite the badge for paused downloads. DOWNLOAD_OK appearing in cached
+          // output (from the pre-fix retry loop completing) must not flip the badge to "finished".
+          if (task.status === 'paused' || el.dataset.status === 'paused') { /* paused — skip badge update */ }
+          else {
           const badge = el.querySelector('.cookbook-task-status');
           if (badge) {
             const completed = (snapshot.match(/Download complete/g) || []).length;
@@ -3367,9 +4190,6 @@ async function _reconnectTask(el, task) {
               el._lastProgressTime = Date.now();
             } else if (!isPipDep && Date.now() - (el._lastProgressTime || 0) > _STALE_TIMEOUT && task._autoRestarted) {
               const mins = Math.floor((Date.now() - (el._lastProgressTime || 0)) / 60000);
-              // Already auto-restarted once and stalled again — make the badge a
-              // one-click retry (resumes from the cached partial files) so the
-              // user doesn't have to dig into the ⋮ menu.
               badge.textContent = `stalled ${mins}m ↻`;
               badge.className = 'cookbook-task-status cookbook-task-error';
               badge.title = 'Click to retry — resumes where it stopped';
@@ -3392,17 +4212,11 @@ async function _reconnectTask(el, task) {
                 });
               } catch {}
               try {
-                // Reuse original payload so the full repo_id (e.g. "Qwen/Qwen3.5-...")
-                // is preserved — rebuilding from task.repo/task.name drops the org prefix.
                 const dlPayload = task.payload
                   ? { ...task.payload }
                   : { repo_id: task.repo || task.name, remote_host: task.remoteHost || '' };
                 if (_envState.hfToken) dlPayload.hf_token = _envState.hfToken;
-                // Stalled with hf_transfer — restart on the reliable downloader.
                 dlPayload.disable_hf_transfer = true;
-                // Don't overwrite env_prefix — task.payload already has the correct
-                // "source <path>" form. The bare envPath would miss the `source` and
-                // the venv never activates (so hf CLI falls off PATH).
                 const res = await fetch('/api/model/download', {
                   method: 'POST', credentials: 'same-origin',
                   headers: { 'Content-Type': 'application/json' },
@@ -3410,7 +4224,8 @@ async function _reconnectTask(el, task) {
                 });
                 const data = await res.json();
                 if (data.ok && data.session_id) {
-                  _updateTask(task.sessionId, { sessionId: data.session_id, status: 'running', output: '' });
+                  dlPayload.use_aria2c = !!data.use_aria2c;
+                  _updateTask(task.sessionId, { sessionId: data.session_id, status: 'running', output: '', payload: dlPayload });
                   task.sessionId = data.session_id;
                   el._lastProgress = null;
                   el._lastProgressTime = Date.now();
@@ -3442,7 +4257,19 @@ async function _reconnectTask(el, task) {
             // so on a resumed download it reflects the true overall progress,
             // whereas completed/totalFiles only see this session's files (→ 0%).
             // Take the higher of the two so resume doesn't read as 0%.
-            if (_useShardAgg) {
+            if (task.payload?.use_aria2c) {
+              // aria2c downloads: the dl-card already shows detailed byte progress.
+              // Show phase words only in the header badge — never percentages,
+              // since the HF-specific patterns don't exist in aria2c output and
+              // would produce garbage (e.g. "finishing" when completed > 0 because
+              // aria2c prints "Download complete" for each finished file).
+              const _aria2cPhase = _parseDownloadState(snapshot, task.sessionId).phase;
+              const _aria2cLabels = { initializing: 'initializing', starting: 'starting', resolving: 'resolving', downloading: 'downloading' };
+              if (!badge._retryBound) {
+                badge.textContent = _aria2cLabels[_aria2cPhase] || 'downloading';
+                badge.className = 'cookbook-task-status cookbook-task-running';
+              }
+            } else if (_useShardAgg) {
               // Multi-shard download: compute TRUE overall as completed shards
               // plus the current shard's fraction. _dlAgg / lastPct represent
               // *this shard's* progress, not the whole download.
@@ -3492,8 +4319,6 @@ async function _reconnectTask(el, task) {
               const _dlKey = task.payload?.repo_id || task.name;
               const _dlN = _dlRetryCount.get(_dlKey) || 0;
               if (!controller.signal.aborted && !_accessDenied && task.type === 'download' && task.payload && _dlN < _DL_MAX_AUTO_RETRY) {
-                // Auto-retry: kill the dead session and re-launch (resumes from
-                // the cached .incomplete files) after a short delay.
                 _dlRetryCount.set(_dlKey, _dlN + 1);
                 badge.textContent = `retrying (${_dlN + 1}/${_DL_MAX_AUTO_RETRY})…`;
                 badge.className = 'cookbook-task-status cookbook-task-running';
@@ -3510,14 +4335,10 @@ async function _reconnectTask(el, task) {
                 setTimeout(() => { _retryDownload(_nm, _p); }, 8000);
                 break;
               }
-              // Out of auto-retries (or not a download) — surface the error; the
-              // card's Retry button stays available to resume manually.
               badge.textContent = _statusLabel('error', task.type);
               badge.className = 'cookbook-task-status cookbook-task-error';
               _updateTask(task.sessionId, { status: 'error' });
               el.dataset.status = 'error';
-              // Explain a gated/access failure with actionable buttons (request
-              // access on HF, check token) — otherwise it's just raw red text.
               if (_accessDenied) {
                 const _diag = _diagnose(snapshot);
                 if (_diag) {
@@ -3542,6 +4363,7 @@ async function _reconnectTask(el, task) {
               const _sb2 = el.querySelector('.cookbook-task-serve-btn'); if (_sb2) _sb2.style.display = '';
               _showCookbookNotif();
               _refreshDepsAfterInstall(task);
+              try { await window.modelsModule?.refreshModels?.(true); } catch {}
               fetch('/api/shell/exec', {
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
@@ -3551,6 +4373,7 @@ async function _reconnectTask(el, task) {
               break;
             }
           }
+          } // end else (not paused)
         }
 
         // Live status parsing for serve tasks — uses shared _parseServePhase
@@ -4213,14 +5036,14 @@ async function _pollBackgroundStatus() {
             : (live.status === 'stopped'
                 ? ((depDone || downloadDone) ? 'done' : (task.type === 'download' ? 'crashed' : 'stopped'))
                 : null))));
-        if (nextStatus && task.status !== nextStatus) {
+        if (nextStatus && task.status !== nextStatus && task.status !== 'paused') {
           updates.status = nextStatus;
           if (nextStatus === 'done' && task.payload?._dep) completedDeps.push(task);
         }
         if (serveReady && !task._serveReady) {
           updates._serveReady = true;
         }
-        if ((live.status === 'running' || live.status === 'ready') && task.status !== live.status && !serveReady && !completedByOutput) {
+        if ((live.status === 'running' || live.status === 'ready') && task.status !== live.status && !serveReady && !completedByOutput && task.status !== 'paused') {
           updates.status = live.status === 'ready' ? 'ready' : 'running';
         }
         if (live.progress && live.progress !== task.progress) updates.progress = live.progress;

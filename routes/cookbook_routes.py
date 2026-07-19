@@ -1084,15 +1084,73 @@ def setup_cookbook_routes() -> APIRouter:
         # local_dir does not. See issue #2722.
         _dl_hf_home_shell = _shell_path(req.local_dir.rstrip("/")) if req.local_dir else None
         _dl_pyarg = ""  # snapshot_download honors the env vars too — no kwarg needed
+        # aria2c writes a flat layout under <local_dir>/<repo-short-name> via
+        # --local-dir (it does not use the HF hub blob cache).
+        _dl_short = req.repo_id.split("/")[-1] if "/" in req.repo_id else req.repo_id
+        _dl_base = (req.local_dir.rstrip("/") + "/" + _dl_short) if req.local_dir else None
 
-        # Build the hf download command. Redirection to suppress the interactive
-        # "update available? [Y/n]" prompt is added per-platform further down
-        # (< /dev/null on bash, $null | on PowerShell).
+        # Pre-flight: verify aria2c is available before committing to that path.
+        # Fallback to hf download only here — not mid-stream — because the two paths
+        # write different filesystem layouts (flat vs hub blob cache) and a mid-stream
+        # switch would corrupt partial downloads.
+        if req.use_aria2c and not is_ollama_download:
+            try:
+                from tooling.aria2c_download import get_aria2c
+                if get_aria2c() is None:
+                    logger.warning(
+                        "aria2c unavailable (BinManager install failed or unsupported platform)"
+                        " — falling back to hf download for %s", req.repo_id,
+                    )
+                    req.use_aria2c = False
+            except Exception:
+                logger.warning(
+                    "aria2c pre-flight check raised — falling back to hf download for %s", req.repo_id,
+                )
+                req.use_aria2c = False
+
+        # Build the download command.
+        ollama_cmd = f"ollama pull {shlex.quote(req.repo_id)}"
         hf_download_args = f"download {shlex.quote(req.repo_id)}"
         if req.include:
             hf_download_args += f" --include {shlex.quote(req.include)}"
-        hf_cmd = f"hf {hf_download_args}"
-        ollama_cmd = f"ollama pull {shlex.quote(req.repo_id)}"
+        if req.use_aria2c and not is_ollama_download:
+            # aria2c path: runs aria2c_download.py in the tmux session.
+            _aria2c_script = (
+                Path(__file__).resolve().parent.parent / "tooling" / "aria2c_download.py"
+            ).as_posix()
+            token_quoted = _bash_squote(req.hf_token) if req.hf_token else "''"
+            include_quoted = _bash_squote(req.include) if req.include else "''"
+            local_dir_quoted = _bash_squote(_dl_base) if _dl_base else "''"
+            _aria2c_args = (
+                f"--repo {_bash_squote(req.repo_id)} "
+                f"--token {token_quoted} "
+                f"--local-dir {local_dir_quoted} "
+                f"--include {include_quoted}"
+            )
+            # Local launches run the bash wrapper — through Git Bash on a
+            # native-Windows server, where bare `python3` does not exist. Use
+            # the server's own interpreter there (POSIX path form for bash).
+            _py_local = Path(sys.executable).as_posix() if IS_WINDOWS else "python3"
+            hf_cmd = f"{_py_local} {_bash_squote(_aria2c_script)} {_aria2c_args}"
+            # Remote hosts run the copy scp'd to ~/.cookbook/tooling/ — the
+            # server-local absolute path does not exist there.
+            _aria2c_remote_cmd = f"python3 ~/.cookbook/tooling/aria2c_download.py {_aria2c_args}"
+            # Windows remote (issue #147): same scp'd copy, PowerShell quoting,
+            # guest `python`. BinManager self-installs aria2c.exe on the guest.
+            _aria2c_ps_cmd = (
+                'python "$HOME\\.cookbook\\tooling\\aria2c_download.py"'
+                f" --repo '{_ps_squote(req.repo_id)}'"
+                + (f" --token '{_ps_squote(req.hf_token)}'" if req.hf_token else "")
+                + (f" --local-dir '{_ps_squote(_dl_base)}'" if _dl_base else "")
+                + (f" --include '{_ps_squote(req.include)}'" if req.include else "")
+            )
+        else:
+            # Standard hf download command. Redirection to suppress the interactive
+            # "update available? [Y/n]" prompt is added per-platform further down
+            # (< /dev/null on bash, $null | on PowerShell).
+            hf_cmd = f"hf {hf_download_args}"
+            _aria2c_remote_cmd = None
+            _aria2c_ps_cmd = None
 
         # Build the shell wrapper — runs hf download directly in tmux (which is a TTY)
         # No script/tee needed — we'll use tmux capture-pane to read output
@@ -1172,32 +1230,49 @@ def setup_cookbook_routes() -> APIRouter:
                 ps_lines.append('if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) { Write-Host "ERROR: Ollama not found. Install from https://ollama.com/download/windows"; exit 127 }')
                 ps_lines.append(f"$null | ollama pull '{_ps_squote(req.repo_id)}'")
                 ps_lines.append('if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" } else { Write-Host ""; Write-Host "DOWNLOAD_FAILED (exit $LASTEXITCODE)" }')
+            elif req.use_aria2c:
+                # ── aria2c path (issue #147): run the scp'd tooling copy with the
+                # guest's own python. aria2c_download.py self-installs aria2c.exe
+                # via BinManager and needs requests + huggingface_hub for the URL
+                # resolver. Single-shot, no retry loop — aria2c handles resume via
+                # .aria2 sidecar files.
+                # Run python rather than Get-Command: the Microsoft Store alias
+                # stub IS found by Get-Command but exits 9009 with an ad when run.
+                ps_lines.append('python --version *> $null')
+                ps_lines.append('if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: python not found on this Windows host. Install from https://www.python.org/downloads/windows/"; exit 127 }')
+                ps_lines.append('python -c "import requests, huggingface_hub" 2>$null')
+                ps_lines.append('if ($LASTEXITCODE -ne 0) { python -m pip install -q requests huggingface-hub }')
+                ps_lines.append(f'$null | {_aria2c_ps_cmd}')
+                ps_lines.append('if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" } else { Write-Host ""; Write-Host "DOWNLOAD_FAILED (exit $LASTEXITCODE)" }')
             else:
-                # Try hf CLI, fall back to Python huggingface_hub, then auto-install
-                ps_lines.append('try {{')
+                # Try hf CLI, fall back to Python huggingface_hub, then auto-install.
+                # NB: single braces — these lines are NOT format strings; doubled
+                # braces here once wrote literal {{ }} into the .ps1, turning every
+                # block body into a never-invoked scriptblock literal (silent no-op).
+                ps_lines.append('try {')
                 ps_lines.append('  $hfPath = Get-Command hf -ErrorAction SilentlyContinue')
-                ps_lines.append('  if ($hfPath) {{')
+                ps_lines.append('  if ($hfPath) {')
                 # Pipe $null to stdin to suppress interactive "update available? [Y/n]" prompt
                 ps_lines.append(f'    $null | {hf_cmd}')
-                ps_lines.append('  }} else {{')
+                ps_lines.append('  } else {')
                 ps_lines.append('    python -c "import huggingface_hub" 2>$null')
-                ps_lines.append('    if ($LASTEXITCODE -eq 0) {{')
+                ps_lines.append('    if ($LASTEXITCODE -eq 0) {')
                 ps_lines.append('      Write-Host "hf CLI not found, using Python huggingface_hub..."')
                 ps_lines.append('      python -m pip install -q hf_transfer 2>$null')
                 ps_lines.append('      $env:HF_HUB_ENABLE_HF_TRANSFER = "1"')
                 ps_lines.append(f"      python -c \"import os; from huggingface_hub import snapshot_download; snapshot_download('{req.repo_id}'{_dl_pyarg}, max_workers=8)\"")
-                ps_lines.append('    }} else {{')
+                ps_lines.append('    } else {')
                 ps_lines.append('      Write-Host "Installing huggingface-hub..."')
                 ps_lines.append('      python -m pip install -q huggingface-hub hf_transfer')
                 ps_lines.append('      $env:HF_HUB_ENABLE_HF_TRANSFER = "1"')
                 ps_lines.append(f"      python -c \"import os; from huggingface_hub import snapshot_download; snapshot_download('{req.repo_id}'{_dl_pyarg}, max_workers=8)\"")
-                ps_lines.append('    }}')
-                ps_lines.append('  }}')
-                ps_lines.append('  if ($LASTEXITCODE -eq 0) {{ Write-Host ""; Write-Host "DOWNLOAD_OK" }}')
-                ps_lines.append('  else {{ Write-Host ""; Write-Host "DOWNLOAD_FAILED (exit $LASTEXITCODE)" }}')
-                ps_lines.append('}} catch {{')
+                ps_lines.append('    }')
+                ps_lines.append('  }')
+                ps_lines.append('  if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" }')
+                ps_lines.append('  else { Write-Host ""; Write-Host "DOWNLOAD_FAILED (exit $LASTEXITCODE)" }')
+                ps_lines.append('} catch {')
                 ps_lines.append('  Write-Host ""; Write-Host "DOWNLOAD_FAILED ($_)"')
-                ps_lines.append('}}')
+                ps_lines.append('}')
             ps_lines.append(f'Remove-Item -Force "$HOME\\{remote_runner}" -ErrorAction SilentlyContinue')
             runner_path = TMUX_LOG_DIR / f"{session_id}_run.ps1"
             runner_path.write_text("\r\n".join(ps_lines) + "\r\n", encoding="utf-8")
@@ -1206,15 +1281,43 @@ def setup_cookbook_routes() -> APIRouter:
             _port = req.ssh_port
             _Pf = f"-P {_port} " if _port and _port != "22" else ""
             _pf = f"-p {_port} " if _port and _port != "22" else ""
-            # Start-Process creates a fully detached process that survives SSH disconnect
+            # Start-Process creates a fully detached process that survives SSH
+            # disconnect. Dollars are backslash-escaped because setup_cmd runs
+            # through create_subprocess_shell — the LOCAL sh would otherwise
+            # expand $sd/$env/$HOME/$_ to empty before ssh sends the command
+            # (the launch silently no-opped; issue #147). The redirect target
+            # dir must exist BEFORE Start-Process, so create it here too.
+            # Launch via WMI Win32_Process.Create, NOT Start-Process redirects:
+            # Start-Process -RedirectStandardOutput is pumped by the PARENT
+            # PowerShell, and this ssh shell exits immediately after launching —
+            # the pump dies and the log stays 0 bytes (verified live: identical
+            # command with -Wait captures fine). cmd /c owns the > redirection
+            # in the child, survives SSH disconnect, and Create returns the PID.
+            # No inner double quotes anywhere: they collapse across the
+            # sh → ssh → cmd → powershell quoting chain; [char]34 builds them
+            # remotely, Join-Path needs none. Dollars are backslash-escaped
+            # because setup_cmd runs through create_subprocess_shell and the
+            # LOCAL sh would expand them to empty (the launch silently no-opped).
             launch_ps = (
-                "$sd = \\\"$env:TEMP\\odysseus-sessions\\\"; "
-                f"Start-Process powershell -ArgumentList '-ExecutionPolicy','Bypass','-File','$HOME\\{remote_runner}' "
-                f"-RedirectStandardOutput \\\"$sd\\{session_id}.log\\\" "
-                f"-RedirectStandardError \\\"$sd\\{session_id}.err.log\\\" "
-                f"-NoNewWindow -PassThru | ForEach-Object {{ $_.Id | Out-File \\\"$sd\\{session_id}.pid\\\" }}"
+                "\\$sd = Join-Path \\$env:TEMP odysseus-sessions; "
+                "New-Item -ItemType Directory -Force -Path \\$sd | Out-Null; "
+                "\\$q = [char]34; "
+                f"\\$r = Join-Path \\$HOME {remote_runner}; "
+                f"\\$lg = Join-Path \\$sd {session_id}.log; "
+                "\\$cl = 'cmd /c powershell -NoProfile -ExecutionPolicy Bypass -File ' + \\$q + \\$r + \\$q + ' > ' + \\$q + \\$lg + \\$q + ' 2>&1'; "
+                "\\$res = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=\\$cl}; "
+                f"\\$res.ProcessId | Out-File (Join-Path \\$sd {session_id}.pid)"
             )
+            # aria2c needs the tooling/ package on the guest (~/.cookbook/tooling).
+            # Relative scp target — Windows OpenSSH resolves it under the profile
+            # dir; the explicit powershell invocation works from either cmd or
+            # pwsh default shells (New-Item -Force is idempotent).
+            _aria2c_win_scp = (
+                f'ssh {_pf}{remote} "powershell -Command \\"New-Item -ItemType Directory -Force -Path .cookbook | Out-Null\\"" && '
+                f"scp -O {_Pf}-q -r tooling {remote}:.cookbook/ && "
+            ) if (req.use_aria2c and not is_ollama_download) else ""
             setup_cmd = (
+                _aria2c_win_scp +
                 f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner} && "
                 f'ssh {_pf}{remote} "powershell -Command \\"{launch_ps}\\""'
             )
@@ -1259,6 +1362,10 @@ def setup_cookbook_routes() -> APIRouter:
                 runner_lines.append('  fi')
                 runner_lines.append('fi')
                 runner_lines.append('if [ -z "$ODYSSEUS_OLLAMA_PULL_CMD" ]; then echo "ERROR: Ollama not found on this server. Install Ollama or start an ollama-rocm/ollama-test container."; exit 127; fi')
+            elif req.use_aria2c:
+                # aria2c path: only python3 is required (checked above); the
+                # tooling/ scripts are scp'd to ~/.cookbook below.
+                runner_lines.append(_HF_TOKEN_STATUS_SNIPPET)
             else:
                 hf_hub_install = _pip_install_fallback_chain(
                     "huggingface_hub",
@@ -1284,24 +1391,31 @@ def setup_cookbook_routes() -> APIRouter:
                 # download's "not authorized" failure can be told apart from a missing
                 # token (the token is masked — we only print applied / not-set).
                 runner_lines.append(_HF_TOKEN_STATUS_SNIPPET)
-            # Wrap the download in a retry loop. Large HF/Ollama transfers can
-            # hit transient network failures; both backends resume cached partials.
-            mw = 4 if req.disable_hf_transfer else 8
-            runner_lines.append('_max_retries=10; _attempt=0; _ec=0')
-            runner_lines.append('while [ $_attempt -lt $_max_retries ]; do')
-            runner_lines.append('  _attempt=$((_attempt+1))')
-            if is_ollama_download:
-                runner_lines.append('  eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null')
+            if req.use_aria2c and not is_ollama_download:
+                # aria2c handles resume via .aria2 sidecar files — no outer retry loop needed.
+                # The retry loop is harmful: C-c (Pause) exits aria2c non-zero and the loop
+                # would restart the download 30s later instead of staying paused.
+                runner_lines.append(f'{_aria2c_remote_cmd} < /dev/null')
+                runner_lines.append('_ec=$?')
+                runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec)"; fi')
             else:
-                runner_lines.append(f'  "$ODYSSEUS_HF_CLI" {hf_download_args} < /dev/null')
-            runner_lines.append('  _ec=$?')
-            runner_lines.append('  if [ $_ec -eq 0 ]; then break; fi')
-            runner_lines.append('  if [ $_attempt -lt $_max_retries ]; then')
-            runner_lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
-            runner_lines.append('    sleep 30')
-            runner_lines.append('  fi')
-            runner_lines.append('done')
-            runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
+                # Wrap the download in a retry loop. Large HF/Ollama transfers can
+                # hit transient network failures; both backends resume cached partials.
+                runner_lines.append('_max_retries=10; _attempt=0; _ec=0')
+                runner_lines.append('while [ $_attempt -lt $_max_retries ]; do')
+                runner_lines.append('  _attempt=$((_attempt+1))')
+                if is_ollama_download:
+                    runner_lines.append('  eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null')
+                else:
+                    runner_lines.append(f'  "$ODYSSEUS_HF_CLI" {hf_download_args} < /dev/null')
+                runner_lines.append('  _ec=$?')
+                runner_lines.append('  if [ $_ec -eq 0 ]; then break; fi')
+                runner_lines.append('  if [ $_attempt -lt $_max_retries ]; then')
+                runner_lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
+                runner_lines.append('    sleep 30')
+                runner_lines.append('  fi')
+                runner_lines.append('done')
+                runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
             runner_lines.append(f"rm -f {remote_runner}")
             runner_lines.append('exec "${SHELL:-/bin/bash}"')
             runner_path = TMUX_LOG_DIR / f"{session_id}_run.sh"
@@ -1314,8 +1428,15 @@ def setup_cookbook_routes() -> APIRouter:
             _port = req.ssh_port
             _pf = f"-P {_port} " if _port and _port != "22" else ""
             _spf = f"-p {_port} " if _port and _port != "22" else ""
+            # aria2c path: the runner invokes ~/.cookbook/tooling/aria2c_download.py,
+            # so ship the tooling/ scripts alongside the runner.
+            _aria2c_scp = (
+                f' && ssh {_spf}{remote} "mkdir -p ~/.cookbook"'
+                f' && scp -O {_pf}-q -r tooling {remote}:~/.cookbook/'
+            ) if (req.use_aria2c and not is_ollama_download) else ''
             setup_cmd = (
-                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner} && "
+                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner}"
+                f"{_aria2c_scp} && "
                 f"ssh {_spf}{remote} {shlex.quote(_remote_tmux_launch_command(session_id, remote_runner))}"
             )
         else:
@@ -1329,20 +1450,28 @@ def setup_cookbook_routes() -> APIRouter:
             # "not authorized" failure apart from a missing token.
             if not is_ollama_download:
                 lines.append(_HF_TOKEN_STATUS_SNIPPET)
-            # Retry loop — same rationale as the remote-bash path. Issue #2722.
             _hf_invoke = 'eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null' if is_ollama_download else (hf_cmd if IS_WINDOWS else f"{hf_cmd} < /dev/null")
-            lines.append('_max_retries=10; _attempt=0; _ec=0')
-            lines.append('while [ $_attempt -lt $_max_retries ]; do')
-            lines.append('  _attempt=$((_attempt+1))')
-            lines.append(f'  {_hf_invoke}')
-            lines.append('  _ec=$?')
-            lines.append('  if [ $_ec -eq 0 ]; then break; fi')
-            lines.append('  if [ $_attempt -lt $_max_retries ]; then')
-            lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
-            lines.append('    sleep 30')
-            lines.append('  fi')
-            lines.append('done')
-            lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
+            if req.use_aria2c and not is_ollama_download:
+                # aria2c handles resume via .aria2 sidecar files — no outer retry loop needed.
+                # The retry loop is harmful: C-c (Pause) exits aria2c non-zero and the loop
+                # would restart the download 30s later instead of staying paused.
+                lines.append(f'{_hf_invoke}')
+                lines.append('_ec=$?')
+                lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec)"; fi')
+            else:
+                # Retry loop — same rationale as the remote-bash path. Issue #2722.
+                lines.append('_max_retries=10; _attempt=0; _ec=0')
+                lines.append('while [ $_attempt -lt $_max_retries ]; do')
+                lines.append('  _attempt=$((_attempt+1))')
+                lines.append(f'  {_hf_invoke}')
+                lines.append('  _ec=$?')
+                lines.append('  if [ $_ec -eq 0 ]; then break; fi')
+                lines.append('  if [ $_attempt -lt $_max_retries ]; then')
+                lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
+                lines.append('    sleep 30')
+                lines.append('  fi')
+                lines.append('done')
+                lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
             if not IS_WINDOWS:
                 lines.append(f"rm -f '{wrapper_script}'")
                 lines.append('exec "${SHELL:-/bin/bash}"')
@@ -1386,7 +1515,10 @@ def setup_cookbook_routes() -> APIRouter:
         except Exception:
             pass
 
-        return {"ok": True, "session_id": session_id, "remote": remote or "local"}
+        # use_aria2c reflects the ACTUAL path after pre-flight fallback — the
+        # client stores it on the task so the badge parser matches the output.
+        return {"ok": True, "session_id": session_id, "remote": remote or "local",
+                "use_aria2c": bool(req.use_aria2c and not is_ollama_download)}
 
     @router.get("/api/model/cached")
     async def model_cached(request: Request, host: str | None = None, model_dir: str | None = None, ssh_port: str | None = None, platform: str | None = None):
@@ -4355,24 +4487,29 @@ def setup_cookbook_routes() -> APIRouter:
                     logger.warning(f"Skipping task with unsafe sshPort: {_tport!r}")
                     continue
             if task_platform == "windows" and remote:
-                # Windows: check PID file + Get-Process, read log tail
+                # Windows: check PID file + Get-Process, read log tail.
+                # -EncodedCommand (base64 UTF-16LE), NOT -Command: argv ssh
+                # joins these args with spaces and the guest's default shell
+                # (cmd.exe) re-parses the line, so unquoted | $ " get eaten and
+                # the check exited 255 (verified live on win11, issue #147).
+                # NB: $pid is a read-only PowerShell automatic variable.
                 sd = "$env:TEMP\\odysseus-sessions"
                 ssh_base = ["ssh"]
                 if _tport and _tport != "22":
                     ssh_base.extend(["-p", str(_tport)])
-                check_cmd = ssh_base + [
-                    remote,
-                    "powershell",
-                    "-Command",
-                    f"$pid = Get-Content \"{sd}\\{session_id}.pid\" -ErrorAction SilentlyContinue; "
-                    "if ($pid) {{ Get-Process -Id $pid -ErrorAction SilentlyContinue | Out-Null; if ($?) {{ exit 0 }} else {{ exit 1 }} }} else {{ exit 1 }}"
-                ]
-                capture_cmd = ssh_base + [
-                    remote,
-                    "powershell",
-                    "-Command",
-                    f"Get-Content \"{sd}\\{session_id}.log\" -Tail 10 -ErrorAction SilentlyContinue",
-                ]
+
+                def _ps_encoded(script: str) -> list:
+                    import base64
+                    return ["powershell", "-NoProfile", "-EncodedCommand",
+                            base64.b64encode(script.encode("utf-16-le")).decode("ascii")]
+
+                check_cmd = ssh_base + [remote] + _ps_encoded(
+                    f"$p = Get-Content \"{sd}\\{session_id}.pid\" -ErrorAction SilentlyContinue; "
+                    "if ($p) { Get-Process -Id $p -ErrorAction SilentlyContinue | Out-Null; if ($?) { exit 0 } else { exit 1 } } else { exit 1 }"
+                )
+                capture_cmd = ssh_base + [remote] + _ps_encoded(
+                    f"Get-Content \"{sd}\\{session_id}.log\" -Tail 10 -ErrorAction SilentlyContinue"
+                )
             elif remote:
                 ssh_base = ["ssh"]
                 if _tport and _tport != "22":
