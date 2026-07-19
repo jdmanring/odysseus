@@ -12,6 +12,20 @@ import { nextToolWindowZ, topToolWindowZ } from './toolWindowZOrder.js';
 
 let toastEl = null;
 let autoScrollEnabled = true;
+// The view is "pinned" while the user intends to follow the bottom. The
+// stick-to-bottom observer reads it so a user who has scrolled up is never
+// yanked back down. Unpinning keys off scroll DIRECTION, not distance:
+// content growth never decreases scrollTop — only the user scrolling up
+// does — so an upward move is unambiguous intent even while the follow
+// lerp lags a growing stream (a distance threshold big enough to absorb
+// that lag was ~1.5 viewports, which a wheel notch could never escape).
+let isPinned = true;
+// Re-pin when the user returns this close to the bottom. Doubles as the
+// epsilon below which an upward scrollTop jump cannot unpin, so the
+// prune/eviction scroll compensation (which lands back at the bottom)
+// never reads as the user scrolling away.
+const REPIN_DISTANCE = 60;
+let _lastScrollTop = 0;
 let hoveredToggleCard = null;
 let hoveredToggleWindow = null;
 let hoveredDockChip = null;
@@ -473,15 +487,17 @@ function _smoothScrollStep() {
     _scrollRafId = null;
     return;
   }
-  const target = box.scrollHeight - box.clientHeight;
-  const current = box.scrollTop;
-  const diff = target - current;
-
-  // If user scrolled up significantly, don't force them down
-  if (diff > 300) {
+  // isPinned carries user intent (direction-based; see _initStickToBottom),
+  // so the lerp needs no distance-based drift guard: a big diff is just
+  // content growth to catch up to, and a wheel-up mid-animation unpins and
+  // stops the loop on the very next frame instead of fighting the user.
+  if (!isPinned) {
     _scrollRafId = null;
     return;
   }
+  const target = box.scrollHeight - box.clientHeight;
+  const current = box.scrollTop;
+  const diff = target - current;
 
   if (diff <= 1) {
     box.scrollTop = target;
@@ -506,6 +522,73 @@ export function scrollHistoryInstant() {
   if (_scrollBox) {
     _scrollBox.scrollTop = _scrollBox.scrollHeight;
   }
+}
+
+// Stick-to-bottom: the single source of truth for staying pinned. Re-pins the
+// view to the bottom on any geometry change while the view is pinned —
+// covering, with one mechanism: late async growth after the follow loop has
+// stopped (image decode replacing a fixed-size skeleton, syntax-highlight
+// reflow, the final streamed block) and the mid-stream "Thinking" box being
+// removed and replaced by the real message (a shrink then grow).
+//
+// Reads isPinned from the last scroll position (before the growth), so a single
+// large block that lands below the fold still re-pins — measuring distance
+// after the growth would defeat exactly that case. Defers only while the smooth
+// follow loop is actively animating (_scrollRafId set), so continuous streaming
+// keeps its gentle lerp; the loop stays armed while tokens flow and goes idle
+// during a pause, which is when the observer takes over.
+//
+// Design follows the mainstream stick-to-bottom pattern (ResizeObserver as the
+// single growth trigger, re-pin only when already at/near the bottom). See
+// docs/fork/chat-scroll-research.md for the prior art and citations. #chat-history
+// is a fixed-height scroll container whose messages are direct children with no
+// inner wrapper, so a ResizeObserver on the container alone never fires on
+// content growth; a MutationObserver catches DOM-driven growth and attaches a
+// ResizeObserver to each child for pure layout growth.
+let _stickRaf = null;
+function _initStickToBottom() {
+  const box = document.getElementById('chat-history');
+  if (!box) { setTimeout(_initStickToBottom, 500); return; }
+  _scrollBox = box;
+  box.addEventListener('scroll', () => {
+    const dist = box.scrollHeight - box.scrollTop - box.clientHeight;
+    if (box.scrollTop < _lastScrollTop && dist > REPIN_DISTANCE) {
+      isPinned = false;
+    } else if (dist <= REPIN_DISTANCE) {
+      isPinned = true;
+    }
+    _lastScrollTop = box.scrollTop;
+  }, { passive: true });
+  // Wheel-up unpins before the scroll event lands, winning the race against
+  // a same-frame re-pin from the growth observer.
+  box.addEventListener('wheel', (e) => {
+    if (e.deltaY < 0) isPinned = false;
+  }, { passive: true });
+  const repin = () => {
+    if (!isPinned || _scrollRafId || _stickRaf) return;
+    _stickRaf = requestAnimationFrame(() => {
+      _stickRaf = null;
+      if (!isPinned || _scrollRafId) return;
+      box.scrollTop = box.scrollHeight - box.clientHeight;
+    });
+  };
+  const ro = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(repin) : null;
+  if (ro) { for (const child of box.children) ro.observe(child); }
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver((records) => {
+      if (ro) {
+        for (const rec of records) {
+          rec.addedNodes && rec.addedNodes.forEach((n) => { if (n.nodeType === 1) ro.observe(n); });
+        }
+      }
+      repin();
+    }).observe(box, { childList: true, subtree: true, characterData: true });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initStickToBottom);
+} else {
+  _initStickToBottom();
 }
 
 /**
