@@ -204,6 +204,10 @@ let _sessionListFocused = false;
 function _deselectCurrentSession(sid) {
   if (currentSessionId !== sid) return;
   currentSessionId = null;
+  // reset() before the wipe (the window layer's API contract): the deleted
+  // session's window state and message total must not survive onto the
+  // welcome screen.
+  if (window.chatHistory) window.chatHistory.reset();
   uiModule.el('chat-history').innerHTML = '';
   uiModule.el('current-meta').textContent = 'Odysseus Chat';
   Storage.remove('lastSessionId');
@@ -1915,6 +1919,10 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
       _updateSessionLoading(chatHistory, msgHistory.length ? 'Rendering chat' : 'Opening chat');
       await _nextPaint();
       if (navToken !== _sessionNavToken || currentSessionId !== id) return;
+      // reset() before the wipe (the window layer's API contract): without it
+      // an empty next session keeps the previous session's window state and
+      // message total alive behind a blank pane.
+      if (window.chatHistory) window.chatHistory.reset();
       chatHistory.innerHTML = '';
     }
 
@@ -2057,6 +2065,10 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
     console.error('Error in selectSession:', error);
     const chatHistory = uiModule.el('chat-history');
     if (chatHistory?.querySelector('.session-loading-state')) {
+      // reset() before the wipe (the window layer's API contract): the failed
+      // load must not leave the previous session's window state and message
+      // total alive behind the cleared pane.
+      if (window.chatHistory) window.chatHistory.reset();
       chatHistory.innerHTML = '';
       chatHistory.style.opacity = '1';
       chatHistory.classList.remove('no-animate');
