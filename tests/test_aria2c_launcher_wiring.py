@@ -26,7 +26,7 @@ def test_dl_base_is_assigned_before_use():
 def test_launcher_builds_aria2c_command():
     """247a2a35 regression: the launch block must exist and run the script."""
     assert '"tooling" / "aria2c_download.py"' in ROUTES
-    assert "hf_cmd = f\"python3 {_bash_squote(_aria2c_script)}" in ROUTES
+    assert "hf_cmd = f\"{_py_local} {_bash_squote(_aria2c_script)}" in ROUTES
 
 
 def test_preflight_precedes_command_build():
@@ -49,12 +49,13 @@ def test_remote_runner_uses_scpd_tooling_path():
     assert 'scp -O {_pf}-q -r tooling {remote}:~/.cookbook/' in ROUTES
 
 
-def test_local_windows_falls_back_to_hf():
-    """LOCAL native-Windows downloads still go through the Git Bash wrapper —
-    only that case is gated to hf. Remote Windows uses the .ps1 aria2c path."""
-    assert "req.use_aria2c and IS_WINDOWS and not req.remote_host" in ROUTES
-    # The old blanket gate (any windows platform) must NOT come back:
+def test_no_platform_gate_remains():
+    """aria2c runs on every platform now: remote Windows via the .ps1 runner,
+    local native-Windows via Git Bash with the server's own interpreter.
+    Availability is the get_aria2c() pre-flight's job, not a platform gate."""
+    assert "req.use_aria2c and IS_WINDOWS and not req.remote_host" not in ROUTES
     assert 'req.platform == "windows" or (IS_WINDOWS' not in ROUTES
+    assert "_py_local = Path(sys.executable).as_posix() if IS_WINDOWS else \"python3\"" in ROUTES
 
 
 def test_windows_remote_runs_aria2c_via_ps1():
