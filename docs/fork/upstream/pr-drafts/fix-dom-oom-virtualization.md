@@ -72,8 +72,8 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 
 ## Test plan
 
-- `tests/test_chat_history_js.py`: 123 static-analysis tests
-- `tests/test_chat_history_playwright.py`: 16 Playwright integration test functions
+- `tests/test_chat_history_js.py`: 128 static-analysis tests
+- `tests/test_chat_history_playwright.py`: 20 Playwright integration test functions
   (self-contained harness page; no running server needed) — includes runtime coverage of
   scroll-down windowing, the scroll-to-bottom drain/snap transition, and teardown
   (timers cleared + `hljsDeferForgetNode` called when pruning removes nodes)
@@ -100,6 +100,9 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 - `static/js/sessions.js` — map history through the existing display filters and hand
   `chatHistory.load()` a server-paging loader against the paginated `/api/history`
 - `static/js/chat.js` — resume-think stream handling the windowed render path depends on
+- `static/app.js` — header "· N msgs" counter reads `chatHistory.messageCount()` (server
+  total + live messages) instead of counting DOM nodes, which undercounts once the DOM
+  is windowed; the fallback DOM count excludes `.msg-continuation` rounds
 - `static/index.html` — load `chatHistory.js`; scroll-to-bottom button delegates to
   `chatHistory.scrollToBottom()`
 - `static/style.css` — `overflow-anchor:none` on the window's sentinels/spacer
