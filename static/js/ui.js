@@ -12,17 +12,20 @@ import { nextToolWindowZ, topToolWindowZ } from './toolWindowZOrder.js';
 
 let toastEl = null;
 let autoScrollEnabled = true;
-// The view is "pinned" when it sits within the follow distance of the bottom.
-// This is the real auto-follow intent signal: set false only when the user
-// scrolls away by more than the follow distance, true again when they return.
-// The stick-to-bottom observer reads it so a user who has scrolled up is never
-// yanked back down. Updated on every scroll. (autoScrollEnabled is set true at
-// submit and never cleared, so it is not a user-intent signal on its own.)
+// The view is "pinned" while the user intends to follow the bottom. The
+// stick-to-bottom observer reads it so a user who has scrolled up is never
+// yanked back down. Unpinning keys off scroll DIRECTION, not distance:
+// content growth never decreases scrollTop — only the user scrolling up
+// does — so an upward move is unambiguous intent even while the follow
+// lerp lags a growing stream (a distance threshold big enough to absorb
+// that lag was ~1.5 viewports, which a wheel notch could never escape).
 let isPinned = true;
-// Match the follow loop's distance bail (see _smoothScrollStep): the lerp
-// leaves transient gaps while catching up, so a tighter threshold would flip
-// isPinned false mid-stream and break following.
-function _followDistance(box) { return Math.max(300, box.clientHeight * 1.5); }
+// Re-pin when the user returns this close to the bottom. Doubles as the
+// epsilon below which an upward scrollTop jump cannot unpin, so the
+// prune/eviction scroll compensation (which lands back at the bottom)
+// never reads as the user scrolling away.
+const REPIN_DISTANCE = 60;
+let _lastScrollTop = 0;
 let hoveredToggleCard = null;
 let hoveredToggleWindow = null;
 let hoveredDockChip = null;
@@ -549,7 +552,18 @@ function _initStickToBottom() {
   if (!box) { setTimeout(_initStickToBottom, 500); return; }
   _scrollBox = box;
   box.addEventListener('scroll', () => {
-    isPinned = (box.scrollHeight - box.scrollTop - box.clientHeight) <= _followDistance(box);
+    const dist = box.scrollHeight - box.scrollTop - box.clientHeight;
+    if (box.scrollTop < _lastScrollTop && dist > REPIN_DISTANCE) {
+      isPinned = false;
+    } else if (dist <= REPIN_DISTANCE) {
+      isPinned = true;
+    }
+    _lastScrollTop = box.scrollTop;
+  }, { passive: true });
+  // Wheel-up unpins before the scroll event lands, winning the race against
+  // a same-frame re-pin from the growth observer.
+  box.addEventListener('wheel', (e) => {
+    if (e.deltaY < 0) isPinned = false;
   }, { passive: true });
   const repin = () => {
     if (!isPinned || _scrollRafId || _stickRaf) return;

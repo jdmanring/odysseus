@@ -25,12 +25,34 @@ def test_is_pinned_flag_exists():
     assert "let isPinned = true;" in _UI
 
 
-def test_pin_threshold_matches_follow_loop():
-    # isPinned must use the same distance the follow loop bails at, or the lerp's
-    # transient gaps would flip it false mid-stream and break following.
-    assert "function _followDistance(box) { return Math.max(300, box.clientHeight * 1.5); }" in _UI
+def test_unpin_is_direction_based_not_distance_based():
+    # Content growth never decreases scrollTop — only the user scrolling up
+    # does. Direction disambiguates "lerp lagging a growing stream" from
+    # "user scrolled away", which no distance threshold can: one big enough
+    # to absorb lerp lag (~1.5 viewports) was unescapable by wheel (#145).
+    assert "_followDistance" not in _UI, "distance-threshold unpin must be gone"
     body = _stick_body()
-    assert "<= _followDistance(box)" in body
+    assert "box.scrollTop < _lastScrollTop" in body
+    assert "isPinned = false" in body
+
+
+def test_upward_jump_within_epsilon_cannot_unpin():
+    # Prune/eviction scroll compensation lands back at the bottom; an upward
+    # scrollTop jump that stays within REPIN_DISTANCE must not unpin.
+    body = _stick_body()
+    assert "dist > REPIN_DISTANCE" in body
+
+
+def test_wheel_up_unpins_before_scroll_event():
+    body = _stick_body()
+    assert "box.addEventListener('wheel'" in body
+    assert "e.deltaY < 0" in body
+
+
+def test_repin_when_user_returns_to_bottom():
+    body = _stick_body()
+    assert "dist <= REPIN_DISTANCE" in body
+    assert "isPinned = true" in body
 
 
 def test_pin_updated_on_scroll():
