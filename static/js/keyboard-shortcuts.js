@@ -210,6 +210,10 @@ export function initKeyboardShortcuts(modules) {
             await sessionModule.selectSession(nextSession.id);
           } else {
             sessionModule.setCurrentSessionId(null);
+            // reset() before the wipe (the window layer's API contract): the
+            // deleted session's window state and message total must not
+            // survive onto the welcome screen.
+            if (window.chatHistory) window.chatHistory.reset();
             el('chat-history').innerHTML = '';
             el('current-meta').textContent = 'Odysseus Chat';
             Storage.remove('lastSessionId');
