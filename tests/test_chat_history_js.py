@@ -1092,3 +1092,46 @@ def test_stale_gen_raf_checks_gen_before_touching_state():
     assert "{ self._draining = false; return; }" not in _SRC, (
         "stale-gen path must not touch _draining (reset() owns it)"
     )
+
+
+# ---------------------------------------------------------------------------
+# Header message counter — messageCount() wiring
+# ---------------------------------------------------------------------------
+# The header "· N msgs" counter counted top-level DOM nodes, which was correct
+# only while the DOM held the whole conversation. Under windowing the DOM holds
+# at most the window, so the counter must read the window layer's
+# messageCount() (server total + live messages) and fall back to a
+# continuation-aware DOM count only when no total is known.
+
+_APP = (_REPO / "static/app.js").read_text(encoding="utf-8")
+
+
+def test_chathistory_exposes_message_count():
+    assert "MessageWindow.prototype.messageCount = function" in _SRC
+
+
+def test_load_accepts_server_total_and_resets_live_count():
+    assert "opts.serverTotal" in _SRC
+    load_start = _SRC.index("MessageWindow.prototype.load = function")
+    load_body = _SRC[load_start:_SRC.index("MessageWindow.prototype.reset")]
+    assert "_serverTotal" in load_body and "_liveMsgs" in load_body
+
+
+def test_live_counting_skips_continuations_and_stream_holders():
+    count_start = _SRC.index("MessageWindow.prototype._countLiveMessages")
+    body = _SRC[count_start:count_start + 1200]
+    assert "msg-continuation" in body
+    assert "streaming" in body
+    assert "data-ch-idx" in body
+
+
+def test_sessions_passes_server_total_to_load():
+    assert "serverTotal:" in _SESS
+    load_call = _SESS.index("window.chatHistory.load(_preparedMsgs")
+    assert "serverTotal" in _SESS[load_call:load_call + 600]
+
+
+def test_header_counter_prefers_message_count_with_dom_fallback():
+    assert "window.chatHistory.messageCount" in _APP
+    # The fallback must not count round continuations as messages.
+    assert ":scope > .msg:not(.msg-continuation)" in _APP
