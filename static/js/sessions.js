@@ -19,8 +19,6 @@ let _skipAutoSelect = false;
 let _suppressNextSessionLoading = false;
 const HISTORY_DISPLAY_CHAR_LIMIT = 160000;
 const HISTORY_DISPLAY_TAIL_CHARS = 20000;
-const HISTORY_PAGE_LIMIT_MOBILE = 8;
-const HISTORY_PAGE_LIMIT_DESKTOP = 24;
 
 const SIDEBAR_MAX_VISIBLE = 10;
 const FOLDER_MAX_VISIBLE = 5;
@@ -39,7 +37,7 @@ function _paintSessionLoading(chatHistory, label = 'Loading chat') {
   chatHistory.style.transition = '';
   chatHistory.style.opacity = '1';
   chatHistory.classList.add('no-animate');
-  // Tear down DOM-virtualization state before clearing (fork invariant:
+  // Tear down DOM-virtualization state before clearing (invariant:
   // reset() must precede innerHTML='' so observers/holders are released).
   if (window.chatHistory) window.chatHistory.reset();
   chatHistory.innerHTML = '';
@@ -113,7 +111,7 @@ function _historyUrl(id, { limit = null, offset = null } = {}) {
 // renderer/virtualization consumes. Shared by the initial load and the
 // scroll-up server pager so the two paths can never diverge. Drops the synthetic
 // "continue"/instruction user turns and rewrites doc-edit prompts to a compact
-// label, exactly as the initial render did before it was extracted.
+// one-line form.
 function _mapHistoryMessages(rawMsgs, modelName) {
   const out = [];
   for (const msg of rawMsgs || []) {
@@ -128,7 +126,14 @@ function _mapHistoryMessages(rawMsgs, modelName) {
     }
     if (msg.role === 'user') {
       displayContent = _stripUserVisionBlocks(displayContent);
-      if (displayContent.trim() === 'Continue where you left off' || displayContent.trim().startsWith('Your message was cut off.') || displayContent.trim().startsWith('Your previous response was interrupted.') || displayContent.includes('[Instruction: Rewrite') || displayContent.includes('[Instruction: Explain')) continue;
+      const trimmed = displayContent.trim();
+      if (
+        trimmed === 'Continue where you left off' ||
+        trimmed.startsWith('Your message was cut off.') ||
+        trimmed.startsWith('Your previous response was interrupted.') ||
+        displayContent.includes('[Instruction: Rewrite') ||
+        displayContent.includes('[Instruction: Explain')
+      ) continue;
       const docEditMatch = displayContent.match(/^In the document, edit this specific text \((lines? [\d-]+)\):\n```\n([\s\S]*?)\n```\n\nInstruction: ([\s\S]*)$/);
       if (docEditMatch) {
         displayContent = `[Doc edit: ${docEditMatch[1]}] ${docEditMatch[3]}`;
@@ -1789,6 +1794,15 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
     let loadingTimer = null;
     let loadingPaintReady = Promise.resolve();
     if (!isOC) {
+      if (showLoading && chatHistory && prevSessionId !== id) {
+        const loadingDelayMs = immediateLoading ? 0 : (window.innerWidth <= 768 ? 900 : 500);
+        loadingTimer = setTimeout(() => {
+          if (navToken !== _sessionNavToken || currentSessionId !== id) return;
+          _paintSessionLoading(chatHistory, 'Loading chat');
+          paintedLoading = true;
+          loadingPaintReady = _nextPaint();
+        }, loadingDelayMs);
+      }
       // One backend page (the server caps a page at 100); scroll-up pulls older
       // pages on demand via the virtualization's olderLoader below.
       const res = await fetch(_historyUrl(id, { limit: 100 }));
@@ -1877,6 +1891,7 @@ export async function selectSession(id, { keepSidebar = false, showLoading = tru
           sessionId: id,
           serverOffset: (pageInfo && Number.isFinite(pageInfo.offset)) ? pageInfo.offset : 0,
           serverHasMore: !!(pageInfo && pageInfo.has_more_before),
+          serverTotal: (pageInfo && Number.isFinite(pageInfo.total)) ? pageInfo.total : undefined,
           olderLoader: async (sid, limit, offset) => {
             const r = await fetch(_historyUrl(sid, { limit, offset }));
             const d = await r.json();
