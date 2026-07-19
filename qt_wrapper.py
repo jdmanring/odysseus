@@ -405,13 +405,20 @@ def _cdp_audit_listeners(n_evicted: int) -> None:
     """Measure jsEventListeners delta 5 s after a Phase 2 eviction batch.
 
     Runs in a background thread. Captures the listener count immediately before
-    sleeping (pre-GC baseline) then again after GC has had time to collect the
-    evicted nodes. A delta close to zero after evicting N nodes with continue
-    buttons indicates listener retention; a delta ≈ N confirms clean release.
+    sleeping (pre-GC baseline), forces a collection, then reads again. The forced
+    GC is what makes the delta meaningful: without it V8 may not have collected
+    the evicted nodes yet, and a delta of 0 is ambiguous between "listeners
+    retained" and "garbage not collected yet" (measured live 2026-07-19: delta
+    stayed 0 for 12+ s after evicting 61 nodes, then dropped 430 listeners the
+    moment a major GC ran). After the forced GC, a delta ≈ 0 with interactive
+    nodes evicted indicates listener retention; a proportional drop confirms
+    the WeakRef closures released cleanly.
     """
     pre = _cdp_call('Memory.getDOMCounters')
     pre_listeners = pre.get('jsEventListeners', 0) if pre else None
     _time.sleep(5)
+    # Force a collection so the post-read reflects reachability, not GC timing.
+    _cdp_call('HeapProfiler.collectGarbage')
     post = _cdp_call('Memory.getDOMCounters')
     if post and pre_listeners is not None:
         post_listeners = post.get('jsEventListeners', 0)
