@@ -1046,9 +1046,10 @@ def setup_cookbook_routes() -> APIRouter:
         # Fallback to hf download only here — not mid-stream — because the two paths
         # write different filesystem layouts (flat vs hub blob cache) and a mid-stream
         # switch would corrupt partial downloads.
-        if req.use_aria2c and (req.platform == "windows" or (IS_WINDOWS and not req.remote_host)):
-            # The aria2c runner is a bash-quoted python3 invocation — POSIX
-            # targets only. Windows stays on the hf download path.
+        if req.use_aria2c and IS_WINDOWS and not req.remote_host:
+            # LOCAL native-Windows serving still launches downloads through a
+            # bash wrapper (Git Bash) — no aria2c runner path there yet. Remote
+            # Windows targets ARE supported via the .ps1 runner (issue #147).
             req.use_aria2c = False
         if req.use_aria2c and not is_ollama_download:
             try:
@@ -1088,12 +1089,22 @@ def setup_cookbook_routes() -> APIRouter:
             # Remote hosts run the copy scp'd to ~/.cookbook/tooling/ — the
             # server-local absolute path does not exist there.
             _aria2c_remote_cmd = f"python3 ~/.cookbook/tooling/aria2c_download.py {_aria2c_args}"
+            # Windows remote (issue #147): same scp'd copy, PowerShell quoting,
+            # guest `python`. BinManager self-installs aria2c.exe on the guest.
+            _aria2c_ps_cmd = (
+                'python "$HOME\\.cookbook\\tooling\\aria2c_download.py"'
+                f" --repo '{_ps_squote(req.repo_id)}'"
+                + (f" --token '{_ps_squote(req.hf_token)}'" if req.hf_token else "")
+                + (f" --local-dir '{_ps_squote(_dl_base)}'" if _dl_base else "")
+                + (f" --include '{_ps_squote(req.include)}'" if req.include else "")
+            )
         else:
             # Standard hf download command. Redirection to suppress the interactive
             # "update available? [Y/n]" prompt is added per-platform further down
             # (< /dev/null on bash, $null | on PowerShell).
             hf_cmd = f"hf {hf_download_args}"
             _aria2c_remote_cmd = None
+            _aria2c_ps_cmd = None
 
         # Build the shell wrapper — runs hf download directly in tmux (which is a TTY)
         # No script/tee needed — we'll use tmux capture-pane to read output
@@ -1173,32 +1184,46 @@ def setup_cookbook_routes() -> APIRouter:
                 ps_lines.append('if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) { Write-Host "ERROR: Ollama not found. Install from https://ollama.com/download/windows"; exit 127 }')
                 ps_lines.append(f"$null | ollama pull '{_ps_squote(req.repo_id)}'")
                 ps_lines.append('if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" } else { Write-Host ""; Write-Host "DOWNLOAD_FAILED (exit $LASTEXITCODE)" }')
+            elif req.use_aria2c:
+                # ── aria2c path (issue #147): run the scp'd tooling copy with the
+                # guest's own python. aria2c_download.py self-installs aria2c.exe
+                # via BinManager and needs requests + huggingface_hub for the URL
+                # resolver. Single-shot, no retry loop — aria2c handles resume via
+                # .aria2 sidecar files.
+                ps_lines.append('if (-not (Get-Command python -ErrorAction SilentlyContinue)) { Write-Host "ERROR: python not found on this Windows host. Install from https://www.python.org/downloads/windows/"; exit 127 }')
+                ps_lines.append('python -c "import requests, huggingface_hub" 2>$null')
+                ps_lines.append('if ($LASTEXITCODE -ne 0) { python -m pip install -q requests huggingface-hub }')
+                ps_lines.append(f'$null | {_aria2c_ps_cmd}')
+                ps_lines.append('if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" } else { Write-Host ""; Write-Host "DOWNLOAD_FAILED (exit $LASTEXITCODE)" }')
             else:
-                # Try hf CLI, fall back to Python huggingface_hub, then auto-install
-                ps_lines.append('try {{')
+                # Try hf CLI, fall back to Python huggingface_hub, then auto-install.
+                # NB: single braces — these lines are NOT format strings; doubled
+                # braces here once wrote literal {{ }} into the .ps1, turning every
+                # block body into a never-invoked scriptblock literal (silent no-op).
+                ps_lines.append('try {')
                 ps_lines.append('  $hfPath = Get-Command hf -ErrorAction SilentlyContinue')
-                ps_lines.append('  if ($hfPath) {{')
+                ps_lines.append('  if ($hfPath) {')
                 # Pipe $null to stdin to suppress interactive "update available? [Y/n]" prompt
                 ps_lines.append(f'    $null | {hf_cmd}')
-                ps_lines.append('  }} else {{')
+                ps_lines.append('  } else {')
                 ps_lines.append('    python -c "import huggingface_hub" 2>$null')
-                ps_lines.append('    if ($LASTEXITCODE -eq 0) {{')
+                ps_lines.append('    if ($LASTEXITCODE -eq 0) {')
                 ps_lines.append('      Write-Host "hf CLI not found, using Python huggingface_hub..."')
                 ps_lines.append('      python -m pip install -q hf_transfer 2>$null')
                 ps_lines.append('      $env:HF_HUB_ENABLE_HF_TRANSFER = "1"')
                 ps_lines.append(f"      python -c \"import os; from huggingface_hub import snapshot_download; snapshot_download('{req.repo_id}'{_dl_pyarg}, max_workers=8)\"")
-                ps_lines.append('    }} else {{')
+                ps_lines.append('    } else {')
                 ps_lines.append('      Write-Host "Installing huggingface-hub..."')
                 ps_lines.append('      python -m pip install -q huggingface-hub hf_transfer')
                 ps_lines.append('      $env:HF_HUB_ENABLE_HF_TRANSFER = "1"')
                 ps_lines.append(f"      python -c \"import os; from huggingface_hub import snapshot_download; snapshot_download('{req.repo_id}'{_dl_pyarg}, max_workers=8)\"")
-                ps_lines.append('    }}')
-                ps_lines.append('  }}')
-                ps_lines.append('  if ($LASTEXITCODE -eq 0) {{ Write-Host ""; Write-Host "DOWNLOAD_OK" }}')
-                ps_lines.append('  else {{ Write-Host ""; Write-Host "DOWNLOAD_FAILED (exit $LASTEXITCODE)" }}')
-                ps_lines.append('}} catch {{')
+                ps_lines.append('    }')
+                ps_lines.append('  }')
+                ps_lines.append('  if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" }')
+                ps_lines.append('  else { Write-Host ""; Write-Host "DOWNLOAD_FAILED (exit $LASTEXITCODE)" }')
+                ps_lines.append('} catch {')
                 ps_lines.append('  Write-Host ""; Write-Host "DOWNLOAD_FAILED ($_)"')
-                ps_lines.append('}}')
+                ps_lines.append('}')
             ps_lines.append(f'Remove-Item -Force "$HOME\\{remote_runner}" -ErrorAction SilentlyContinue')
             runner_path = TMUX_LOG_DIR / f"{session_id}_run.ps1"
             runner_path.write_text("\r\n".join(ps_lines) + "\r\n", encoding="utf-8")
@@ -1215,7 +1240,16 @@ def setup_cookbook_routes() -> APIRouter:
                 f"-RedirectStandardError \\\"$sd\\{session_id}.err.log\\\" "
                 f"-NoNewWindow -PassThru | ForEach-Object {{ $_.Id | Out-File \\\"$sd\\{session_id}.pid\\\" }}"
             )
+            # aria2c needs the tooling/ package on the guest (~/.cookbook/tooling).
+            # Relative scp target — Windows OpenSSH resolves it under the profile
+            # dir; the explicit powershell invocation works from either cmd or
+            # pwsh default shells (New-Item -Force is idempotent).
+            _aria2c_win_scp = (
+                f'ssh {_pf}{remote} "powershell -Command \\"New-Item -ItemType Directory -Force -Path .cookbook | Out-Null\\"" && '
+                f"scp -O {_Pf}-q -r tooling {remote}:.cookbook/ && "
+            ) if (req.use_aria2c and not is_ollama_download) else ""
             setup_cmd = (
+                _aria2c_win_scp +
                 f"scp -O {_Pf}-q '{runner_path}' {remote}:{remote_runner} && "
                 f'ssh {_pf}{remote} "powershell -Command \\"{launch_ps}\\""'
             )

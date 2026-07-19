@@ -49,9 +49,33 @@ def test_remote_runner_uses_scpd_tooling_path():
     assert 'scp -O {_pf}-q -r tooling {remote}:~/.cookbook/' in ROUTES
 
 
-def test_windows_targets_fall_back_to_hf():
-    """The aria2c runner is a bash-quoted python3 invocation — POSIX only."""
-    assert 'req.platform == "windows" or (IS_WINDOWS and not req.remote_host)' in ROUTES
+def test_local_windows_falls_back_to_hf():
+    """LOCAL native-Windows downloads still go through the Git Bash wrapper —
+    only that case is gated to hf. Remote Windows uses the .ps1 aria2c path."""
+    assert "req.use_aria2c and IS_WINDOWS and not req.remote_host" in ROUTES
+    # The old blanket gate (any windows platform) must NOT come back:
+    assert 'req.platform == "windows" or (IS_WINDOWS' not in ROUTES
+
+
+def test_windows_remote_runs_aria2c_via_ps1():
+    """Issue #147: the Windows-remote .ps1 runner has a real aria2c branch that
+    invokes the scp'd tooling copy with the guest's python."""
+    assert '.cookbook\\\\tooling\\\\aria2c_download.py' in ROUTES
+    assert "scp -O {_Pf}-q -r tooling {remote}:.cookbook/" in ROUTES
+    # Guest deps for the URL resolver are ensured before the run:
+    assert 'python -c "import requests, huggingface_hub" 2>$null' in ROUTES
+    # aria2c command comes before the generated runner is written to disk:
+    assert ROUTES.index("_aria2c_ps_cmd = (") < ROUTES.index('$null | {_aria2c_ps_cmd}')
+
+
+def test_ps1_runner_has_no_doubled_braces():
+    """ps_lines are written verbatim (no .format). Doubled braces wrote literal
+    {{ }} into the .ps1, turning block bodies into never-invoked scriptblock
+    literals — the whole hf runner was a silent no-op."""
+    win_block = ROUTES[ROUTES.index("Windows remote: generate .ps1 runner"):
+                       ROUTES.index("Linux/Termux remote: create tmux session")]
+    for bad in ("'try {{", "{{ Write-Host", "}} else {{", "'}} catch {{"):
+        assert bad not in win_block, f"doubled brace regression: {bad!r}"
 
 
 def test_response_reports_actual_path():

@@ -24,6 +24,27 @@ except ImportError:
         sys.exit(1)
 
 
+def _pid_running(pid: int) -> bool:
+    """Portable liveness probe. os.kill(pid, 0) is NOT a probe on Windows —
+    any signal other than CTRL_C/CTRL_BREAK calls TerminateProcess, so the
+    stale-lock check would kill a running download instead of detecting it."""
+    if os.name == "nt":
+        import ctypes
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if handle:
+            kernel32.CloseHandle(handle)
+            return True
+        ERROR_ACCESS_DENIED = 5  # process exists but is not ours — still alive
+        return kernel32.GetLastError() == ERROR_ACCESS_DENIED
+    try:
+        os.kill(pid, 0)   # POSIX: signal 0 = existence check, raises if gone
+    except OSError:
+        return False
+    return True
+
+
 def get_aria2c() -> Optional[Path]:
     """Return the aria2c binary path. Auto-installs via BinManager if missing."""
     path = BinManager.ensure_binary("aria2c")
@@ -79,11 +100,12 @@ def main() -> None:
     if lock_path.exists():
         try:
             pid = int(lock_path.read_text().strip())
-            os.kill(pid, 0)   # raises OSError if PID is not running
+        except ValueError:
+            pid = None
+        if pid is not None and _pid_running(pid):
             print(f"[!] Download for {args.repo} is already running (PID {pid}). Exiting.")
             sys.exit(0)
-        except (ValueError, ProcessLookupError, OSError):
-            lock_path.unlink(missing_ok=True)  # stale lock
+        lock_path.unlink(missing_ok=True)  # stale lock
     lock_path.write_text(str(os.getpid()))
     try:
         _main(args)
