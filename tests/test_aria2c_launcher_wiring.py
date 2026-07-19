@@ -68,6 +68,19 @@ def test_windows_remote_runs_aria2c_via_ps1():
     assert ROUTES.index("_aria2c_ps_cmd = (") < ROUTES.index('$null | {_aria2c_ps_cmd}')
 
 
+def test_windows_launch_is_child_owned_redirect():
+    """Start-Process -RedirectStandardOutput is pumped by the PARENT shell;
+    the ssh shell exits right after launch, the pump dies, and logs stay
+    0 bytes. The launch must use WMI Win32_Process.Create with cmd /c owning
+    the > redirection in the child (verified live on win11, issue #147)."""
+    assert "Invoke-CimMethod -ClassName Win32_Process -MethodName Create" in ROUTES
+    dl_block = ROUTES[ROUTES.index("Windows remote: generate .ps1 runner"):
+                      ROUTES.index("Linux/Termux remote: create tmux session")]
+    assert "-RedirectStandardOutput (" not in dl_block  # the dead parent-pumped form
+    # Dollars must stay escaped from the local create_subprocess_shell sh:
+    assert "\\\\$sd = Join-Path \\\\$env:TEMP odysseus-sessions" in dl_block
+
+
 def test_ps1_runner_has_no_doubled_braces():
     """ps_lines are written verbatim (no .format). Doubled braces wrote literal
     {{ }} into the .ps1, turning block bodies into never-invoked scriptblock

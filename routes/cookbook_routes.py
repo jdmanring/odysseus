@@ -1190,7 +1190,10 @@ def setup_cookbook_routes() -> APIRouter:
                 # via BinManager and needs requests + huggingface_hub for the URL
                 # resolver. Single-shot, no retry loop — aria2c handles resume via
                 # .aria2 sidecar files.
-                ps_lines.append('if (-not (Get-Command python -ErrorAction SilentlyContinue)) { Write-Host "ERROR: python not found on this Windows host. Install from https://www.python.org/downloads/windows/"; exit 127 }')
+                # Run python rather than Get-Command: the Microsoft Store alias
+                # stub IS found by Get-Command but exits 9009 with an ad when run.
+                ps_lines.append('python --version *> $null')
+                ps_lines.append('if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: python not found on this Windows host. Install from https://www.python.org/downloads/windows/"; exit 127 }')
                 ps_lines.append('python -c "import requests, huggingface_hub" 2>$null')
                 ps_lines.append('if ($LASTEXITCODE -ne 0) { python -m pip install -q requests huggingface-hub }')
                 ps_lines.append(f'$null | {_aria2c_ps_cmd}')
@@ -1232,13 +1235,32 @@ def setup_cookbook_routes() -> APIRouter:
             _port = req.ssh_port
             _Pf = f"-P {_port} " if _port and _port != "22" else ""
             _pf = f"-p {_port} " if _port and _port != "22" else ""
-            # Start-Process creates a fully detached process that survives SSH disconnect
+            # Start-Process creates a fully detached process that survives SSH
+            # disconnect. Dollars are backslash-escaped because setup_cmd runs
+            # through create_subprocess_shell — the LOCAL sh would otherwise
+            # expand $sd/$env/$HOME/$_ to empty before ssh sends the command
+            # (the launch silently no-opped; issue #147). The redirect target
+            # dir must exist BEFORE Start-Process, so create it here too.
+            # Launch via WMI Win32_Process.Create, NOT Start-Process redirects:
+            # Start-Process -RedirectStandardOutput is pumped by the PARENT
+            # PowerShell, and this ssh shell exits immediately after launching —
+            # the pump dies and the log stays 0 bytes (verified live: identical
+            # command with -Wait captures fine). cmd /c owns the > redirection
+            # in the child, survives SSH disconnect, and Create returns the PID.
+            # No inner double quotes anywhere: they collapse across the
+            # sh → ssh → cmd → powershell quoting chain; [char]34 builds them
+            # remotely, Join-Path needs none. Dollars are backslash-escaped
+            # because setup_cmd runs through create_subprocess_shell and the
+            # LOCAL sh would expand them to empty (the launch silently no-opped).
             launch_ps = (
-                "$sd = \\\"$env:TEMP\\odysseus-sessions\\\"; "
-                f"Start-Process powershell -ArgumentList '-ExecutionPolicy','Bypass','-File','$HOME\\{remote_runner}' "
-                f"-RedirectStandardOutput \\\"$sd\\{session_id}.log\\\" "
-                f"-RedirectStandardError \\\"$sd\\{session_id}.err.log\\\" "
-                f"-NoNewWindow -PassThru | ForEach-Object {{ $_.Id | Out-File \\\"$sd\\{session_id}.pid\\\" }}"
+                "\\$sd = Join-Path \\$env:TEMP odysseus-sessions; "
+                "New-Item -ItemType Directory -Force -Path \\$sd | Out-Null; "
+                "\\$q = [char]34; "
+                f"\\$r = Join-Path \\$HOME {remote_runner}; "
+                f"\\$lg = Join-Path \\$sd {session_id}.log; "
+                "\\$cl = 'cmd /c powershell -NoProfile -ExecutionPolicy Bypass -File ' + \\$q + \\$r + \\$q + ' > ' + \\$q + \\$lg + \\$q + ' 2>&1'; "
+                "\\$res = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=\\$cl}; "
+                f"\\$res.ProcessId | Out-File (Join-Path \\$sd {session_id}.pid)"
             )
             # aria2c needs the tooling/ package on the guest (~/.cookbook/tooling).
             # Relative scp target — Windows OpenSSH resolves it under the profile
@@ -4285,24 +4307,29 @@ def setup_cookbook_routes() -> APIRouter:
                     logger.warning(f"Skipping task with unsafe sshPort: {_tport!r}")
                     continue
             if task_platform == "windows" and remote:
-                # Windows: check PID file + Get-Process, read log tail
+                # Windows: check PID file + Get-Process, read log tail.
+                # -EncodedCommand (base64 UTF-16LE), NOT -Command: argv ssh
+                # joins these args with spaces and the guest's default shell
+                # (cmd.exe) re-parses the line, so unquoted | $ " get eaten and
+                # the check exited 255 (verified live on win11, issue #147).
+                # NB: $pid is a read-only PowerShell automatic variable.
                 sd = "$env:TEMP\\odysseus-sessions"
                 ssh_base = ["ssh"]
                 if _tport and _tport != "22":
                     ssh_base.extend(["-p", str(_tport)])
-                check_cmd = ssh_base + [
-                    remote,
-                    "powershell",
-                    "-Command",
-                    f"$pid = Get-Content \"{sd}\\{session_id}.pid\" -ErrorAction SilentlyContinue; "
-                    "if ($pid) {{ Get-Process -Id $pid -ErrorAction SilentlyContinue | Out-Null; if ($?) {{ exit 0 }} else {{ exit 1 }} }} else {{ exit 1 }}"
-                ]
-                capture_cmd = ssh_base + [
-                    remote,
-                    "powershell",
-                    "-Command",
-                    f"Get-Content \"{sd}\\{session_id}.log\" -Tail 10 -ErrorAction SilentlyContinue",
-                ]
+
+                def _ps_encoded(script: str) -> list:
+                    import base64
+                    return ["powershell", "-NoProfile", "-EncodedCommand",
+                            base64.b64encode(script.encode("utf-16-le")).decode("ascii")]
+
+                check_cmd = ssh_base + [remote] + _ps_encoded(
+                    f"$p = Get-Content \"{sd}\\{session_id}.pid\" -ErrorAction SilentlyContinue; "
+                    "if ($p) { Get-Process -Id $p -ErrorAction SilentlyContinue | Out-Null; if ($?) { exit 0 } else { exit 1 } } else { exit 1 }"
+                )
+                capture_cmd = ssh_base + [remote] + _ps_encoded(
+                    f"Get-Content \"{sd}\\{session_id}.log\" -Tail 10 -ErrorAction SilentlyContinue"
+                )
             elif remote:
                 ssh_base = ["ssh"]
                 if _tport and _tport != "22":
