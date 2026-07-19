@@ -1145,12 +1145,16 @@ def test_every_history_wipe_is_preceded_by_reset():
     old session's count on the welcome screen / an empty session.
     """
     import re
-    wipes = [m.start() for m in re.finditer(
-        r"(?:chatHistory|el\('chat-history'\))\.innerHTML = ''", _SESS)]
-    assert wipes, "expected chat-history wipes in sessions.js"
-    for pos in wipes:
-        window = _SESS[max(0, pos - 400):pos]
-        assert "window.chatHistory.reset()" in window, (
-            f"chat-history wipe at offset {pos} has no preceding "
-            "window.chatHistory.reset() within 400 chars"
-        )
+    pattern = re.compile(r"(?:chatHistory|el\('chat-history'\))\.innerHTML = ''")
+    found_any = False
+    for js in sorted((_REPO / "static").rglob("*.js")):
+        src = js.read_text(encoding="utf-8")
+        for m in pattern.finditer(src):
+            found_any = True
+            window = src[max(0, m.start() - 400):m.start()]
+            assert "window.chatHistory.reset()" in window, (
+                f"{js.relative_to(_REPO)}: chat-history wipe at offset "
+                f"{m.start()} has no preceding window.chatHistory.reset() "
+                "within 400 chars"
+            )
+    assert found_any, "expected at least one chat-history wipe in static/"
