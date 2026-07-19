@@ -1,7 +1,8 @@
-# PR draft: fix(chat): restore `_explicit_web_intent` assignment lost in 264da651
+# PR draft: fix(routes): undefined-name NameErrors in chat_stream and hf_gguf_files
 
-Branch: `fix/chat-stream-web-intent-nameerror` (from `upstream-mirror`, 1 commit `3d9177e8`)
-Fork issue: #134 (stays open until the upstream PR is filed). Base: `dev`.
+Branch: `fix/chat-stream-web-intent-nameerror` (from `upstream-mirror`, 2 commits
+`3d9177e8` + `922ac960`)
+Fork issues: #134, #135 (stay open until the upstream PR is filed). Base: `dev`.
 
 ## Summary
 
@@ -18,6 +19,13 @@ sending returns 500.
 
 This PR restores the assignment only; the denial-condition removal from `264da651` stands.
 
+A second instance of the same class, found by generalizing the guard below to every
+module in `routes/`: commit `fbdec22d` ("CodeQL hardening for cookbook sync") rewrote
+the exception handler in `hf_gguf_files` (`routes/cookbook_routes.py`) to log the
+failure but typed `repo` for `repo_id` — so whenever the HuggingFace API request
+raises, the graceful `{"ok": False, ...}` fallback path itself raises `NameError` and
+`GET /api/cookbook/hf-gguf-files` returns 500. Fixed by using `repo_id`.
+
 ## Why the suite missed it
 
 The route's policy tests are static AST/string checks on the source and never execute the
@@ -26,12 +34,13 @@ with green tests.
 
 ## Test plan
 
-- `tests/test_chat_routes_defined_names.py` (new): stdlib-`symtable` guard — every name a
-  function in `routes/chat_routes.py` reads as an implicit global must be bound at module
-  level or in builtins. Catches this whole defect class with no server or model in the
-  loop. Mutation-checked (detector red on a synthetic removed-assignment shape and on the
-  pre-fix file at both affected scopes; green on module-level, builtin, and closure
-  bindings).
+- `tests/test_routes_defined_names.py` (new): stdlib-`symtable` guard, parametrized over
+  every module in `routes/` (55 files) — every name a function reads as an implicit
+  global must be bound at module level, in builtins, or among the implicit module
+  globals (`__file__` etc.). Catches this whole defect class with no server or model in
+  the loop. Mutation-checked (detector red on a synthetic removed-assignment shape, on a
+  typo-of-a-local shape, and on both pre-fix files; green on module-level, builtin,
+  implicit-module-global, and closure bindings).
 - Reproduced end-to-end pre-fix and verified post-fix: a real browser exchange against
   the live app (mock OpenAI-compatible backend) went from HTTP 500 to a completed
   streamed reply.
