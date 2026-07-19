@@ -1062,15 +1062,63 @@ def setup_cookbook_routes() -> APIRouter:
         # local_dir does not. See issue #2722.
         _dl_hf_home_shell = _shell_path(req.local_dir.rstrip("/")) if req.local_dir else None
         _dl_pyarg = ""  # snapshot_download honors the env vars too — no kwarg needed
+        # aria2c writes a flat layout under <local_dir>/<repo-short-name> via
+        # --local-dir (it does not use the HF hub blob cache).
+        _dl_short = req.repo_id.split("/")[-1] if "/" in req.repo_id else req.repo_id
+        _dl_base = (req.local_dir.rstrip("/") + "/" + _dl_short) if req.local_dir else None
 
-        # Build the hf download command. Redirection to suppress the interactive
-        # "update available? [Y/n]" prompt is added per-platform further down
-        # (< /dev/null on bash, $null | on PowerShell).
+        # Pre-flight: verify aria2c is available before committing to that path.
+        # Fallback to hf download only here — not mid-stream — because the two paths
+        # write different filesystem layouts (flat vs hub blob cache) and a mid-stream
+        # switch would corrupt partial downloads.
+        if req.use_aria2c and (req.platform == "windows" or (IS_WINDOWS and not req.remote_host)):
+            # The aria2c runner is a bash-quoted python3 invocation — POSIX
+            # targets only. Windows stays on the hf download path.
+            req.use_aria2c = False
+        if req.use_aria2c and not is_ollama_download:
+            try:
+                from tooling.aria2c_download import get_aria2c
+                if get_aria2c() is None:
+                    logger.warning(
+                        "aria2c unavailable (BinManager install failed or unsupported platform)"
+                        " — falling back to hf download for %s", req.repo_id,
+                    )
+                    req.use_aria2c = False
+            except Exception:
+                logger.warning(
+                    "aria2c pre-flight check raised — falling back to hf download for %s", req.repo_id,
+                )
+                req.use_aria2c = False
+
+        # Build the download command.
+        ollama_cmd = f"ollama pull {shlex.quote(req.repo_id)}"
         hf_download_args = f"download {shlex.quote(req.repo_id)}"
         if req.include:
             hf_download_args += f" --include {shlex.quote(req.include)}"
-        hf_cmd = f"hf {hf_download_args}"
-        ollama_cmd = f"ollama pull {shlex.quote(req.repo_id)}"
+        if req.use_aria2c and not is_ollama_download:
+            # aria2c path: runs aria2c_download.py in the tmux session.
+            _aria2c_script = (
+                Path(__file__).resolve().parent.parent / "tooling" / "aria2c_download.py"
+            ).as_posix()
+            token_quoted = _bash_squote(req.hf_token) if req.hf_token else "''"
+            include_quoted = _bash_squote(req.include) if req.include else "''"
+            local_dir_quoted = _bash_squote(_dl_base) if _dl_base else "''"
+            _aria2c_args = (
+                f"--repo {_bash_squote(req.repo_id)} "
+                f"--token {token_quoted} "
+                f"--local-dir {local_dir_quoted} "
+                f"--include {include_quoted}"
+            )
+            hf_cmd = f"python3 {_bash_squote(_aria2c_script)} {_aria2c_args}"
+            # Remote hosts run the copy scp'd to ~/.cookbook/tooling/ — the
+            # server-local absolute path does not exist there.
+            _aria2c_remote_cmd = f"python3 ~/.cookbook/tooling/aria2c_download.py {_aria2c_args}"
+        else:
+            # Standard hf download command. Redirection to suppress the interactive
+            # "update available? [Y/n]" prompt is added per-platform further down
+            # (< /dev/null on bash, $null | on PowerShell).
+            hf_cmd = f"hf {hf_download_args}"
+            _aria2c_remote_cmd = None
 
         # Build the shell wrapper — runs hf download directly in tmux (which is a TTY)
         # No script/tee needed — we'll use tmux capture-pane to read output
@@ -1237,6 +1285,10 @@ def setup_cookbook_routes() -> APIRouter:
                 runner_lines.append('  fi')
                 runner_lines.append('fi')
                 runner_lines.append('if [ -z "$ODYSSEUS_OLLAMA_PULL_CMD" ]; then echo "ERROR: Ollama not found on this server. Install Ollama or start an ollama-rocm/ollama-test container."; exit 127; fi')
+            elif req.use_aria2c:
+                # aria2c path: only python3 is required (checked above); the
+                # tooling/ scripts are scp'd to ~/.cookbook below.
+                runner_lines.append(_HF_TOKEN_STATUS_SNIPPET)
             else:
                 hf_hub_install = _pip_install_fallback_chain(
                     "huggingface_hub",
@@ -1262,24 +1314,31 @@ def setup_cookbook_routes() -> APIRouter:
                 # download's "not authorized" failure can be told apart from a missing
                 # token (the token is masked — we only print applied / not-set).
                 runner_lines.append(_HF_TOKEN_STATUS_SNIPPET)
-            # Wrap the download in a retry loop. Large HF/Ollama transfers can
-            # hit transient network failures; both backends resume cached partials.
-            mw = 4 if req.disable_hf_transfer else 8
-            runner_lines.append('_max_retries=10; _attempt=0; _ec=0')
-            runner_lines.append('while [ $_attempt -lt $_max_retries ]; do')
-            runner_lines.append('  _attempt=$((_attempt+1))')
-            if is_ollama_download:
-                runner_lines.append('  eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null')
+            if req.use_aria2c and not is_ollama_download:
+                # aria2c handles resume via .aria2 sidecar files — no outer retry loop needed.
+                # The retry loop is harmful: C-c (Pause) exits aria2c non-zero and the loop
+                # would restart the download 30s later instead of staying paused.
+                runner_lines.append(f'{_aria2c_remote_cmd} < /dev/null')
+                runner_lines.append('_ec=$?')
+                runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec)"; fi')
             else:
-                runner_lines.append(f'  "$ODYSSEUS_HF_CLI" {hf_download_args} < /dev/null')
-            runner_lines.append('  _ec=$?')
-            runner_lines.append('  if [ $_ec -eq 0 ]; then break; fi')
-            runner_lines.append('  if [ $_attempt -lt $_max_retries ]; then')
-            runner_lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
-            runner_lines.append('    sleep 30')
-            runner_lines.append('  fi')
-            runner_lines.append('done')
-            runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
+                # Wrap the download in a retry loop. Large HF/Ollama transfers can
+                # hit transient network failures; both backends resume cached partials.
+                runner_lines.append('_max_retries=10; _attempt=0; _ec=0')
+                runner_lines.append('while [ $_attempt -lt $_max_retries ]; do')
+                runner_lines.append('  _attempt=$((_attempt+1))')
+                if is_ollama_download:
+                    runner_lines.append('  eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null')
+                else:
+                    runner_lines.append(f'  "$ODYSSEUS_HF_CLI" {hf_download_args} < /dev/null')
+                runner_lines.append('  _ec=$?')
+                runner_lines.append('  if [ $_ec -eq 0 ]; then break; fi')
+                runner_lines.append('  if [ $_attempt -lt $_max_retries ]; then')
+                runner_lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
+                runner_lines.append('    sleep 30')
+                runner_lines.append('  fi')
+                runner_lines.append('done')
+                runner_lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
             runner_lines.append(f"rm -f {remote_runner}")
             runner_lines.append('exec "${SHELL:-/bin/bash}"')
             runner_path = TMUX_LOG_DIR / f"{session_id}_run.sh"
@@ -1292,8 +1351,15 @@ def setup_cookbook_routes() -> APIRouter:
             _port = req.ssh_port
             _pf = f"-P {_port} " if _port and _port != "22" else ""
             _spf = f"-p {_port} " if _port and _port != "22" else ""
+            # aria2c path: the runner invokes ~/.cookbook/tooling/aria2c_download.py,
+            # so ship the tooling/ scripts alongside the runner.
+            _aria2c_scp = (
+                f' && ssh {_spf}{remote} "mkdir -p ~/.cookbook"'
+                f' && scp -O {_pf}-q -r tooling {remote}:~/.cookbook/'
+            ) if (req.use_aria2c and not is_ollama_download) else ''
             setup_cmd = (
-                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner} && "
+                f"scp -O {_pf}-q '{runner_path}' {remote}:{remote_runner}"
+                f"{_aria2c_scp} && "
                 f"ssh {_spf}{remote} {shlex.quote(_remote_tmux_launch_command(session_id, remote_runner))}"
             )
         else:
@@ -1307,20 +1373,28 @@ def setup_cookbook_routes() -> APIRouter:
             # "not authorized" failure apart from a missing token.
             if not is_ollama_download:
                 lines.append(_HF_TOKEN_STATUS_SNIPPET)
-            # Retry loop — same rationale as the remote-bash path. Issue #2722.
             _hf_invoke = 'eval "$ODYSSEUS_OLLAMA_PULL_CMD" < /dev/null' if is_ollama_download else (hf_cmd if IS_WINDOWS else f"{hf_cmd} < /dev/null")
-            lines.append('_max_retries=10; _attempt=0; _ec=0')
-            lines.append('while [ $_attempt -lt $_max_retries ]; do')
-            lines.append('  _attempt=$((_attempt+1))')
-            lines.append(f'  {_hf_invoke}')
-            lines.append('  _ec=$?')
-            lines.append('  if [ $_ec -eq 0 ]; then break; fi')
-            lines.append('  if [ $_attempt -lt $_max_retries ]; then')
-            lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
-            lines.append('    sleep 30')
-            lines.append('  fi')
-            lines.append('done')
-            lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
+            if req.use_aria2c and not is_ollama_download:
+                # aria2c handles resume via .aria2 sidecar files — no outer retry loop needed.
+                # The retry loop is harmful: C-c (Pause) exits aria2c non-zero and the loop
+                # would restart the download 30s later instead of staying paused.
+                lines.append(f'{_hf_invoke}')
+                lines.append('_ec=$?')
+                lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec)"; fi')
+            else:
+                # Retry loop — same rationale as the remote-bash path. Issue #2722.
+                lines.append('_max_retries=10; _attempt=0; _ec=0')
+                lines.append('while [ $_attempt -lt $_max_retries ]; do')
+                lines.append('  _attempt=$((_attempt+1))')
+                lines.append(f'  {_hf_invoke}')
+                lines.append('  _ec=$?')
+                lines.append('  if [ $_ec -eq 0 ]; then break; fi')
+                lines.append('  if [ $_attempt -lt $_max_retries ]; then')
+                lines.append('    echo ""; echo "Download attempt $_attempt failed (exit $_ec) — retrying in 30s..."')
+                lines.append('    sleep 30')
+                lines.append('  fi')
+                lines.append('done')
+                lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
             if not IS_WINDOWS:
                 lines.append(f"rm -f '{wrapper_script}'")
                 lines.append('exec "${SHELL:-/bin/bash}"')
@@ -1364,7 +1438,10 @@ def setup_cookbook_routes() -> APIRouter:
         except Exception:
             pass
 
-        return {"ok": True, "session_id": session_id, "remote": remote or "local"}
+        # use_aria2c reflects the ACTUAL path after pre-flight fallback — the
+        # client stores it on the task so the badge parser matches the output.
+        return {"ok": True, "session_id": session_id, "remote": remote or "local",
+                "use_aria2c": bool(req.use_aria2c and not is_ollama_download)}
 
     @router.get("/api/model/cached")
     async def model_cached(request: Request, host: str | None = None, model_dir: str | None = None, ssh_port: str | None = None, platform: str | None = None):
