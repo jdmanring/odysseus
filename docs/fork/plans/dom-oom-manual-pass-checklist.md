@@ -13,11 +13,21 @@ Record results by ticking the boxes and filling the date line at the bottom; the
 2. Open your longest real session (150+ messages — e.g. the 308-message agent session
    from the OOM investigation). Real content beats seeded content here; that's the point
    of the manual pass.
-3. Optional measurement aid, in a terminal (read-only):
-   `venv/bin/python tooling/mem-probe.py counters` — RSS + DOM counters one-shot.
+3. Optional measurement aid, in a terminal (read-only, RSS + DOM counters one-shot).
+   Paste exactly this line — do NOT include backticks or quotes; in zsh, backticks
+   execute the command and then try to run its *output* as a command:
+
+   ```
+   venv/bin/python tooling/mem-probe.py counters
+   ```
+
    For a live DOM-children readout while you scroll, the app's DevTools are on
-   http://localhost:9222 (open in Firefox, pick the Odysseus page, Console):
-   `document.getElementById('chat-history').children.length`
+   http://localhost:9222 (open in Firefox, pick the Odysseus page, Console tab), then
+   paste:
+
+   ```
+   document.getElementById('chat-history').children.length
+   ```
 
 ## The five checks
 
@@ -63,7 +73,7 @@ bottom.
 ### 5. QtWebEngine ecological validity (runs alongside 1-4)
 - [ ] All of the above was done in the Qt app itself — that *is* the check; the suites
       run stock Chromium.
-- [ ] Glance at memory while doing it: `venv/bin/python tooling/mem-probe.py counters`
+- [ ] Glance at memory while doing it: run the mem-probe counters line from Setup step 3
       before and after checks 1-4 on the long session. RSS should be flat-ish (tens of
       MB drift is normal), not stepping up hundreds of MB as you page through history.
 - [ ] If you exchange 80+ messages in one sitting eventually: confirm the eviction
