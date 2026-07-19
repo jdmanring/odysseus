@@ -322,6 +322,18 @@ def _smaps_rollup(pid):
     return rss, pss, priv
 
 
+def cmd_eval(cdp, args):
+    """Evaluate a read-only JS expression in the live page and print the value.
+
+    Promises are awaited. Objects come back JSON-encoded (returnByValue).
+    """
+    val = cdp.ev(args.expression, await_promise=True)
+    if isinstance(val, (dict, list)):
+        print(json.dumps(val, indent=2))
+    else:
+        print(val)
+
+
 def cmd_stack(cdp, args):
     """Per-process RSS / PSS / Private across the whole Odysseus stack.
 
@@ -355,6 +367,8 @@ def main():
     for name in ("slope", "raf", "mutations", "producers"):
         sp = sub.add_parser(name)
         sp.add_argument("-d", "--duration", type=float, default=10.0, help="seconds (default 10)")
+    sp = sub.add_parser("eval")
+    sp.add_argument("expression", help="JS expression to evaluate in the page")
     sp = sub.add_parser("chatdom")
     sp.add_argument("-d", "--duration", type=float, default=0.0,
                     help="watch: one line per second for SECS (default: one-shot)")
@@ -371,7 +385,7 @@ def main():
         {
             "counters": cmd_counters, "slope": cmd_slope, "animations": cmd_animations,
             "raf": cmd_raf, "mutations": cmd_mutations, "producers": cmd_producers, "purge": cmd_purge,
-            "chatdom": cmd_chatdom,
+            "chatdom": cmd_chatdom, "eval": cmd_eval,
         }[args.cmd](cdp, args)
     finally:
         cdp.close()
