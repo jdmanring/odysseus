@@ -44,6 +44,17 @@ def test_cdp_audit_sleeps_five_seconds():
     assert "_time.sleep(5)" in block
 
 
+def test_cdp_audit_forces_gc_before_post_read():
+    # Without a forced collection the post-read reflects GC timing, not
+    # reachability: measured live (2026-07-19), the delta stayed 0 for 12+ s
+    # after a 61-node eviction, then dropped 430 the moment a major GC ran.
+    # The forced GC must come after the settle sleep and before the post read.
+    block = _cdp_audit_block()
+    gc_at = block.index("'HeapProfiler.collectGarbage'")
+    assert block.index("_time.sleep(5)") < gc_at
+    assert gc_at < block.rindex("'Memory.getDOMCounters'")
+
+
 def test_cdp_audit_logs_delta():
     block = _cdp_audit_block()
     assert "delta=" in block
