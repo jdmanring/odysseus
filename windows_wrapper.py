@@ -14,10 +14,20 @@ LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
-sys.stdout.flush()
-sys.stderr.flush()
-os.dup2(_log_file.fileno(), 1)
-os.dup2(_log_file.fileno(), 2)
+# Under pythonw.exe (the Start-menu/desktop shortcut launch) sys.stdout and
+# sys.stderr are None and fds 1/2 are invalid — an unguarded .flush() here
+# killed the process before this log existed, i.e. double-click did nothing.
+if sys.stdout is not None:
+    sys.stdout.flush()
+if sys.stderr is not None:
+    sys.stderr.flush()
+try:
+    os.dup2(_log_file.fileno(), 1)
+    os.dup2(_log_file.fileno(), 2)
+except OSError:
+    # pythonw: no inheritable console fds to replace. Renderer subprocesses
+    # get the log through the Popen(stdout=...) handles instead.
+    pass
 sys.stdout = _log_file
 sys.stderr = _log_file
 
