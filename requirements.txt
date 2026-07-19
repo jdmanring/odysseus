@@ -47,6 +47,9 @@ qrcode[pil]
 croniter
 pytest
 pytest-asyncio
+# python-docx is test-only: tests/test_markitdown_runtime.py builds the fixture
+# .docx it feeds through the markitdown pipeline.
+python-docx
 # starlette.testclient prefers httpx2 since Starlette 1.2.0 and warns on every
 # TestClient import when only classic httpx is present. Runtime code keeps
 # using `httpx` above; this is test-client only.
