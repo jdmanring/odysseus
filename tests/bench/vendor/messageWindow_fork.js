@@ -84,6 +84,15 @@
     this._serverHasMore = false;
     this._fetching      = false;
     this._olderLoader   = null;   // async (sessionId, limit, offset) -> {msgs, offset, hasMore}
+    // Conversation-size accounting for the header counter. The DOM can no
+    // longer be counted for this: it holds at most the window. _serverTotal is
+    // the backend's row count for the session at load; _liveMsgs counts
+    // messages that started after load (they are not in _serverTotal until the
+    // next load refreshes it). messageCount() is the sum, or null when the
+    // caller never supplied a total (legacy unpaginated load) — callers fall
+    // back to their own counting then.
+    this._serverTotal   = null;
+    this._liveMsgs      = 0;
     // Scrollbar honesty (top edge): a spacer whose height estimates every
     // message above the DOM (never-rendered + pruned), so scrollHeight
     // reflects the conversation, not the rendered window. See _updateTopSpacer.
@@ -120,6 +129,8 @@
     this._olderLoader   = (typeof opts.olderLoader === 'function') ? opts.olderLoader : null;
     this._serverHasMore = !!opts.serverHasMore && this._serverOffset > 0 && this._olderLoader !== null;
     this._fetching      = false;
+    this._serverTotal   = (typeof opts.serverTotal === 'number' && opts.serverTotal >= 0) ? opts.serverTotal : null;
+    this._liveMsgs      = 0;
     this._startIdx = Math.max(0, messages.length - WINDOW_SIZE);
     this._endIdx   = messages.length;
     console.log('[chatHistory] Session load: %d msgs, rendering %d–%d', messages.length, this._startIdx, this._endIdx - 1);
@@ -210,6 +221,8 @@
     this._serverHasMore = false;
     this._fetching      = false;
     this._olderLoader   = null;
+    this._serverTotal   = null;
+    this._liveMsgs      = 0;
     if (this._topSpacer && this._topSpacer.parentNode) this._topSpacer.remove();
     if (this._botSpacer && this._botSpacer.parentNode) this._botSpacer.remove();
     this._topSpacer    = null;
@@ -221,6 +234,16 @@
     this._estPendSum   = 0;
     this._estPendCount = 0;
     this._clearBusy();
+  };
+
+  // Total messages in the conversation, as best the window layer knows it:
+  // the backend's row count at load plus messages that started since. Returns
+  // null when load() was never given a serverTotal (legacy unpaginated fetch) —
+  // callers should fall back to counting the DOM themselves in that case.
+  // Header counters must use this instead of counting DOM nodes: the DOM holds
+  // at most the window, so DOM-derived counts undercount long conversations.
+  MessageWindow.prototype.messageCount = function () {
+    return (this._serverTotal === null) ? null : this._serverTotal + this._liveMsgs;
   };
 
   // ---------------------------------------------------------------------------
@@ -1147,7 +1170,12 @@
 
   MessageWindow.prototype._initMutObs = function () {
     var self = this;
-    this._mutObs = new MutationObserver(function () {
+    this._mutObs = new MutationObserver(function (recs) {
+      // Message accounting first: it must see every batch of records, even the
+      // ones the prune path coalesces away below. All windowing insertions
+      // (load / _loadOlder / _loadNewer) run under _loading, so anything that
+      // arrives outside it is a live append from the chat modules.
+      if (!self._loading) self._countLiveMessages(recs);
       if (self._loading || self._prunePending) return;
       // Collapse burst DOM mutations (streaming token appends) into one prune check
       // per animation frame instead of an O(n) DOM walk on every individual fire.
@@ -1160,6 +1188,27 @@
       });
     });
     this._mutObs.observe(this._c, { childList: true });
+  };
+
+  // One message = a top-level .msg that is not a round continuation. The live
+  // stream holder carries .streaming and is later replaced by the canonical
+  // block (or by a full DB reload for rich replies), so holders are skipped and
+  // each message is counted exactly once, at finalize. Windowing re-insertions
+  // never reach here (they run under _loading); removals are deliberately not
+  // subtracted — evicting a node from the DOM does not remove the message from
+  // the conversation.
+  MessageWindow.prototype._countLiveMessages = function (recs) {
+    if (this._serverTotal === null) return;
+    for (var i = 0; i < recs.length; i++) {
+      var added = recs[i].addedNodes;
+      for (var j = 0; j < added.length; j++) {
+        var n = added[j];
+        if (n.nodeType !== 1 || !n.classList || !n.classList.contains('msg')) continue;
+        if (n.classList.contains('msg-continuation') || n.classList.contains('streaming')) continue;
+        if (n.hasAttribute('data-ch-idx')) continue;
+        this._liveMsgs++;
+      }
+    }
   };
 
   MessageWindow.prototype._isAtBottom = function () {
