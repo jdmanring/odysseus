@@ -28,8 +28,11 @@ Record results by ticking the boxes and filling the date line at the bottom; the
    venv/bin/python tooling/mem-probe.py chatdom -d 60
    ```
 
-   Children should stay ≤ ~145 no matter how far you scroll; "px from bottom: 0" means
-   you're pinned to the newest message.
+   Children should stop growing after a couple of scroll-up batches and hold there no
+   matter how much further you scroll; "px from bottom: 0" means you're pinned to the
+   newest message. (The exact ceiling depends on content: the window caps *messages*,
+   and one real agent message can be several DOM children — synthetic test content
+   bounds at ~145 children, a real agent session holds flat around ~250.)
 
 ## The five checks
 
@@ -90,3 +93,29 @@ bottom.
 - Date of pass: ____________
 - Checkout (develop commit): ____________
 - Outcome: PASS / issues found (file a fork issue per item and list here):
+
+### Driven live pass — 2026-07-18, develop `de8b18f2`
+
+Checks 1, 2, 4, and 5 were driven on the RUNNING Qt app over CDP (real wheel events,
+real mouse click, real 300+-message session) by `live_pass.py` (session tooling;
+re-creatable from this record):
+
+- **Check 2 flash: PASS.** 3 session round-trips: landed at bottom in 0/299/214 ms,
+  zero post-landing excursions >150 px across ~110 recorded frames each.
+- **Check 1 wheel: PASS (measured).** Reading-speed scroll + two fast-flick rounds:
+  frame intervals mean 8.4 ms, p95 17.5 ms, worst 114 ms (single batch page-in hitch).
+  DOM children grew 151 → 250 and held exactly flat across both flick rounds — the
+  message-cap bounding real agent content. Human remainder: touchpad two-finger
+  inertial feel, if it ever feels off in normal use.
+- **Check 4 affordance: PASS.** While scrolled up: button class `show`, opacity 1,
+  display flex, 38 px wide, correctly positioned. (First driver run reported it
+  invisible — driver bug: `offsetParent` is null for `position:fixed` elements.)
+  A real click drains to the true bottom.
+- **Check 5 Qt validity: PASS.** All of the above ran in QtWebEngine itself. Renderer
+  RSS 756 MB → 967 MB during the heavy walk, self-recovered to 694 MB, forced purge
+  found only 8 MB more — transient GC lag, no retention.
+- **Check 3 images: NOT COVERED** — the session had zero `<img>` in the window.
+  Verify opportunistically the first time a real image-heavy session exists.
+
+Remaining human items: none blocking. (Touchpad feel and image decode are
+use-it-and-see; file a fork issue if either ever misbehaves.)
