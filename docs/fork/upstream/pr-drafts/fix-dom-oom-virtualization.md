@@ -72,7 +72,7 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 
 ## Test plan
 
-- `tests/test_chat_history_js.py`: 128 static-analysis tests
+- `tests/test_chat_history_js.py`: 129 static-analysis tests
 - `tests/test_chat_history_playwright.py`: 20 Playwright integration test functions
   (self-contained harness page; no running server needed) — includes runtime coverage of
   scroll-down windowing, the scroll-to-bottom drain/snap transition, and teardown
@@ -103,6 +103,10 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 - `static/app.js` — header "· N msgs" counter reads `chatHistory.messageCount()` (server
   total + live messages) instead of counting DOM nodes, which undercounts once the DOM
   is windowed; the fallback DOM count excludes `.msg-continuation` rounds
+- `static/js/keyboard-shortcuts.js` — the delete-session shortcut calls
+  `chatHistory.reset()` before wiping `#chat-history` (the window layer's API
+  contract), so a deleted session's state and message total don't survive onto
+  the welcome screen
 - `static/index.html` — load `chatHistory.js`; scroll-to-bottom button delegates to
   `chatHistory.scrollToBottom()`
 - `static/style.css` — `overflow-anchor:none` on the window's sentinels/spacer

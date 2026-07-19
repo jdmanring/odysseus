@@ -32,6 +32,7 @@ NAMEERROR_BRANCH = "fix/chat-stream-web-intent-nameerror"
 CONVERGED_FILES = [
     (STAGED_BRANCH, "static/js/chatHistory.js", "//"),
     (STAGED_BRANCH, "static/app.js", "//"),
+    (STAGED_BRANCH, "static/js/keyboard-shortcuts.js", "//"),
     (STAGED_BRANCH, "tests/test_chat_history_js.py", "#"),
     (STAGED_BRANCH, "tests/test_chat_history_playwright.py", "#"),
     (STAGED_BRANCH, "tests/test_chat_history_a11y_js.py", "#"),
