@@ -14,10 +14,20 @@ LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 _log_file = open(os.path.join(LOG_DIR, "wrapper_system.log"), "a", buffering=1)
-sys.stdout.flush()
-sys.stderr.flush()
-os.dup2(_log_file.fileno(), 1)
-os.dup2(_log_file.fileno(), 2)
+# Under pythonw.exe (the Start-menu/desktop shortcut launch) sys.stdout and
+# sys.stderr are None and fds 1/2 are invalid — an unguarded .flush() here
+# killed the process before this log existed, i.e. double-click did nothing.
+if sys.stdout is not None:
+    sys.stdout.flush()
+if sys.stderr is not None:
+    sys.stderr.flush()
+try:
+    os.dup2(_log_file.fileno(), 1)
+    os.dup2(_log_file.fileno(), 2)
+except OSError:
+    # pythonw: no inheritable console fds to replace. Renderer subprocesses
+    # get the log through the Popen(stdout=...) handles instead.
+    pass
 sys.stdout = _log_file
 sys.stderr = _log_file
 
@@ -45,6 +55,7 @@ import base64 as _cdp_b64
 import urllib.request as _cdp_req
 import subprocess
 import threading as _threading
+import concurrent.futures as _futures
 import time
 from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -68,13 +79,23 @@ CACHE_DIR = os.path.join(
 _UVICORN_PATTERN = "uvicorn app:app"
 _server_proc = None
 
+# Bounds CDP background work (idle tile eviction). Mirrors qt_wrapper.py —
+# this was referenced here without its definition and NameError'd the idle
+# eviction path on every mouse-idle (issue #147 parity audit).
+_cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='cdp')
+
 
 def kill_zombies():
     # Windows has no pkill; terminate any orphaned uvicorn by WMI query.
-    # Failure is expected when no orphan exists — suppress output.
+    # wmic.exe was REMOVED in Windows 11 24H2 (FileNotFoundError on launch),
+    # so query CIM through PowerShell instead — present on every supported
+    # Windows. Failure is expected when no orphan exists — suppress output.
+    ps = (
+        f"Get-CimInstance Win32_Process -Filter \"CommandLine LIKE '%{_UVICORN_PATTERN}%'\" | "
+        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+    )
     subprocess.run(
-        ['wmic', 'process', 'where',
-         f'commandline like "%{_UVICORN_PATTERN}%"', 'delete'],
+        ["powershell", "-NoProfile", "-Command", ps],
         check=False, capture_output=True,
     )
     time.sleep(0.5)
@@ -127,6 +148,7 @@ def stop_server():
             except Exception:
                 pass
         _server_proc = None
+    _cdp_executor.shutdown(wait=False, cancel_futures=True)
     # Belt-and-suspenders: also kill any orphaned process via taskkill.
     subprocess.run(
         ['taskkill', '/F', '/FI', f'COMMANDLINE eq *{_UVICORN_PATTERN}*'],
