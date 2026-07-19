@@ -1852,7 +1852,7 @@ body.bg-pattern-sparkles {
       margin-bottom:8px;
       white-space:normal;
       min-height:0;
-      --chat-max: 800px;
+      --chat-max: var(--chat-max-user, 800px);
       padding-left: max(0px, calc((100% - var(--chat-max)) / 2));
       padding-right: max(12px, calc((100% - var(--chat-max)) / 2 + 12px));
     }
