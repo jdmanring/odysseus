@@ -1,4 +1,9 @@
-// Regression guard for _smoothScrollStep() adaptive threshold (Math.max(300, viewportHeight * 1.5)).
+// Regression guard for _smoothScrollStep(): the follow lerp defers to the
+// direction-based isPinned intent flag and carries NO distance-based drift
+// guard of its own. The old adaptive threshold (Math.max(300, viewport*1.5))
+// existed to guess user intent from distance — a guess a wheel notch could
+// never overcome (#145). Direction made the guess unnecessary: content
+// growth never decreases scrollTop, only the user scrolling up does.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,65 +14,43 @@ import { join, dirname } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const uiSource = readFileSync(join(ROOT, 'static', 'js', 'ui.js'), 'utf8');
 
-// --- Source-level structural checks ---
-
-test('_smoothScrollStep uses Math.max adaptive threshold, not rigid 300', () => {
-  assert.ok(
-    uiSource.includes('Math.max(300,'),
-    'ui.js must use Math.max(300, ...) for the adaptive scroll threshold'
-  );
-});
-
-test('rigid "if (diff > 300)" is no longer present in _smoothScrollStep', () => {
-  assert.ok(
-    !uiSource.includes('if (diff > 300)'),
-    'The rigid "if (diff > 300)" guard must be replaced by the adaptive threshold'
-  );
-});
-
-function maxAllowedDiff(viewportHeight) {
-  return Math.max(300, viewportHeight * 1.5);
+function stepBody() {
+  const start = uiSource.indexOf('function _smoothScrollStep()');
+  assert.ok(start !== -1, '_smoothScrollStep must exist');
+  return uiSource.slice(start, uiSource.indexOf('\n}', start));
 }
 
-test('threshold is at least 300 on small viewports', () => {
-  // 100px viewport: 100 * 1.5 = 150 < 300, so floor kicks in
-  assert.strictEqual(maxAllowedDiff(100), 300);
-  assert.strictEqual(maxAllowedDiff(0),   300);
-  assert.strictEqual(maxAllowedDiff(200), 300);
-});
-
-test('threshold scales with viewport on typical desktop sizes', () => {
-  // 800px viewport: 800 * 1.5 = 1200 > 300
-  assert.strictEqual(maxAllowedDiff(800), 1200);
-  // 1080px viewport: 1080 * 1.5 = 1620
-  assert.strictEqual(maxAllowedDiff(1080), 1620);
-});
-
-test('threshold crossover point is at 200px viewport height', () => {
-  // At exactly 200px, 200 * 1.5 = 300, both paths give 300
-  assert.strictEqual(maxAllowedDiff(200), 300);
-  // Just above: viewport-scaled value takes over
-  assert.ok(maxAllowedDiff(201) > 300);
-});
-
-test('large content layout shift stays within threshold on typical viewport', () => {
-  // A 600px viewport yields threshold 900. A code block that shifts
-  // scrollHeight by 700px should not trigger the drift guard.
-  const viewport = 600;
-  const threshold = maxAllowedDiff(viewport);
-  const contentShift = 700;
-  assert.ok(contentShift < threshold,
-    `${contentShift}px shift should not exceed ${threshold}px threshold on ${viewport}px viewport`
+test('lerp bails when the user is not pinned', () => {
+  assert.ok(
+    stepBody().includes('if (!isPinned)'),
+    '_smoothScrollStep must stop the follow loop the frame after an unpin'
   );
 });
 
-test('genuine user scroll still triggers drift guard', () => {
-  // A user who has scrolled up by 2x the viewport should trigger the guard
-  // regardless of viewport size.
-  const viewport = 800;
-  const threshold = maxAllowedDiff(viewport); // 1200
-  const userScroll = viewport * 3;            // 2400px up — clearly intentional
-  assert.ok(userScroll > threshold,
-    `${userScroll}px user scroll should exceed ${threshold}px threshold and stop auto-scroll`
-  );
+test('no distance-based drift guard remains in the lerp', () => {
+  const body = stepBody();
+  assert.ok(!body.includes('maxAllowedDiff'), 'adaptive distance guard must be gone');
+  assert.ok(!/diff\s*>\s*(300|Math\.max)/.test(body),
+    'the lerp must never infer user intent from distance');
+});
+
+test('unpin is direction-based in the stick observer', () => {
+  assert.ok(uiSource.includes('box.scrollTop < _lastScrollTop'),
+    'unpin must key off upward scroll movement');
+});
+
+test('wheel-up unpins ahead of the scroll event', () => {
+  assert.ok(uiSource.includes("box.addEventListener('wheel'"), 'wheel listener required');
+  assert.ok(uiSource.includes('e.deltaY < 0'), 'only upward wheel unpins');
+});
+
+test('re-pin epsilon is small, per stick-to-bottom practice', () => {
+  const m = uiSource.match(/const REPIN_DISTANCE = (\d+);/);
+  assert.ok(m, 'REPIN_DISTANCE must be a named constant');
+  const px = Number(m[1]);
+  // Direction-based libraries pair gesture unpinning with a small at-bottom
+  // epsilon (react-virtuoso atBottomThreshold defaults to 4px; chat UIs
+  // commonly use tens of px). Three digits would recreate the unescapable
+  // slack this design removed.
+  assert.ok(px >= 4 && px <= 100, `REPIN_DISTANCE ${px}px outside sane 4..100 range`);
 });
