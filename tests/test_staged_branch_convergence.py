@@ -27,6 +27,7 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STAGED_BRANCH = "fix/dom-oom-virtualization"
 NAMEERROR_BRANCH = "fix/chat-stream-web-intent-nameerror"
+ARIA2C_BRANCH = "feat/aria2c-downloader"
 
 # (staged branch, repo-relative path, whole-line comment prefix)
 CONVERGED_FILES = [
@@ -42,6 +43,17 @@ CONVERGED_FILES = [
     (STAGED_BRANCH, "tests/bench/mock_llm.py", "#"),
     (STAGED_BRANCH, "tests/test_chat_history_longsession_playwright.py", "#"),
     (NAMEERROR_BRANCH, "tests/test_routes_defined_names.py", "#"),
+    # aria2c branch (issue #146 rebuild): wholesale copies of develop's files.
+    # routes/cookbook_routes.py is deliberately NOT listed — the branch version
+    # legitimately differs in code (no basicsr calls; carries the stacked
+    # /resolve-gguf endpoint), so only the shared-verbatim files are guarded.
+    (ARIA2C_BRANCH, "static/js/cookbookRunning.js", "//"),
+    (ARIA2C_BRANCH, "static/js/cookbookDownload.js", "//"),
+    (ARIA2C_BRANCH, "tooling/aria2c_download.py", "#"),
+    (ARIA2C_BRANCH, "tooling/bin_manager.py", "#"),
+    (ARIA2C_BRANCH, "tests/test_aria2c_circuit.py", "#"),
+    (ARIA2C_BRANCH, "tests/test_aria2c_launcher_wiring.py", "#"),
+    (ARIA2C_BRANCH, "tests/tooling/test_bin_manager.py", "#"),
 ]
 
 
