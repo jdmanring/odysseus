@@ -26,18 +26,20 @@ import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STAGED_BRANCH = "fix/dom-oom-virtualization"
+NAMEERROR_BRANCH = "fix/chat-stream-web-intent-nameerror"
 
-# (repo-relative path, whole-line comment prefix)
+# (staged branch, repo-relative path, whole-line comment prefix)
 CONVERGED_FILES = [
-    ("static/js/chatHistory.js", "//"),
-    ("tests/test_chat_history_js.py", "#"),
-    ("tests/test_chat_history_playwright.py", "#"),
-    ("tests/test_chat_history_a11y_js.py", "#"),
-    ("tests/test_chat_history_render_paging_playwright.py", "#"),
-    ("tests/bench/live_app.py", "#"),
-    ("tests/bench/scroll_driver.js", "//"),
-    ("tests/bench/mock_llm.py", "#"),
-    ("tests/test_chat_history_longsession_playwright.py", "#"),
+    (STAGED_BRANCH, "static/js/chatHistory.js", "//"),
+    (STAGED_BRANCH, "tests/test_chat_history_js.py", "#"),
+    (STAGED_BRANCH, "tests/test_chat_history_playwright.py", "#"),
+    (STAGED_BRANCH, "tests/test_chat_history_a11y_js.py", "#"),
+    (STAGED_BRANCH, "tests/test_chat_history_render_paging_playwright.py", "#"),
+    (STAGED_BRANCH, "tests/bench/live_app.py", "#"),
+    (STAGED_BRANCH, "tests/bench/scroll_driver.js", "//"),
+    (STAGED_BRANCH, "tests/bench/mock_llm.py", "#"),
+    (STAGED_BRANCH, "tests/test_chat_history_longsession_playwright.py", "#"),
+    (NAMEERROR_BRANCH, "tests/test_routes_defined_names.py", "#"),
 ]
 
 
@@ -68,8 +70,8 @@ def _normalize(text: str, comment_prefix: str) -> str:
     return "\n".join(kept)
 
 
-def _branch_available() -> bool:
-    return _git_show(STAGED_BRANCH, CONVERGED_FILES[0][0]) is not None
+def _branch_available(branch: str, probe_path: str) -> bool:
+    return _git_show(branch, probe_path) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -104,16 +106,16 @@ def test_normalizer_detects_trailing_comment_code_drift():
 # The guard
 # ---------------------------------------------------------------------------
 
-@pytest.mark.skipif(not _branch_available(),
-                    reason=f"no {STAGED_BRANCH} branch in this checkout")
-@pytest.mark.parametrize("path,prefix", CONVERGED_FILES,
-                         ids=[p for p, _ in CONVERGED_FILES])
-def test_staged_branch_matches_maintained(path, prefix):
+@pytest.mark.parametrize("branch,path,prefix", CONVERGED_FILES,
+                         ids=[p for _, p, _pfx in CONVERGED_FILES])
+def test_staged_branch_matches_maintained(branch, path, prefix):
+    if not _branch_available(branch, path):
+        pytest.skip(f"no {branch} branch in this checkout")
     live = (ROOT / path).read_text(encoding="utf-8")
-    staged = _git_show(STAGED_BRANCH, path)
-    assert staged is not None, f"{path} missing on {STAGED_BRANCH}"
+    staged = _git_show(branch, path)
+    assert staged is not None, f"{path} missing on {branch}"
     assert _normalize(staged, prefix) == _normalize(live, prefix), (
-        f"{path} on {STAGED_BRANCH} has drifted from the maintained version "
+        f"{path} on {branch} has drifted from the maintained version "
         f"(comments excluded). The staged upstream artifact is stale: re-converge "
         f"it (checkout the branch, `git checkout develop -- <files>`, re-apply the "
         f"comment-only fork-reference scrub, run the branch's suites, commit) "
