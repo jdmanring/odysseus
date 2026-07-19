@@ -165,6 +165,16 @@ def test_recovery_uses_cdp_page_reload_off_main_thread():
     assert "_cdp_executor.submit(_hang_recover_cdp)" in _WRAPPER
 
 
+def test_silence_is_read_before_recovery_reset():
+    # record_recovery() resets the pong clock; the [HANG] line must read
+    # silence_s() first or it always logs "unresponsive 0s" (seen live in the
+    # SIGSTOP validation run).
+    tick = _WRAPPER[_WRAPPER.index("def _hang_tick"):]
+    tick = tick[:tick.index("self._hang_timer")]
+    assert tick.index("_silence = self._hang_detector.silence_s()") \
+        < tick.index("self._hang_detector.record_recovery()")
+
+
 def test_recovery_is_recorded_before_reload():
     # record_recovery() must run when should_recover() fires, or the next tick
     # fires a second recovery before the first finishes.

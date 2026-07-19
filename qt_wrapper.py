@@ -807,10 +807,13 @@ class OdysseusWindow(QMainWindow):
                 page.triggerAction(QWebEnginePage.WebAction.Reload)
                 return
             if self._hang_detector.should_recover():
+                # Read the silence BEFORE record_recovery() — it resets the
+                # pong clock, so reading it after always logs 0s.
+                _silence = self._hang_detector.silence_s()
                 self._hang_detector.record_recovery()
                 print(
                     f'[HANG] renderer pid={page.renderProcessPid()} '
-                    f'unresponsive {self._hang_detector.silence_s():.0f}s '
+                    f'unresponsive {_silence:.0f}s '
                     f'({qt_watchdog.MIN_MISSED_PINGS}+ pings unanswered), '
                     f'forcing Page.reload', flush=True,
                 )
