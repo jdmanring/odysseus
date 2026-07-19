@@ -93,3 +93,15 @@ def test_uses_mutation_and_resize_observers():
 def test_settle_mechanism_retired():
     # scrollHistorySettle was folded into the observer; it must not linger.
     assert "scrollHistorySettle" not in _UI
+
+
+def test_container_disables_native_scroll_anchoring():
+    # Chromium scroll anchoring adjusts scrollTop invisibly to JS on content
+    # changes and fights the pin logic in both directions (bounced pinned
+    # follows; dragged unpinned views). The scroller must opt out; the
+    # observer + manual compensation own anchoring.
+    import pathlib
+    css = (pathlib.Path(__file__).resolve().parent.parent / "static/style.css").read_text(encoding="utf-8")
+    start = css.index(".chat-history {")
+    block = css[start:css.index("}", start)]
+    assert "overflow-anchor: none" in block
