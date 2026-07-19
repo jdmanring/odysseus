@@ -1334,7 +1334,11 @@ async function _startQueuedDownload(task) {
       return;
     }
     const oldId = task.sessionId;
-    const launchedTask = { ...task, sessionId: data.session_id, id: data.session_id, status: 'running' };
+    const launchedTask = {
+      ...task, sessionId: data.session_id, id: data.session_id, status: 'running',
+      // Record which path actually ran (aria2c vs hf) so the badge parser matches.
+      payload: { ...(task.payload || {}), use_aria2c: !!data.use_aria2c },
+    };
     const key = _downloadDedupeKey(launchedTask);
     let found = false;
     const tasks = _loadTasks().filter(t => {
@@ -2126,6 +2130,8 @@ async function _retryDownload(name, payload, replaceSessionId = '') {
       if (replaceSessionId) _updateTask(replaceSessionId, { status: 'crashed', _retrying: false });
       return;
     }
+    // Record which path actually ran (aria2c vs hf) so the badge parser matches.
+    _payload.use_aria2c = !!data.use_aria2c;
     if (replaceSessionId) {
       const tasks = _loadTasks();
       const task = tasks.find(t => t.sessionId === replaceSessionId);
@@ -4181,7 +4187,8 @@ async function _reconnectTask(el, task) {
                 });
                 const data = await res.json();
                 if (data.ok && data.session_id) {
-                  _updateTask(task.sessionId, { sessionId: data.session_id, status: 'running', output: '' });
+                  dlPayload.use_aria2c = !!data.use_aria2c;
+                  _updateTask(task.sessionId, { sessionId: data.session_id, status: 'running', output: '', payload: dlPayload });
                   task.sessionId = data.session_id;
                   el._lastProgress = null;
                   el._lastProgressTime = Date.now();
