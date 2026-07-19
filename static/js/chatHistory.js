@@ -45,6 +45,7 @@
     this._mutObs     = null;
     this._loading    = false;      // true during load / _loadOlder (defer Phase 2)
     this._prunePending = false;    // rAF guard for Phase 2 prune (collapses burst fires)
+    this._pinned     = true;       // sticky at-bottom intent; see _initScrollListener
     this._bidiPending = false;     // rAF guard for scroll-based _loadNewer
     this._draining   = false;      // true while scrollToBottom() is draining all batches
     this._gen        = 0;          // incremented on reset(); all rAF callbacks check this
@@ -180,6 +181,7 @@
     this._gen++;
     this._loading    = false;
     this._prunePending = false;
+    this._pinned     = true;   // a fresh session load always lands at the bottom
     this._bidiPending  = false;
     this._draining   = false;
     this._detachSentinel();
@@ -677,6 +679,12 @@
   MessageWindow.prototype._initScrollListener = function () {
     var self = this;
     this._c.addEventListener('scroll', function () {
+      // Sticky pin tracking: _pinned records where the user *chose* to be, and
+      // only a scroll event changes it. A content append cannot unpin — it
+      // grows scrollHeight without firing 'scroll', so _pinned survives the
+      // window between the append and the stick-to-bottom autoscroll (the
+      // instantaneous-geometry window in which _maybePrune's rAF check runs).
+      self._pinned = self._isAtBottom();
       // Deep-drag assist (top): a thumb drag deep into the honesty spacer puts
       // the viewport in blank filler far above the sentinel, where the sentinel
       // observer cannot fire. If the spacer intersects the viewport, keep
@@ -1190,7 +1198,16 @@
   };
 
   MessageWindow.prototype._maybePrune = function () {
-    if (!this._isAtBottom()) return;
+    // Gate on pin *intent*, not instantaneous geometry. The rAF this runs in
+    // fires after an append grew scrollHeight but before the stick-to-bottom
+    // autoscroll restores the pin, so _isAtBottom() alone reports false for a
+    // user who never left the bottom — and successive single appends taller
+    // than the 120px slack then defer pruning indefinitely (#141, confirmed
+    // live: 6 pinned appends, total 78→84 > PRUNE_AT, zero prunes). _pinned
+    // only changes on real scroll events, so it is immune to that race; the
+    // geometry check remains as a fallback for a stale-flag edge (e.g. a
+    // programmatic scroll that never fired an event).
+    if (!this._pinned && !this._isAtBottom()) return;
     if (!this._histSep || !this._histSep.parentNode) return;
     var total = this._totalChildCount();
     if (total <= PRUNE_AT) return;
