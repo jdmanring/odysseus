@@ -749,6 +749,9 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
       uiModule.showToast('Download failed: ' + (data.error || ''), 9000);
       return;
     }
+    // The server reports which download path actually ran (aria2c vs hf) after
+    // its pre-flight fallback; store it so the badge parser matches the output.
+    payload.use_aria2c = !!data.use_aria2c;
     _addTask(data.session_id, taskName, 'download', payload);
     uiModule.showToast(`Downloading ${taskName}...`);
   } catch (e) {
