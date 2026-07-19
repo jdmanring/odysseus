@@ -567,6 +567,41 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
   let _staleStreamProbeInFlight = false;
   const STALE_LOCAL_STREAM_MS = 15000;
   let _gcPending = false;      // True while an async major GC cycle is still running
+  let _gcMissed  = false;      // True if a response completed while GC was running
+
+  // ---- Idle GC: reclaim transient hover/interaction DOM churn ----
+  // Hovering interactive UI (the Brain memory list, sidebar nav, etc.) creates
+  // short-lived CSS :hover pseudo-elements — real Oilpan-managed DOM Nodes that
+  // are created on hover-enter and orphaned on leave. In a regular browser the
+  // engine collects them on idle under OS memory-pressure; embedded Chromium
+  // (PyQt/Electron/native wrappers) receives no such signal, so this transient
+  // garbage accumulates. The post-response GC below only fires after a chat
+  // reply, so sustained hovering with no chat activity would grow RSS unbounded
+  // until the next response. Fire one async major GC after a window of pointer/
+  // keyboard inactivity. Shares _gcPending so it never stacks with the
+  // post-response cycle, and is gated on document visibility so a backgrounded
+  // tab does no work. Feature-detected: a no-op without --expose-gc (i.e. in
+  // every regular browser, where the engine's own idle GC already handles this).
+  let _idleGcTimer = null;
+  const _IDLE_GC_MS = 8000;  // reclaim ~8 s after the last user input
+  function _scheduleIdleGc() {
+    if (_idleGcTimer) clearTimeout(_idleGcTimer);
+    _idleGcTimer = setTimeout(function () {
+      if (document.visibilityState !== 'visible') return;
+      if (typeof gc === 'function' && !_gcPending) {
+        _gcPending = true;
+        console.log('[GC] idle major async dispatched');
+        gc({ type: 'major', execution: 'async' });
+        setTimeout(function () { _gcPending = false; }, 3000);
+      }
+    }, _IDLE_GC_MS);
+  }
+  // Resetting the timer per input event is allocation-free; passive + capture so
+  // it never blocks scrolling or interferes with app handlers.
+  ['pointermove', 'pointerdown', 'keydown', 'wheel'].forEach(function (ev) {
+    document.addEventListener(ev, _scheduleIdleGc, { passive: true, capture: true });
+  });
+  _scheduleIdleGc();
 
   /** Check if an SSE reader is still actively connected for a session. */
   function hasActiveStream(sessionId) {
@@ -3925,25 +3960,6 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
       clearResponseTimeout();
       clearProcessingProbe();
       clearFirstTokenWaitTimers();
-      // Deferred major GC hint for embedded Chromium environments (PyQt, Electron,
-      // native wrappers). Regular browsers receive OS memory-pressure signals that
-      // trigger Oilpan's automatic collection; embedded builds typically do not, so
-      // detached nodes accumulate without a cooperative nudge.
-      // gc() with async execution runs incremental collection slices during idle
-      // periods; the 2.5 s delay lets the final render settle first.
-      // _gcPending prevents stacking a second cycle while the first is still running
-      // its incremental slices (stacked cycles double overhead without extra benefit).
-      // Feature-detected — no-ops in all regular browsers where gc() is not exposed.
-      setTimeout(function () {
-        if (typeof gc === 'function' && !_gcPending) {
-          _gcPending = true;
-          console.log('[GC] major async dispatched');
-          gc({ type: 'major', execution: 'async' });
-          setTimeout(function () { _gcPending = false; }, 5000);
-        } else if (!_gcPending && typeof requestIdleCallback !== 'undefined') {
-          requestIdleCallback(function () {}, { timeout: 2000 });
-        }
-      }, 2500);
       // Streaming done — let screen readers announce the settled response.
       const _chatLogDone = document.getElementById('chat-history');
       if (_chatLogDone) _chatLogDone.setAttribute('aria-busy', 'false');
@@ -4040,6 +4056,42 @@ import { wireArrowUpRecall, getUserMessagesFromChatHistory } from './composerArr
         }
       }, 3000);
       _drainQueuedAgentRequests();
+
+      // Deferred major GC hint for embedded Chromium environments (PyQt, Electron,
+      // native wrappers). Regular browsers receive OS memory-pressure signals that
+      // trigger Oilpan's automatic collection; embedded builds typically do not, so
+      // detached nodes accumulate without a cooperative nudge.
+      // gc() with async execution runs incremental collection slices during idle
+      // periods; the 2.5 s delay lets the final render settle first.
+      // _gcPending prevents stacking a second cycle while the first is still running
+      // its incremental slices (stacked cycles double overhead without extra benefit).
+      // _gcMissed tracks responses that completed while GC was running (common in
+      // agent tool-call batches); the single catch-up cycle covers all blocked
+      // responses without creating a cascade of collections.
+      // Feature-detected — no-ops in all regular browsers where gc() is not exposed.
+      setTimeout(function () {
+        if (typeof gc === 'function' && !_gcPending) {
+          _gcPending = true;
+          _gcMissed  = false;
+          console.log('[GC] major async dispatched');
+          gc({ type: 'major', execution: 'async' });
+          setTimeout(function () {
+            _gcPending = false;
+            if (_gcMissed && typeof gc === 'function') {
+              _gcMissed  = false;
+              _gcPending = true;
+              console.log('[GC] catch-up dispatched');
+              gc({ type: 'major', execution: 'async' });
+              setTimeout(function () { _gcPending = false; }, 3000);
+            }
+          }, 3000);
+        } else if (typeof gc === 'function' && _gcPending) {
+          _gcMissed = true;
+          console.log('[GC] blocked — catch-up queued');
+        } else if (!_gcPending && typeof requestIdleCallback !== 'undefined') {
+          requestIdleCallback(function () {}, { timeout: 2000 });
+        }
+      }, 2500);
     }
   }
 
