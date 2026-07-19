@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch
 
 import pytest
@@ -66,7 +67,9 @@ def test_get_binary_path_returns_none_when_absent(tmp_path):
 
 
 def test_get_binary_path_returns_path_when_present(tmp_path):
-    fake = tmp_path / "aria2c"
+    # get_binary_path looks for the platform's binary name (aria2c.exe on
+    # Windows) — plant the right one so this passes on native-Windows runs.
+    fake = tmp_path / ("aria2c.exe" if os.name == "nt" else "aria2c")
     fake.write_bytes(b"fake")
     fake.chmod(0o755)
     with patch.object(BinManager, "BIN_DIR", tmp_path):
@@ -74,6 +77,7 @@ def test_get_binary_path_returns_path_when_present(tmp_path):
     assert result == fake
 
 
+@pytest.mark.skipif(os.name == "nt", reason="chmod bits carry no executable semantics on Windows")
 def test_get_binary_path_skips_non_executable(tmp_path):
     fake = tmp_path / "aria2c"
     fake.write_bytes(b"fake")
