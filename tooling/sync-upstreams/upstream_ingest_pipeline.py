@@ -46,6 +46,51 @@ PROTECTED_FILES: list[str] = [
 _MOVED_TO_ASSETS_EXTS = {".gif", ".webm", ".jpg", ".jpeg", ".png", ".svg", ".webp"}
 
 
+def _gate_env() -> dict[str, str]:
+    """Deterministic environment for gate subprocesses.
+
+    Upstream's tests assert on plain-substring CLI output (argparse --help text,
+    pytest reports). Python 3.14 colorizes argparse help when the terminal
+    advertises color support, which injects ANSI escapes into that output and
+    fails the asserts even though the code under test is fine. Strip every
+    color-forcing signal and pin the width argparse wraps to.
+    """
+    env = os.environ.copy()
+    for var in ("FORCE_COLOR", "CLICOLOR_FORCE", "COLORTERM", "CLICOLOR"):
+        env.pop(var, None)
+    env["NO_COLOR"] = "1"
+    env["PYTHON_COLORS"] = "0"
+    env["COLUMNS"] = "80"
+    return env
+
+
+def _classify_docs_media(
+    docs_media: list[str],
+    assets_names: set[str],
+    is_referenced,
+) -> list[tuple[str, str]]:
+    """Decide which merge-added docs/ media files to remove, with reasons.
+
+    Two removal rules:
+    - "moved-to-assets": the fork's canonical copy lives in assets/; the docs/
+      copy upstream re-added is a duplicate.
+    - "orphan": no tracked text file references the image, so it would fail
+      upstream's own test_docs_no_orphan_images gate. This happens because the
+      PROTECTED README (fork version, assets/ paths) may not reference media
+      that upstream's README does.
+
+    Returns [(repo-relative path, reason)].
+    """
+    removals = []
+    for path in docs_media:
+        name = Path(path).name
+        if name in assets_names:
+            removals.append((path, "moved-to-assets"))
+        elif not is_referenced(name):
+            removals.append((path, "orphan"))
+    return removals
+
+
 class Colors:
     BLUE = "\033[0;34m"
     GREEN = "\033[0;32m"
@@ -229,19 +274,24 @@ class SyncManager:
                 for added in upstream_added.splitlines():
                     self._git.run(["git", "rm", "-f", "--cached", "--", added], check=False)
 
-        # Remove any media files upstream re-added to docs/ that we moved to assets/.
-        # Upstream has these in docs/; our fork moved them to assets/. If the merge
-        # re-adds them to docs/, remove the docs/ copy so assets/ stays canonical.
-        docs_dir = REPO_ROOT / "docs"
-        assets_dir = REPO_ROOT / "assets"
-        removed_docs_media = []
-        if docs_dir.exists() and assets_dir.exists():
-            for f in docs_dir.iterdir():
-                if f.suffix.lower() in _MOVED_TO_ASSETS_EXTS and (assets_dir / f.name).exists():
-                    self._git.run(["git", "rm", "-f", "--ignore-unmatch", str(f.relative_to(REPO_ROOT))], check=False)
-                    removed_docs_media.append(f.name)
-        if removed_docs_media:
-            log_info(f"Removed {len(removed_docs_media)} docs/ media file(s) re-added by upstream (canonical copies in assets/): {removed_docs_media}")
+        # Remove docs/ media files that must not survive the merge:
+        # - duplicates of files the fork moved to assets/ (assets/ stays canonical)
+        # - orphans no tracked text references, which fail upstream's own
+        #   test_docs_no_orphan_images gate because the PROTECTED fork README
+        #   does not reference media upstream's README does. (This bit us on
+        #   docs/odysseus-browser.jpg in the 2026-07-19 sync — Gate 3 failure.)
+        docs_media = [
+            p for p in self._git.output(["git", "ls-files", "docs"]).splitlines()
+            if Path(p).suffix.lower() in _MOVED_TO_ASSETS_EXTS
+        ]
+        assets_names = {
+            Path(p).name for p in self._git.output(["git", "ls-files", "assets"]).splitlines()
+        }
+        removals = _classify_docs_media(docs_media, assets_names, self._media_is_referenced)
+        for path, reason in removals:
+            self._git.run(["git", "rm", "-f", "--ignore-unmatch", "--", path], check=False)
+        if removals:
+            log_info(f"Removed {len(removals)} docs/ media file(s) re-added by upstream: {removals}")
 
         staged = self._git.output(["git", "diff", "--cached", "--name-only"])
         protected_prefixes = tuple(p for p in PROTECTED_FILES if p.endswith("/"))
@@ -259,6 +309,19 @@ class SyncManager:
         else:
             log_success("Protected files unchanged by upstream — no restoration needed.")
 
+    def _media_is_referenced(self, name: str) -> bool:
+        """True if any tracked text file mentions this media filename.
+
+        Mirrors the orphan definition in upstream's test_docs_no_orphan_images:
+        an image is referenced iff its bare filename appears in some tracked
+        file. git grep on tracked content; the image itself is binary and
+        cannot self-match.
+        """
+        result = self._git.run(
+            ["git", "grep", "-l", "--fixed-strings", name, "--", "."], check=False
+        )
+        return result.returncode == 0
+
     def cleanup_staging(self) -> None:
         if not self.staging_branch:
             return
@@ -274,6 +337,7 @@ class GateKeeper:
         self._python = _resolve_python()
         self._ruff = _resolve_ruff()
         self._skip_tests = skip_tests
+        self._env = _gate_env()
 
     def verify(self) -> bool:
         return self._gate_syntax() and self._gate_lint() and self._gate_tests()
@@ -296,6 +360,7 @@ class GateKeeper:
                     cwd=REPO_ROOT,
                     capture_output=True,
                     text=True,
+                    env=self._env,
                 )
                 if result.returncode != 0:
                     errors.append(f"{f.relative_to(REPO_ROOT)}: {result.stderr.strip()}")
@@ -314,6 +379,7 @@ class GateKeeper:
             self._ruff + ["check", "."],
             cwd=REPO_ROOT,
             capture_output=True,
+            env=self._env,
         )
         if result.returncode != 0:
             log_warn("Lint warnings present in upstream code — not blocking sync.")
@@ -334,6 +400,7 @@ class GateKeeper:
         result = subprocess.run(
             pytest_cmd + ["tests/", "-x", "-q", "--tb=short", "--timeout=60"],
             cwd=REPO_ROOT,
+            env=self._env,
         )
         if result.returncode != 0:
             log_error("Test gate failed.")
@@ -452,7 +519,7 @@ def main() -> None:
     parser.add_argument(
         "--push",
         action="store_true",
-        help="Push integration, upstream-mirror, and tags to origin after promotion.",
+        help="Push integration and tags to origin after promotion (upstream-mirror is never pushed; see PromotionEngine).",
     )
     args = parser.parse_args()
 
