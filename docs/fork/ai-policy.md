@@ -27,6 +27,15 @@ user to run — do not execute it yourself.
 **Issue before branch.** Create the tracking issue on `jdmanring/odysseus` before
 creating any branch. No branch exists without a corresponding issue.
 
+**Branch when work begins — not when the issue is filed.** Do not pre-stage a
+branch at issue-filing time. A branch created "for later" sits empty, and an
+empty branch is indistinguishable-at-a-glance from one whose work was lost —
+a month later it reads as a robbery and costs an investigation to disprove
+(this happened: `perf/cdp-listener-audit`, created within a minute of issue #76
+in June 2026, pushed empty, and flagged as suspected lost work in July). The
+issue alone is the parking spot for planned work; create the branch in the same
+session the first commit lands.
+
 **Search upstream prior art before staging.** Before opening the issue for any
 upstream-candidate work, search the upstream repo for the same problem area —
 issues, PRs, discussions, and `ROADMAP.md`:
