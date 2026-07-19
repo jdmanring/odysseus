@@ -181,9 +181,23 @@ def test_long_session_stays_bounded_and_follows(soak):
                     f"exchange {i}: DOM children {st['children']} exceed "
                     f"bound {DOM_CHILD_BOUND}")
                 if i % 5 == 0:
-                    assert st["fromBottom"] < 60, (
-                        f"exchange {i}: auto-follow lost, {st['fromBottom']}px "
-                        f"from bottom")
+                    # Auto-follow must CONVERGE to the bottom, not be there at
+                    # the sampling instant: the ACK text renders while the final
+                    # message is still growing (instrumented: 44-62px from
+                    # bottom at ACK, 2px within 250ms, every exchange), and
+                    # upstream styling changes nudged that straddle across a
+                    # fixed 60px threshold — the #142 flake. Real follow loss
+                    # stays drifted and still fails this wait.
+                    try:
+                        page.wait_for_function(
+                            "()=>{const b=document.getElementById("
+                            "'chat-history');return b.scrollHeight-b.scrollTop"
+                            "-b.clientHeight < 60;}", timeout=2000)
+                    except Exception:
+                        st = page.evaluate(_STATE_JS)
+                        raise AssertionError(
+                            f"exchange {i}: auto-follow lost, "
+                            f"{st['fromBottom']}px from bottom after 2s settle")
 
             assert saw_spinner, "initial .ai-spinner never appeared"
             assert saw_thinking, (
