@@ -45,6 +45,7 @@ import base64 as _cdp_b64
 import urllib.request as _cdp_req
 import subprocess
 import threading as _threading
+import concurrent.futures as _futures
 import time
 from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -68,13 +69,23 @@ CACHE_DIR = os.path.join(
 _UVICORN_PATTERN = "uvicorn app:app"
 _server_proc = None
 
+# Bounds CDP background work (idle tile eviction). Mirrors qt_wrapper.py —
+# this was referenced here without its definition and NameError'd the idle
+# eviction path on every mouse-idle (issue #147 parity audit).
+_cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='cdp')
+
 
 def kill_zombies():
     # Windows has no pkill; terminate any orphaned uvicorn by WMI query.
-    # Failure is expected when no orphan exists — suppress output.
+    # wmic.exe was REMOVED in Windows 11 24H2 (FileNotFoundError on launch),
+    # so query CIM through PowerShell instead — present on every supported
+    # Windows. Failure is expected when no orphan exists — suppress output.
+    ps = (
+        f"Get-CimInstance Win32_Process -Filter \"CommandLine LIKE '%{_UVICORN_PATTERN}%'\" | "
+        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+    )
     subprocess.run(
-        ['wmic', 'process', 'where',
-         f'commandline like "%{_UVICORN_PATTERN}%"', 'delete'],
+        ["powershell", "-NoProfile", "-Command", ps],
         check=False, capture_output=True,
     )
     time.sleep(0.5)
@@ -127,6 +138,7 @@ def stop_server():
             except Exception:
                 pass
         _server_proc = None
+    _cdp_executor.shutdown(wait=False, cancel_futures=True)
     # Belt-and-suspenders: also kill any orphaned process via taskkill.
     subprocess.run(
         ['taskkill', '/F', '/FI', f'COMMANDLINE eq *{_UVICORN_PATTERN}*'],

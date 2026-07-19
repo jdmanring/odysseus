@@ -44,6 +44,7 @@ import base64 as _cdp_b64
 import urllib.request as _cdp_req
 import subprocess
 import threading as _threading
+import concurrent.futures as _futures
 import time
 from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -62,6 +63,11 @@ CACHE_DIR = os.path.expanduser("~/Library/Caches/odysseus/webengine")
 
 _UVICORN_PATTERN = "uvicorn app:app"
 _server_proc = None
+
+# Bounds CDP background work (idle tile eviction). Mirrors qt_wrapper.py —
+# this was referenced here without its definition and NameError'd the idle
+# eviction path on first mouse-idle (PyQt aborts the app on slot exceptions).
+_cdp_executor = _futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='cdp')
 
 
 def kill_zombies():

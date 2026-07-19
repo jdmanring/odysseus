@@ -69,6 +69,32 @@ def test_route_module_has_no_undefined_global_reads(path):
     )
 
 
+# The desktop wrappers are the same defect class with a worse blast radius:
+# PyQt6 aborts the whole process on an unhandled exception in a slot, so a
+# NameError in a timer callback is a hard app crash. windows_wrapper.py
+# shipped exactly that (`_cdp_executor` used, never defined — ported from
+# qt_wrapper.py without its definition; crashed on first mouse-idle).
+_WRAPPER_FILES = [
+    p for p in (
+        Path(__file__).resolve().parent.parent / name
+        for name in ("windows_wrapper.py", "qt_wrapper.py", "mac_wrapper.py")
+    ) if p.exists()
+]
+
+
+def test_wrapper_modules_were_collected():
+    assert _WRAPPER_FILES, "no desktop wrapper modules found — layout moved?"
+
+
+@pytest.mark.parametrize("path", _WRAPPER_FILES, ids=lambda p: p.name)
+def test_wrapper_module_has_no_undefined_global_reads(path):
+    bad = _undefined_global_reads(path.read_text(encoding="utf-8"), path.name)
+    assert not bad, (
+        f"{path.name}: names read as globals but never defined "
+        f"(runtime NameError; PyQt aborts the app on slot exceptions): {bad}"
+    )
+
+
 # --- mutation checks: the guard is only as good as its detector -----------
 
 
