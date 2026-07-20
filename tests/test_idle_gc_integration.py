@@ -35,9 +35,13 @@ def _cdp_available():
         return False
 
 
+# Opt-in ONLY: this test drives the USER'S LIVE SESSION — it opens the Brain
+# panel and hover-storms the memory list. Auto-running it whenever the app
+# happens to be open hijacks whatever the user is doing (observed live: the
+# Brain menu opening under the user mid-session during a full-suite run).
 pytestmark = pytest.mark.skipif(
-    not _cdp_available(),
-    reason="no Qt wrapper / CDP endpoint on localhost:9222 (run with the app open)",
+    os.environ.get("ODYSSEUS_LIVE_UI_TESTS") != "1" or not _cdp_available(),
+    reason="live-session test: set ODYSSEUS_LIVE_UI_TESTS=1 with the app open to run",
 )
 
 
