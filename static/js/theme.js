@@ -442,13 +442,27 @@ function _getEffectSize() {
 // Patterns where the intensity/size sliders have no visible effect.
 const _STATIC_PATTERNS = new Set(['none', 'dots']);
 
+// Canvas effects animate every frame (requestAnimationFrame repaints under the
+// whole UI). Users who ask the OS for reduced motion — and machines where the
+// browser reports it on their behalf (software-rendered guests translate the
+// macOS/Windows "reduce motion" accessibility setting into this media query) —
+// get the theme's static pattern instead of the animation. Live query: toggling
+// the OS setting re-applies the current pattern without a reload.
+const _REDUCED_MOTION = window.matchMedia
+  ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+let _lastPattern = 'none';
+if (_REDUCED_MOTION && _REDUCED_MOTION.addEventListener) {
+  _REDUCED_MOTION.addEventListener('change', () => applyBgPattern(_lastPattern));
+}
+
 export function applyBgPattern(pattern) {
   const p = pattern || 'none';
+  _lastPattern = p;
   document.body.classList.remove(..._BG_CLASSES);
   // Clean up any canvas backgrounds
   document.querySelectorAll('#synapse-canvas, #rain-canvas, #constellations-canvas, #perlin-flow-canvas, #petals-canvas, #sparkles-canvas, #embers-canvas').forEach(c => c.remove());
   if (p !== 'none') document.body.classList.add('bg-pattern-' + p);
-  if (_CANVAS_PATTERNS[p]) _CANVAS_PATTERNS[p]();
+  if (_CANVAS_PATTERNS[p] && !(_REDUCED_MOTION && _REDUCED_MOTION.matches)) _CANVAS_PATTERNS[p]();
   // Hide sliders that do nothing on static patterns.
   const hide = _STATIC_PATTERNS.has(p);
   const ig = document.getElementById('theme-bg-intensity-group');
