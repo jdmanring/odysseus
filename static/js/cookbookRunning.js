@@ -4039,6 +4039,7 @@ async function _reconnectTask(el, task) {
               _showCookbookNotif();
               _refreshDepsAfterInstall(task);
               if (task.type === 'download') {
+                try { const sv = await import('./cookbookServe.js'); sv._invalidateCachedModelScan?.(); } catch {}
                 try { await window.modelsModule?.refreshModels?.(true); } catch {}
                 try { const hwfit = await import('./cookbook-hwfit.js'); await hwfit.refreshCachedModelIds(task.remoteHost || ''); } catch {}
               }
@@ -4097,6 +4098,7 @@ async function _reconnectTask(el, task) {
                   _showCookbookNotif();
                   _refreshDepsAfterInstall(task);
                   if (task.type === 'download') {
+                    try { const sv = await import('./cookbookServe.js'); sv._invalidateCachedModelScan?.(); } catch {}
                     try { await window.modelsModule?.refreshModels?.(true); } catch {}
                     try { const hwfit = await import('./cookbook-hwfit.js'); await hwfit.refreshCachedModelIds(task.remoteHost || ''); } catch {}
                   }
@@ -4347,6 +4349,7 @@ async function _reconnectTask(el, task) {
               const _sb2 = el.querySelector('.cookbook-task-serve-btn'); if (_sb2) _sb2.style.display = '';
               _showCookbookNotif();
               _refreshDepsAfterInstall(task);
+              try { const sv = await import('./cookbookServe.js'); sv._invalidateCachedModelScan?.(); } catch {}
               try { await window.modelsModule?.refreshModels?.(true); } catch {}
               fetch('/api/shell/exec', {
                 method: 'POST', credentials: 'same-origin',
