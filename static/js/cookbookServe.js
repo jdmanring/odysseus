@@ -123,6 +123,14 @@ export function _invalidateCachedModelScan() {
 
 function _writeCachedModelScan(sig, data) {
   try {
+    // Never cache an empty scan at full TTL. An empty result is legitimate
+    // only while the machine truly has no models — but it is exactly what a
+    // scan races into during delete/download mutations, and serving cached
+    // emptiness for 6 hours hid a freshly downloaded model from Launch
+    // (observed live 2026-07-20). Empty scans are not persisted at all: the
+    // next Launch view re-scans, which costs one cheap request on genuinely
+    // empty machines and guarantees fresh truth everywhere else.
+    if (!Array.isArray(data?.models) || data.models.length === 0) return;
     const all = JSON.parse(localStorage.getItem(_CACHED_MODELS_SCAN_KEY) || '{}');
     all[sig] = { ts: Date.now(), data };
     const keys = Object.keys(all);

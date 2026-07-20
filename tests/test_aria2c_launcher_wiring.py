@@ -223,3 +223,22 @@ def test_hf_transfer_is_structurally_dead():
         assert "disable_hf_transfer" not in text, f"{js} sends the dead knob"
     # The package panel must not offer it either.
     assert '"pip": "hf_transfer"' not in shell, "package panel offers hf_transfer"
+
+
+def test_empty_scan_results_are_never_cached():
+    """An empty scan is what a Launch refresh races into during delete/download
+    mutations; caching [] at the 6-hour TTL hid a freshly downloaded model
+    (observed live 2026-07-20). _writeCachedModelScan must drop empty results."""
+    serve_js = (REPO / "static" / "js" / "cookbookServe.js").read_text(encoding="utf-8")
+    write_fn = serve_js.split("function _writeCachedModelScan", 1)[1].split("\nfunction ", 1)[0]
+    assert "data.models.length === 0) return" in write_fn, \
+        "empty scan results must not be persisted to the snapshot cache"
+
+
+def test_auth_pill_has_persistence_and_payload_fallback():
+    """The '[*] HF auth:' header prints once and scrolls out of the 500-line
+    capture window on fast downloads; the pill must survive via the persisted
+    task._authStatus (first poll) with a payload fallback."""
+    assert "function _authStatusForTask" in RUNNING_JS
+    assert "_updateTask(task.sessionId, { _authStatus: st.authStatus })" in RUNNING_JS
+    assert "_authStatusForTask(task, _dlState?.authStatus)" in RUNNING_JS
