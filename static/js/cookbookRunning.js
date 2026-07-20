@@ -2202,6 +2202,11 @@ async function _retryTask(el, task) {
 async function _retryDownload(name, payload, replaceSessionId = '') {
   try {
     const _payload = { ...(payload || {}) };
+    // Pin the backend on retries of a known-aria2c run: the partials on disk
+    // use aria2c's flat layout, so a silent server-side fallback to hf (hub
+    // blob layout) would orphan them and restart from zero (audit P2-2). The
+    // server fails loudly instead when pinned.
+    if (_payload.use_aria2c) _payload.pin_backend = true;
     const res = await fetch('/api/model/download', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
