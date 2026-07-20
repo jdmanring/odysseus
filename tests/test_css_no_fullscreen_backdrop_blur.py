@@ -41,6 +41,17 @@ def test_fullscreen_overlays_have_no_backdrop_filter():
                     assert "none" in decl, f"{sel} uses backdrop-filter: {decl.strip()}"
 
 
+def test_will_change_stays_scoped():
+    """will-change = a standing compositor layer (VRAM). Only transient,
+    mode-scoped uses are allowed; a hint that outlives its entry animation
+    holds a full-pane GPU texture for the pane's whole lifetime (#115)."""
+    allowed_scopes = ["notes-drag-mode"]
+    for m in re.finditer(r"([^{}]+)\{[^}]*will-change\s*:[^}]*\}", CSS):
+        sel = m.group(1).strip().splitlines()[-1]
+        assert any(a in sel for a in allowed_scopes), \
+            f"unscoped will-change on {sel!r} — standing GPU layer"
+
+
 def test_fullscreen_overlays_keep_a_dim():
     # Dropping the blur must not drop the dim itself.
     for sel in FULLSCREEN_OVERLAYS:
