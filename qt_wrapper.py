@@ -74,18 +74,47 @@ if _is_nvidia:
 # DefaultANGLEVulkan omitted for all GPU types: forces ANGLE to a Vulkan
 # backend, which conflicts with Qt WebEngine 6.6+'s own Vulkan path on
 # ozone/Wayland and causes blank windows (Chromium bug 334275637).
+def _linux_software_render():
+    """True when no hardware GPU render node exists (no /dev/dri/renderD*, or every
+    card is bound only to the EFI framebuffer), so Chromium falls back to llvmpipe
+    software raster, detected pre-launch from devfs/sysfs (the GPU-incident signal)."""
+    import glob as _glob
+    try:
+        if not _glob.glob('/dev/dri/renderD*'):
+            return True  # no render node => no GPU acceleration
+        drivers = set()
+        for drv in _glob.glob('/sys/class/drm/card*/device/driver'):
+            try:
+                drivers.add(os.path.basename(os.path.realpath(drv)))
+            except OSError:
+                pass
+        return bool(drivers) and drivers <= {'simple-framebuffer', 'simpledrm'}
+    except Exception:
+        return False
+
+_software_render = _linux_software_render()
+
 _gpu_flags = []
-if not _is_nvidia:
-    # Mesa (AMD, Intel, Nouveau): GBM buffer allocation is the native rendering
-    # path. Zero-copy avoids a CPU→GPU texture upload per rendered frame.
-    # Omitted on NVIDIA proprietary: no GBM support in that driver.
-    _gpu_flags.append("--enable-zero-copy")
+if not _software_render:
+    # Forcing GPU rasterization onto llvmpipe makes the software raster path
+    # WORSE (flicker/lag — the SwiftShader lesson from the macOS bench, same
+    # mechanism here); only emit the acceleration flags when a real render
+    # node exists.
+    _gpu_flags += ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"]
+    if not _is_nvidia:
+        # Mesa (AMD, Intel, Nouveau): GBM buffer allocation is the native rendering
+        # path. Zero-copy avoids a CPU→GPU texture upload per rendered frame.
+        # Omitted on NVIDIA proprietary: no GBM support in that driver.
+        _gpu_flags.append("--enable-zero-copy")
+
+# WebGPU is pointless on a software raster and adds feature surface.
+_features = "SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction"
+if not _software_render:
+    _features = "WebGPU," + _features
 
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--no-sandbox",
-    "--ignore-gpu-blocklist",
-    "--enable-gpu-rasterization",
-    "--enable-features=WebGPU,SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction",
+    f"--enable-features={_features}",
     "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
     "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
     "--js-flags=--expose-gc,--initial-old-space-size=128,--max-old-space-size=512,--optimize-for-size,--minor-mc",
@@ -363,25 +392,9 @@ def _linux_total_ram_gb():
         pass
     return None
 
-def _linux_software_render():
-    """True when no hardware GPU render node exists (no /dev/dri/renderD*, or every
-    card is bound only to the EFI framebuffer), so Chromium falls back to llvmpipe
-    software raster, detected pre-launch from devfs/sysfs (the GPU-incident signal)."""
-    import glob as _glob
-    try:
-        if not _glob.glob('/dev/dri/renderD*'):
-            return True  # no render node => no GPU acceleration
-        drivers = set()
-        for drv in _glob.glob('/sys/class/drm/card*/device/driver'):
-            try:
-                drivers.add(os.path.basename(os.path.realpath(drv)))
-            except OSError:
-                pass
-        return bool(drivers) and drivers <= {'simple-framebuffer', 'simpledrm'}
-    except Exception:
-        return False
-
-_low_resource, _profile_reason = _classify_resources(_linux_total_ram_gb(), _linux_software_render())
+# _linux_software_render() is defined next to the Chromium flag block (it must
+# run before QTWEBENGINE_CHROMIUM_FLAGS is assembled); its result is reused here.
+_low_resource, _profile_reason = _classify_resources(_linux_total_ram_gb(), _software_render)
 
 # RSS ceiling: the renderer is only purged above this. Measured working set after a
 # purge is ~430 MB, so the off-interaction reclaim sawtooth stays ~0.43 GB → ceiling.
