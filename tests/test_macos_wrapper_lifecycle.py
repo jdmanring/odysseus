@@ -44,6 +44,18 @@ def test_close_event_hides_unless_quitting():
     assert ce.index("event.accept()") < ce.index("self.hide()")
 
 
+def test_explicit_quit_action_binds_deterministically():
+    # ⌘Q must not depend on the platform posting a QEvent.Quit: an explicit
+    # Quit action (StandardKey.Quit, QuitRole) drives request_quit directly.
+    rq = _method("request_quit")
+    assert "self._quitting = True" in rq
+    assert "QApplication.instance().quit()" in rq
+    bm = _method("_build_menus")
+    assert "QKeySequence(SK.Quit)" in bm
+    assert "QAction.MenuRole.QuitRole" in bm
+    assert "quit_act.triggered.connect(self.request_quit)" in bm
+
+
 def test_reopen_shows_hidden_window_on_activate():
     assert "app.applicationStateChanged.connect(" in SRC
     assert "Qt.ApplicationState.ApplicationActive and not win.isVisible()" in SRC
