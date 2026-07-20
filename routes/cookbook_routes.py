@@ -1000,6 +1000,30 @@ def setup_cookbook_routes() -> APIRouter:
         pid_path.write_text(str(proc.pid), encoding="utf-8")
         return {"pid": proc.pid, "log_path": str(log_path)}
 
+    @router.get("/api/cookbook/resolve-gguf")
+    async def resolve_gguf(request: Request, model: str = None):
+        """Dynamically discover GGUF sources for a given model repo ID.
+
+        Searches HuggingFace for community GGUF quantizations, verifies each
+        candidate contains actual GGUF files via metadata, and scores them on
+        downloads, likes ratio, imatrix calibration, author reputation,
+        benchmark scores, trending, and recency.
+        """
+        require_admin(request)
+        if not model:
+            raise HTTPException(status_code=400, detail="Missing model parameter")
+
+        from tooling.hf_url_resolver import HfUrlResolver
+        token = _load_stored_hf_token()
+        resolver = HfUrlResolver(token=token)
+
+        try:
+            sources = resolver.find_gguf_sources(model)
+            return {"gguf_sources": sources}
+        except Exception as e:
+            logger.exception("GGUF discovery failed for %s", model)
+            raise HTTPException(status_code=500, detail=str(e))
+
     @router.post("/api/model/download")
     async def model_download(request: Request, req: ModelDownloadRequest):
         """Download a HuggingFace model in a tmux session.

@@ -192,3 +192,17 @@ def test_stylesheet_cache_buster_bumped_with_css_changes():
         "change is user-visible, bump the style.css ?v= pin in index.html "
         "(clients never refetch the stylesheet otherwise)"
     )
+
+
+def test_resolve_gguf_endpoint_exists():
+    """The /api/cookbook/resolve-gguf route was silently lost from develop
+    during the June restorations (the resolver library and the client caller
+    both survived, so every GGUF discovery quietly 404'd and the UI showed
+    'No GGUF source is configured'). The client, the endpoint, and the
+    resolver method must all exist together."""
+    assert '@router.get("/api/cookbook/resolve-gguf")' in ROUTES
+    assert "find_gguf_sources" in ROUTES
+    dl_js = (REPO / "static" / "js" / "cookbookDownload.js").read_text(encoding="utf-8")
+    assert "/api/cookbook/resolve-gguf" in dl_js
+    from tooling.hf_url_resolver import HfUrlResolver
+    assert callable(getattr(HfUrlResolver, "find_gguf_sources", None))
