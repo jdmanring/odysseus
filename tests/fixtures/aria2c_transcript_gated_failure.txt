@@ -1,0 +1,151 @@
+[odysseus] HF token: applied
+[*] Using aria2c: /home/james/.cookbook/bin/aria2c
+[*] Resolving file list for meta-llama/Llama-3.1-8B-Instruct...
+[*] HF auth: token provided
+[*] HF auth: authenticated
+[*] 17 file(s) to download.
+[*] Total size: 32132582323 bytes
+[*] Commit: 0e9e39f249a1
+[*] Saving to: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659
+[*] Downloading 17 file(s) (4 in parallel)...
+
+07/20 05:16:53 [NOTICE] Downloading 17 item(s)
+
+07/20 05:16:53 [ERROR] CUID#7 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/.gitattributes
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/.gitattributes
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:53 [ERROR] CUID#10 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/USE_POLICY.md
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/USE_POLICY.md
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:53 [NOTICE] GID#ae43f5a3ae06c381 - Download has already completed: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/LICENSE
+
+07/20 05:16:53 [NOTICE] GID#f592ad0aa87a2b33 - Download has already completed: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/README.md
+[DL:0B][#54963e 0B/0B][#ae43f5 7.4KiB/7.4KiB(100%)][#f592ad 43KiB/43KiB(100%)][#45c9bc 0B/0B]
+
+07/20 05:16:54 [NOTICE] Download GID#54963ea9b015cdde not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/.gitattributes
+
+07/20 05:16:54 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/LICENSE
+
+07/20 05:16:54 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/README.md
+
+07/20 05:16:54 [NOTICE] Download GID#45c9bccf1801287e not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/USE_POLICY.md
+
+07/20 05:16:54 [ERROR] CUID#15 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/config.json
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/config.json
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#9975d54ac162b6f5 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/config.json
+
+07/20 05:16:54 [ERROR] CUID#16 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/generation_config.json
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/generation_config.json
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#f55f12dff5b0d18d not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/generation_config.json
+
+07/20 05:16:54 [ERROR] CUID#18 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model-00002-of-00004.safetensors
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model-00002-of-00004.safetensors
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#f1d43fb9702e0f22 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model-00002-of-00004.safetensors
+
+07/20 05:16:54 [ERROR] CUID#17 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model-00001-of-00004.safetensors
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model-00001-of-00004.safetensors
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#158e6fabc72af875 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model-00001-of-00004.safetensors
+
+07/20 05:16:54 [ERROR] CUID#21 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model-00003-of-00004.safetensors
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model-00003-of-00004.safetensors
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#cade9f5d21315462 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model-00003-of-00004.safetensors
+
+07/20 05:16:54 [ERROR] CUID#22 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model-00004-of-00004.safetensors
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model-00004-of-00004.safetensors
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#f9a1dabfacd8b7f8 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model-00004-of-00004.safetensors
+
+07/20 05:16:54 [ERROR] CUID#23 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model.safetensors.index.json
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/model.safetensors.index.json
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#279bfe9ccd4cdb61 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model.safetensors.index.json
+
+07/20 05:16:54 [ERROR] CUID#24 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/original/consolidated.00.pth
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/original/consolidated.00.pth
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#3ad7823d1fb2eba6 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/original/consolidated.00.pth
+
+07/20 05:16:54 [ERROR] CUID#26 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/original/tokenizer.model
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/original/tokenizer.model
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#459c302bb9e107b0 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/original/tokenizer.model
+
+07/20 05:16:54 [ERROR] CUID#25 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/original/params.json
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/original/params.json
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#9f7ffd35566282bc not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/original/params.json
+
+07/20 05:16:54 [ERROR] CUID#28 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/tokenizer.json
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/tokenizer.json
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#23f721ad5ad9e2b9 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/tokenizer.json
+
+07/20 05:16:54 [ERROR] CUID#27 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/special_tokens_map.json
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/special_tokens_map.json
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#fa56a11c3543566a not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/special_tokens_map.json
+
+07/20 05:16:54 [ERROR] CUID#29 - Download aborted. URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/tokenizer_config.json
+Exception: [AbstractCommand.cc:351] errorCode=24 URI=https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/resolve/0e9e39f249a16976918f6564b8830bc894c89659/tokenizer_config.json
+  -> [HttpSkipResponseCommand.cc:215] errorCode=24 Authorization failed.
+
+07/20 05:16:54 [NOTICE] Download GID#c2642971c672e162 not complete: /home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/tokenizer_config.json
+
+Download Results:
+gid   |stat|avg speed  |  %|path/URI
+======+====+===========+===+===================================================
+54963e|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/.gitattributes
+ae43f5|OK  |       0B/s|100|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/LICENSE
+f592ad|OK  |       0B/s|100|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/README.md
+45c9bc|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/USE_POLICY.md
+9975d5|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/config.json
+f55f12|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/generation_config.json
+f1d43f|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model-00002-of-00004.safetensors
+158e6f|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model-00001-of-00004.safetensors
+cade9f|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model-00003-of-00004.safetensors
+f9a1da|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model-00004-of-00004.safetensors
+279bfe|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/model.safetensors.index.json
+3ad782|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/original/consolidated.00.pth
+459c30|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/original/tokenizer.model
+9f7ffd|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/original/params.json
+23f721|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/tokenizer.json
+fa56a1|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/special_tokens_map.json
+c26429|ERR |       0B/s|  -|/home/james/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659/tokenizer_config.json
+
+Status Legend:
+(OK):download completed.(ERR):error occurred.
+
+aria2 will resume download if the transfer is restarted.
+If there are any errors, then see the log file. See '-l' option in help/man page for details.
+
+[!] Download failed (aria2c exit 24).
+[!] 30 file(s) were refused with HTTP 401 (authorization failed).
+[!] This looks like a GATED repository. Your token is valid, but this
+[!] account has not been granted access to meta-llama/Llama-3.1-8B-Instruct.
+[!] Fix: visit https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct and accept the
+[!] license / request access (approval can take time). If you use a
+[!] fine-grained token, it also needs the 'read gated repos' permission.
+
+DOWNLOAD_FAILED (exit 1)
+
+odysseus on  develop [!] via  v22.12.0 via 🐍 v3.14.6 
+❯ 
