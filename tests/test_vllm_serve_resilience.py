@@ -28,3 +28,22 @@ def test_serve_diagnosis_covers_prestartup_free_memory_check():
     assert pat in SRC, "routes-local shadow copy missing the pattern"
     js = (_ROOT / "static" / "js" / "cookbook-diagnosis.js").read_text()
     assert "Free memory on device" in js
+
+
+def test_serve_diagnosis_covers_missing_nvcc_flashinfer_jit():
+    from routes.cookbook_helpers import _diagnose_serve_output
+    err = "RuntimeError: Could not find nvcc and default cuda_home='/usr/local/cuda' doesn't exist"
+    d = _diagnose_serve_output(err)
+    assert d and "nvcc" in d["message"]
+    assert "Could not find nvcc and default cuda_home" in SRC
+    js = (_ROOT / "static" / "js" / "cookbook-diagnosis.js").read_text()
+    assert "Could not find nvcc" in js
+
+
+def test_vllm_serve_runner_falls_back_to_native_sampler_without_nvcc():
+    # Sampling needs no compiler. The runner must set the fallback for every
+    # vLLM launch, not just one model's normalizer.
+    idx = SRC.index('elif "vllm serve" in req.cmd:')
+    block = SRC[idx : idx + 2500]
+    assert "VLLM_USE_FLASHINFER_SAMPLER=0" in block
+    assert "/opt/cuda" in block, "Arch-family CUDA_HOME probe missing"

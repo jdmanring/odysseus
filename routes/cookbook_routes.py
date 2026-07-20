@@ -400,6 +400,16 @@ def setup_cookbook_routes() -> APIRouter:
         tail = text[-6000:]
         patterns = [
             (
+                # flashinfer JIT needs nvcc; absent toolkit kills the engine at
+                # startup. The serve runner now auto-falls-back to the torch
+                # sampler, so a plain relaunch fixes tasks started before that.
+                r"Could not find nvcc and default cuda_home",
+                "flashinfer tried to JIT-compile its sampler but no CUDA toolkit (nvcc) is installed. Relaunch: the serve runner now falls back to vLLM's native sampler automatically.",
+                [
+                    {"label": "relaunch (native sampler fallback now applies)", "op": "noop"},
+                ],
+            ),
+                        (
                 # Pre-startup free-memory check: desktop GPUs always have the
                 # compositor/shell/app holding VRAM, so a fixed 0.9 utilization
                 # can exceed what is actually free before vLLM even loads.
@@ -2271,6 +2281,18 @@ def setup_cookbook_routes() -> APIRouter:
                 # there via --user and the non-login serve shell otherwise can't
                 # find the `vllm` CLI ("command not found"). Mirrors llama.cpp above.
                 runner_lines.append('export PATH="$HOME/.local/bin:$PATH"')
+                # flashinfer JIT-compiles its sampling kernel at startup and
+                # aborts the whole engine when nvcc is missing (it assumes
+                # /usr/local/cuda; Arch-family puts CUDA at /opt/cuda, and most
+                # inference boxes have no toolkit at all). Sampling does not
+                # need a compiler: force vLLM's native torch sampler unless a
+                # usable toolkit exists, and point CUDA_HOME at /opt/cuda when
+                # that is where it lives.
+                runner_lines.append('if [ -z "${CUDA_HOME:-}" ] && [ -x /opt/cuda/bin/nvcc ]; then export CUDA_HOME=/opt/cuda; fi')
+                runner_lines.append('if ! command -v nvcc &>/dev/null && [ ! -x "${CUDA_HOME:-/usr/local/cuda}/bin/nvcc" ]; then')
+                runner_lines.append('  export VLLM_USE_FLASHINFER_SAMPLER=0')
+                runner_lines.append('  echo "[odysseus] No CUDA toolkit (nvcc) found - using native torch sampler (VLLM_USE_FLASHINFER_SAMPLER=0)."')
+                runner_lines.append('fi')
                 runner_lines.append('if ! command -v vllm &>/dev/null; then')
                 runner_lines.append('  echo "ERROR: vLLM is not installed."')
                 runner_lines.append('  ODYSSEUS_PREFLIGHT_EXIT=127')
