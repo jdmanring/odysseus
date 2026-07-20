@@ -5849,7 +5849,10 @@ body.bg-pattern-sparkles {
     .modal-body button { margin-top:6px; }
     /* Styled confirm dialog — keeps backdrop */
     #styled-confirm-overlay {
-      background:rgba(0,0,0,0.5);
+      /* No backdrop-filter: a full-viewport blur makes QtWebEngine re-rasterize
+         the whole backdrop on every compositor frame — the dialog flickered
+         wildly on mouse move. A deeper flat dim reads the same and is free. */
+      background:rgba(0,0,0,0.6);
       pointer-events:auto !important;
       z-index: 99999 !important;
       position: fixed !important;
@@ -5917,8 +5920,8 @@ body.bg-pattern-sparkles {
     .confirm-btn-danger { background:var(--color-danger); color:#fff; border-color:transparent; }
     .confirm-btn-danger:hover { background:var(--color-error); }
     #cookbook-gguf-delete-overlay {
-      background:rgba(0,0,0,0.5);
-      backdrop-filter:blur(4px);
+      /* Flat dim, no backdrop-filter — see #styled-confirm-overlay. */
+      background:rgba(0,0,0,0.6);
       pointer-events:auto !important;
       z-index:99999 !important;
       position:fixed !important;
@@ -5996,7 +5999,8 @@ body.bg-pattern-sparkles {
     }
     /* Styled prompt — text-input dialog (used in place of window.prompt) */
     #styled-prompt-overlay {
-      background:rgba(0,0,0,0.5);
+      /* Flat dim, no backdrop-filter — see #styled-confirm-overlay. */
+      background:rgba(0,0,0,0.6);
       pointer-events:auto !important;
       z-index: 99999 !important;
       position: fixed !important;
