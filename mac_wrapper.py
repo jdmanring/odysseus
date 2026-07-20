@@ -1107,15 +1107,26 @@ class OdysseusWindow(QMainWindow):
             s.setValue("windowGeometry", self.saveGeometry())
         s.sync()
 
+    def request_quit(self):
+        # Deterministic quit for ⌘Q and the application-menu Quit (see the Quit
+        # QAction in _build_menus): set _quitting, then exit the event loop.
+        # app.quit() does not route through closeEvent, so there is no veto to
+        # dodge; teardown runs on app.aboutToQuit. This path does NOT depend on
+        # the platform posting a QEvent.Quit — that dependency (for the Dock
+        # menu's Quit and the quit Apple Event) is handled separately by
+        # _QuitFilter, which sets the same flag if such an event does arrive.
+        self._quitting = True
+        QApplication.instance().quit()
+
     def closeEvent(self, event):
         # macOS convention: the red close button hides the window; the app stays
         # in the Dock and is re-shown on Dock-click / Cmd-Tab (_on_app_state_
-        # changed). It quits only via ⌘Q, the application/Dock menu's Quit, or
-        # the quit Apple Event — all of which post a QEvent.Quit that _QuitFilter
-        # catches, setting self._quitting so this handler accepts instead of
-        # hiding. Without that flag an ignore() here would VETO the quit (Qt
-        # routes Quit through closeAllWindows() → closeEvent); with it, a real
-        # quit closes the window and proceeds to aboutToQuit teardown.
+        # changed). A real quit must instead accept — and an unconditional
+        # ignore() here would VETO ⌘Q if Qt routed it through closeAllWindows()
+        # → closeEvent. The _quitting flag distinguishes them: it is set by
+        # request_quit (⌘Q / app-menu Quit) and by _QuitFilter (Dock Quit / quit
+        # Apple Event, which arrive as QEvent.Quit). When set, accept and let
+        # aboutToQuit tear down; otherwise hide.
         if self._quitting:
             print('[LIFECYCLE] closeEvent: quitting -> accept', flush=True)
             event.accept()
@@ -1152,6 +1163,18 @@ class OdysseusWindow(QMainWindow):
         _action("Paste", SK.Paste, WA.Paste)
         edit.addSeparator()
         _action("Select All", SK.SelectAll, WA.SelectAll)
+
+        # Explicit Quit so ⌘Q binds deterministically to request_quit rather
+        # than depending on the platform delivering a QEvent.Quit. QuitRole
+        # relocates this into the macOS application menu (the "Odysseus" menu),
+        # replacing Qt's automatic Quit item — so it does not appear under Edit
+        # and there is no duplicate/ambiguous ⌘Q. It must live in a menu for its
+        # shortcut to be active, hence adding it here.
+        quit_act = QAction("Quit Odysseus", self)
+        quit_act.setShortcut(QKeySequence(SK.Quit))
+        quit_act.setMenuRole(QAction.MenuRole.QuitRole)
+        quit_act.triggered.connect(self.request_quit)
+        edit.addAction(quit_act)
 
 
 if __name__ == "__main__":
