@@ -72,6 +72,14 @@ function _readCachedModelScan(sig) {
   return null;
 }
 
+// Drop every cached scan snapshot. MUST be called whenever the set of
+// on-disk models changes (download completes, model deleted) — the snapshot
+// TTL is 6 hours, and serving a stale one after a mutation shows deleted
+// models as present and fresh downloads as absent.
+export function _invalidateCachedModelScan() {
+  try { localStorage.removeItem(_CACHED_MODELS_SCAN_KEY); } catch {}
+}
+
 function _writeCachedModelScan(sig, data) {
   try {
     const all = JSON.parse(localStorage.getItem(_CACHED_MODELS_SCAN_KEY) || '{}');
@@ -3600,12 +3608,13 @@ async function _deleteCachedModel(repo, itemEl, skipConfirm = false, model = nul
       uiModule.showError(`Delete failed: ${_delErr.slice(0, 300)}`);
       return;
     }
+    _invalidateCachedModelScan();
     if (deleteChoice.mode === 'files') {
       if (m && Array.isArray(m.gguf_files)) {
         const removed = new Set(deleteChoice.files.map(f => _safeGgufRelPath(f.rel_path)));
         m.gguf_files = m.gguf_files.filter(f => !removed.has(_safeGgufRelPath(f.rel_path)));
       }
-      await _fetchCachedModels(false);
+      await _fetchCachedModels(true);
     } else if (itemEl) {
       itemEl.querySelector('.cookbook-delete-overlay')?.remove();
       itemEl.style.transition = 'opacity 0.24s ease, transform 0.24s ease, max-height 0.28s ease, padding 0.28s ease, margin 0.28s ease';
