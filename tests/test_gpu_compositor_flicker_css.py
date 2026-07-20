@@ -102,19 +102,30 @@ def test_cookbook_modal_enter_no_filter_saturate():
 
 
 # ---------------------------------------------------------------------------
-# Sanity: elements with legitimate translucency still have backdrop-filter
+# Verdict reversal (per-frame decoration sweep): these two blurs were first
+# judged "faint but intentional — kept". The sweep reversed that: a blur
+# behind a 96% opaque background is invisible while still re-sampling its
+# backdrop every invalidated frame, and the album button floats over gallery
+# images. Both now use flat translucency; assert the blur stays gone.
 # ---------------------------------------------------------------------------
 
-def test_gallery_album_menu_btn_retains_backdrop_filter():
-    # .gallery-album-card album menu button has opacity:0 (nearly transparent).
-    # Its backdrop-filter was intentionally kept — the blur is visible on hover.
-    assert _near(".gallery-album-menu-btn {", "backdrop-filter")
+def _no_active_backdrop_filter(anchor):
+    # Match only real declarations, not the word inside explanatory comments.
+    import re as _re
+    idx = _CSS.index(anchor)
+    block = _CSS[idx:_CSS.index("}", idx)]
+    block = _re.sub(r"/\*.*?\*/", "", block, flags=_re.S)
+    return not any(
+        "backdrop-filter" in d and "none" not in d for d in block.split(";")
+    )
 
 
-def test_ge_transform_popup_retains_backdrop_filter():
-    # .ge-transform-popup has background: color-mix(in srgb, var(--panel) 96%, transparent).
-    # 4% translucency — blur is faint but intentional. Kept.
-    assert _near(".ge-transform-popup {", "backdrop-filter")
+def test_gallery_album_menu_btn_has_no_backdrop_filter():
+    assert _no_active_backdrop_filter(".gallery-album-menu-btn {")
+
+
+def test_ge_transform_popup_has_no_backdrop_filter():
+    assert _no_active_backdrop_filter(".ge-transform-popup {")
 
 # NOTE: memory-synapse-sweep tests intentionally live in
 # test_brain_panel_oom_css.py, not here. They were previously duplicated in this
