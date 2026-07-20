@@ -991,6 +991,23 @@ function _buildSingleFileRow(f, hideStats = false) {
     </div>`;
 }
 
+// Effective auth status for a download task. The launcher's "[*] HF auth:"
+// lines print once at the top of the output; a fast single-file download
+// scrolls them past the 500-line capture window before the first poll, so
+// parsed output alone loses the pill. Fall back to the task payload — the
+// client knows whether it sent a token even when the lines are gone.
+function _authStatusForTask(task, parsedAuth) {
+  if (parsedAuth) return parsedAuth;
+  if (task?.type !== 'download') return '';
+  // _authStatus is persisted onto the task by the first poll that catches the
+  // header lines, so the pill survives after they roll out of the window.
+  if (task?._authStatus) return task._authStatus;
+  if (task?.payload && 'hf_token' in task.payload) {
+    return task.payload.hf_token ? 'token provided' : 'no token — public models only';
+  }
+  return '';
+}
+
 function _buildAuthPillHtml(authStatus) {
   if (!authStatus) return '';
   const _lock   = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
@@ -1230,14 +1247,21 @@ function _updateDownloadCard(el, task, snapshot) {
     }
   }
 
-  // Update HF auth badge in the task header (el, not card)
-  if (st.authStatus) {
+  // Update HF auth badge in the task header (el, not card). Parsed output
+  // wins; the first poll that sees the header persists it on the task so the
+  // pill survives once the lines roll out of the capture window.
+  if (st.authStatus && task._authStatus !== st.authStatus) {
+    task._authStatus = st.authStatus;
+    _updateTask(task.sessionId, { _authStatus: st.authStatus });
+  }
+  const _effAuth = _authStatusForTask(task, st.authStatus);
+  if (_effAuth) {
     const authEl = el.querySelector('[data-dl-auth]');
     if (authEl) {
       const prev = authEl.dataset.dlAuthStatus || '';
-      if (st.authStatus !== prev) {
-        authEl.dataset.dlAuthStatus = st.authStatus;
-        authEl.innerHTML = _buildAuthPillHtml(st.authStatus);
+      if (_effAuth !== prev && !(prev && !st.authStatus)) {
+        authEl.dataset.dlAuthStatus = _effAuth;
+        authEl.innerHTML = _buildAuthPillHtml(_effAuth);
       }
     }
   }
@@ -3058,7 +3082,7 @@ export function _renderRunningTab() {
         <span class="cookbook-task-indicator"><span class="cookbook-task-wave" style="display:${task.status === 'running' ? '' : 'none'}"></span>${_canLaunchDownloadedTask(task) ? '<button type="button" class="cookbook-task-serve-btn" title="Open in Launch"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Launch</span></button>' : ''}<span class="cookbook-task-check" title="Clear" style="display:${_canClearTask(task) ? '' : 'none'}"><svg class="cookbook-task-check-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#50fa7b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><svg class="cookbook-task-clear-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span class="cookbook-task-done-label">${esc(_clearPillLabel(task))}</span><span class="cookbook-task-clear-label">clear</span></span></span>
         <button type="button" class="cookbook-task-start-now" title="Start this queued download now" style="display:${(_isDl && task.status === 'queued') ? '' : 'none'}"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="8 5 19 12 8 19 8 5"/></svg><span>start now</span></button>
         <span class="cookbook-task-status ${_bdg.cls}"${_bdgTitle}>${esc(_bdg.text)}</span>
-        ${_isDl ? `<span data-dl-auth>${_dlState?.authStatus ? _buildAuthPillHtml(_dlState.authStatus) : ''}</span>` : ''}
+        ${_isDl ? `<span data-dl-auth>${_buildAuthPillHtml(_authStatusForTask(task, _dlState?.authStatus))}</span>` : ''}
         <button class="cookbook-task-menu-btn" title="Actions">&#8942;</button>
       </div>
       <div class="cookbook-task-sub">
