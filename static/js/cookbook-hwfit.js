@@ -673,6 +673,58 @@ function _ollamaToHwfitRows(libModels, vramAvail, ramAvail) {
   return out;
 }
 
+// Sort the model rows in place by the active column select. Pure and
+// synchronous so re-sorting never needs a network round-trip.
+function _sortHwfitModels(models) {
+  const sortSel = document.getElementById('hwfit-sort');
+  const sortKey = sortSel?.value || 'newest';
+  const asc = sortSel?.dataset.reverse === '1';   // reversed → ascending (lowest first)
+  if (sortKey === 'fit') {
+    // fit_level is categorical (perfect→good→marginal→too_tight), not numeric,
+    // so rank it explicitly instead of falling through to the score column.
+    // Tie-break by score so rows within one fit tier stay meaningfully ordered.
+    const fitRank = { perfect: 4, good: 3, marginal: 2, too_tight: 1, no_fit: 0 };
+    models.sort((a, b) => {
+      const ar = fitRank[a.fit_level] ?? -1, br = fitRank[b.fit_level] ?? -1;
+      if (ar !== br) return asc ? ar - br : br - ar;
+      const as = Number(a.score) || 0, bs = Number(b.score) || 0;
+      return asc ? as - bs : bs - as;
+    });
+  } else if (sortKey === 'newest') {
+    // release_date is an ISO-ish "YYYY-MM-DD" string — lexical sort is
+    // chronological. Default direction: newest first (reverse=undefined).
+    models.sort((a, b) => {
+      const ad = String(a.release_date || ''), bd = String(b.release_date || '');
+      if (ad === bd) return 0;
+      // Empty dates land last regardless of direction so the column never
+      // floats undated rows above real releases.
+      if (!ad) return 1;
+      if (!bd) return -1;
+      return asc ? (ad < bd ? -1 : 1) : (ad < bd ? 1 : -1);
+    });
+  } else {
+    const field = { score: 'score', vram: 'required_gb', speed: 'speed_tps', params: 'params_b', context: 'context' }[sortKey] || 'score';
+    models.sort((a, b) => {
+      const av = Number(a[field]) || 0, bv = Number(b[field]) || 0;
+      return asc ? av - bv : bv - av;
+    });
+  }
+}
+
+// Re-sort and re-render from the in-memory scan without any network work.
+// A sort click was previously a full _hwfitFetch(): parse the multi-MB
+// localStorage cache, render ~2500 rows, refetch from the server, render
+// them all AGAIN — the "tremendous lag" on Score. Sorting is a table
+// operation over data already in memory. Returns false when there is no
+// in-memory scan yet (caller falls back to a real fetch).
+function _hwfitResort() {
+  const list = document.getElementById('hwfit-list');
+  if (!list || !_hwfitCache || !Array.isArray(_hwfitCache.models) || !_hwfitCache.models.length) return false;
+  _sortHwfitModels(_hwfitCache.models);
+  _hwfitRenderList(list, _applyEngineFilter(_hwfitCache.models));
+  return true;
+}
+
 export async function _hwfitFetch(fresh = false, opts = {}) {
   const _tk = ++_hwfitFetchToken;
   const allowNetwork = fresh || opts.allowNetwork !== false;
@@ -912,9 +964,21 @@ export async function _hwfitFetch(fresh = false, opts = {}) {
       // same client-side over Ollama name + description so the search box
       // works consistently across both sources.
       const _s = (search || '').trim().toLowerCase();
-      const _olFiltered = _s
+      let _olFiltered = _s
         ? _olRows.filter(r => r.name.toLowerCase().includes(_s) || (r._description || '').toLowerCase().includes(_s))
         : _olRows;
+      // The quant filter is enforced server-side for HF rows, but Ollama rows
+      // are synthesized client-side (all tagged Q4_K_M — the library default)
+      // and were concatenated AFTER filtering, so "only Q6" still mixed in
+      // Q4_K_M Ollama rows. Apply the same filter here: an Ollama row passes
+      // only when its quant matches the selected tier.
+      if (quantPref) {
+        // Exact tier match, same as the server's target_quant handling: the
+        // select carries concrete quants (Q6_K, Q4_K_M, …), and Ollama rows
+        // are all Q4_K_M — so they appear under "Q4 / AWQ" and nowhere else.
+        const _qp = quantPref.toUpperCase();
+        _olFiltered = _olFiltered.filter(r => String(r.quant || '').toUpperCase() === _qp);
+      }
       data.models = (data.models || []).concat(_olFiltered);
     }
     // Tag the cache with the host this scan was for, so downstream
@@ -931,41 +995,7 @@ export async function _hwfitFetch(fresh = false, opts = {}) {
     // Sort client-side by the active column so the highest↔lowest toggle is
     // deterministic (the previous array .reverse() didn't reliably flip).
     // 1st click on a column = highest first; clicking it again = lowest first.
-    if (!isImageMode) {
-      const sortSel = document.getElementById('hwfit-sort');
-      const sortKey = sortSel?.value || 'newest';
-      const asc = sortSel?.dataset.reverse === '1';   // reversed → ascending (lowest first)
-      if (sortKey === 'fit') {
-        // fit_level is categorical (perfect→good→marginal→too_tight), not numeric,
-        // so rank it explicitly instead of falling through to the score column.
-        // Tie-break by score so rows within one fit tier stay meaningfully ordered.
-        const fitRank = { perfect: 4, good: 3, marginal: 2, too_tight: 1, no_fit: 0 };
-        data.models.sort((a, b) => {
-          const ar = fitRank[a.fit_level] ?? -1, br = fitRank[b.fit_level] ?? -1;
-          if (ar !== br) return asc ? ar - br : br - ar;
-          const as = Number(a.score) || 0, bs = Number(b.score) || 0;
-          return asc ? as - bs : bs - as;
-        });
-      } else if (sortKey === 'newest') {
-        // release_date is an ISO-ish "YYYY-MM-DD" string — lexical sort is
-        // chronological. Default direction: newest first (reverse=undefined).
-        data.models.sort((a, b) => {
-          const ad = String(a.release_date || ''), bd = String(b.release_date || '');
-          if (ad === bd) return 0;
-          // Empty dates land last regardless of direction so the column never
-          // floats undated rows above real releases.
-          if (!ad) return 1;
-          if (!bd) return -1;
-          return asc ? (ad < bd ? -1 : 1) : (ad < bd ? 1 : -1);
-        });
-      } else {
-        const field = { score: 'score', vram: 'required_gb', speed: 'speed_tps', params: 'params_b', context: 'context' }[sortKey] || 'score';
-        data.models.sort((a, b) => {
-          const av = Number(a[field]) || 0, bv = Number(b[field]) || 0;
-          return asc ? av - bv : bv - av;
-        });
-      }
-    }
+    if (!isImageMode) _sortHwfitModels(data.models);
     _hwfitRenderList(list, _applyEngineFilter(data.models));
     // Persist this result so the next page load can paint it instantly.
     _writeScanCache(_sig, data);
@@ -1482,7 +1512,9 @@ export function _hwfitRenderList(el, models) {
         // buries qwen/gemma-sized rows below absurd impossible footprints.
         sel.dataset.reverse = sortKey === 'vram' ? '1' : '0';
       }
-      _hwfitFetch();
+      // Sort is a pure table operation: reorder the in-memory rows and
+      // repaint. Only fall back to a fetch when no scan is loaded yet.
+      if (!_hwfitResort()) _hwfitFetch();
     });
   });
 }
