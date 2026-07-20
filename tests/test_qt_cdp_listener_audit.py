@@ -130,6 +130,40 @@ def _log_renderer_memory_block() -> str:
     return _SRC[start:end]
 
 
+def test_theme_bg_color_function_exists():
+    # _theme_bg_color() reads the saved theme from user_prefs.json so that
+    # setBackgroundColor() uses the user's actual bg, not a hardcoded default.
+    assert "def _theme_bg_color()" in _SRC
+
+
+def test_set_background_color_uses_theme_function():
+    # Must not hardcode #282c34, which breaks custom themes (e.g. Catppuccin
+    # #1e1e2e) by filling evicted compositor tiles at the wrong colour.
+    assert "setBackgroundColor(_theme_bg_color())" in _SRC
+    assert "setBackgroundColor(QColor(0x28, 0x2c, 0x34))" not in _SRC
+
+
+def test_set_background_color_called_after_set_page():
+    # setBackgroundColor must be called AFTER browser.setPage(page), not before.
+    # Qt WebEngine may discard or reset the page background during setPage()
+    # initialisation; calling it after ensures the base background colour sticks
+    # on the fully-initialised page (avoids a flash of a lighter base colour).
+    set_page_pos = _SRC.index("browser.setPage(page)")
+    set_bg_pos = _SRC.index("page.setBackgroundColor(_theme_bg_color())")
+    assert set_bg_pos > set_page_pos, (
+        "setBackgroundColor must come after setPage, got positions "
+        f"setPage={set_page_pos}, setBackgroundColor={set_bg_pos}"
+    )
+
+
+def test_theme_bg_reads_user_prefs():
+    idx = _SRC.index("def _theme_bg_color()")
+    end = _SRC.index("\ndef ", idx + 1)
+    block = _SRC[idx:end]
+    assert "user_prefs.json" in block
+    assert "_users" in block
+
+
 # --- Change A: renderProcessPid ---
 
 def test_render_process_pid_used():
