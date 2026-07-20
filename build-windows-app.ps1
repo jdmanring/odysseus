@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # ==============================================================================
 # build-windows-app.ps1
 #
@@ -29,11 +29,19 @@ if (-not (Test-Path (Join-Path $VenvDir "Scripts\python.exe"))) {
     python -m venv $VenvDir
 }
 
-# --- Install PyQt6 WebEngine ---
-# pythonw.exe suppresses the console window when launching the Qt wrapper.
+# --- Install dependencies ---
+# Server deps first (a fresh venv has no FastAPI/uvicorn, so the app cannot
+# start on PyQt alone), then the desktop pieces. websocket-client backs the
+# wrapper's CDP calls; pywin32 provides the property-store API used below to
+# stamp the AppUserModelID onto the shortcuts.
 # PyQt6-WebEngine downloads ~250 MB Chromium binary on first install.
+$req = Join-Path $RepoDir "requirements.txt"
+if (Test-Path $req) {
+    Write-Host "Installing server dependencies (requirements.txt)..."
+    & $pip install --quiet -r $req
+}
 Write-Host "Installing PyQt6 WebEngine (~250 MB on first run)..."
-& $pip install --quiet PyQt6 PyQt6-WebEngine PyQt6-sip
+& $pip install --quiet PyQt6 PyQt6-WebEngine PyQt6-sip websocket-client pywin32
 
 if (-not (Test-Path $pythonw)) {
     Write-Error "pythonw.exe not found at $pythonw after venv creation."
@@ -49,23 +57,14 @@ if (-not (Test-Path $wrapper)) {
 }
 
 # --- Icon (.ico) ---
-# Shortcuts require .ico format. Convert from SVG if Inkscape/ImageMagick available;
-# otherwise skip (shortcut uses pythonw.exe default icon).
-$icoPath = Join-Path $RepoDir "assets\odysseus.ico"
+# The repo ships static\icon.ico: multi-resolution (16-256px), built from the
+# 512px brand icon with the artwork recentred at ~92% fill so it matches peer
+# app icons on the taskbar instead of rendering undersized. The wrapper loads
+# the same file for setWindowIcon, so shortcut and window stay identical.
+$icoPath = Join-Path $RepoDir "static\icon.ico"
 if (-not (Test-Path $icoPath)) {
-    $svgPath = Join-Path $RepoDir "assets\odysseus.svg"
-    if ((Test-Path $svgPath) -and (Get-Command "inkscape" -ErrorAction SilentlyContinue)) {
-        Write-Host "Converting SVG icon to ICO via Inkscape..."
-        $pngTmp = Join-Path $env:TEMP "odysseus_512.png"
-        inkscape --export-type=png --export-filename=$pngTmp --export-width=256 $svgPath 2>$null
-        if (Get-Command "magick" -ErrorAction SilentlyContinue) {
-            magick $pngTmp -define icon:auto-resize="256,128,64,48,32,16" $icoPath 2>$null
-        }
-    }
-    if (-not (Test-Path $icoPath)) {
-        Write-Warning "No .ico found at $icoPath — shortcut will use default Python icon."
-        $icoPath = $null
-    }
+    Write-Warning "No .ico found at $icoPath — shortcut will use default Python icon."
+    $icoPath = $null
 }
 
 # --- Create shortcuts via WScript.Shell ---
@@ -79,53 +78,29 @@ $shell = New-Object -ComObject WScript.Shell
 # (PKEY_AppUserModel_ID = {9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5).
 $AppUserModelID = "Odysseus.Odysseus"
 
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
-
-[StructLayout(LayoutKind.Sequential, Pack = 4)]
-public struct PropertyKey {
-    public Guid fmtid; public uint pid;
-    public PropertyKey(Guid f, uint p) { fmtid = f; pid = p; }
-}
-
-[StructLayout(LayoutKind.Explicit)]
-public struct PropVariant {
-    [FieldOffset(0)] public ushort vt;
-    [FieldOffset(8)] public IntPtr pointerValue;
-}
-
-[ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"),
- InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-public interface IPropertyStore {
-    void GetCount(out uint count);
-    void GetAt(uint iProp, out PropertyKey pkey);
-    void GetValue(ref PropertyKey key, out PropVariant pv);
-    void SetValue(ref PropertyKey key, ref PropVariant pv);
-    void Commit();
-}
-
-public static class LnkAumid {
-    static readonly PropertyKey PKEY_AppUserModel_ID =
-        new PropertyKey(new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), 5);
-
-    public static void Set(string lnkPath, string aumid) {
-        var link = (IPersistFile)Activator.CreateInstance(
-            Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046")));
-        link.Load(lnkPath, 2 /* STGM_READWRITE */);
-        var store = (IPropertyStore)link;
-        var key = PKEY_AppUserModel_ID;
-        var pv = new PropVariant { vt = 31 /* VT_LPWSTR */,
-                                   pointerValue = Marshal.StringToCoTaskMemUni(aumid) };
-        try {
-            store.SetValue(ref key, ref pv);
-            store.Commit();
-        } finally { Marshal.FreeCoTaskMem(pv.pointerValue); }
-        link.Save(lnkPath, true);
-    }
-}
-"@
+# Stamping uses pywin32's propsys (installed into the venv above) rather than
+# an Add-Type C# IPropertyStore shim: the shim variant failed silently on the
+# live bench (property read back unset), while the propsys route persisted and
+# verified. The store handle must be released before any readback reopen.
+$py = Join-Path $VenvDir "Scripts\python.exe"
+$stamper = @'
+import sys
+import pythoncom
+from win32com.propsys import propsys, pscon
+GPS_READWRITE = 2
+path, aumid = sys.argv[1], sys.argv[2]
+store = propsys.SHGetPropertyStoreFromParsingName(
+    path, None, GPS_READWRITE, propsys.IID_IPropertyStore)
+store.SetValue(pscon.PKEY_AppUserModel_ID,
+               propsys.PROPVARIANTType(aumid, pythoncom.VT_LPWSTR))
+store.Commit()
+del store
+rd = propsys.SHGetPropertyStoreFromParsingName(
+    path, None, 0, propsys.IID_IPropertyStore)
+assert rd.GetValue(pscon.PKEY_AppUserModel_ID).GetValue() == aumid, "AUMID readback mismatch"
+'@
+$stamperFile = Join-Path $env:TEMP "odysseus_stamp_aumid.py"
+Set-Content -Path $stamperFile -Value $stamper
 
 function New-OdysseusShortcut {
     param([string]$ShortcutPath)
@@ -136,7 +111,10 @@ function New-OdysseusShortcut {
     $sc.Description      = "Personal AI Workspace"
     if ($icoPath) { $sc.IconLocation = $icoPath }
     $sc.Save()
-    [LnkAumid]::Set($ShortcutPath, $AppUserModelID)
+    & $py $stamperFile $ShortcutPath $AppUserModelID
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "AppUserModelID stamp failed for $ShortcutPath — pinned-icon reuse will not work."
+    }
 }
 
 # Start Menu shortcut
@@ -153,4 +131,4 @@ Write-Host "Desktop shortcut:    $dtShortcut"
 
 Write-Host ""
 Write-Host "Done. Launch Odysseus from the Start Menu or Desktop shortcut."
-Write-Host "Logs: $env:APPDATA\Odysseus\logs\"
+Write-Host "Logs: $(Join-Path $RepoDir 'logs')"
