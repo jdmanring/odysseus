@@ -22,3 +22,15 @@ def test_wrapper_uses_no_access_log(wrapper):
         pytest.skip(f"{wrapper} does not launch uvicorn")
     assert '"--no-access-log"' in src, f"{wrapper} must pass --no-access-log"
     assert '"--access-log"' not in src, f"{wrapper} still passes the bare --access-log"
+
+
+def test_windows_wrapper_spawns_server_without_console():
+    """Under pythonw the wrapper has no console; without CREATE_NO_WINDOW the
+    console-subsystem python.exe server child pops its own console window."""
+    path = _ROOT / "windows_wrapper.py"
+    if not path.is_file():
+        pytest.skip("windows_wrapper.py not present")
+    src = path.read_text(encoding="utf-8")
+    assert "subprocess.CREATE_NO_WINDOW" in src, (
+        "windows_wrapper.py must spawn the server with CREATE_NO_WINDOW"
+    )
