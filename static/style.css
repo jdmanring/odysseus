@@ -23442,6 +23442,11 @@ body.gallery-selecting .gallery-dl-btn,
   display: flex; align-items: center; gap: 6px; padding: 5px 8px;
   border-radius: 6px; cursor: pointer; font-size: 11px;
   transition: background 0.1s;
+  /* Upstream's July checkpoint raised the scan list from 80 to 2500 rows;
+     without containment every open lays out and paints all of them. Same
+     offscreen-skip pattern as the memory list (#88 P6). */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 26px;
 }
 .hwfit-row:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); }
 /* Already-downloaded rows: dim slightly so attention falls on undownloaded
