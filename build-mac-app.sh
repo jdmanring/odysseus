@@ -3,11 +3,21 @@
 # ==============================================================================
 # build-mac-app.sh
 #
-# Installs Odysseus as a native macOS desktop application.
+# Builds Odysseus as a native macOS desktop application.
 # Creates dist/Odysseus.app (Qt WebEngine wrapper) and dist/Odysseus.dmg.
+#
+#   ./build-mac-app.sh            build dist/Odysseus.app + .dmg only
+#   ./build-mac-app.sh --install  also install to /Applications, refresh the
+#                                 icon caches, and (re-)pin to the Dock
 #
 # This is the Qt native wrapper installer. See build-macos-app.sh for the
 # Chrome --app mode alternative (no Qt dependency, browser-based UI).
+#
+# The Dock tile is a macOS-style icon (dark rounded-rect on Apple's 824/1024
+# grid) built from static/icons/icon-macos-1024.png. --install rebuilds the Dock
+# pin as a fresh URL-only entry and clears the icon-services cache so a reinstall
+# does not leave the stale/blank tile that a changed bundle inode otherwise
+# causes (see tooling/macos_dock_pin.py).
 #
 # Prerequisites:
 #   - macOS 11.0+, arm64 or x86_64
@@ -20,10 +30,22 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="Odysseus"
+BUNDLE_ID="com.odysseus.app"
 DIST="$REPO_DIR/dist"
 APP="$DIST/$APP_NAME.app"
+INSTALLED_APP="/Applications/$APP_NAME.app"
 VENV_PY="$REPO_DIR/venv/bin/python"
 WRAPPER="$REPO_DIR/mac_wrapper.py"
+
+# --install: after building, copy the bundle into /Applications, refresh the
+# icon caches, and (re-)pin it to the Dock. Without it the script only builds
+# dist/ + the .dmg (drag-to-Applications install, no Dock pin).
+DO_INSTALL=0
+for _arg in "$@"; do
+    case "$_arg" in
+        --install) DO_INSTALL=1 ;;
+    esac
+done
 
 # macOS dialog for fatal errors (visible even when launched as .app)
 die_gui() {
@@ -217,10 +239,50 @@ hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO \
     "$DIST/$APP_NAME.dmg" >/dev/null
 rm -rf "$STAGE"
 
+# --- Install to /Applications + refresh icon caches + (re-)pin to the Dock ---
+# Only with --install. Reinstalling over an existing bundle changes its inode,
+# which leaves BOTH the icon-services cache and the Dock pin's cached bookmark
+# stale — the app then shows the old/blank icon when it is NOT running (a
+# running app's tile comes from the live process, so it still looks right). The
+# steps below are exactly what makes the icon correct both closed and open:
+#   1. replace the installed bundle,
+#   2. re-register it with Launch Services,
+#   3. clear the per-user icon-services cache,
+#   4. rebuild the Dock pin as a fresh URL-only entry (drops the stale bookmark
+#      so the Dock re-resolves the current bundle's .icns),
+#   5. restart the Dock so the new tile is drawn.
+if [ "$DO_INSTALL" = "1" ]; then
+    echo ""
+    echo "Installing to $INSTALLED_APP ..."
+    rm -rf "$INSTALLED_APP"
+    cp -R "$APP" "$INSTALLED_APP"
+    touch "$INSTALLED_APP"
+
+    LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+    [ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$INSTALLED_APP" 2>/dev/null || true
+
+    # Per-user icon cache (no sudo needed); regenerated on demand.
+    rm -rf "$HOME/Library/Caches/com.apple.iconservices.store" 2>/dev/null || true
+
+    # Fresh Dock pin (drops any stale bookmark for this app).
+    if [ -x "$VENV_PY" ]; then
+        "$VENV_PY" "$REPO_DIR/tooling/macos_dock_pin.py" "$INSTALLED_APP" "$BUNDLE_ID" || \
+            echo "  dock: (re-pin failed — non-fatal; drag the app to the Dock manually)"
+    fi
+    killall Dock 2>/dev/null || true
+    echo "  installed, icon caches refreshed, Dock re-pinned"
+fi
+
 echo ""
 echo "Done:"
 echo "  $APP"
 echo "  $DIST/$APP_NAME.dmg"
+if [ "$DO_INSTALL" = "1" ]; then
+    echo "  $INSTALLED_APP  (installed + Dock-pinned)"
+fi
 echo ""
 echo "Run:     open '$APP'"
-echo "Install: open '$DIST/$APP_NAME.dmg'  (drag Odysseus to Applications)"
+if [ "$DO_INSTALL" != "1" ]; then
+    echo "Install: ./build-mac-app.sh --install   (to /Applications + Dock pin)"
+    echo "     or: open '$DIST/$APP_NAME.dmg'  (drag Odysseus to Applications)"
+fi
