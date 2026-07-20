@@ -62,7 +62,13 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QIcon
+
+# Every subprocess this wrapper spawns must pass CREATE_NO_WINDOW: under
+# pythonw there is no console to inherit, so console-subsystem children
+# (tasklist, taskkill, powershell) otherwise pop a visible console window
+# over the app — the 60s memory poll made one flash every minute.
+_NOWIN = subprocess.CREATE_NO_WINDOW
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
 VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "Scripts", "python.exe")
@@ -96,7 +102,7 @@ def kill_zombies():
     )
     subprocess.run(
         ["powershell", "-NoProfile", "-Command", ps],
-        check=False, capture_output=True,
+        check=False, capture_output=True, creationflags=_NOWIN,
     )
     time.sleep(0.5)
 
@@ -123,7 +129,7 @@ def start_server():
         # CREATE_NEW_PROCESS_GROUP so Ctrl+C in the wrapper doesn't propagate to server.
         # CREATE_NO_WINDOW because under pythonw the wrapper has no console, so a
         # console-subsystem python.exe child would otherwise pop its own console window.
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | _NOWIN,
     )
     for _ in range(30):
         try:
@@ -154,7 +160,7 @@ def stop_server():
     # Belt-and-suspenders: also kill any orphaned process via taskkill.
     subprocess.run(
         ['taskkill', '/F', '/FI', f'COMMANDLINE eq *{_UVICORN_PATTERN}*'],
-        check=False, capture_output=True,
+        check=False, capture_output=True, creationflags=_NOWIN,
     )
     print("Server stopped.")
 
@@ -422,7 +428,7 @@ class OdysseusWindow(QMainWindow):
                 r = subprocess.run(
                     ['tasklist', '/FI', 'IMAGENAME eq QtWebEngineProcess.exe',
                      '/FO', 'CSV', '/NH'],
-                    capture_output=True, text=True)
+                    capture_output=True, text=True, creationflags=_NOWIN)
                 for line in r.stdout.strip().split('\n'):
                     if 'QtWebEngineProcess' in line:
                         parts = [p.strip('"') for p in line.split('","')]
@@ -444,7 +450,7 @@ class OdysseusWindow(QMainWindow):
                 r = subprocess.run(
                     ['tasklist', '/FI', 'IMAGENAME eq QtWebEngineProcess.exe',
                      '/FO', 'CSV', '/NH'],
-                    capture_output=True, text=True)
+                    capture_output=True, text=True, creationflags=_NOWIN)
                 for line in r.stdout.strip().split('\n'):
                     if 'QtWebEngineProcess' in line:
                         parts = [p.strip('"') for p in line.split('","')]
@@ -562,7 +568,15 @@ if __name__ == "__main__":
     kill_zombies()
     start_server()
 
+    # Without an explicit AppUserModelID, Windows groups the window under
+    # pythonw.exe on the taskbar and shows the generic Python icon there
+    # regardless of any Qt window icon.
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Odysseus.Odysseus")
+
     app = QApplication(sys.argv)
+    _icon_path = os.path.join(INSTALL_DIR, "static", "icon.ico")
+    if os.path.isfile(_icon_path):
+        app.setWindowIcon(QIcon(_icon_path))
 
     # Named persistent profile — cookies, localStorage, and session data
     # survive between restarts.
