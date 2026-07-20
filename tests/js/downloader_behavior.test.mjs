@@ -392,3 +392,21 @@ test('card build: early flood window (no markers yet) renders initializing, not 
   const html = build({ status: 'running', output: 'random noise with no markers', sessionId: 'sid-i' });
   assert.match(html, /data-dl-phase="initializing"/);
 });
+
+test('header badge never echoes raw aria2c lines — compact human format only', () => {
+  const ctx = { console };
+  vm.createContext(ctx);
+  vm.runInContext(extractBlock('export function _formatDownloadBadge').replace(/^export /, '')
+    + ';globalThis.f = _formatDownloadBadge;', ctx);
+  const f = ctx.f;
+  // the exact live line from tonight's flicker report
+  assert.equal(f('[#b051af 5.8GiB/6.3GiB(91%) CN:2 DL:23MiB ETA:23s]'), '91% · 23MiB/s · ETA 23s');
+  assert.equal(f('[DL:12MiB][#abc123 1.2GiB/4.6GiB(26%)]'), '26% · 12MiB/s');
+  // degenerate aria line with no stats still reads as a word, not brackets
+  assert.equal(f('[#xyz]'), 'downloading');
+  // URL walls and overlong noise never reach the badge
+  assert.equal(f('07/20 08:21:52 [NOTICE] Redirecting to https://cdn.example/very-long'), 'downloading');
+  assert.equal(f(''), '');
+  // short human text passes through (hf longform phases)
+  assert.equal(f('resolving'), 'resolving');
+});
