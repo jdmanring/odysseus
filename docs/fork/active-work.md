@@ -12,9 +12,9 @@ branch). Develop's `eddd0568` was SPLIT: cookbook UI half → downloader branch;
 (live-CDP test gating) split → `perf/editor-undo-compress` (`dea01e5a`) + `perf/agent-gc-catchup`
 (`9641791b`); both skip correctly without `ODYSSEUS_LIVE_UI_TESTS=1`. (3) Verified no-staging-needed:
 `80d9a09b` (qt-bridge tag) and `a13d0e0d` (resolve-gguf endpoint) were develop merge-damage repairs —
-staging branches never lost the content. All six branches pushed. **Open:** `da9e8e5d` (content-hash
-`?v=` cache-busters, `src/app_helpers.py` + 64-line test) still needs an issue + `feat/asset-cache-busters`
-branch from `upstream-mirror` — issue creation was permission-blocked; create the issue, then stage.
+staging branches never lost the content. All six branches pushed. **Resolved 2026-07-20:** `da9e8e5d` (content-hash
+`?v=` cache-busters) staged — issue #154 filed, `feat/asset-cache-busters` from `upstream-mirror`
+(`912bb064`, fork-only audit-doc hunk stripped), 6 tests pass, pushed.
 
 **2026-07-18 — #2 plan: Part 2 complete (measured evidence + matrix); Part 4.1/4.3 audits done.**
 Full 5-arm bench artifact regenerated and committed (`946f62cb`; adds the vendored #4661 arm —
