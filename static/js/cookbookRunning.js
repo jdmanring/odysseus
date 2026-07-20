@@ -1030,7 +1030,12 @@ function _authStatusForTask(task, parsedAuth) {
 }
 
 function _buildAuthPillHtml(authStatus) {
-  if (!authStatus) return '';
+  // Never render nothing: an absent pill is indistinguishable from a broken
+  // one (tasks predating the hf_token_used marker have no auth evidence at
+  // all). Unknown is a state — show it as one.
+  if (!authStatus) {
+    return '<span class="cookbook-task-auth-badge dl-auth-none" title="No auth evidence recorded for this task (it may predate auth tracking)">auth ?</span>';
+  }
   const _lock   = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
   const _unlock = '<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a3 3 0 0 1 6 0"/></svg>';
   if (authStatus.includes('authenticated'))  return `<span class="cookbook-task-auth-badge dl-auth-ok">${_lock} authed</span>`;

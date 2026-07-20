@@ -220,6 +220,7 @@ def _main(args) -> None:
         # line reading flushes each line as it arrives so the progress card
         # updates in real time. On Linux/Mac (tmux PTY) behavior is identical.
         rc = 1
+        auth_failures = 0
         with subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -228,6 +229,8 @@ def _main(args) -> None:
             universal_newlines=True,
         ) as proc:
             for line in proc.stdout:
+                if "errorCode=24" in line or "Authorization failed" in line:
+                    auth_failures += 1
                 print(line, end='', flush=True)
         rc = proc.returncode
     finally:
@@ -236,6 +239,16 @@ def _main(args) -> None:
 
     if rc != 0:
         print(f"\n[!] Download failed (aria2c exit {rc}).")
+        if auth_failures:
+            # A valid token (whoami passed above) + per-file 401s is the gated-repo
+            # signature: gated repos expose their file LIST publicly, only content
+            # requires approved access — so resolution succeeds and every fetch fails.
+            print(f"[!] {auth_failures} file(s) were refused with HTTP 401 (authorization failed).")
+            print(f"[!] This looks like a GATED repository. Your token is valid, but this")
+            print(f"[!] account has not been granted access to {args.repo}.")
+            print(f"[!] Fix: visit https://huggingface.co/{args.repo} and accept the")
+            print(f"[!] license / request access (approval can take time). If you use a")
+            print(f"[!] fine-grained token, it also needs the 'read gated repos' permission.")
         sys.exit(1)
 
     # Final verification: did we actually get any files?
