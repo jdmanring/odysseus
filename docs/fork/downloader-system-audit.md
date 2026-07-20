@@ -172,9 +172,9 @@ From the audit, real but lower-stakes — fix from this list, not from fresh sym
 - **Fix:** tag restored (`80d9a09b`) plus `tests/test_index_script_wiring.py`, which asserts the qt-bridge tag is present **and** that every local `<script src>` on the page resolves to a real file — closing the whole script-tag-amputation class, not just this instance. Takes effect on next app restart / page reload.
 
 ### Branch-sweep outcome (2026-07-20)
-The full sweep of staged branches found exactly two live losses (D11, D12), both now restored on develop. Two branches were confirmed **superseded, not lost**:
-- `fix/css-contain-paint-transparent-rendering` — its sidebar `contain: layout style` was deliberately reverted the same day it was written (`03517911`: containment creates a stacking context that breaks the sidebar box-shadow in the Qt compositor); its chat-history containment is already on develop. Develop's `test_sidebar_no_contain` is the current truth. Branch is safe to delete.
-- `fix/dom-oom-streaming-throttle` — its rAF throttle and thinking-textContent optimizations exist on develop in evolved form (`_throttledRenderStream()` at the normal-streaming site; `StreamRenderer` finalize/teardown). Superseded by the StreamRenderer rewrite; branch content need not be cherry-picked.
+The sweep's question was develop-side only: did every staged fix actually land on develop? Two live losses were found (D11, D12), both now restored. Two branches needed nothing cherry-picked because develop already carries their content in evolved form — that says NOTHING about the branches themselves, which are staged upstream PRs and stay:
+- `fix/dom-oom-streaming-throttle` (#64) — develop has the equivalent fixes (`_throttledRenderStream()`, thinking textContent, `StreamRenderer` teardown). Upstream still has the O(n²) thinking `innerHTML` render and no throttle (verified against upstream-mirror 2026-07-20); the staged PR stands unchanged.
+- `fix/css-contain-paint-transparent-rendering` (#93) — its chat-history hunk is on develop; its sidebar hunk was deliberately reverted the same day (`03517911`: containment creates a stacking context that breaks the sidebar box-shadow in the Qt compositor), so develop's `test_sidebar_no_contain` is the current truth and the sidebar hunk must NOT be re-cherry-picked. The branch needs **rework before filing** (chat-history-only + tests adjusted; the sidebar finding becomes PR-narrative evidence), not deletion.
 
 ## 8. Process failures that made this worse (bind these)
 
