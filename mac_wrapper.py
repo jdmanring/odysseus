@@ -1211,13 +1211,20 @@ if __name__ == "__main__":
 
     kill_zombies()
     start_server()
-    # On macOS, QApplication.setWindowIcon sets the Dock tile for a non-bundled
-    # process (a bare `python mac_wrapper.py` run would otherwise show the
-    # generic Python rocket). A bundled .app launch overrides this with the
-    # bundle's .icns, which is the correct precedence.
-    _icon_path = os.path.join(INSTALL_DIR, "static", "icons", "icon-512.png")
-    if os.path.isfile(_icon_path):
-        app.setWindowIcon(QIcon(_icon_path))
+    # Dock tile. On macOS, setWindowIcon(QIcon) REPLACES the tile at runtime —
+    # even for a bundled .app — so calling it inside a bundle made the icon
+    # change the instant the app started (the bundle's .icns tile swapped for
+    # this image). When launched from the bundle (ODYSSEUS_BUNDLE=1, set by the
+    # launcher), leave the tile to the bundle's .icns so running looks identical
+    # to not-running. For a bare `python mac_wrapper.py` dev run there is no
+    # bundle icon, so set one — the macOS tile master, falling back to the bare
+    # glyph — otherwise the Dock shows the generic Python rocket.
+    if not os.environ.get("ODYSSEUS_BUNDLE"):
+        for _name in ("icon-macos-1024.png", "icon-512.png"):
+            _icon_path = os.path.join(INSTALL_DIR, "static", "icons", _name)
+            if os.path.isfile(_icon_path):
+                app.setWindowIcon(QIcon(_icon_path))
+                break
 
     # Named persistent profile: cookies, localStorage, and session data
     # survive between restarts. Without this the login is lost on every close.
