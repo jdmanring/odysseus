@@ -170,3 +170,37 @@ test('quant tier ranges cover the quality ladder exactly, and modern 6-bit varia
   assert.ok(quality.indexOf('Q6_K_L') < quality.indexOf('Q6_K'));
   assert.ok(quality.indexOf('UD-Q4_K_XL') < quality.indexOf('Q4_K_M'));
 });
+
+// ── output compaction (the vanished multi-file bars regression) ─────────────
+test('URL-noise walls must not evict the progress summary the file bars need', () => {
+  const ctx2 = { console, Math, JSON };
+  vm.createContext(ctx2);
+  vm.runInContext(
+    'const _DL_OUTPUT_KEEP = 20000;' +
+    extractBlock('function _compactDlOutput') +
+    ';globalThis.compact = _compactDlOutput;', ctx2);
+  const summary = [
+    ' *** Download Progress Summary as of Mon Jul 20 02:14:37 2026 ***',
+    '===============================================================================',
+    '[#aaaa01 1.1GiB/7.9GiB(14%) CN:2 DL:2.8MiB ETA:40m43s]',
+    'FILE: /home/user/.cache/huggingface/hub/models--x--y/snapshots/abc/model-00001-of-00003.safetensors',
+    '-------------------------------------------------------------------------------',
+    '[#aaaa02 0.4GiB/2.0GiB(20%) CN:2 DL:1.1MiB ETA:20m1s]',
+    'FILE: /home/user/.cache/huggingface/hub/models--x--y/snapshots/abc/model-00002-of-00003.safetensors',
+    '-------------------------------------------------------------------------------',
+  ].join('\n');
+  // simulate the xet-bridge redirect walls: three ~2.5KB signed-URL notices
+  const urlWall = Array.from({length: 3}, (_, i) =>
+    `07/20 02:14:40 [NOTICE] CUID#${i} - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/${'A'.repeat(2500)}`
+  ).join('\n');
+  const raw = summary + '\n' + urlWall;
+  // old behavior: slice(-5000) keeps mostly URL wall, summary evicted
+  assert.ok(!raw.slice(-5000).includes('Download Progress Summary'),
+    'precondition: the old 5000-char window loses the summary to URL noise');
+  const kept = ctx2.compact(raw);
+  assert.ok(kept.includes('Download Progress Summary'));
+  assert.ok(kept.includes('[#aaaa01') && kept.includes('[#aaaa02'),
+    'both per-file progress lines survive compaction');
+  const st = api._parseDownloadState(kept, 'compact-test');
+  assert.equal(st.perFileData.length, 2, 'parser sees one row per file again');
+});

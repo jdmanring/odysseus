@@ -682,6 +682,23 @@ function _fmtEtaSecs(secs) {
   return `${s}s`;
 }
 
+// Compact a download output tail before storing it on the task. aria2c's
+// xet-bridge redirect NOTICEs each carry a 2-3 KB signed URL; a couple of
+// them evicted the entire progress-summary block from the old 5000-char
+// window, starving _parseDownloadState — the card fell back to
+// "Initializing…" and the per-file bars vanished (the multi-file display
+// regression). Strip the URL walls (zero display value), keep a window
+// comfortably larger than one full multi-file summary block.
+const _DL_OUTPUT_KEEP = 20000;
+function _compactDlOutput(text) {
+  const t = String(text || '');
+  const cleaned = t
+    .split('\n')
+    .filter(l => !/https?:\/\/\S{200,}/.test(l) && !/^[A-Za-z0-9+/=_%-]{120,}$/.test(l.trim()))
+    .join('\n');
+  return cleaned.slice(-_DL_OUTPUT_KEEP);
+}
+
 function _parseDownloadState(text, sessionId) {
   const out = String(text || '');
   const done     = out.includes('DOWNLOAD_OK');
@@ -4591,7 +4608,7 @@ async function _reconnectTask(el, task) {
           if (badge) { badge.textContent = status; badge.className = `cookbook-task-status cookbook-task-${status}`; }
           _renderRunningTab();
         }
-        _updateTask(task.sessionId, { output: snapshot.slice(-5000) });
+        _updateTask(task.sessionId, { output: _compactDlOutput(snapshot) });
       }
     } catch {
       failCount++;
@@ -5118,8 +5135,8 @@ async function _pollBackgroundStatus() {
           const tail = String(live.output_tail || '');
           if (tail && !previous.endsWith(tail)) {
             updates.output = _isServeOutputPlaceholder(previous)
-              ? tail.slice(-5000)
-              : `${previous ? `${previous}\n` : ''}${tail}`.slice(-5000);
+              ? _compactDlOutput(tail)
+              : _compactDlOutput(`${previous ? `${previous}\n` : ''}${tail}`);
           }
         }
         if (live.diagnosis && !task._diagnosisDismissed) {
