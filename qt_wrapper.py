@@ -117,7 +117,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     f"--enable-features={_features}",
     "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
     "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
-    "--js-flags=--expose-gc,--initial-old-space-size=128,--max-old-space-size=512,--optimize-for-size,--minor-mc",
+    "--js-flags=--expose-gc,--initial-old-space-size=128,--max-old-space-size=512,--optimize-for-size,--minor-ms",
     "--renderer-process-limit=1",
     "--disable-extensions",
     # NB: --enable-low-end-device-mode is deliberately NOT set. It caused a
