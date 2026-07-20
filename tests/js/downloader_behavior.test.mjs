@@ -139,3 +139,36 @@ test('auth status survives after the header lines scroll out of the capture wind
   assert.equal(api._authStatusForTask({ type: 'serve', _authStatus: 'authenticated' }, ''), '');
   assert.equal(api._authStatusForTask({ type: 'download', payload: { repo_id: 'x' } }, ''), '');
 });
+
+// ── backend detection evidence rule (issue #149) ────────────────────────────
+const COOKBOOK_SRC = readFileSync(join(ROOT, 'static', 'js', 'cookbook.js'), 'utf8');
+function extractFromCookbook(marker) {
+  const start = COOKBOOK_SRC.indexOf(marker);
+  assert.notEqual(start, -1, `marker not found in cookbook.js: ${marker}`);
+  const open = COOKBOOK_SRC.indexOf('{', start);
+  let depth = 0, i = open;
+  for (; i < COOKBOOK_SRC.length; i++) {
+    if (COOKBOOK_SRC[i] === '{') depth++;
+    else if (COOKBOOK_SRC[i] === '}') { depth--; if (depth === 0) break; }
+  }
+  return COOKBOOK_SRC.slice(start, i + 1).replace(/^export /, '');
+}
+
+test('_detectBackend: fabricated Q4_K_M on a safetensors repo must NOT mean llama.cpp', () => {
+  const ctx = { console, Math, JSON, _hwfitCache: { system: { backend: 'cuda' } }, _isWindows: () => false };
+  vm.createContext(ctx);
+  vm.runInContext(extractFromCookbook('export function _detectBackend') +
+    ';globalThis.detect = _detectBackend;', ctx);
+  // the dspark incident row: safetensors + hypothetical Q4_K_M, no GGUF anywhere
+  assert.equal(ctx.detect({
+    repo_id: 'deepseek-ai/dspark_qwen3_4b_block7', name: 'deepseek-ai/dspark_qwen3_4b_block7',
+    quant: 'Q4_K_M', format: 'safetensors', gguf_sources: [],
+  }).backend, 'vllm');
+  // a real GGUF model keeps llama.cpp — by evidence, not by quant label
+  assert.equal(ctx.detect({
+    repo_id: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF', name: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF',
+    quant: 'Q4_K_M', is_gguf: true,
+  }).backend, 'llamacpp');
+  // Q-tier quant WITHOUT a declared format still implies GGUF (legacy rows)
+  assert.equal(ctx.detect({ repo_id: 'org/some-model', name: 'org/some-model', quant: 'Q4_K_M' }).backend, 'llamacpp');
+});
