@@ -242,3 +242,23 @@ def test_auth_pill_has_persistence_and_payload_fallback():
     assert "function _authStatusForTask" in RUNNING_JS
     assert "_updateTask(task.sessionId, { _authStatus: st.authStatus })" in RUNNING_JS
     assert "_authStatusForTask(task, _dlState?.authStatus)" in RUNNING_JS
+
+
+def test_launcher_diagnoses_gated_repo_auth_failures():
+    # Valid token + per-file 401s = gated-repo signature (file lists are
+    # public on gated repos; only content needs approved access). The
+    # launcher must say so instead of leaving a bare aria2c exit code.
+    src = (Path(__file__).parent.parent / "tooling" / "aria2c_download.py").read_text()
+    assert "errorCode=24" in src and "GATED" in src
+    assert "accept the" in src and "request access" in src
+
+
+def test_auth_pill_renders_unknown_instead_of_nothing():
+    # An absent pill is indistinguishable from a broken one. Tasks with no
+    # auth evidence (predating the hf_token_used marker) must render an
+    # explicit unknown state.
+    js = (Path(__file__).parent.parent / "static" / "js" / "cookbookRunning.js").read_text()
+    fn = js[js.index("function _buildAuthPillHtml"):]
+    fn = fn[:fn.index("\nfunction ")]
+    assert "return '';" not in fn, "empty-auth path renders nothing again"
+    assert "auth ?" in fn
