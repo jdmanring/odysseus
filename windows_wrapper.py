@@ -676,13 +676,49 @@ class NativeBridge(QObject):
 
     On Windows, QColorDialog.getColor() delegates to the Windows color-picker
     dialog. No DBus/XDG portal needed.
+
+    On software-render machines (WARP — VMs, driverless boxes) OS screen
+    sampling is refused: eyedropperInPage tells the page to sample itself via
+    samplePagePixel(x, y) against view.grab() — Qt's own offscreen widget
+    render, no OS-level screen capture. (Port of the macOS fix where the
+    equivalent path aborts WindowServer; on Windows it is a consistency and
+    safety measure on the same probe.)
     """
     colorPicked = pyqtSignal(str)
+    eyedropperInPage = pyqtSignal()
+
+    def __init__(self, view=None, parent=None):
+        super().__init__(parent)
+        self._view = view
 
     @pyqtSlot()
     def openColorPicker(self):
+        if _software_render and self._view is not None:
+            self.eyedropperInPage.emit()
+            return
         color = QColorDialog.getColor()
         self.colorPicked.emit(color.name() if color.isValid() else '')
+
+    @pyqtSlot(float, float)
+    def samplePagePixel(self, x, y):
+        """Resolve an in-page eyedropper click: (x, y) are CSS px in the viewport,
+        which map 1:1 to widget-logical px; view.grab() returns a device-pixel
+        pixmap, so scale by its devicePixelRatio. (-1, -1) = user cancelled."""
+        if x < 0 or y < 0 or self._view is None:
+            self.colorPicked.emit('')
+            return
+        try:
+            pixmap = self._view.grab()
+            dpr = pixmap.devicePixelRatio() or 1.0
+            img = pixmap.toImage()
+            px, py = int(x * dpr), int(y * dpr)
+            if 0 <= px < img.width() and 0 <= py < img.height():
+                self.colorPicked.emit(img.pixelColor(px, py).name())
+            else:
+                self.colorPicked.emit('')
+        except Exception as e:
+            print(f'[EYEDROPPER] in-page sample failed: {e}', flush=True)
+            self.colorPicked.emit('')
 
 
 class OdysseusPage(QWebEnginePage):
@@ -783,7 +819,7 @@ class OdysseusWindow(QMainWindow):
         page.scripts().insert(qwc_script)
 
         # Native bridge, held as instance attrs to prevent GC
-        self._bridge = NativeBridge()
+        self._bridge = NativeBridge(view=self.browser)
         self._channel = QWebChannel(page)
         self._channel.registerObject("bridge", self._bridge)
         page.setWebChannel(self._channel)
