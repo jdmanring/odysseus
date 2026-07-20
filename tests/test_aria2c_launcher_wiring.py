@@ -152,3 +152,52 @@ def test_aria2c_bash_args_are_single_quoted():
     assert "f\"'{_bash_squote(req.include)}'\" if req.include" in ROUTES
     assert "f\"'{_bash_squote(_dl_base)}'\" if _dl_base" in ROUTES
     assert "'{_bash_squote(_aria2c_script)}'" in ROUTES
+
+
+def test_launch_scan_cache_is_invalidated_on_mutation():
+    """The Launch list renders from a localStorage scan snapshot with a 6-hour
+    TTL. Without invalidation on mutation, a deleted model stayed listed and a
+    completed download never appeared (verified live: 49-min-old snapshot
+    holding only a deleted model while two real models sat on disk). The
+    invalidator must exist and be wired to delete-success and to every
+    download-completion site."""
+    serve_js = (REPO / "static" / "js" / "cookbookServe.js").read_text(encoding="utf-8")
+    assert "export function _invalidateCachedModelScan()" in serve_js
+    # delete path: invalidate + fresh refetch (not another cached render)
+    assert serve_js.count("_invalidateCachedModelScan()") >= 2
+    assert "await _fetchCachedModels(true);" in serve_js
+    # every download-done site in the running-tab module drops the snapshot
+    assert RUNNING_JS.count("_invalidateCachedModelScan?.()") >= 3
+    # delete must judge the command's exit_code, not the HTTP status
+    assert "_delResult.exit_code !== 0" in serve_js
+
+
+def test_resolve_gguf_endpoint_exists():
+    """The /api/cookbook/resolve-gguf route was silently lost from develop
+    during the June restorations (the resolver library and the client caller
+    both survived, so every GGUF discovery quietly 404'd and the UI showed
+    'No GGUF source is configured'). The client, the endpoint, and the
+    resolver method must all exist together."""
+    assert '@router.get("/api/cookbook/resolve-gguf")' in ROUTES
+    assert "find_gguf_sources" in ROUTES
+    dl_js = (REPO / "static" / "js" / "cookbookDownload.js").read_text(encoding="utf-8")
+    assert "/api/cookbook/resolve-gguf" in dl_js
+    from tooling.hf_url_resolver import HfUrlResolver
+    assert callable(getattr(HfUrlResolver, "find_gguf_sources", None))
+
+
+def test_js_behavioral_suite_passes():
+    """Runs the node behavioral tests (real aria2c transcripts through the
+    extracted parser/state functions). String guards pin that fixes exist;
+    this pins that they BEHAVE. Skips only if node is unavailable."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        import pytest
+        pytest.skip("node not available")
+    res = subprocess.run(
+        [node, "--test", str(REPO / "tests" / "js" / "downloader_behavior.test.mjs")],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert res.returncode == 0, f"node behavioral tests failed:\n{res.stdout[-3000:]}{res.stderr[-2000:]}"
