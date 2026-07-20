@@ -1489,8 +1489,12 @@ def setup_cookbook_routes() -> APIRouter:
 
         # use_aria2c reflects the ACTUAL path after pre-flight fallback — the
         # client stores it on the task so the badge parser matches the output.
+        # hf_auth is the authoritative token answer for the card's auth pill:
+        # the token is usually attached server-side from stored settings, so
+        # the client cannot know it from its own payload.
         return {"ok": True, "session_id": session_id, "remote": remote or "local",
-                "use_aria2c": bool(req.use_aria2c and not is_ollama_download)}
+                "use_aria2c": bool(req.use_aria2c and not is_ollama_download),
+                "hf_auth": bool(req.hf_token)}
 
     @router.get("/api/model/cached")
     async def model_cached(request: Request, host: str | None = None, model_dir: str | None = None, ssh_port: str | None = None, platform: str | None = None):
