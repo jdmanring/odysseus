@@ -76,6 +76,18 @@ function _readCachedModelScan(sig) {
 // on-disk models changes (download completes, model deleted) — the snapshot
 // TTL is 6 hours, and serving a stale one after a mutation shows deleted
 // models as present and fresh downloads as absent.
+// Pure outcome check for /api/shell/exec responses. The endpoint returns
+// HTTP 200 even when the command fails — the real outcome is exit_code in
+// the body. Returns '' on success, else a trimmed error string. Missing or
+// unparseable bodies are failures: treating them as success is how a failed
+// rm once animated the row away and the model "reappeared" on the next scan.
+export function _shellExecFailure(result) {
+  if (!result || result.exit_code !== 0) {
+    return String(result?.stderr || result?.stdout || 'unknown error').trim();
+  }
+  return '';
+}
+
 export function _invalidateCachedModelScan() {
   try { localStorage.removeItem(_CACHED_MODELS_SCAN_KEY); } catch {}
 }
@@ -3611,8 +3623,8 @@ async function _deleteCachedModel(repo, itemEl, skipConfirm = false, model = nul
     // real outcome is exit_code in the body. Without this check a failed rm
     // animated the row away and the model "reappeared" on the next scan.
     const _delResult = await res.json().catch(() => null);
-    if (!_delResult || _delResult.exit_code !== 0) {
-      const _delErr = (_delResult?.stderr || _delResult?.stdout || 'unknown error').trim();
+    const _delErr = _shellExecFailure(_delResult);
+    if (_delErr) {
       uiModule.showError(`Delete failed: ${_delErr.slice(0, 300)}`);
       return;
     }

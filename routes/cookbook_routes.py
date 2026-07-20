@@ -59,7 +59,7 @@ from routes.cookbook_helpers import (
     _append_realesrgan_basicsr_preflight,
     _append_pip_install_runner_lines, _pip_install_command_without_break_system_packages,
     _normalize_llama_cpp_python_cache_types,
-    ModelDownloadRequest, ServeRequest,
+    ModelDownloadRequest, ServeRequest, resolve_download_backend,
 )
 
 _HF_TOKEN_STATUS_SNIPPET = (
@@ -1110,15 +1110,19 @@ def setup_cookbook_routes() -> APIRouter:
         if req.use_aria2c and not is_ollama_download:
             try:
                 from tooling.aria2c_download import get_aria2c
-                if get_aria2c() is None:
-                    logger.warning(
-                        "aria2c unavailable (BinManager install failed or unsupported platform)"
-                        " — falling back to hf download for %s", req.repo_id,
-                    )
-                    req.use_aria2c = False
+                _aria2c_available = get_aria2c() is not None
             except Exception:
+                _aria2c_available = False
+            _use_aria, _pin_err = resolve_download_backend(
+                True, bool(req.pin_backend), _aria2c_available
+            )
+            if _pin_err:
+                logger.warning("aria2c unavailable on a pinned retry for %s — refusing backend switch", req.repo_id)
+                return {"ok": False, "error": _pin_err}
+            if not _use_aria:
                 logger.warning(
-                    "aria2c pre-flight check raised — falling back to hf download for %s", req.repo_id,
+                    "aria2c unavailable (BinManager install failed or unsupported platform)"
+                    " — falling back to hf download for %s", req.repo_id,
                 )
                 req.use_aria2c = False
 
