@@ -14,6 +14,12 @@ _FETCHING_ZERO_FILES_RE = re.compile(r"Fetching\s+0\s+files", re.IGNORECASE)
 # It has to be passed explicitly: the download runner exports
 # HF_HOME=<local_dir>, so that task's cache lives under <local_dir>/hub, and
 # the probe process's own environment knows nothing about it.
+# Both probes must understand BOTH downloaders' in-progress conventions:
+# - hf CLI: partial blobs as blobs/*.incomplete (snapshot files are symlinks).
+# - aria2c: the REAL filename grows directly under snapshots/<commit>/ with a
+#   <file>.aria2 control file beside it until that file completes. A probe
+#   that only knows .incomplete sees a populated snapshot dir mid-aria2c-run
+#   and declares the model complete — the "finished at 23%" defect.
 HF_CACHE_COMPLETE_PROBE = (
     "import os,sys;"
     "repo=sys.argv[1];"
@@ -25,7 +31,8 @@ HF_CACHE_COMPLETE_PROBE = (
     "inc=False;"
     "blobs=os.path.join(d,'blobs');"
     "inc=os.path.isdir(blobs) and any(x.endswith('.incomplete') for x in os.listdir(blobs));"
-    "sys.exit(0 if ok and not inc else 1)"
+    "a2=os.path.isdir(snap) and any(x.endswith('.aria2') for _r,_d,fs in os.walk(snap) for x in fs);"
+    "sys.exit(0 if ok and not inc and not a2 else 1)"
 )
 
 HF_CACHE_INCOMPLETE_PROBE = (
@@ -36,7 +43,9 @@ HF_CACHE_INCOMPLETE_PROBE = (
     "d=os.path.join(base,'models--'+repo.replace('/','--'));"
     "blobs=os.path.join(d,'blobs');"
     "inc=os.path.isdir(blobs) and any(x.endswith('.incomplete') for x in os.listdir(blobs));"
-    "sys.exit(0 if inc else 1)"
+    "snap=os.path.join(d,'snapshots');"
+    "a2=os.path.isdir(snap) and any(x.endswith('.aria2') for _r,_d,fs in os.walk(snap) for x in fs);"
+    "sys.exit(0 if inc or a2 else 1)"
 )
 
 
