@@ -183,6 +183,17 @@ From the audit, real but lower-stakes — fix from this list, not from fresh sym
 - **Fix:** relatedness filter (`_is_quant_of`: base_models metadata match, or full normalized base-name containment in the candidate repo name); no qualifying candidate → empty → the honest "No GGUF source" path. Auto-select now surfaced in a visible toast. `bf51d93e` on `fix/gguf-quality-scored`, cherry-picked to develop (`e5b41dcc`).
 - **Verified:** live both directions — incident model now returns 0 sources; Llama-3.1-8B still resolves 14 genuine quants, bartowski top. 9 new tests with the incident as recorded fixture (`tests/test_gguf_relatedness.py`). Takes effect on next app restart (server caches the imported module).
 
+### D14. HW-Fit fabricated a Q4_K_M/llama.cpp identity for GGUF-less safetensors models ([#149](https://github.com/jdmanring/odysseus/issues/149), found 2026-07-20)
+- **Symptom** (screenshot `screenshots/dspark.png`): a BF16 safetensors research repo rendered as QUANT Q4_K_M / MODE llama.cpp; Run used the wrong engine, Download took the GGUF gate and errored "No GGUF source" for a directly downloadable repo.
+- **Cause:** `services/hwfit/fit.py` single-GPU default rated every non-prequantized model at a hypothetical Q4_K_M and emitted it as the row's `quant`; client `_detectBackend` treated any Q-tier label as GGUF proof. Upstream code, upstream design flaw.
+- **Fix:** `1aa7a4fe` — server defaults to the GGUF ladder only with real GGUF evidence, otherwise native precision (BF16 → vLLM); rows expose `format`/`is_gguf`; client llamacpp branch requires evidence when format is safetensors. 4 server tests (incident as fixture) + node behavioral test.
+
+### D15. Scan rated an unservable research checkpoint PERFECT ([#150](https://github.com/jdmanring/odysseus/issues/150), found 2026-07-20)
+- **Symptom:** `Qwen3DSparkModel` (no inference code exists in any engine) listed as PERFECT; user downloaded 2.6 GB and got vLLM's architecture rejection at launch.
+- **Cause:** "fit" was purely a VRAM calculation; the collection ingester never recorded architectures (`architecture: ""`).
+- **Fix:** servability gate — ingest hydrates each repo's architecture from the HF models API (cached); `arch_looks_servable()` gates on the standard task-class suffixes; unservable rows pin to no_fit and render a "research" label with the architecture in the tooltip; unrecorded architectures are never judged. Local catalog cache backfilled for both dspark entries. 3 tests.
+- **Open residue:** serve diagnosis could recognize vLLM's "architectures not supported" wall and say "unsupported architecture" plainly (offered, not yet requested).
+
 ### Branch-sweep outcome (2026-07-20)
 The sweep's question was develop-side only: did every staged fix actually land on develop? Two live losses were found (D11, D12), both now restored. Two branches needed nothing cherry-picked because develop already carries their content in evolved form — that says NOTHING about the branches themselves, which are staged upstream PRs and stay:
 - `fix/dom-oom-streaming-throttle` (#64) — develop has the equivalent fixes (`_throttledRenderStream()`, thinking textContent, `StreamRenderer` teardown). Upstream still has the O(n²) thinking `innerHTML` render and no throttle (verified against upstream-mirror 2026-07-20); the staged PR stands unchanged.
