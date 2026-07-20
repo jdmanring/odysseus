@@ -241,7 +241,7 @@ def test_auth_pill_has_persistence_and_payload_fallback():
     task._authStatus (first poll) with a payload fallback."""
     assert "function _authStatusForTask" in RUNNING_JS
     assert "_updateTask(task.sessionId, { _authStatus: st.authStatus })" in RUNNING_JS
-    assert "_authStatusForTask(task, _dlState?.authStatus)" in RUNNING_JS
+    assert "_authStatusForTask(task, _dlState?.authStatus, _dlState?.phase)" in RUNNING_JS
 
 
 def test_launcher_diagnoses_gated_repo_auth_failures():
@@ -284,3 +284,17 @@ def test_client_live_capture_joins_wrapped_lines():
     assert "capture-pane -t ${task.sessionId} -p -J -S -500" in RUNNING_JS, (
         "client live capture lost -J; wrapped URL lines will break phase parsing"
     )
+
+
+def test_auth_pill_infers_authed_from_reached_download_phase():
+    # The wrapper prints "[*] HF auth: authenticated" once, at the top; aria2c's
+    # URL flood evicts it from the capture window before the first poll, so the
+    # pill stalled yellow at "token…" for the whole download. aria2c only ever
+    # starts after a successful token-backed resolve, so downloading/done +
+    # token-sent IS authentication evidence.
+    fn = RUNNING_JS[RUNNING_JS.index("function _authStatusForTask"):]
+    fn = fn[:fn.index("\nfunction ")]
+    assert "phase === 'downloading'" in fn and "'authenticated'" in fn, (
+        "pill no longer infers authed from token + reached download phase"
+    )
+    assert "_authStatusForTask(task, st.authStatus, st.phase)" in RUNNING_JS
