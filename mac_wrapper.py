@@ -61,14 +61,44 @@ print(f'[LOG] wrapper_system.log opened at {_time.strftime("%Y-%m-%dT%H:%M:%S")}
       flush=True)
 
 # macOS: Qt WebEngine rides Metal (via ANGLE) on Qt 6.5+, on both arm64 and
-# x86_64; on GPU-less machines (VMs) Chromium falls back to SwiftShader on its
-# own. No vendor detection needed — none of the Linux wrapper's GBM/zero-copy/
-# NVIDIA branching applies here.
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
-    "--no-sandbox",
+# x86_64. None of the Linux wrapper's GBM/zero-copy/NVIDIA branching applies
+# here, but GPU-less machines (VMs — macOS guests get no paravirtual GPU) DO
+# need detection: forcing GPU rasterization onto the SwiftShader fallback
+# churns a CPU-emulated GPU per frame and shows up as flicker/lag and glitched
+# repaints (observed live on the Tahoe bench). Every real Mac GPU (Intel, AMD,
+# Apple silicon) registers an IOAccelerator subclass in the IO registry, so an
+# empty `ioreg -rc IOAccelerator` (~15 ms, once at startup) is the reliable
+# no-Metal-device signal. Fail-safe: any probe error reads as "has GPU" so a
+# glitch never degrades a real machine.
+import subprocess
+
+
+def _macos_software_render() -> bool:
+    """True when no Metal-capable accelerator exists (SwiftShader fallback)."""
+    try:
+        r = subprocess.run(["ioreg", "-rc", "IOAccelerator"],
+                           capture_output=True, timeout=5)
+        return not r.stdout.strip()
+    except Exception:
+        return False
+
+
+_software_render = _macos_software_render()
+
+_gpu_flags = [] if _software_render else [
     "--ignore-gpu-blocklist",
     "--enable-gpu-rasterization",
-    "--enable-features=WebGPU,SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction",
+]
+# WebGPU is pointless on SwiftShader and adds feature surface; keep it only
+# where a real GPU backs it.
+_features = "SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction"
+if not _software_render:
+    _features = "WebGPU," + _features
+
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
+    "--no-sandbox",
+    *_gpu_flags,
+    f"--enable-features={_features}",
     "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
     "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
     # --minor-ms, not --minor-mc: V8 renamed the minor-GC flag (MinorMC → MinorMS)
@@ -90,7 +120,6 @@ import socket as _cdp_sock
 import struct as _cdp_struct
 import base64 as _cdp_b64
 import urllib.request as _cdp_req
-import subprocess
 import threading as _threading
 import time
 from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
@@ -413,12 +442,10 @@ def _macos_total_ram_gb():
         return mem / (1024 ** 3)
     return None
 
-# Software-render detection: conservative default of False on macOS. Detecting a
-# missing Metal device from Python would need PyObjC/IOKit; Chromium falls back to
-# SwiftShader on its own on GPU-less machines (VMs), and the RAM check already
-# covers the boxes that matter. Not worth a native-framework dependency for a
-# signal the env override can supply.
-_low_resource, _profile_reason = _classify_resources(_macos_total_ram_gb(), False)
+# Software-render signal comes from the pre-flag IOAccelerator probe at the top
+# of this file (no Metal device ⇒ SwiftShader): the same probe that strips the
+# GPU-rasterization flags also selects the constrained reclaim profile here.
+_low_resource, _profile_reason = _classify_resources(_macos_total_ram_gb(), _software_render)
 
 # RSS ceiling: the renderer is only purged above this. Measured working set after a
 # purge is ~430 MB, so the off-interaction reclaim sawtooth stays ~0.43 GB → ceiling.
