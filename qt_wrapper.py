@@ -115,6 +115,7 @@ from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QColor
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
 VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "bin", "python")
@@ -974,10 +975,31 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
 
+    app = QApplication(sys.argv)
+
+    # Single-instance guard, BEFORE kill_zombies/start_server: a second launch
+    # (double-clicked launcher, taskbar/dock click race) must focus the
+    # existing window — the behavior users expect from a desktop app — not
+    # start a rival wrapper whose kill_zombies would kill the first
+    # instance's server out from under its window. QLocalServer is a Unix
+    # domain socket here (named pipe on Windows); removeServer() clears a
+    # stale socket left by a crashed previous instance, so a real second
+    # instance is detected only by a live connect.
+    _SINGLETON = "odysseus-desktop-wrapper"
+    _probe = QLocalSocket()
+    _probe.connectToServer(_SINGLETON)
+    if _probe.waitForConnected(500):
+        _probe.write(b"raise\n")
+        _probe.waitForBytesWritten(500)
+        _probe.disconnectFromServer()
+        print("[SINGLETON] already running; focused the existing window instead")
+        sys.exit(0)
+    QLocalServer.removeServer(_SINGLETON)
+    _singleton_server = QLocalServer()
+    _singleton_server.listen(_SINGLETON)
+
     kill_zombies()
     start_server()
-
-    app = QApplication(sys.argv)
     # Tell KDE which .desktop file owns this window so it groups with the
     # pinned taskbar entry and shows the correct icon instead of the X logo.
     app.setDesktopFileName("odysseus")
@@ -998,6 +1020,23 @@ if __name__ == "__main__":
 
     win = OdysseusWindow(profile)
     win.show()
+
+    def _raise_existing_window():
+        # A second launch connected to the singleton pipe: bring this window
+        # to the foreground (un-minimize first, or raise_() targets the
+        # minimized placeholder and nothing visible moves). Under Wayland the
+        # compositor's focus-stealing prevention may reduce this to a
+        # taskbar-attention hint; preventing the rival instance is the part
+        # that matters and works regardless.
+        conn = _singleton_server.nextPendingConnection()
+        if conn is not None:
+            conn.disconnectFromServer()
+        if win.isMinimized():
+            win.showNormal()
+        win.show()
+        win.raise_()
+        win.activateWindow()
+    _singleton_server.newConnection.connect(_raise_existing_window)
 
     # Restore window state from previous session. show() must precede any
     # geometry calls so the window handle exists (required on Wayland).
