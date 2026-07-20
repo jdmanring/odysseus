@@ -428,10 +428,33 @@ def _native_quant(model):
     return native_quant
 
 
+# Text-generation checkpoints that engines can actually load follow the HF
+# task-class naming convention. Research artifacts — draft/MTP/Medusa heads,
+# diffusion-decoding experiments (Qwen3DSparkModel), embedding-only towers —
+# do not, and no serving engine can execute them. Judged ONLY when the
+# architecture was recorded at ingest: an empty string is absence of
+# evidence, never a verdict.
+_SERVABLE_ARCH_SUFFIXES = ("ForCausalLM", "ForConditionalGeneration", "ForImageTextToText")
+
+
+def arch_looks_servable(architecture):
+    arch = str(architecture or "").strip()
+    if not arch:
+        return True  # unrecorded — do not judge
+    return arch.endswith(_SERVABLE_ARCH_SUFFIXES)
+
+
 def analyze_model(model, system, target_quant=None, scoring_use_case=None, target_context=None):
     pb = params_b(model)
     if pb <= 0:
         return None
+
+    # Servability gate (#150): a recorded architecture no engine can execute
+    # must never be rated as a runnable fit. The row stays visible — the user
+    # deserves to see WHY it is excluded, not have it vanish — but it is
+    # pinned to no_fit with an explicit flag the UI renders as a badge.
+    _arch = model.get("architecture") or ""
+    _arch_unservable = not arch_looks_servable(_arch)
 
     model_use_case = infer_use_case(model)
     score_use_case = scoring_use_case or "general"
@@ -542,8 +565,10 @@ def analyze_model(model, system, target_quant=None, scoring_use_case=None, targe
             "params_b": round(pb, 1),
             "is_moe": is_moe,
             "use_case": model_use_case,
-            "fit_level": "too_tight",
+            "fit_level": "no_fit" if _arch_unservable else "too_tight",
             "run_mode": "no_fit",
+            "architecture": _arch,
+            "arch_unservable": _arch_unservable,
             "quant": quant_to_try,
             "format": model.get("format", ""),
             "is_gguf": bool(model.get("is_gguf")),
@@ -619,8 +644,10 @@ def analyze_model(model, system, target_quant=None, scoring_use_case=None, targe
         "params_b": round(pb, 1),
         "is_moe": is_moe,
         "use_case": model_use_case,
-        "fit_level": fit_level,
-        "run_mode": run_mode,
+        "fit_level": "no_fit" if _arch_unservable else fit_level,
+        "run_mode": "no_fit" if _arch_unservable else run_mode,
+        "architecture": _arch,
+        "arch_unservable": _arch_unservable,
         "quant": quant,
         "context": fit_ctx,
         "required_gb": round(required_gb, 1),

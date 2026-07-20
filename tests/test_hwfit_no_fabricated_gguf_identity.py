@@ -60,3 +60,34 @@ def test_rows_expose_format_and_gguf_evidence_for_client_detection():
     row = analyze_model(_dspark_like(), _single_gpu_cuda_system())
     assert "format" in row and "is_gguf" in row, \
         "client backend detection needs real evidence fields, not just the quant label"
+
+
+# ── servability gate (#150) ──────────────────────────────────────────────────
+
+def test_recorded_unservable_architecture_is_never_a_runnable_fit():
+    from services.hwfit.fit import arch_looks_servable
+    m = _dspark_like()
+    m["architecture"] = "Qwen3DSparkModel"  # the recorded incident: no engine loads it
+    row = analyze_model(m, _single_gpu_cuda_system())
+    assert row is not None, "unservable rows stay visible — the user sees WHY"
+    assert row["arch_unservable"] is True
+    assert row["fit_level"] == "no_fit"
+    assert row["run_mode"] == "no_fit"
+    assert arch_looks_servable("Qwen3DSparkModel") is False
+
+
+def test_standard_task_class_architectures_pass_the_gate():
+    from services.hwfit.fit import arch_looks_servable
+    for arch in ("LlamaForCausalLM", "Qwen3MoeForCausalLM", "DeepseekV3ForCausalLM",
+                 "Gemma3ForConditionalGeneration", "Qwen2_5_VLForConditionalGeneration"):
+        assert arch_looks_servable(arch) is True, arch
+    for arch in ("Qwen3NextMTP", "MedusaModel", "DFlashDraftModel", "TransformersEmbeddingModel"):
+        assert arch_looks_servable(arch) is False, arch
+
+
+def test_unrecorded_architecture_is_not_judged():
+    from services.hwfit.fit import arch_looks_servable
+    assert arch_looks_servable("") is True
+    assert arch_looks_servable(None) is True
+    row = analyze_model(_dspark_like(), _single_gpu_cuda_system())
+    assert row["arch_unservable"] is False, "absence of evidence must never be a verdict"
