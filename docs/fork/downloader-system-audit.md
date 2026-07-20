@@ -152,10 +152,19 @@ From the audit, real but lower-stakes — fix from this list, not from fresh sym
 
 ## 7. Required before this system is called "working" again
 
-- [ ] **Hostile end-to-end sweep, both machines:** download (fresh) → watch card through every phase → crash-tolerance (reload mid-download) → complete → appears in Launch → serve → delete → gone from Launch → re-download → resumes/re-fetches correctly. No step passes on belief; each is checked against disk + logs.
+- [x] **Tooling-layer E2E cycle (Linux, 2026-07-20):** fresh download of a real repo through `aria2c_download.py` (exit 0, complete transcript captured as a test fixture) → scanner lists it → delete → scanner clears it. Exercises the quoted command path, tokenless resolution, and disk truth.
+- [x] **Behavioral test harness:** `tests/js/downloader_behavior.test.mjs` runs the extracted parser/state functions against REAL captured aria2c transcripts (`tests/fixtures/`) — sentinel-only done, mid-run phases, xet-403-is-not-failure, aria2c-run detection incl. adopted tasks, and the monitor stop decision (D8's race, now a pure exported function `_shouldStopBackgroundMonitor`). Bridged into pytest via `test_js_behavioral_suite_passes`.
+- [x] **Cache-buster made structural (D3 class closed):** `serve_html_with_nonce` rewrites every `/static/*?v=` pin to a content hash at serve time (`rewrite_asset_versions` in `src/app_helpers.py`; `tests/test_asset_version_rewrite.py`). A CSS/JS change now changes the URL automatically. Takes effect on next app restart.
+- [ ] **UI-layer hostile sweep, both machines (needs restarted app):** download → watch card through every phase → reload mid-download → complete → appears in Launch → serve → delete → gone from Launch → re-download resumes. Each step checked against disk + logs, not belief.
 - [ ] Soak one long download against the purge gate (D6) with idle timers firing.
 - [ ] One deliberate failed delete to confirm D9's error surfaces.
 - [ ] Close issue #146 only after the sweep passes (per fork rules: verified, not believed).
+
+### D11. `/api/cookbook/resolve-gguf` endpoint amputated from develop (found 2026-07-20)
+- **Symptom:** "No GGUF source is configured" for models that should auto-discover GGUF quantizations.
+- **Cause:** the route (24 lines of `d3eeee9c`) was lost in the June restorations while the resolver library and the JS caller both survived — a partial amputation; every discovery call 404'd (server log confirms). Same failure family as D1.
+- **Fix:** route restored verbatim from `fix/gguf-quality-scored`; guard test pins client caller + route + resolver method **together**. Takes effect on next app restart.
+- **Verified:** guard suite green; live verification pending restart. A systematic sweep of all staged branches for further lost content is running; results will be appended here.
 
 ## 8. Process failures that made this worse (bind these)
 

@@ -1,7 +1,9 @@
 # src/app_helpers.py
 import base64
+import hashlib
 import logging
 import os
+import re
 
 from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
@@ -27,6 +29,50 @@ def abs_join(base_dir: str, rel: str) -> str:
     """Join paths and return absolute path."""
     return os.path.abspath(os.path.join(base_dir, rel))
 
+# (path -> (mtime, hash)) cache for asset content hashes.
+_ASSET_VERSION_CACHE: dict = {}
+
+_ASSET_PIN_RE = re.compile(r'(/static/([\w./-]+?))\?v=[\w.-]+')
+
+
+def _asset_content_version(asset_path: str) -> str:
+    """Short content hash for a static asset, cached by mtime."""
+    try:
+        mtime = os.stat(asset_path).st_mtime_ns
+        cached = _ASSET_VERSION_CACHE.get(asset_path)
+        if cached and cached[0] == mtime:
+            return cached[1]
+        with open(asset_path, "rb") as f:
+            digest = hashlib.sha1(f.read()).hexdigest()[:12]
+        _ASSET_VERSION_CACHE[asset_path] = (mtime, digest)
+        return digest
+    except OSError:
+        return ""
+
+
+def rewrite_asset_versions(html: str, html_dir: str) -> str:
+    """Rewrite every `/static/<asset>?v=<pin>` to a content-hash version.
+
+    The pins used to be hand-maintained, and a forgotten bump meant clients
+    kept a stale cached asset indefinitely (a restored stylesheet once looked
+    broken for an hour because the pin never changed). Deriving the version
+    from file content makes that failure mode structurally impossible: the
+    asset changes, the URL changes, the client refetches. Assets that cannot
+    be found keep their hand-written pin (fail open, never break the page).
+    """
+    def _sub(m):
+        rel = m.group(2)
+        for candidate in (
+            os.path.join(html_dir, rel),            # html lives in static/
+            os.path.join(html_dir, "static", rel),  # html lives at repo root
+        ):
+            version = _asset_content_version(candidate)
+            if version:
+                return f"{m.group(1)}?v={version}"
+        return m.group(0)
+    return _ASSET_PIN_RE.sub(_sub, html)
+
+
 def serve_html_with_nonce(request: Request, file_path: str) -> HTMLResponse:
     """Read an app-bundled HTML page and inject the CSP nonce into inline <script> tags.
 
@@ -46,6 +92,7 @@ def serve_html_with_nonce(request: Request, file_path: str) -> HTMLResponse:
         raise HTTPException(500, "Internal server error")
     nonce = getattr(request.state, "csp_nonce", "")
     html = html.replace("{{CSP_NONCE}}", nonce)
+    html = rewrite_asset_versions(html, os.path.dirname(file_path))
     return HTMLResponse(html)
 
 
