@@ -8,7 +8,8 @@ stream-attach fixes, copy-log docking + scrollbar clearance (28 wiring tests + n
 branch). Develop's `eddd0568` was SPLIT: cookbook UI half → downloader branch; the QtWebEngine
 `JavascriptCanAccessClipboard` half → one parity commit on each of `feat/qt-native-linux-app`
 (`86e34a0d`), `-macos-` (`003f8870`), `-windows-app` (`00843237`) with a shared discovery-style
-`tests/test_wrapper_clipboard.py` (writes on, `JavascriptCanPaste` guarded off). (2) `8a680b0b`
+`tests/test_wrapper_clipboard.py` (writes on, `JavascriptCanPaste` guarded off); verified live
+2026-07-20 after app restart — copy buttons work. (2) `8a680b0b`
 (live-CDP test gating) split → `perf/editor-undo-compress` (`dea01e5a`) + `perf/agent-gc-catchup`
 (`9641791b`); both skip correctly without `ODYSSEUS_LIVE_UI_TESTS=1`. (3) Verified no-staging-needed:
 `80d9a09b` (qt-bridge tag) and `a13d0e0d` (resolve-gguf endpoint) were develop merge-damage repairs —
