@@ -3909,6 +3909,23 @@ export function _renderRunningTab() {
     }
   }
 
+  // Attach live streams to EXISTING cards too. The create-loop above skips
+  // any sessionId already in the DOM, and its auto-attach lives inside the
+  // create branch — so a card built while the Running tab was hidden (the
+  // normal case: downloads are launched from the Download tab) was skipped
+  // on every later render and froze on "Initializing…" forever while only
+  // the header badge moved. _reconnectTask self-guards against double
+  // attach, collapsed cards, and hidden tabs, so this is safe to call
+  // unconditionally per render.
+  if (_isRunningTabVisible()) {
+    for (const task of tasks) {
+      if (!task.sessionId || !['serve', 'download'].includes(task.type || '')) continue;
+      if (!['running', 'ready', 'loading', 'warming'].includes(task.status || '')) continue;
+      const _elLive = document.querySelector(`.cookbook-task[data-task-id="${CSS.escape(task.sessionId)}"]`);
+      if (_elLive) _reconnectTask(_elLive, task);
+    }
+  }
+
   if (tasks.some(t => t.status === 'running')) _startWaveSync();
 
   // Re-apply captured expansion state so re-renders don't fold open tasks/sections.
