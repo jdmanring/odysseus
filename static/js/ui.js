@@ -1207,7 +1207,17 @@ if (!window._odyEscExpandGuard) {
     // Re-entry guard: setting style.zIndex itself fires the observer that
     // calls us back. Skip if this element is already pinned to the top
     // (matches the current counter) so we don't spin into an infinite loop.
-    const cur = parseInt(getComputedStyle(m).zIndex, 10) || 0;
+    // Read the INLINE style first, falling back to computed: under
+    // `prefers-reduced-motion: reduce` the global catch-all sets
+    // transition-duration to 0.01ms while transition-property stays the
+    // default `all`, so a z-index write starts a micro-transition and the
+    // COMPUTED value stays at the stylesheet value for its duration. The
+    // observer storm runs as microtasks — document time is frozen while the
+    // queue drains — so that transition never completes, the computed read
+    // never matches the write, and the guard spins until the renderer OOMs
+    // (reproduced on macOS with system Reduce Motion enabled). The inline
+    // value reflects our own last write instantly, immune to transitions.
+    const cur = parseInt(m.style.zIndex, 10) || parseInt(getComputedStyle(m).zIndex, 10) || 0;
     if (cur === _zCounter && cur > topToolWindowZ({ exclude: m })) return;
     const z = nextToolWindowZ({
       exclude: m,
