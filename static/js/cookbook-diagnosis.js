@@ -282,6 +282,16 @@ export const ERROR_PATTERNS = [
     ],
   },
   {
+    // flashinfer JIT needs nvcc; absent toolkit kills the engine at startup.
+    // The serve runner now auto-falls-back to the torch sampler, so a plain
+    // relaunch fixes tasks started before that shipped.
+    pattern: /Could not find nvcc and default cuda_home/i,
+    message: 'No CUDA toolkit (nvcc) installed — flashinfer tried to JIT-compile its sampler. Relaunch: the runner now falls back to vLLM’s native sampler.',
+    fixes: [
+      { label: 'Relaunch', action: (panel) => _serveAutoRetry(panel, '') },
+    ],
+  },
+  {
     // Pre-startup free-memory check: on a desktop GPU the compositor, shell,
     // and this app always hold VRAM, so a fixed 0.9 utilization can exceed
     // what is actually free before vLLM even loads the model.

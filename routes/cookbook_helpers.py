@@ -1226,6 +1226,16 @@ def _diagnose_serve_output(text: str) -> dict | None:
     tail = text[-6000:]
     patterns = [
         (
+            # flashinfer JIT needs nvcc; absent toolkit kills the engine at
+            # startup. The serve runner now auto-falls-back to the torch
+            # sampler, so a plain relaunch fixes tasks started before that.
+            r"Could not find nvcc and default cuda_home",
+            "flashinfer tried to JIT-compile its sampler but no CUDA toolkit (nvcc) is installed. Relaunch: the serve runner now falls back to vLLM's native sampler automatically.",
+            [
+                {"label": "relaunch (native sampler fallback now applies)", "op": "noop"},
+            ],
+        ),
+                (
             # Pre-startup free-memory check: desktop GPUs always have the
             # compositor/shell/app holding VRAM, so a fixed 0.9 utilization
             # can exceed what is actually free before vLLM even loads.
