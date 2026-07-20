@@ -26,7 +26,7 @@ def test_dl_base_is_assigned_before_use():
 def test_launcher_builds_aria2c_command():
     """247a2a35 regression: the launch block must exist and run the script."""
     assert '"tooling" / "aria2c_download.py"' in ROUTES
-    assert "hf_cmd = f\"{_py_local} {_bash_squote(_aria2c_script)}" in ROUTES
+    assert "hf_cmd = f\"{_py_local} '{_bash_squote(_aria2c_script)}'" in ROUTES
 
 
 def test_preflight_precedes_command_build():
@@ -123,3 +123,32 @@ def test_download_card_css_exists():
     assert '.dl-card[data-dl-phase="done"]' in css, "phase visibility rules missing"
     assert ".dl-error-banner { display: none; }" in css.replace("\n", " ") or \
            ".dl-error-banner { display: none; }" in css, "banners must be hidden by default"
+
+
+def test_aria2c_success_markers_are_sentinel_only_everywhere():
+    """aria2c output contains '/snapshots/' (the launcher's "Saving to:" line)
+    and per-file "Download complete" lines from the first progress tick, so
+    those markers are ambient noise, never proof of success. Every site that
+    judges a download done must gate the loose markers on the run NOT being
+    aria2c — including tasks adopted from the server with no use_aria2c flag,
+    which is why detection goes through _isAria2cRun (payload OR output
+    fingerprint), not payload.use_aria2c alone."""
+    assert "function _isAria2cRun(task)" in RUNNING_JS
+    assert "[*] Using aria2c:" in RUNNING_JS  # output fingerprint fallback
+    # reconnect heuristic, strong-done finalizer, and self-heal guard all use it
+    assert RUNNING_JS.count("_isAria2cRun(") >= 4
+    assert "!_isAria2cRun(task) && lastOutput.includes('/snapshots/')" in RUNNING_JS
+    assert "_isAria2cRun(t)" in RUNNING_JS  # _selfHealStaleTasks skip-guard
+
+
+def test_aria2c_bash_args_are_single_quoted():
+    """_bash_squote escapes embedded quotes but does NOT wrap the value.
+    Used bare, a local-dir containing a space word-splits into bogus argv and
+    an include glob like *.gguf is expanded by bash in the tmux session cwd.
+    Every value interpolated into the bash aria2c command must be wrapped in
+    real single quotes at the call site."""
+    assert "f\"--repo '{_bash_squote(req.repo_id)}' \"" in ROUTES
+    assert "f\"'{_bash_squote(req.hf_token)}'\" if req.hf_token" in ROUTES
+    assert "f\"'{_bash_squote(req.include)}'\" if req.include" in ROUTES
+    assert "f\"'{_bash_squote(_dl_base)}'\" if _dl_base" in ROUTES
+    assert "'{_bash_squote(_aria2c_script)}'" in ROUTES
