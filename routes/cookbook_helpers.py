@@ -1217,6 +1217,17 @@ def _diagnose_serve_output(text: str) -> dict | None:
     tail = text[-6000:]
     patterns = [
         (
+            # Final KV-cache sizing gate: model + workspace loaded fine but the
+            # requested context does not fit in what remains. The error itself
+            # states the estimated maximum model length.
+            r"is larger than the available KV cache memory",
+            "Model loaded, but the requested context length does not fit in the remaining VRAM. The log states the estimated maximum model length - relaunch at or below it.",
+            [
+                {"label": "retry with context 16384", "op": "replace", "flag": "--max-model-len", "value": "16384"},
+                {"label": "retry with context 8192", "op": "replace", "flag": "--max-model-len", "value": "8192"},
+            ],
+        ),
+                (
             # flashinfer JIT needs nvcc; absent toolkit kills the engine at
             # startup. The serve runner now auto-falls-back to the torch
             # sampler, so a plain relaunch fixes tasks started before that.

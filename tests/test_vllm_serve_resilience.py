@@ -47,3 +47,15 @@ def test_vllm_serve_runner_falls_back_to_native_sampler_without_nvcc():
     block = SRC[idx : idx + 2500]
     assert "VLLM_USE_FLASHINFER_SAMPLER=0" in block
     assert "/opt/cuda" in block, "Arch-family CUDA_HOME probe missing"
+
+
+def test_serve_diagnosis_covers_kv_cache_context_ceiling():
+    from routes.cookbook_helpers import _diagnose_serve_output
+    err = ("ValueError: To serve at least one request with the model's max seq len (40960), "
+           "(5.62 GiB KV cache is needed, which is larger than the available KV cache memory (3.06 GiB).")
+    d = _diagnose_serve_output(err)
+    assert d and "context" in d["message"]
+    assert any(s.get("flag") == "--max-model-len" for s in d["suggestions"])
+    assert "is larger than the available KV cache memory" in SRC
+    js = (_ROOT / "static" / "js" / "cookbook-diagnosis.js").read_text()
+    assert "is larger than the available KV cache memory" in js
