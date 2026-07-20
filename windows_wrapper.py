@@ -328,6 +328,39 @@ def _cdp_call(method, params=None):
 # (the RSS analogue) and PeakWorkingSetSize (the VmPeak analogue) per pid, and
 # GlobalMemoryStatusEx gives system totals. All readable in-process via ctypes.
 
+# Purge reasons driven by genuine memory pressure. These bypass the busy-page
+# gate below: when the host is nearly out of memory, a possible renderer crash
+# (which auto-reloads) beats a host OOM kill (which takes the whole app down).
+_PURGE_PRESSURE_REASONS = frozenset({'psi-critical', 'low-memory', 'node-threshold'})
+
+# Busy-page probe: input-idle is NOT page-idle. The renderer segfaulted three
+# times on 2026-07-19 (exit=11), each immediately after a forcible purge fired
+# while a model download was repainting the cookbook card — no mouse/keyboard
+# input, so every idle timer considered the page quiescent. Ask the page itself:
+# cookbookRunning.js persists its task list in localStorage ('cookbook-tasks'),
+# so an active download or a serve that is still starting up is visible here
+# without any new JS-side wiring.
+_BUSY_TASKS_JS = (
+    "(()=>{try{const t=JSON.parse(localStorage.getItem('cookbook-tasks'))||[];"
+    "return t.some(x=>x&&((x.type==='download'&&(x.status==='running'||x.status==='queued'))"
+    "||(x.type==='serve'&&x.status==='running')))}catch(e){return false}})()"
+)
+
+
+def _renderer_busy():
+    """True when the page reports an active download/starting serve.
+
+    Runs on the CDP executor thread (socket I/O). Fails open (False) so a CDP
+    hiccup can never permanently disable memory reclaim.
+    """
+    res = _cdp_call('Runtime.evaluate',
+                    {'expression': _BUSY_TASKS_JS, 'returnByValue': True})
+    try:
+        return bool(res['result']['value'])
+    except (TypeError, KeyError):
+        return False
+
+
 class _MEMORYSTATUSEX(ctypes.Structure):
     _fields_ = [
         ("dwLength", ctypes.c_uint32),
@@ -979,6 +1012,11 @@ class OdysseusWindow(QMainWindow):
         self._last_purge = now
 
         def _do():
+            if reason not in _PURGE_PRESSURE_REASONS and _renderer_busy():
+                print(f'[MEM] forcible purge ({reason}): skipped_busy '
+                      f'(active download/serve — purging a busy renderer segfaults it)',
+                      flush=True)
+                return
             res = _cdp_call('Memory.forciblyPurgeJavaScriptMemory')
             after = self._renderer_rss_kb()
             print(
