@@ -98,3 +98,28 @@ def test_response_reports_actual_path():
     assert '"use_aria2c": bool(req.use_aria2c and not is_ollama_download)' in ROUTES
     assert "payload.use_aria2c = !!data.use_aria2c" in DOWNLOAD_JS
     assert "use_aria2c: !!data.use_aria2c" in RUNNING_JS
+
+
+def test_empty_token_never_reaches_hf_api():
+    """An empty --token '' produced a literal "Authorization: Bearer " header
+    ("Illegal header value"), silently degrading resolution to the unauthenticated
+    raw-API fallback. Both the launcher and the resolver must coerce '' to None."""
+    from tooling.hf_url_resolver import HfUrlResolver
+    assert HfUrlResolver(token="").api.token is None
+    launcher = (REPO / "tooling" / "aria2c_download.py").read_text(encoding="utf-8")
+    assert "HfUrlResolver(token=args.token or None)" in launcher
+
+
+def test_download_card_css_exists():
+    """4f962b55 ("css render performance pass") deleted the entire download-card
+    stylesheet: with no [data-dl-phase] visibility rules, the card rendered the
+    "Download complete" AND "Download failed" banners simultaneously while a
+    download was still running. Every dl-card class the JS template emits must
+    have a stylesheet rule, and the phase gate must exist."""
+    css = (REPO / "static" / "style.css").read_text(encoding="utf-8")
+    for cls in (".dl-card", ".dl-done-banner", ".dl-error-banner",
+                ".dl-phase-progress", ".dl-file-row", ".dl-action-btn"):
+        assert cls in css, f"{cls} missing from style.css"
+    assert '.dl-card[data-dl-phase="done"]' in css, "phase visibility rules missing"
+    assert ".dl-error-banner { display: none; }" in css.replace("\n", " ") or \
+           ".dl-error-banner { display: none; }" in css, "banners must be hidden by default"
