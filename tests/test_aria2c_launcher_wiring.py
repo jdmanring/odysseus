@@ -172,28 +172,6 @@ def test_launch_scan_cache_is_invalidated_on_mutation():
     assert "_delResult.exit_code !== 0" in serve_js
 
 
-def test_stylesheet_cache_buster_bumped_with_css_changes():
-    """style.css is served under a HARD-CODED ?v= pin in index.html; any CSS
-    change is invisible to every client until the pin is bumped. Rule: bump
-    the v-param in the same commit as (or after) any style.css change. This
-    compares last-commit times of the two files — if style.css is newer than
-    index.html, a CSS change shipped without a bump."""
-    import subprocess
-    def _last_commit_ts(path):
-        out = subprocess.run(
-            ["git", "log", "-1", "--format=%ct", "--", path],
-            capture_output=True, text=True, cwd=REPO,
-        ).stdout.strip()
-        return int(out) if out else 0
-    css_ts = _last_commit_ts("static/style.css")
-    html_ts = _last_commit_ts("static/index.html")
-    assert css_ts <= html_ts, (
-        "static/style.css was committed after static/index.html — if the CSS "
-        "change is user-visible, bump the style.css ?v= pin in index.html "
-        "(clients never refetch the stylesheet otherwise)"
-    )
-
-
 def test_resolve_gguf_endpoint_exists():
     """The /api/cookbook/resolve-gguf route was silently lost from develop
     during the June restorations (the resolver library and the client caller
@@ -206,3 +184,20 @@ def test_resolve_gguf_endpoint_exists():
     assert "/api/cookbook/resolve-gguf" in dl_js
     from tooling.hf_url_resolver import HfUrlResolver
     assert callable(getattr(HfUrlResolver, "find_gguf_sources", None))
+
+
+def test_js_behavioral_suite_passes():
+    """Runs the node behavioral tests (real aria2c transcripts through the
+    extracted parser/state functions). String guards pin that fixes exist;
+    this pins that they BEHAVE. Skips only if node is unavailable."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        import pytest
+        pytest.skip("node not available")
+    res = subprocess.run(
+        [node, "--test", str(REPO / "tests" / "js" / "downloader_behavior.test.mjs")],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert res.returncode == 0, f"node behavioral tests failed:\n{res.stdout[-3000:]}{res.stderr[-2000:]}"

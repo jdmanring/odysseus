@@ -4854,6 +4854,20 @@ export async function _selfHealStaleTasks(opts = {}) {
   }
 }
 
+// Pure decision: may the background monitor shut itself down?
+// `serverTasks` is the server's view, which LAGS at launch — the first poll
+// fires in the same tick as the download POST, before the server has
+// registered the session. Stopping on that empty response killed the monitor
+// for good and a freshly started download sat at "Initializing" forever
+// (nothing restarts the monitor until the Cookbook tab is reopened). So a
+// stop requires BOTH views idle: no active/error/completed server task AND
+// no live task in localStorage.
+export function _shouldStopBackgroundMonitor(serverTasks, localHasLive) {
+  const serverBusy = (serverTasks || []).some(t =>
+    t && ['running', 'ready', 'error', 'completed'].includes(t.status));
+  return !serverBusy && !localHasLive;
+}
+
 export function _startBackgroundMonitor() {
   if (_bgMonitorInterval) return;
   _bgMonitorInterval = setInterval(() => {
@@ -5161,13 +5175,7 @@ async function _pollBackgroundStatus() {
       _showCookbookNotif(false);
     } else {
       _clearCookbookNotif();
-      // Stop only when the LOCAL task list is also idle. `tasks` here is the
-      // server's view, which lags at launch: the first poll fires in the same
-      // tick as the download POST, the server hasn't registered the session
-      // yet, and stopping on that empty response killed the monitor for good
-      // — a freshly started download then sat at "Initializing" forever
-      // (nothing restarts the monitor until the Cookbook tab is reopened).
-      if (!_hasLiveTasks()) _stopBackgroundMonitor();
+      if (_shouldStopBackgroundMonitor(tasks, _hasLiveTasks())) _stopBackgroundMonitor();
     }
 
     if (statusEl) {
