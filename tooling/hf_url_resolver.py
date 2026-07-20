@@ -189,6 +189,7 @@ class HfUrlResolver:
     # Preferred quant order for general use. When the exact requested quant
     # isn't available, the first match in this list becomes the fallback.
     _QUANT_PRIORITY = [
+        "UD-Q4_K_XL",  # Unsloth Dynamic 2.0 — per-layer bit allocation, best 4-bit tier when published
         "IQ4_XS",   # imatrix Q4 — better perplexity than Q4_K_M at same or smaller size
         "IQ4_NL",   # imatrix Q4 variant
         "Q4_K_M",   # community standard; best pick when imatrix not available
@@ -200,6 +201,8 @@ class HfUrlResolver:
         "Q3_K_L",
         "Q3_K_M",
         "IQ3_S",
+        "UD-Q6_K_XL",  # Unsloth Dynamic 6-bit — best 6-bit tier when published
+        "Q6_K_L",      # bartowski: embeddings/output at Q8_0 — beats plain Q6_K for ~2% size
         "Q6_K",
         "Q8_0",
         "IQ2_M",
