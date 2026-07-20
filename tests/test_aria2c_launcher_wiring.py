@@ -262,3 +262,14 @@ def test_auth_pill_renders_unknown_instead_of_nothing():
     fn = fn[:fn.index("\nfunction ")]
     assert "return '';" not in fn, "empty-auth path renders nothing again"
     assert "auth ?" in fn
+
+
+def test_launch_response_carries_authoritative_hf_auth():
+    # The token is usually attached server-side from stored settings; the
+    # client cannot answer "did this download authorize?" from its own
+    # payload. The launch response must say so, and the client must persist
+    # it into the pill's fallback field.
+    server = (Path(__file__).parent.parent / "routes" / "cookbook_routes.py").read_text()
+    assert '"hf_auth": bool(req.hf_token)' in server
+    client = (Path(__file__).parent.parent / "static" / "js" / "cookbookDownload.js").read_text()
+    assert "payload.hf_token_used = !!data.hf_auth" in client

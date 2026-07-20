@@ -755,6 +755,12 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
     // The server reports which download path actually ran (aria2c vs hf) after
     // its pre-flight fallback; store it so the badge parser matches the output.
     payload.use_aria2c = !!data.use_aria2c;
+    // Authoritative auth answer from the server — the token is usually
+    // attached server-side from stored settings, so the client payload alone
+    // can't answer "did this download authorize?". Feeds the card's auth pill.
+    if ('hf_auth' in data) {
+      payload.hf_token_used = !!data.hf_auth;
+    }
     _addTask(data.session_id, taskName, 'download', payload);
     uiModule.showToast(`Downloading ${taskName}...`);
   } catch (e) {
