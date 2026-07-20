@@ -355,8 +355,10 @@ def test_optimize_for_size_flag_set():
     assert "--optimize-for-size" in _SRC
 
 
-def test_minor_mc_flag_set():
-    assert "--minor-mc" in _SRC
+def test_minor_ms_flag_set():
+    # Renamed from --minor-mc in Qt 6.11's V8; the old name is rejected and dropped.
+    assert "--minor-ms" in _SRC
+    assert "--minor-mc" not in _SRC
 
 
 def test_renderer_process_limit_set():
