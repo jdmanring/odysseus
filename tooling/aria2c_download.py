@@ -113,6 +113,50 @@ def main() -> None:
         lock_path.unlink(missing_ok=True)
 
 
+# Reroute quant preference: Q6-tier first (below Q6 "lies more often and is
+# confident in its hallucinations" — the user's floor), then the resolver's
+# own preferred file as fallback.
+_REROUTE_QUANT_TIERS = ("UD-Q6_K_XL", "Q6_K_L", "Q6_K", "Q8_0")
+
+
+def _content_accessible(url: str, token: Optional[str]) -> bool:
+    """1-byte range probe: can this token actually fetch repo CONTENT?
+
+    Gated repos expose their file list publicly, so resolution succeeds and
+    every fetch 401s — detect that BEFORE burning an aria2c run. On network
+    errors returns True: never reroute on uncertainty.
+    """
+    import requests
+    try:
+        headers = {"Range": "bytes=0-0"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        r = requests.get(url, headers=headers, timeout=10, allow_redirects=True, stream=True)
+        ok = r.status_code < 400
+        r.close()
+        return ok
+    except Exception:
+        return True
+
+
+def _pick_reroute_source(resolver, repo_id: str):
+    """Best accessible GGUF quantization of repo_id, Q6-tier preferred.
+
+    Returns (repo, filename) or (None, None). Uses find_gguf_sources — the
+    #148 relatedness filter guarantees every candidate is a genuine
+    quantization of repo_id, never a lookalike.
+    """
+    for src in resolver.find_gguf_sources(repo_id):
+        files = src.get("files") or []
+        for tier in _REROUTE_QUANT_TIERS:
+            for f in files:
+                if tier.lower() in f.lower():
+                    return src["repo"], f
+        if src.get("preferred_file"):
+            return src["repo"], src["preferred_file"]
+    return None, None
+
+
 def _main(args) -> None:
     # 1. Get aria2c binary
     aria2c = get_aria2c()
@@ -148,6 +192,42 @@ def _main(args) -> None:
         print(f"[*] Total size: {total_bytes} bytes")
     if commit and commit != "main":
         print(f"[*] Commit: {commit[:12]}")
+
+    # 2b. Gated-repo pre-flight + reroute. A gated repo resolves fine (its file
+    # list is public) but 401s every content fetch. Probe the largest file with
+    # this token; if refused, route to the best community GGUF quantization of
+    # the SAME model (provenance-verified by the #148 relatedness filter) at a
+    # Q6-tier quant — loudly, in the log, never silently.
+    probe_url = max(urls, key=lambda u: u[2] or 0)[0]
+    if not _content_accessible(probe_url, args.token or None):
+        print(f"[!] {args.repo} refused content access with this token (gated repo).")
+        print(f"[!] To use the original: accept the license at https://huggingface.co/{args.repo}")
+        print(f"[*] Routing around the gate: searching for a community quantization...")
+        alt_repo, alt_file = _pick_reroute_source(resolver, args.repo)
+        if alt_repo:
+            print(f"[*] REROUTED: {args.repo} -> {alt_repo} ({alt_file})")
+            args.repo = alt_repo
+            args.include = alt_file
+            try:
+                urls, commit = resolver.resolve_snapshot_urls(args.repo, include=args.include)
+            except Exception as e:
+                print(f"[!] Failed to list files for reroute target: {e}")
+                sys.exit(1)
+            if not urls:
+                print("[!] Reroute target matched no files — aborting.")
+                sys.exit(1)
+            total_bytes = sum(size for _, _, size in urls)
+            print(f"[*] {len(urls)} file(s) to download.")
+            if total_bytes > 0:
+                print(f"[*] Total size: {total_bytes} bytes")
+        else:
+            print(f"[!] No accessible GGUF quantization of {args.repo} found.")
+            alts = resolver.find_community_quants(args.repo)
+            if alts:
+                print(f"[!] Non-GGUF ungated alternatives you can fetch manually:")
+                for a in alts:
+                    print(f"[!]   - {a['id']}  ({a['downloads']:,} downloads)")
+            sys.exit(1)
 
     # 3. Determine destination directory using the standard HF hub cache layout.
     # snapshot_download(repo_id) will find files here without re-downloading.
