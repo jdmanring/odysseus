@@ -152,3 +152,43 @@ def test_aria2c_bash_args_are_single_quoted():
     assert "f\"'{_bash_squote(req.include)}'\" if req.include" in ROUTES
     assert "f\"'{_bash_squote(_dl_base)}'\" if _dl_base" in ROUTES
     assert "'{_bash_squote(_aria2c_script)}'" in ROUTES
+
+
+def test_launch_scan_cache_is_invalidated_on_mutation():
+    """The Launch list renders from a localStorage scan snapshot with a 6-hour
+    TTL. Without invalidation on mutation, a deleted model stayed listed and a
+    completed download never appeared (verified live: 49-min-old snapshot
+    holding only a deleted model while two real models sat on disk). The
+    invalidator must exist and be wired to delete-success and to every
+    download-completion site."""
+    serve_js = (REPO / "static" / "js" / "cookbookServe.js").read_text(encoding="utf-8")
+    assert "export function _invalidateCachedModelScan()" in serve_js
+    # delete path: invalidate + fresh refetch (not another cached render)
+    assert serve_js.count("_invalidateCachedModelScan()") >= 2
+    assert "await _fetchCachedModels(true);" in serve_js
+    # every download-done site in the running-tab module drops the snapshot
+    assert RUNNING_JS.count("_invalidateCachedModelScan?.()") >= 3
+    # delete must judge the command's exit_code, not the HTTP status
+    assert "_delResult.exit_code !== 0" in serve_js
+
+
+def test_stylesheet_cache_buster_bumped_with_css_changes():
+    """style.css is served under a HARD-CODED ?v= pin in index.html; any CSS
+    change is invisible to every client until the pin is bumped. Rule: bump
+    the v-param in the same commit as (or after) any style.css change. This
+    compares last-commit times of the two files — if style.css is newer than
+    index.html, a CSS change shipped without a bump."""
+    import subprocess
+    def _last_commit_ts(path):
+        out = subprocess.run(
+            ["git", "log", "-1", "--format=%ct", "--", path],
+            capture_output=True, text=True, cwd=REPO,
+        ).stdout.strip()
+        return int(out) if out else 0
+    css_ts = _last_commit_ts("static/style.css")
+    html_ts = _last_commit_ts("static/index.html")
+    assert css_ts <= html_ts, (
+        "static/style.css was committed after static/index.html — if the CSS "
+        "change is user-visible, bump the style.css ?v= pin in index.html "
+        "(clients never refetch the stylesheet otherwise)"
+    )
