@@ -132,3 +132,50 @@ def test_find_gguf_sources_returns_empty_when_nothing_qualifies():
             _fake_model("mradermacher/Qwen3-MOE-FreakStorm-12B-i1-GGUF")]
         out = r.find_gguf_sources("tiny-random/qwen3-next-moe")
     assert out == []
+
+
+class TestFindCommunityQuants:
+    """find_community_quants: provenance-filtered, ungated-only, best-effort."""
+
+    def _resolver(self):
+        from tooling.hf_url_resolver import HfUrlResolver
+        return HfUrlResolver()
+
+    def _rows(self):
+        return [
+            {"id": "vendor/Model-FP8", "downloads": 500, "gated": None},
+            {"id": "gated/Model-GGUF", "downloads": 400, "gated": "auto"},
+            {"id": "bartowski/Model-GGUF", "downloads": 300, "gated": False},
+            {"id": "noname/Model-w4a16", "downloads": None, "gated": None},
+        ]
+
+    def test_drops_gated_and_orders_by_api(self, monkeypatch):
+        r = self._resolver()
+        rows = self._rows()
+
+        class _Resp:
+            def raise_for_status(self): pass
+            def json(self): return rows
+        monkeypatch.setattr("tooling.hf_url_resolver.requests.get", lambda *a, **k: _Resp())
+        out = r.find_community_quants("meta-llama/X")
+        assert [o["id"] for o in out] == ["vendor/Model-FP8", "bartowski/Model-GGUF", "noname/Model-w4a16"]
+        assert out[2]["downloads"] == 0  # None coerced, no crash
+
+    def test_network_failure_returns_empty(self, monkeypatch):
+        r = self._resolver()
+        def _boom(*a, **k): raise OSError("no network")
+        monkeypatch.setattr("tooling.hf_url_resolver.requests.get", _boom)
+        assert r.find_community_quants("meta-llama/X") == []
+
+    def test_uses_provenance_filter_not_name_match(self, monkeypatch):
+        r = self._resolver()
+        seen = {}
+        class _Resp:
+            def raise_for_status(self): pass
+            def json(self): return []
+        def _get(url, params=None, **k):
+            seen.update(params or {})
+            return _Resp()
+        monkeypatch.setattr("tooling.hf_url_resolver.requests.get", _get)
+        r.find_community_quants("meta-llama/X")
+        assert seen.get("filter") == "base_model:quantized:meta-llama/X"
