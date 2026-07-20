@@ -4183,15 +4183,27 @@ def setup_cookbook_routes() -> APIRouter:
         import subprocess
 
         def _pick_download_progress(lines: list[str]) -> str:
-            """Pick the most useful live HF progress line from a tmux pane."""
+            """Pick the most useful live HF progress line from a tmux pane.
+
+            Never return log noise: aria2c's redirect NOTICEs carry 2-3 KB
+            signed URLs (joined into one line by capture-pane -J), and the
+            lines[-1] fallback was putting them straight into the card header.
+            """
             if not lines:
                 return ""
+            noise = lambda l: "http" in l or "[NOTICE]" in l or "[WARN]" in l or len(l) > 160
             downloading_lines = [l for l in lines if l.startswith("Downloading")]
             if downloading_lines:
                 return downloading_lines[-1]
+            # aria2c compact progress ("[DL:12MiB][#gid 1.2GiB/4.6GiB(26%)]...")
+            # is the freshest state while a download runs.
+            aria_lines = [l for l in lines if l.startswith("[DL:") or l.startswith("[#")]
+            if aria_lines:
+                return aria_lines[-1]
             progress_lines = [
                 l for l in lines
                 if re.search(r"\b(?:100|[1-9]?\d)%", l)
+                and not noise(l)
                 and (
                     "<" in l
                     or "it/s" in l
@@ -4202,7 +4214,8 @@ def setup_cookbook_routes() -> APIRouter:
             ]
             if progress_lines:
                 return progress_lines[-1]
-            return lines[-1]
+            clean = [l for l in lines if not noise(l)]
+            return clean[-1] if clean else ""
 
         def _download_cache_complete(repo_id: str, remote_host: str = "", ssh_port: str = "", cache_root: str = "") -> bool:
             """Best-effort check for a completed HF cache entry.

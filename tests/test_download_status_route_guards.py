@@ -44,6 +44,33 @@ def test_generic_has_error_skips_live_downloads():
     ), "generic has_error must not classify a live download"
 
 
+def _load_pick_download_progress():
+    m = re.search(
+        r"def _pick_download_progress.*?return clean\[-1\] if clean else \"\"", SRC, re.S
+    )
+    assert m, "_pick_download_progress not found or its shape changed"
+    ns = {}
+    exec("import re\n" + re.sub(r"^        ", "", m.group(0), flags=re.M), ns)
+    return ns["_pick_download_progress"]
+
+
+def test_progress_picker_never_returns_url_noise():
+    # With capture-pane -J, redirect NOTICEs are single 2-3 KB lines; the old
+    # lines[-1] fallback put one straight into the card header.
+    pick = _load_pick_download_progress()
+    notice = "07/20 04:47:36 [NOTICE] CUID#28 - Redirecting to https://us.aws.cdn.hf.co/" + "x" * 2000
+    assert pick([notice, notice]) == ""
+    assert "http" not in pick(["some line", notice])
+
+
+def test_progress_picker_prefers_aria2c_compact_line():
+    pick = _load_pick_download_progress()
+    compact = "[DL:42MiB][#362407 3.0GiB/4.6GiB(66%)][#302381 3.1GiB/4.1GiB(74%)]"
+    notice = "07/20 [NOTICE] Redirecting to https://cdn/" + "x" * 300
+    assert pick([compact, notice]) == compact
+    assert pick(["FILE: /a/b/model-00001-of-00002.safetensors", compact]) == compact
+
+
 def test_secret_scrub_preserves_auth_marker():
     assert "hf_token_used" in SRC, "server scrub must keep the non-secret auth marker"
     js = (Path(__file__).parent.parent / "static" / "js" / "cookbookRunning.js").read_text()
