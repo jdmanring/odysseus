@@ -22,3 +22,55 @@ def test_wrapper_uses_no_access_log(wrapper):
         pytest.skip(f"{wrapper} does not launch uvicorn")
     assert '"--no-access-log"' in src, f"{wrapper} must pass --no-access-log"
     assert '"--access-log"' not in src, f"{wrapper} still passes the bare --access-log"
+
+
+def test_windows_wrapper_spawns_server_without_console():
+    """Under pythonw the wrapper has no console; without CREATE_NO_WINDOW the
+    console-subsystem python.exe server child pops its own console window."""
+    path = _ROOT / "windows_wrapper.py"
+    if not path.is_file():
+        pytest.skip("windows_wrapper.py not present")
+    src = path.read_text(encoding="utf-8")
+    assert "subprocess.CREATE_NO_WINDOW" in src, (
+        "windows_wrapper.py must spawn the server with CREATE_NO_WINDOW"
+    )
+
+
+def test_windows_wrapper_all_subprocesses_are_console_less():
+    """Every subprocess spawn in windows_wrapper.py must pass creationflags
+    (CREATE_NO_WINDOW): the 60s tasklist memory poll without it flashed a
+    console window over the app once a minute under pythonw."""
+    import ast
+    path = _ROOT / "windows_wrapper.py"
+    if not path.is_file():
+        pytest.skip("windows_wrapper.py not present")
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    offenders = []
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "subprocess"
+                and node.func.attr in ("run", "Popen", "call", "check_output")):
+            if not any(k.arg == "creationflags" for k in node.keywords):
+                offenders.append(f"line {node.lineno}: subprocess.{node.func.attr}")
+    assert not offenders, f"subprocess calls without creationflags: {offenders}"
+
+
+@pytest.mark.parametrize("wrapper", _WRAPPERS)
+def test_wrapper_has_single_instance_guard(wrapper):
+    """Every wrapper runs kill_zombies() before start_server(), so a second
+    launch would kill the first instance's server out from under its window.
+    The QLocalServer singleton probe must exist AND run before kill_zombies(),
+    or the rival instance does its damage before discovering it should exit."""
+    src = (_ROOT / wrapper).read_text(encoding="utf-8")
+    if "kill_zombies" not in src:
+        pytest.skip(f"{wrapper} has no zombie-kill launch path")
+    assert "QLocalServer" in src and "_SINGLETON" in src, (
+        f"{wrapper} lost its single-instance guard"
+    )
+    probe = src.index("_probe.connectToServer(_SINGLETON)")
+    launch_kill = src.rindex("\n    kill_zombies()")
+    assert probe < launch_kill, (
+        f"{wrapper}: singleton probe must run BEFORE kill_zombies() in main"
+    )
