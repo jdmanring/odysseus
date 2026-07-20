@@ -1,0 +1,17 @@
+[*] Using aria2c: /home/james/.cookbook/bin/aria2c
+[*] Resolving file list for Qwen/Qwen3-8B-FP8...
+[*] HF auth: token provided
+[*] 12 file(s) to download.
+[*] Total size: 9414074514 bytes
+[*] Commit: 220b46e3b218
+[*] Saving to: /home/james/.cache/huggingface/hub/models--Qwen--Qwen3-8B-FP8/snapshots/220b46e3b2180893580a4454f21f22d3ebb187d3
+[*] Downloading 12 file(s) (4 in parallel)...
+FILE: /home/james/.cache/huggingface/hub/models--Qwen--Qwen3-8B-FP8/snapshots/220b46e3b2180893580a4454f21f22d3ebb187d3/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#d48f1e 1.5GiB/4.1GiB(37%) CN:2 DL:21MiB ETA:2m2s]
+FILE: /home/james/.cache/huggingface/hub/models--Qwen--Qwen3-8B-FP8/snapshots/220b46e3b2180893580a4454f21f22d3ebb187d3/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+07/19 23:12:40 [ERROR] CUID#12 - Download aborted. URI=https://cas-bridge.xethub.hf.co/xet-bridge-us/blob
+Exception: [AbstractCommand.cc:351] errorCode=1 URI=https://cas-bridge.xethub.hf.co/xet-bridge-us/blob
+  -> [RequestGroup.cc:761] errorCode=1 Download aborted.
+  -> [HttpSkipResponseCommand.cc:239] errorCode=1 The response status is not successful. status=403
