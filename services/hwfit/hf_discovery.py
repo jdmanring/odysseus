@@ -302,6 +302,42 @@ def fetch_collection_models(source, timeout=20, max_pages=20):
     return rows
 
 
+def _fetch_architecture(repo_id, timeout=10):
+    """First architecture from a repo's config, via the models API.
+
+    One small request per model, and only for repos whose architecture is not
+    already cached — the collections listing does not carry architectures, and
+    without them the fit scan rated unservable research checkpoints PERFECT
+    (issue #150). Returns "" on any failure: absence of evidence must never
+    block a listing, it just leaves the servability check inert for that row.
+    """
+    url = "https://huggingface.co/api/models/" + urllib.parse.quote(repo_id) + "?expand[]=config"
+    req = urllib.request.Request(url, headers={"User-Agent": "odysseus-hwfit/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            payload = json.load(resp)
+        archs = ((payload or {}).get("config") or {}).get("architectures") or []
+        return str(archs[0]) if archs else ""
+    except Exception:
+        return ""
+
+
+def _hydrate_architectures(rows, cached_rows):
+    """Fill entry['architecture'] from the previous cache or one API fetch."""
+    known = {
+        r.get("name"): r.get("architecture")
+        for r in cached_rows or []
+        if isinstance(r, dict) and r.get("architecture")
+    }
+    for row in rows:
+        if row.get("architecture"):
+            continue
+        arch = known.get(row.get("name")) or _fetch_architecture(row["name"])
+        if arch:
+            row["architecture"] = arch
+    return rows
+
+
 def _load_cache(path):
     try:
         with path.open(encoding="utf-8") as f:
@@ -369,6 +405,7 @@ def refresh_hf_collection_models_cache(force=False):
         reverse=True,
     )
     if rows:
+        _hydrate_architectures(rows, load_cached_hf_collection_models())
         _write_cache(HF_COLLECTION_MODELS_CACHE, "https://huggingface.co/collections", rows)
         return rows
     return load_cached_hf_collection_models()
