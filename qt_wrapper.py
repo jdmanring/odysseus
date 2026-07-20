@@ -145,7 +145,7 @@ from PyQt6.QtWebEngineCore import (
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QColor
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -153,6 +153,29 @@ VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "bin", "python")
 PORT = os.environ.get("APP_PORT", "7000")
 WINDOW_TITLE = "Odysseus"
 PROFILE_NAME = "odysseus"
+
+
+def _theme_bg_color() -> QColor:
+    """Read the saved theme background from data/user_prefs.json.
+
+    setBackgroundColor() sets the QWebEnginePage compositor base-background
+    colour, what shows in any brief gap before content paints. Hardcoding
+    #282c34 (the default theme) would flash lighter than the actual background
+    on a custom dark theme (e.g. Catppuccin #1e1e2e); reading the persisted bg
+    at startup keeps the base colour in sync with the user's real theme.
+    """
+    try:
+        prefs_path = os.path.join(INSTALL_DIR, 'data', 'user_prefs.json')
+        with open(prefs_path, encoding='utf-8') as f:
+            prefs = json.load(f)
+        for user_data in prefs.get('_users', {}).values():
+            bg = user_data.get('theme', {}).get('colors', {}).get('bg', '')
+            if bg and bg.startswith('#') and len(bg) == 7:
+                r, g, b = int(bg[1:3], 16), int(bg[3:5], 16), int(bg[5:7], 16)
+                return QColor(r, g, b)
+    except Exception:
+        pass
+    return QColor(0x28, 0x2c, 0x34)  # default Odysseus dark theme
 DATA_DIR = os.path.expanduser("~/.local/share/odysseus/webengine")
 CACHE_DIR = os.path.expanduser("~/.cache/odysseus/webengine")
 
@@ -438,6 +461,10 @@ except ValueError:
 # detection-core/output-adapter split). This file is the output adapter: it drains
 # qt_psi.psi_event_pending on the Qt main thread and turns each event into an action.
 import qt_psi
+# Renderer-hang detection core (issue #137). Same split as qt_psi: the Qt-free
+# bookkeeping lives in qt_watchdog.py so it is unit-testable under the server
+# venv's stub PyQt6; this file only wires pings/pongs and performs the recovery.
+import qt_watchdog
 
 # Log the selected profile once (diagnosable; notes when an env var overrode it).
 _profile_overridden = bool(
@@ -828,7 +855,69 @@ class OdysseusWindow(QMainWindow):
         self._idle_reclaim_timer.timeout.connect(self._maybe_idle_purge)
         self._idle_reclaim_timer.start()
 
+        # Renderer hang watchdog (issue #137). A deadlocked renderer main thread
+        # (observed live: pthread_cond_wait inside libQt6WebEngineCore, zero JS
+        # execution contexts, hover still painting via the GPU compositor) never
+        # dies, so renderProcessTerminated stays silent and the app looks
+        # "partially frozen" until the user kills it. Probe liveness with a
+        # runJavaScript ping: its callback is serviced by the renderer main
+        # thread, so a wedged main thread never answers. After enough
+        # consecutive unanswered pings (thresholds in qt_watchdog), recover with
+        # a browser-process-side CDP Page.reload — the same call that recovered
+        # the live incident; it needs no cooperation from the wedged renderer.
+        # If CDP itself fails, fall back to WebAction.Reload on the next tick
+        # (main thread — triggerAction must not be called from the executor).
+        self._hang_detector = qt_watchdog.HangDetector()
+        self._hang_cdp_failed = [False]
+        page.loadFinished.connect(
+            lambda _ok: self._hang_detector.on_pong())
+
+        def _hang_recover_cdp():
+            res = _cdp_call('Page.reload')
+            print(
+                f'[HANG] CDP Page.reload {"ok" if res is not None else "FAILED"}',
+                flush=True,
+            )
+            if res is None:
+                self._hang_cdp_failed[0] = True
+
+        def _hang_tick():
+            if page.renderProcessPid() is None:
+                # Renderer dead or respawning: the renderProcessTerminated
+                # handler owns that path; judging silence here would double-fire.
+                return
+            if self._hang_cdp_failed[0]:
+                self._hang_cdp_failed[0] = False
+                print('[HANG] CDP reload failed, falling back to '
+                      'WebAction.Reload', flush=True)
+                page.triggerAction(QWebEnginePage.WebAction.Reload)
+                return
+            if self._hang_detector.should_recover():
+                # Read the silence BEFORE record_recovery() — it resets the
+                # pong clock, so reading it after always logs 0s.
+                _silence = self._hang_detector.silence_s()
+                self._hang_detector.record_recovery()
+                print(
+                    f'[HANG] renderer pid={page.renderProcessPid()} '
+                    f'unresponsive {_silence:.0f}s '
+                    f'({qt_watchdog.MIN_MISSED_PINGS}+ pings unanswered), '
+                    f'forcing Page.reload', flush=True,
+                )
+                _cdp_executor.submit(_hang_recover_cdp)
+                return
+            self._hang_detector.on_ping_sent()
+            page.runJavaScript('1', lambda _r: self._hang_detector.on_pong())
+
+        self._hang_timer = QTimer(self)
+        self._hang_timer.setInterval(int(qt_watchdog.PING_INTERVAL_S * 1000))
+        self._hang_timer.timeout.connect(_hang_tick)
+        self._hang_timer.start()
+
         self.browser.setPage(page)
+        # Set compositor base-background-colour AFTER setPage() so it is not
+        # discarded during page initialisation. Shows in any brief pre-paint
+        # gap; must match --bg so there is no flash of a lighter base colour.
+        page.setBackgroundColor(_theme_bg_color())
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)

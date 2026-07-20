@@ -239,11 +239,20 @@ function wireHandlers(p) {
         let hex = null;
         if (window.qtBridge) {
           hex = await new Promise((resolve, reject) => {
+            let inPage = null;
             const handler = (h) => {
               window.qtBridge.colorPicked.disconnect(handler);
+              if (inPage) window.qtBridge.eyedropperInPage.disconnect(inPage);
               h ? resolve(h) : reject(new Error('cancelled'));
             };
             window.qtBridge.colorPicked.connect(handler);
+            // Software-render machines (no GPU — VMs): the wrapper refuses OS
+            // screen sampling (it kills WindowServer via SkyLight's software
+            // capture path) and asks the page to sample itself instead.
+            if (window.qtBridge.eyedropperInPage && window.qtBridge.samplePagePixel) {
+              inPage = () => beginInPageSample();
+              window.qtBridge.eyedropperInPage.connect(inPage);
+            }
             window.qtBridge.openColorPicker();
           });
         } else if (window.EyeDropper) {
@@ -267,6 +276,25 @@ function wireHandlers(p) {
     eye.style.opacity = '0.3';
     eye.title = 'Eyedropper not supported in this browser';
   }
+}
+
+function beginInPageSample() {
+  // Crosshair overlay for the wrapper's in-page eyedropper: click resolves the
+  // viewport CSS-pixel coordinate to qtBridge.samplePagePixel (the wrapper
+  // reads the pixel from its own offscreen widget grab), Escape cancels via
+  // the (-1, -1) sentinel. The overlay is transparent, so it never affects
+  // the sampled image.
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483647;cursor:crosshair;';
+  const done = (x, y) => {
+    document.removeEventListener('keydown', onEsc, true);
+    ov.remove();
+    window.qtBridge.samplePagePixel(x, y);
+  };
+  const onEsc = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(-1, -1); } };
+  ov.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); done(e.clientX, e.clientY); }, true);
+  document.addEventListener('keydown', onEsc, true);
+  document.body.appendChild(ov);
 }
 
 function handleDrag(e) {
