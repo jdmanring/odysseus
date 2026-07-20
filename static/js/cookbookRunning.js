@@ -2142,10 +2142,7 @@ async function _retryTask(el, task) {
 
 async function _retryDownload(name, payload, replaceSessionId = '') {
   try {
-    // A retry means the fast hf_transfer path already failed once — fall back to
-    // the plain, reliable downloader for this and any further attempt (it resumes
-    // from the cached .incomplete files, so no progress is lost).
-    const _payload = { ...(payload || {}), disable_hf_transfer: true };
+    const _payload = { ...(payload || {}) };
     const res = await fetch('/api/model/download', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
@@ -4239,7 +4236,6 @@ async function _reconnectTask(el, task) {
                   ? { ...task.payload }
                   : { repo_id: task.repo || task.name, remote_host: task.remoteHost || '' };
                 if (_envState.hfToken) dlPayload.hf_token = _envState.hfToken;
-                dlPayload.disable_hf_transfer = true;
                 const res = await fetch('/api/model/download', {
                   method: 'POST', credentials: 'same-origin',
                   headers: { 'Content-Type': 'application/json' },

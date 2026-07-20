@@ -1177,10 +1177,7 @@ def setup_cookbook_routes() -> APIRouter:
         # activated venv. Local bash runs only — meaningless over SSH.
         if not req.remote_host:
             lines.append(_local_tooling_path_export(sys.executable))
-        # Best-effort install hf CLI (always). hf_transfer (Rust parallel downloader)
-        # is fast but flaky on large files — it tends to crash near the end at high
-        # throughput. Retries set disable_hf_transfer to fall back to the plain,
-        # slower-but-reliable downloader (resumes cleanly from the .incomplete files).
+        # Best-effort install hf CLI (always).
         # Use `python3 -m pip` not `pip` — macOS has no bare `pip` command.
         if is_ollama_download:
             _append_local_ollama_download_command_lines(
@@ -1191,13 +1188,11 @@ def setup_cookbook_routes() -> APIRouter:
             )
         else:
             lines.append(f"command -v hf >/dev/null 2>&1 || {_pip_install_fallback_chain('huggingface_hub', upgrade=True)}")
-            if req.disable_hf_transfer:
-                lines.append("export HF_HUB_ENABLE_HF_TRANSFER=0")
-                lines.append("export HF_HUB_DOWNLOAD_MAX_WORKERS=4")
-            else:
-                lines.append(f"python3 -c 'import hf_transfer' 2>/dev/null || {_pip_install_fallback_chain('hf_transfer')}")
-                lines.append("python3 -c 'import hf_transfer' 2>/dev/null && export HF_HUB_ENABLE_HF_TRANSFER=1")
-                lines.append("export HF_HUB_DOWNLOAD_MAX_WORKERS=8")
+            # hf_transfer is never used: the Rust parallel path crashes near the
+            # end of large files at high throughput. aria2c is the fast path;
+            # this hf fallback always runs the plain, reliable Python downloader.
+            lines.append("export HF_HUB_ENABLE_HF_TRANSFER=0")
+            lines.append("export HF_HUB_DOWNLOAD_MAX_WORKERS=4")
 
         remote = req.remote_host  # None for local
         is_windows = req.platform == "windows"
@@ -1263,14 +1258,13 @@ def setup_cookbook_routes() -> APIRouter:
                 ps_lines.append('    python -c "import huggingface_hub" 2>$null')
                 ps_lines.append('    if ($LASTEXITCODE -eq 0) {')
                 ps_lines.append('      Write-Host "hf CLI not found, using Python huggingface_hub..."')
-                ps_lines.append('      python -m pip install -q hf_transfer 2>$null')
-                ps_lines.append('      $env:HF_HUB_ENABLE_HF_TRANSFER = "1"')
-                ps_lines.append(f"      python -c \"import os; from huggingface_hub import snapshot_download; snapshot_download('{req.repo_id}'{_dl_pyarg}, max_workers=8)\"")
+                ps_lines.append('      $env:HF_HUB_ENABLE_HF_TRANSFER = "0"')
+                ps_lines.append(f"      python -c \"import os; from huggingface_hub import snapshot_download; snapshot_download('{req.repo_id}'{_dl_pyarg}, max_workers=4)\"")
                 ps_lines.append('    } else {')
                 ps_lines.append('      Write-Host "Installing huggingface-hub..."')
-                ps_lines.append('      python -m pip install -q huggingface-hub hf_transfer')
-                ps_lines.append('      $env:HF_HUB_ENABLE_HF_TRANSFER = "1"')
-                ps_lines.append(f"      python -c \"import os; from huggingface_hub import snapshot_download; snapshot_download('{req.repo_id}'{_dl_pyarg}, max_workers=8)\"")
+                ps_lines.append('      python -m pip install -q huggingface-hub')
+                ps_lines.append('      $env:HF_HUB_ENABLE_HF_TRANSFER = "0"')
+                ps_lines.append(f"      python -c \"import os; from huggingface_hub import snapshot_download; snapshot_download('{req.repo_id}'{_dl_pyarg}, max_workers=4)\"")
                 ps_lines.append('    }')
                 ps_lines.append('  }')
                 ps_lines.append('  if ($LASTEXITCODE -eq 0) { Write-Host ""; Write-Host "DOWNLOAD_OK" }')
@@ -1353,9 +1347,7 @@ def setup_cookbook_routes() -> APIRouter:
             runner_lines.append('export PATH="$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"')
             runner_lines.append('ODYSSEUS_PY="$(command -v python3 || command -v python || true)"')
             runner_lines.append('if [ -z "$ODYSSEUS_PY" ]; then echo "ERROR: python3/python not found on this server."; exit 127; fi')
-            # Install hf CLI + optional hf_transfer best-effort. Retries disable
-            # hf_transfer because the Rust parallel path is fast but has been
-            # flaky near the end of very large multi-file downloads.
+            # Install hf CLI best-effort.
             # Use --break-system-packages on PEP-668 systems (Arch, newer Debian) so it doesn't bail.
             if is_ollama_download:
                 runner_lines.append('if command -v ollama >/dev/null 2>&1; then')
@@ -1381,17 +1373,10 @@ def setup_cookbook_routes() -> APIRouter:
                 runner_lines.append('hash -r 2>/dev/null || true')
                 runner_lines.append('ODYSSEUS_HF_CLI="$(command -v hf || command -v huggingface-cli || true)"')
                 runner_lines.append('if [ -z "$ODYSSEUS_HF_CLI" ]; then echo "ERROR: HF CLI not found after installing huggingface_hub."; exit 127; fi')
-                if req.disable_hf_transfer:
-                    runner_lines.append("export HF_HUB_ENABLE_HF_TRANSFER=0")
-                    runner_lines.append("export HF_HUB_DOWNLOAD_MAX_WORKERS=4")
-                else:
-                    hf_transfer_install = _pip_install_fallback_chain(
-                        "hf_transfer",
-                        python_cmd='"$ODYSSEUS_PY" -m pip',
-                    )
-                    runner_lines.append(f"\"$ODYSSEUS_PY\" -c 'import hf_transfer' 2>/dev/null || {hf_transfer_install}")
-                    runner_lines.append("\"$ODYSSEUS_PY\" -c 'import hf_transfer' 2>/dev/null && export HF_HUB_ENABLE_HF_TRANSFER=1")
-                    runner_lines.append("export HF_HUB_DOWNLOAD_MAX_WORKERS=8")
+                # hf_transfer is never used (crashes near the end of large files
+                # at high throughput); the hf path is the plain Python downloader.
+                runner_lines.append("export HF_HUB_ENABLE_HF_TRANSFER=0")
+                runner_lines.append("export HF_HUB_DOWNLOAD_MAX_WORKERS=4")
                 # Surface whether the HF token actually reached THIS server, so a gated
                 # download's "not authorized" failure can be told apart from a missing
                 # token (the token is masked — we only print applied / not-set).
@@ -3012,7 +2997,7 @@ def setup_cookbook_routes() -> APIRouter:
             cmd = f"ssh {pf}{host} '{setup_script}'"
         else:
             # Linux: auto-install tmux (via whichever package manager is available)
-            # and huggingface_hub + hf_transfer (falling back to --user/--break-system-packages
+            # and huggingface_hub (falling back to --user/--break-system-packages
             # on PEP-668 locked distros like Arch / newer Debian).
             setup_script = (
                 # Install tmux if missing — try common package managers; skip if no sudo
@@ -3026,9 +3011,9 @@ def setup_cookbook_routes() -> APIRouter:
                 "fi; "
                 "command -v tmux >/dev/null 2>&1 || echo 'WARNING: tmux missing and auto-install failed (need passwordless sudo). Install manually.'; "
                 # Install Python bits. Try system install first; fall back to --user --break-system-packages on PEP 668 systems.
-                "pip install -q huggingface_hub hf_transfer 2>/dev/null || "
-                "pip install --user --break-system-packages -q huggingface_hub hf_transfer 2>/dev/null || "
-                "pip3 install --user --break-system-packages -q huggingface_hub hf_transfer 2>/dev/null; "
+                "pip install -q huggingface_hub 2>/dev/null || "
+                "pip install --user --break-system-packages -q huggingface_hub 2>/dev/null || "
+                "pip3 install --user --break-system-packages -q huggingface_hub 2>/dev/null; "
                 "python3 -c 'from huggingface_hub import snapshot_download; print(\"OK\")'"
             )
             cmd = f"ssh {pf}{host} '{setup_script}'"
