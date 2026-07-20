@@ -86,9 +86,12 @@ function _ggufDownloadSource(model, backend) {
 // exact match isn't in the discovered repo.
 const _QUANT_QUALITY = [
   'Q8_0',
-  'Q6_K',
+  // Modern 6-bit variants beat plain Q6_K: UD-Q6_K_XL (Unsloth Dynamic 2.0,
+  // per-layer bit allocation) and Q6_K_L (bartowski — embeddings/output at
+  // Q8_0). Listed first so they win when the repo publishes them.
+  'UD-Q6_K_XL', 'Q6_K_L', 'Q6_K',
   'Q5_K_M', 'Q5_K_S', 'Q5_1', 'Q5_0',
-  'IQ4_XS', 'IQ4_NL', 'Q4_K_M', 'Q4_K_S', 'Q4_1', 'Q4_0',
+  'UD-Q4_K_XL', 'IQ4_XS', 'IQ4_NL', 'Q4_K_M', 'Q4_K_S', 'Q4_1', 'Q4_0',
   'IQ3_M', 'Q3_K_L', 'Q3_K_M', 'Q3_K_S', 'IQ3_S', 'IQ3_XXS',
   'IQ2_M', 'Q2_K', 'IQ2_S', 'IQ2_XS', 'IQ2_XXS',
 ];
@@ -103,11 +106,11 @@ function _quantQualityIndex(quant) {
 // All quants in the same block are the same bit-depth family (tier 4 = all Q4*/IQ4*).
 const _QUANT_TIER_RANGES = [
   [0,  0,  0],  // tier 8: Q8_0
-  [1,  1,  1],  // tier 6: Q6_K
-  [2,  5,  2],  // tier 5: Q5_K_M..Q5_0
-  [6,  11, 3],  // tier 4: IQ4_XS..Q4_0
-  [12, 17, 4],  // tier 3: IQ3_M..IQ3_XXS
-  [18, 22, 5],  // tier 2: IQ2_M..IQ2_XXS
+  [1,  3,  1],  // tier 6: UD-Q6_K_XL..Q6_K
+  [4,  7,  2],  // tier 5: Q5_K_M..Q5_0
+  [8,  14, 3],  // tier 4: UD-Q4_K_XL..Q4_0
+  [15, 20, 4],  // tier 3: IQ3_M..IQ3_XXS
+  [21, 25, 5],  // tier 2: IQ2_M..IQ2_XXS
 ];
 
 function _quantTierRank(qualIdx) {

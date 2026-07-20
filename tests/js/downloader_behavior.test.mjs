@@ -139,3 +139,34 @@ test('auth status survives after the header lines scroll out of the capture wind
   assert.equal(api._authStatusForTask({ type: 'serve', _authStatus: 'authenticated' }, ''), '');
   assert.equal(api._authStatusForTask({ type: 'download', payload: { repo_id: 'x' } }, ''), '');
 });
+
+// ── quant quality ladder consistency (cookbookDownload.js) ──────────────────
+test('quant tier ranges cover the quality ladder exactly, and modern 6-bit variants outrank Q6_K', () => {
+  const dlSrc = readFileSync(join(ROOT, 'static', 'js', 'cookbookDownload.js'), 'utf8');
+  const grab = (marker) => {
+    const start = dlSrc.indexOf(marker);
+    assert.notEqual(start, -1, `marker not found: ${marker}`);
+    const open = dlSrc.indexOf('[', start);
+    let depth = 0, i = open;
+    for (; i < dlSrc.length; i++) {
+      if (dlSrc[i] === '[') depth++;
+      else if (dlSrc[i] === ']') { depth--; if (depth === 0) break; }
+    }
+    return vm.runInNewContext(dlSrc.slice(open, i + 1));
+  };
+  const quality = grab('const _QUANT_QUALITY');
+  const ranges = grab('const _QUANT_TIER_RANGES');
+  // ranges must tile [0, quality.length) contiguously — an insertion into the
+  // ladder without updating the index table silently corrupts tier matching
+  let next = 0;
+  for (const [start, end] of ranges) {
+    assert.equal(start, next, `tier range starts at ${start}, expected ${next}`);
+    assert.ok(end >= start);
+    next = end + 1;
+  }
+  assert.equal(next, quality.length, 'ranges must cover every ladder entry');
+  // modern 6-bit variants outrank plain Q6_K (lower index = better)
+  assert.ok(quality.indexOf('UD-Q6_K_XL') < quality.indexOf('Q6_K'));
+  assert.ok(quality.indexOf('Q6_K_L') < quality.indexOf('Q6_K'));
+  assert.ok(quality.indexOf('UD-Q4_K_XL') < quality.indexOf('Q4_K_M'));
+});

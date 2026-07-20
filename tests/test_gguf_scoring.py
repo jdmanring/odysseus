@@ -145,3 +145,27 @@ def test_score_downloads_capped_at_40():
     huge_dl = _base_candidate(downloads=10_000_000)
     score = r._score_candidate(huge_dl)
     assert score <= 40.0 + 0.01  # only downloads signal active
+
+
+# ── modern 6-bit variants (UD-Q6_K_XL / Q6_K_L) ─────────────────────────────
+
+def test_preferred_quant_prefers_unsloth_dynamic_6bit_over_plain_q6k():
+    files = ["model.Q6_K.gguf", "model.UD-Q6_K_XL.gguf", "model.Q4_K_M.gguf"]
+    # No 4-bit imatrix present and UD-Q4 absent: the ladder reaches the 6-bit
+    # entries via Q4_K_M first (size-conscious default) — so assert on a
+    # 6-bit-only repo, the shape a Q6-floor user actually filters to.
+    six_only = ["model.Q6_K.gguf", "model.UD-Q6_K_XL.gguf", "model.Q6_K_L.gguf"]
+    result = HfUrlResolver._preferred_quant_file(six_only)
+    assert result == "model.UD-Q6_K_XL.gguf"
+
+
+def test_preferred_quant_prefers_q6kl_over_plain_q6k():
+    files = ["model.Q6_K.gguf", "model.Q6_K_L.gguf"]
+    result = HfUrlResolver._preferred_quant_file(files)
+    assert result == "model.Q6_K_L.gguf"
+
+
+def test_preferred_quant_prefers_ud_q4_over_iq4xs():
+    files = ["model.IQ4_XS.gguf", "model.UD-Q4_K_XL.gguf"]
+    result = HfUrlResolver._preferred_quant_file(files)
+    assert result == "model.UD-Q4_K_XL.gguf"
