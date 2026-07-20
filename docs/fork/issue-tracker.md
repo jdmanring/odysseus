@@ -77,6 +77,7 @@ wrapper, the download stack, AI documentation, and application bug fixes — is
 | [#21](https://github.com/jdmanring/odysseus/issues/21) | AI_RULES.md — AI agent rules (upstream) | upstream-candidate | `feat/ai-documentation-system` (Ready to File) |
 | [#22](https://github.com/jdmanring/odysseus/issues/22) | AI_CONTEXT.md — architecture primer (upstream) | upstream-candidate | `feat/ai-documentation-system` (Ready to File) |
 | [#29](https://github.com/jdmanring/odysseus/issues/29) | GGUF source resolution returns low-quality results | upstream-candidate | `fix/gguf-quality-scored` |
+| [#148](https://github.com/jdmanring/odysseus/issues/148) | GGUF resolver substitutes a completely unrelated model when no true quant exists | upstream-candidate | `fix/gguf-quality-scored` (`bf51d93e`; develop `e5b41dcc`) |
 | [#30](https://github.com/jdmanring/odysseus/issues/30) | feat: add Catppuccin Mocha theme with Odysseus color palette | upstream-candidate | `feat/catppuccin-theme` |
 | [#31](https://github.com/jdmanring/odysseus/issues/31) | World-class structured logging system | upstream-candidate | 2 PRs: `feat/logging-core`, `feat/logging-timing` |
 | [#120](https://github.com/jdmanring/odysseus/issues/120) | qt_wrapper graduated PSI monitor (some/full, tunable thresholds) | upstream-candidate | implemented on `perf/qt-psi-graduated-reclaim`; **folded into `feat/qt-native-linux-app` (#14)** 2026-06-26 — ships inside the #14 PR with the rest of the memory stack |
