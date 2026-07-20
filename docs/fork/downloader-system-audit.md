@@ -149,6 +149,8 @@ From the audit, real but lower-stakes — fix from this list, not from fresh sym
 8. Sequential-mode parser regex in `cookbookRunning.js` is dead code.
 9. `--minor-mc` V8 flag in wrapper `--js-flags` is unrecognized by current V8 (137 logged errors; harmless noise) — remove.
 10. Bash `''`-sentinel args work only by truthiness; the PowerShell builder's omit-when-empty style is the robust pattern to converge on.
+11. **Auth pill is a capture race** (found 2026-07-20): the `[*] HF auth:` lines print once at the head of the launcher output, but the status poll keeps only the last 500 pane lines — a fast single-file GGUF download scrolls the header out before the first capture and the pill never renders. Robust fix: render from the task payload (the client knows whether it sent a token) as fallback when the lines are gone. The pill code itself is identical to the staged branch — not a regression.
+12. **Transient "stopped" badge at download launch** (2026-07-20): a download card can briefly show "stopped" (status `error`) in the poll/adoption race before output flows, then self-corrects. Cosmetic but alarming; root-cause the exact error-status site (candidates: `_taskBadge` on adopted status, poll error paths at cookbookRunning.js ~3888/~4326) and suppress the flash.
 
 ## 7. Required before this system is called "working" again
 
@@ -170,6 +172,12 @@ From the audit, real but lower-stakes — fix from this list, not from fresh sym
 - **Symptom:** `window.qtBridge` undefined on the page; native color-picker support in `colorPicker.js` silently degraded to the HTML fallback.
 - **Cause:** the tag was lost in `9b469344` (June 20) — a *third* index.html restoration commit beyond the two previously known (`247a2a35`, `b6f0f941`), so the silent-loss window is wider than first mapped. Same partial-amputation family as D1/D11: the library file and its consumer both survived; only the wiring line died.
 - **Fix:** tag restored (`80d9a09b`) plus `tests/test_index_script_wiring.py`, which asserts the qt-bridge tag is present **and** that every local `<script src>` on the page resolves to a real file — closing the whole script-tag-amputation class, not just this instance. Takes effect on next app restart / page reload.
+
+### D13. GGUF resolver substituted a completely unrelated model ([#148](https://github.com/jdmanring/odysseus/issues/148), found 2026-07-20)
+- **Symptom:** a download of `tiny-random/qwen3-next-moe` fetched 7.9 GB of `mradermacher/Qwen3-MOE-2x6B-ST-The-Next-Generation-II-FreakStorm-12B-i1-GGUF` — a different model entirely, not a quant of the requested one. The card was titled with the *requested* model, so the swap was invisible until the weights were on disk.
+- **Cause:** `find_gguf_sources()` validated only that candidates contain GGUF files, never that they derive from the requested model. `_probe_gguf_repo()` fetched the `base_models` metadata — the exact field for this — and used it only as a cosmetic console flag. Auto-selection was console-log-only.
+- **Fix:** relatedness filter (`_is_quant_of`: base_models metadata match, or full normalized base-name containment in the candidate repo name); no qualifying candidate → empty → the honest "No GGUF source" path. Auto-select now surfaced in a visible toast. `bf51d93e` on `fix/gguf-quality-scored`, cherry-picked to develop (`e5b41dcc`).
+- **Verified:** live both directions — incident model now returns 0 sources; Llama-3.1-8B still resolves 14 genuine quants, bartowski top. 9 new tests with the incident as recorded fixture (`tests/test_gguf_relatedness.py`). Takes effect on next app restart (server caches the imported module).
 
 ### Branch-sweep outcome (2026-07-20)
 The sweep's question was develop-side only: did every staged fix actually land on develop? Two live losses were found (D11, D12), both now restored. Two branches needed nothing cherry-picked because develop already carries their content in evolved form — that says NOTHING about the branches themselves, which are staged upstream PRs and stay:
