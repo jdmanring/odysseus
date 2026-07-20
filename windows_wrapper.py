@@ -120,8 +120,10 @@ def start_server():
         env=env,
         stdout=_access_log,
         stderr=_access_log,
-        # CREATE_NEW_PROCESS_GROUP so Ctrl+C in the wrapper doesn't propagate to server
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        # CREATE_NEW_PROCESS_GROUP so Ctrl+C in the wrapper doesn't propagate to server.
+        # CREATE_NO_WINDOW because under pythonw the wrapper has no console, so a
+        # console-subsystem python.exe child would otherwise pop its own console window.
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
     )
     for _ in range(30):
         try:
