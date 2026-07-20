@@ -179,3 +179,18 @@ def test_active_states_added_for_touch_feedback():
     assert ".cmp-btn-primary:active:not(:disabled) { opacity: 0.88; }" in _CSS
     assert ".task-status-badge:active { opacity: 0.85; }" in _CSS
     assert ".doc-suggestion-accept:active { opacity: 0.85; }" in _CSS
+
+
+def test_entry_animation_panes_have_no_standing_will_change():
+    """will-change = a standing compositor layer (a dedicated GPU texture).
+    The doc-editor pane, notes pane, and note-fullscreen overlay carried
+    will-change hints to back one-shot 200-300ms entry animations — but the
+    hint outlives the animation, pinning a full-pane texture for the pane's
+    whole open lifetime. The animation promotes its own layer while it runs;
+    the standing hint buys nothing. Assert those three stay clean."""
+    import re as _re
+    css = _re.sub(r"/\*.*?\*/", "", _CSS, flags=_re.S)
+    for anchor in (".doc-editor-pane {", ".notes-pane {", ".note-fullscreen-overlay {"):
+        idx = css.index(anchor)
+        block = css[idx : css.index("}", idx)]
+        assert "will-change" not in block, f"standing will-change on {anchor}"
