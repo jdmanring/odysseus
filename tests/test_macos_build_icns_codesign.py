@@ -17,11 +17,15 @@ def test_builds_multires_iconset_via_iconutil():
     assert 'icon_${base}x${base}@2x.png' in SH
 
 
-def test_iconset_prefers_svg_falls_back_to_png():
-    assert "rsvg-convert -w" in SH   # SVG path: native-resolution render
-    assert "sips -z" in SH           # PNG fallback: resize from 512
-    # Honesty: the PNG fallback upscales past the source.
-    assert "upscaled" in SH
+def test_iconset_prefers_macos_tile_then_svg_then_png():
+    # Primary source is the composed macOS tile (dark rounded-rect + glyph);
+    # SVG and the bare transparent 512 are fallbacks only.
+    assert "icon-macos-1024.png" in SH
+    assert SH.index('MACOS_SRC="') < SH.index('SVG_SRC="') < SH.index('PNG_SRC="')
+    assert "rsvg-convert -w" in SH   # SVG fallback: native-resolution render
+    assert "sips -z" in SH           # raster path: resize
+    # The macOS tile must be tried first in the build cascade.
+    assert SH.index('[ -f "$MACOS_SRC" ]') < SH.index('[ -f "$SVG_SRC" ]')
 
 
 def test_adhoc_codesign_applied_and_not_overclaimed():
@@ -34,3 +38,28 @@ def test_adhoc_codesign_applied_and_not_overclaimed():
 def test_codesign_before_dmg_packaging():
     # Sign the bundle before hdiutil so the .dmg carries the signature.
     assert SH.index("codesign --force") < SH.index("hdiutil create")
+
+
+def test_launcher_marks_bundle_so_tile_is_not_overridden():
+    # The launcher exports ODYSSEUS_BUNDLE so the wrapper leaves the Dock tile to
+    # the bundle .icns (setWindowIcon would otherwise swap it at runtime).
+    assert "export ODYSSEUS_BUNDLE=1" in SH
+
+
+def test_macos_tile_asset_present_and_dark():
+    from PIL import Image
+    p = Path("static/icons/icon-macos-1024.png")
+    assert p.exists(), "composed macOS tile asset missing"
+    im = Image.open(p).convert("RGBA")
+    assert im.size == (1024, 1024)
+    assert im.getpixel((5, 5))[3] == 0, "corners must be transparent (baked rounding)"
+    # Interior is the dark tile, not empty.
+    assert im.getpixel((512, 180))[:3] == (40, 44, 52)
+
+
+def test_wrapper_skips_setwindowicon_when_bundled():
+    W = Path("mac_wrapper.py").read_text(encoding="utf-8")
+    assert 'if not os.environ.get("ODYSSEUS_BUNDLE"):' in W
+    # Dev-run fallback uses the macOS tile first.
+    i = W.index('if not os.environ.get("ODYSSEUS_BUNDLE"):')
+    assert "icon-macos-1024.png" in W[i:i + 400]
