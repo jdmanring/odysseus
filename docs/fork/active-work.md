@@ -1,5 +1,21 @@
 # Active Work
 
+**2026-07-20 — Staging consolidation: two days of develop work relocated to staging branches.**
+Patch-id audit of the last 60 develop commits vs all staging branches. Relocated: (1)
+`feat/aria2c-downloader` +11 commits (`9dabd745`→`e4999883`) — D17 client -J capture, auth-pill
+inference, tier-1/3/4 test suites + fixtures, backend pinning, badge-format fix, both Running-tab
+stream-attach fixes, copy-log docking + scrollbar clearance (28 wiring tests + node suite green on
+branch). Develop's `eddd0568` was SPLIT: cookbook UI half → downloader branch; the QtWebEngine
+`JavascriptCanAccessClipboard` half → one parity commit on each of `feat/qt-native-linux-app`
+(`86e34a0d`), `-macos-` (`003f8870`), `-windows-app` (`00843237`) with a shared discovery-style
+`tests/test_wrapper_clipboard.py` (writes on, `JavascriptCanPaste` guarded off). (2) `8a680b0b`
+(live-CDP test gating) split → `perf/editor-undo-compress` (`dea01e5a`) + `perf/agent-gc-catchup`
+(`9641791b`); both skip correctly without `ODYSSEUS_LIVE_UI_TESTS=1`. (3) Verified no-staging-needed:
+`80d9a09b` (qt-bridge tag) and `a13d0e0d` (resolve-gguf endpoint) were develop merge-damage repairs —
+staging branches never lost the content. All six branches pushed. **Open:** `da9e8e5d` (content-hash
+`?v=` cache-busters, `src/app_helpers.py` + 64-line test) still needs an issue + `feat/asset-cache-busters`
+branch from `upstream-mirror` — issue creation was permission-blocked; create the issue, then stage.
+
 **2026-07-18 — #2 plan: Part 2 complete (measured evidence + matrix); Part 4.1/4.3 audits done.**
 Full 5-arm bench artifact regenerated and committed (`946f62cb`; adds the vendored #4661 arm —
 steady state bounded ~1.19k nodes, click-reload restores all 39k / 122.9 MB USS at n=5000, ≈ naive).
