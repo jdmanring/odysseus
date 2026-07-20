@@ -3892,7 +3892,7 @@ async function _reconnectTask(el, task) {
       const res = await fetch('/api/shell/exec', {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: _tmuxCmd(task, `capture-pane -t ${task.sessionId} -p -S -500`), timeout: 15 }),
+        body: JSON.stringify({ command: _tmuxCmd(task, `capture-pane -t ${task.sessionId} -p -J -S -500`), timeout: 15 }),
       });
       const data = await res.json();
 
