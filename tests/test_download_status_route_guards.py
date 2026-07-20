@@ -75,3 +75,20 @@ def test_secret_scrub_preserves_auth_marker():
     assert "hf_token_used" in SRC, "server scrub must keep the non-secret auth marker"
     js = (Path(__file__).parent.parent / "static" / "js" / "cookbookRunning.js").read_text()
     assert js.count("hf_token_used") >= 2, "client must write and read hf_token_used"
+
+
+def test_serve_diagnosis_covers_prestartup_free_memory_check():
+    # vLLM refuses to start when desired utilization exceeds actual free VRAM
+    # (desktop compositor/shell/app always hold some). All three diagnosis
+    # surfaces must recognize it: helpers, the routes-local shadow copy, and
+    # the client's clickable-fix table.
+    from routes.cookbook_helpers import _diagnose_serve_output
+    err = ("ValueError: Free memory on device cuda:0 (13.51/15.59 GiB) on startup "
+           "is less than desired GPU memory utilization (0.9, 14.03 GiB).")
+    d = _diagnose_serve_output(err)
+    assert d and "hold part of the GPU" in d["message"]
+    assert any("0.80" in s.get("value", "") for s in d["suggestions"])
+    pat = "Free memory on device .* is less than desired GPU memory utilization"
+    assert pat in SRC, "routes-local shadow copy missing the pattern"
+    js = (Path(__file__).parent.parent / "static" / "js" / "cookbook-diagnosis.js").read_text()
+    assert "Free memory on device" in js

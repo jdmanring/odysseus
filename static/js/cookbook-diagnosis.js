@@ -293,6 +293,17 @@ export const ERROR_PATTERNS = [
     ],
   },
   {
+    // Pre-startup free-memory check: on a desktop GPU the compositor, shell,
+    // and this app always hold VRAM, so a fixed 0.9 utilization can exceed
+    // what is actually free before vLLM even loads the model.
+    pattern: /Free memory on device .* is less than desired GPU memory utilization/i,
+    message: 'Other processes (desktop, this app) hold part of the GPU — requested utilization exceeds free VRAM.',
+    fixes: [
+      { label: 'Retry with GPU mem 0.80', action: (panel) => _serveAutoRetryReplace(panel, '--gpu-memory-utilization', '0.80') },
+      { label: 'Retry with context 8192', action: (panel) => _serveAutoRetryReplace(panel, '--max-model-len', '8192') },
+    ],
+  },
+  {
     pattern: /No available memory for the cache blocks|Available KV cache memory:.*-/i,
     message: 'No GPU memory left for KV cache after loading model.',
     fixes: [
