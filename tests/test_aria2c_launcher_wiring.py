@@ -273,3 +273,14 @@ def test_launch_response_carries_authoritative_hf_auth():
     assert '"hf_auth": bool(req.hf_token)' in server
     client = (Path(__file__).parent.parent / "static" / "js" / "cookbookDownload.js").read_text()
     assert "payload.hf_token_used = !!data.hf_auth" in client
+
+
+def test_client_live_capture_joins_wrapped_lines():
+    # The reconnect loop runs its own tmux capture for the download card's
+    # phase parser. Without -J, multi-KB signed-URL lines wrap into dozens of
+    # physical rows and flood the capture window, evicting the short phase
+    # markers — the card then spins "Initializing…" while the header badge
+    # (fed by the server's already-fixed -J capture) shows real progress.
+    assert "capture-pane -t ${task.sessionId} -p -J -S -500" in RUNNING_JS, (
+        "client live capture lost -J; wrapped URL lines will break phase parsing"
+    )
