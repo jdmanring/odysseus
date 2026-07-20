@@ -78,6 +78,31 @@ expose this port directly to the public internet. To build a clickable app wrapp
 ./build-macos-app.sh
 ```
 
+### macOS native app (Qt wrapper, Dock icon)
+
+For a fully native desktop app — a real `.app` bundle with a proper macOS Dock
+icon, single-instance behavior, native memory management, and a standard Edit
+menu — use the Qt wrapper installer:
+
+```bash
+./build-mac-app.sh            # build dist/Odysseus.app + dist/Odysseus.dmg
+./build-mac-app.sh --install  # also install to /Applications + pin to the Dock
+```
+
+`--install` copies the bundle into `/Applications`, refreshes the Launch
+Services and icon-services caches, and (re-)pins the app to the Dock. That cache
+refresh matters on **reinstall**: replacing a bundle changes its inode, which
+otherwise leaves the Dock pin's cached icon stale — the tile shows the old or a
+blank icon while the app is closed, even though it looks correct while running.
+The installer rebuilds the pin as a fresh reference so the icon is correct both
+closed and open (the pin logic lives in `tooling/macos_dock_pin.py`). The Dock
+tile itself is a macOS-style icon (dark rounded rectangle on Apple's icon grid)
+built from `static/icons/icon-macos-1024.png`.
+
+The bundle is ad-hoc code-signed for a stable local identity; it is **not**
+Developer-ID signed or notarized, so distributing the `.dmg` to another Mac
+still trips Gatekeeper (that needs an Apple Developer ID and the notary service).
+
 <details>
 <summary>Cookbook, GPU, Ollama, and troubleshooting notes</summary>
 
