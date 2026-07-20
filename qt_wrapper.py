@@ -110,7 +110,9 @@ import threading as _threading
 import time
 from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
+from PyQt6.QtWebEngineCore import (
+    QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
+)
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
@@ -618,6 +620,13 @@ class OdysseusWindow(QMainWindow):
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
         self._page = page  # held for lifecycle management in changeEvent
+        # Allow JS clipboard WRITES (copy buttons). Off by default in
+        # QtWebEngine, which makes navigator.clipboard.writeText and the
+        # execCommand('copy') fallback both silently no-op. Deliberately NOT
+        # enabling JavascriptCanPaste, which would let pages READ the
+        # system clipboard.
+        page.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
         self._last_purge = 0.0  # monotonic ts of last forcible renderer purge
         self._last_input = time.monotonic()  # ts of last mouse/keyboard activity
 

@@ -344,3 +344,38 @@ def test_running_tab_renders_on_tab_switch():
     assert "backend === 'Running'" in handler and "_renderRunningTab()" in handler, (
         "tab switch to Running no longer re-renders — reconnect loops won't attach"
     )
+
+
+def test_copy_log_clipboard_enabled_in_all_wrappers():
+    """The copy-log button silently no-ops in QtWebEngine unless the wrapper
+    enables JavascriptCanAccessClipboard: live probe 2026-07-20 showed
+    navigator.clipboard.writeText -> NotAllowedError and
+    document.execCommand('copy') -> false with the default settings. Every
+    wrapper must enable clipboard WRITES; none may enable JavascriptCanPaste
+    (that would let pages READ the system clipboard)."""
+    repo = Path(__file__).parent.parent
+    for wrapper in ("qt_wrapper.py", "windows_wrapper.py", "mac_wrapper.py"):
+        src = (repo / wrapper).read_text(encoding="utf-8")
+        assert "JavascriptCanAccessClipboard, True" in src, (
+            f"{wrapper}: JS clipboard writes disabled — copy buttons no-op"
+        )
+        assert "JavascriptCanPaste" not in src.replace(
+            "enabling JavascriptCanPaste", ""
+        ), f"{wrapper}: JavascriptCanPaste must stay off (clipboard reads)"
+
+
+def test_copy_log_button_docked_inside_log_wrap():
+    """The download card's copy button must live INSIDE the
+    .cookbook-output-wrap around the raw log — as a bare sibling it has no
+    positioned ancestor, so it floated unanchored over the progress area
+    (screenshot 2026-07-20 10:11). The wrap is what gives .copy-code its
+    absolute top-right docking and hover-reveal."""
+    wrap_start = RUNNING_JS.index('class="cookbook-output-wrap dl-log-wrap"')
+    wrap_end = RUNNING_JS.index("</div>", wrap_start)
+    inside = RUNNING_JS[wrap_start:wrap_end]
+    assert "dl-raw-log" in inside and "dl-copy-btn" in inside
+
+    # the toggle shows/hides the wrap (pre + button together), and the
+    # generic copy wiring must not double-bind the download card's button
+    assert "_dlCard.querySelector('.dl-log-wrap')" in RUNNING_JS
+    assert "!_genCopyBtn.classList.contains('dl-copy-btn')" in RUNNING_JS
