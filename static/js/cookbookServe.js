@@ -3591,6 +3591,15 @@ async function _deleteCachedModel(repo, itemEl, skipConfirm = false, model = nul
       body: JSON.stringify({ command: cmd }),
     });
     if (!res.ok) { uiModule.showError(`Delete failed (${res.status})`); return; }
+    // /api/shell/exec returns HTTP 200 even when the command fails — the
+    // real outcome is exit_code in the body. Without this check a failed rm
+    // animated the row away and the model "reappeared" on the next scan.
+    const _delResult = await res.json().catch(() => null);
+    if (!_delResult || _delResult.exit_code !== 0) {
+      const _delErr = (_delResult?.stderr || _delResult?.stdout || 'unknown error').trim();
+      uiModule.showError(`Delete failed: ${_delErr.slice(0, 300)}`);
+      return;
+    }
     if (deleteChoice.mode === 'files') {
       if (m && Array.isArray(m.gguf_files)) {
         const removed = new Set(deleteChoice.files.map(f => _safeGgufRelPath(f.rel_path)));
