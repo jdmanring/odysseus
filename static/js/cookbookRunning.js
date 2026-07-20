@@ -1022,6 +1022,10 @@ function _authStatusForTask(task, parsedAuth) {
   if (task?.payload && 'hf_token' in task.payload) {
     return task.payload.hf_token ? 'token provided' : 'no token — public models only';
   }
+  // Storage-redacted tasks drop hf_token but keep this non-secret marker.
+  if (task?.payload && 'hf_token_used' in task.payload) {
+    return task.payload.hf_token_used ? 'token provided' : 'no token — public models only';
+  }
   return '';
 }
 
@@ -1564,6 +1568,11 @@ function _redactTaskForStorage(task) {
   if (typeof safe.output === 'string') safe.output = _redactStoredText(safe.output);
   if (safe.payload && typeof safe.payload === 'object') {
     safe.payload = { ...safe.payload };
+    // Keep a non-secret marker of whether a token was sent — the auth pill's
+    // last-resort fallback after the "[*] HF auth:" header lines scroll out.
+    if (('hf_token' in safe.payload || 'hfToken' in safe.payload) && !('hf_token_used' in safe.payload)) {
+      safe.payload.hf_token_used = !!(safe.payload.hf_token || safe.payload.hfToken);
+    }
     delete safe.payload.hf_token;
     delete safe.payload.hfToken;
     if (typeof safe.payload._cmd === 'string') safe.payload._cmd = _redactStoredText(safe.payload._cmd);
