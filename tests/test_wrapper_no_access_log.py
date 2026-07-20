@@ -55,3 +55,22 @@ def test_windows_wrapper_all_subprocesses_are_console_less():
             if not any(k.arg == "creationflags" for k in node.keywords):
                 offenders.append(f"line {node.lineno}: subprocess.{node.func.attr}")
     assert not offenders, f"subprocess calls without creationflags: {offenders}"
+
+
+@pytest.mark.parametrize("wrapper", _WRAPPERS)
+def test_wrapper_has_single_instance_guard(wrapper):
+    """Every wrapper runs kill_zombies() before start_server(), so a second
+    launch would kill the first instance's server out from under its window.
+    The QLocalServer singleton probe must exist AND run before kill_zombies(),
+    or the rival instance does its damage before discovering it should exit."""
+    src = (_ROOT / wrapper).read_text(encoding="utf-8")
+    if "kill_zombies" not in src:
+        pytest.skip(f"{wrapper} has no zombie-kill launch path")
+    assert "QLocalServer" in src and "_SINGLETON" in src, (
+        f"{wrapper} lost its single-instance guard"
+    )
+    probe = src.index("_probe.connectToServer(_SINGLETON)")
+    launch_kill = src.rindex("\n    kill_zombies()")
+    assert probe < launch_kill, (
+        f"{wrapper}: singleton probe must run BEFORE kill_zombies() in main"
+    )
