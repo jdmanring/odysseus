@@ -1,6 +1,7 @@
 import fnmatch
 import logging
 import os
+import re
 import requests
 from datetime import datetime, timezone
 from typing import List, Tuple, Optional
@@ -181,6 +182,7 @@ class HfUrlResolver:
             "has_evals": has_evals,
             "eval_score": eval_score,
             "is_derived": is_derived,
+            "base_models": [str(b) for b in base_models],
             "recency_days": recency_days,
         }
 
@@ -298,13 +300,45 @@ class HfUrlResolver:
 
         return score
 
+    @staticmethod
+    def _norm_model_name(name: str) -> str:
+        """Collapse a model name for comparison: lowercase, alphanumerics only."""
+        return re.sub(r"[^a-z0-9]", "", str(name or "").lower())
+
+    def _is_quant_of(self, base_repo_id: str, candidate_repo_id: str,
+                     candidate_base_models: list) -> bool:
+        """Is the candidate repo actually a quantization of the requested model?
+
+        HF's fuzzy search returns name-adjacent repos freely — without this
+        check a request for one model can silently download a completely
+        different one (a request for tiny-random/qwen3-next-moe once fetched
+        an unrelated 12B "FreakStorm" merge that merely shared name tokens).
+
+        Primary signal: the candidate's base_models metadata names the
+        requested repo. Fallback for quant repos missing that metadata: the
+        candidate's own repo NAME must contain the full base model name
+        (normalized) — partial token overlap is not enough.
+        """
+        base_lower = base_repo_id.lower()
+        for bm in candidate_base_models or []:
+            if str(bm).lower() == base_lower:
+                return True
+        base_name = base_repo_id.split("/")[-1] if "/" in base_repo_id else base_repo_id
+        base_norm = self._norm_model_name(base_name)
+        if not base_norm:
+            return False
+        return base_norm in self._norm_model_name(candidate_repo_id.split("/")[-1])
+
     def find_gguf_sources(self, base_repo_id: str) -> list:
         """Find GGUF quantizations of the given model.
 
         Searches HuggingFace, probes each candidate to verify it actually
-        contains GGUF files (via metadata — no download needed), scores on
-        downloads, likes ratio, benchmark scores, trending, imatrix use,
-        author reputation, and recency. Returns results sorted by score.
+        contains GGUF files (via metadata — no download needed) AND is a
+        quantization of the requested model (base_models metadata, with a
+        strict name-containment fallback), scores on downloads, likes ratio,
+        benchmark scores, trending, imatrix use, author reputation, and
+        recency. Returns results sorted by score; empty when no candidate is
+        genuinely derived from the requested model — never a substitute.
         """
         model_name = base_repo_id.split("/")[-1] if "/" in base_repo_id else base_repo_id
 
@@ -325,6 +359,10 @@ class HfUrlResolver:
                 continue
             probed = self._probe_gguf_repo(repo_id)
             if probed is None:
+                continue
+            if not self._is_quant_of(base_repo_id, repo_id, probed.get("base_models")):
+                logger.info("GGUF discovery: rejected %s — not a quantization of %s",
+                            repo_id, base_repo_id)
                 continue
             probed["repo"] = repo_id
             probed["quality_score"] = self._score_candidate(probed)
