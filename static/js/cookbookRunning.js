@@ -4964,6 +4964,10 @@ export async function _selfHealStaleTasks(opts = {}) {
 //    never changes status; only the sentinels and the live view do.
 export function _nextDownloadStatus(prev, windowText, liveStatus) {
   if (prev === 'done') return 'done';
+  // 'paused' is user intent, and pausing sends C-c — which makes the wrapper
+  // print DOWNLOAD_FAILED into the pane. Only the user's Resume/Stop changes
+  // a paused task; no window content may flip it to error/crashed.
+  if (prev === 'paused') return 'paused';
   const out = String(windowText || '');
   if (out.includes('DOWNLOAD_OK')) return 'done';
   if (out.includes('DOWNLOAD_FAILED')) return 'error';
