@@ -166,6 +166,16 @@ From the audit, real but lower-stakes — fix from this list, not from fresh sym
 - **Fix:** route restored verbatim from `fix/gguf-quality-scored`; guard test pins client caller + route + resolver method **together**. Takes effect on next app restart.
 - **Verified:** guard suite green; live verification pending restart. A systematic sweep of all staged branches for further lost content is running; results will be appended here.
 
+### D12. `qt-bridge.js` script tag amputated from `index.html` (found 2026-07-20, branch sweep)
+- **Symptom:** `window.qtBridge` undefined on the page; native color-picker support in `colorPicker.js` silently degraded to the HTML fallback.
+- **Cause:** the tag was lost in `9b469344` (June 20) — a *third* index.html restoration commit beyond the two previously known (`247a2a35`, `b6f0f941`), so the silent-loss window is wider than first mapped. Same partial-amputation family as D1/D11: the library file and its consumer both survived; only the wiring line died.
+- **Fix:** tag restored (`80d9a09b`) plus `tests/test_index_script_wiring.py`, which asserts the qt-bridge tag is present **and** that every local `<script src>` on the page resolves to a real file — closing the whole script-tag-amputation class, not just this instance. Takes effect on next app restart / page reload.
+
+### Branch-sweep outcome (2026-07-20)
+The full sweep of staged branches found exactly two live losses (D11, D12), both now restored on develop. Two branches were confirmed **superseded, not lost**:
+- `fix/css-contain-paint-transparent-rendering` — its sidebar `contain: layout style` was deliberately reverted the same day it was written (`03517911`: containment creates a stacking context that breaks the sidebar box-shadow in the Qt compositor); its chat-history containment is already on develop. Develop's `test_sidebar_no_contain` is the current truth. Branch is safe to delete.
+- `fix/dom-oom-streaming-throttle` — its rAF throttle and thinking-textContent optimizations exist on develop in evolved form (`_throttledRenderStream()` at the normal-streaming site; `StreamRenderer` finalize/teardown). Superseded by the StreamRenderer rewrite; branch content need not be cherry-picked.
+
 ## 8. Process failures that made this worse (bind these)
 
 1. **"Proof" claimed from the wrong vantage point, twice** (D3: verified CSS content but not delivery; D10: verified the scanner but not the UI's data source). Verify the path the user's eyes are on, end to end.
