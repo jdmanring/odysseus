@@ -44,11 +44,12 @@ function buildSandbox() {
     extractBlock('function _isAria2cRun'),
     extractBlock('function _authStatusForTask'),
     extractBlock('export function _shouldStopBackgroundMonitor').replace(/^export /, ''),
+    extractBlock('export function _nextDownloadStatus').replace(/^export /, ''),
   ].join('\n');
   const ctx = { console, Math, Date, JSON };
   vm.createContext(ctx);
   vm.runInContext(code + `
-    ;globalThis.api = { _parseDownloadState, _isAria2cRun, _shouldStopBackgroundMonitor, _authStatusForTask, _dlFileTracker };`,
+    ;globalThis.api = { _parseDownloadState, _isAria2cRun, _shouldStopBackgroundMonitor, _authStatusForTask, _nextDownloadStatus, _dlFileTracker };`,
     ctx);
   return ctx.api;
 }
@@ -236,4 +237,91 @@ test('URL-noise walls must not evict the progress summary the file bars need', (
     'both per-file progress lines survive compaction');
   const st = api._parseDownloadState(kept, 'compact-test');
   assert.equal(st.perFileData.length, 2, 'parser sees one row per file again');
+});
+
+// ── poll-loop state machine over real transcripts (tier-1 harness) ─────────
+// Simulates what the client actually sees: a rolling 500-line capture window
+// sliding over a real pane transcript, fed in order through the status
+// reducer. Pins the invariant that broke all week: status never regresses
+// out of 'done', and 'done' appears ONLY after the DOWNLOAD_OK sentinel.
+function* rollingWindows(transcript, winLines = 500, stride = 25) {
+  const lines = transcript.split('\n');
+  for (let end = stride; end < lines.length + stride; end += stride) {
+    const e = Math.min(end, lines.length);
+    yield lines.slice(Math.max(0, e - winLines), e).join('\n');
+  }
+}
+
+function runMachine(transcript, { liveStatus } = {}) {
+  let status = 'running';
+  const trace = [];
+  for (const win of rollingWindows(transcript)) {
+    status = api._nextDownloadStatus(status, win, liveStatus);
+    trace.push({ status, hasOk: win.includes('DOWNLOAD_OK'), hasFail: win.includes('DOWNLOAD_FAILED') });
+  }
+  return trace;
+}
+
+test('multi-file success run: done only after DOWNLOAD_OK enters the window, then sticky', () => {
+  const trace = runMachine(FIX('aria2c_transcript_multifile_success.txt'));
+  const firstDone = trace.findIndex(t => t.status === 'done');
+  assert.notEqual(firstDone, -1, 'machine never reached done on a successful run');
+  for (let i = 0; i < firstDone; i++) {
+    assert.notEqual(trace[i].status, 'done', 'done before sentinel');
+    assert.notEqual(trace[i].status, 'error', `false error at window ${i} on a successful run`);
+  }
+  assert.equal(trace[firstDone].hasOk, true, 'done entered without the sentinel in-window');
+  for (let i = firstDone; i < trace.length; i++) {
+    assert.equal(trace[i].status, 'done', `done regressed at window ${i}`);
+  }
+});
+
+test('done survives the window scrolling PAST the sentinel and a dead-pane stopped report', () => {
+  // After completion the pane keeps its shell prompt; a later poll may see a
+  // window with no sentinel at all, and the blind background poll may see the
+  // server report the dead pane as 'stopped'. Neither may regress 'done'.
+  assert.equal(api._nextDownloadStatus('done', 'shell prompt, no markers', undefined), 'done');
+  assert.equal(api._nextDownloadStatus('done', '', 'stopped'), 'done');
+  assert.equal(api._nextDownloadStatus('done', 'random [ERROR] CUID#7 errorCode=24', 'error'), 'done');
+});
+
+test('gated failure run: benign errorCode=24 walls stay running; only the sentinel fails it', () => {
+  const fx = FIX('aria2c_transcript_gated_failure.txt');
+  assert.match(fx, /errorCode=24/);
+  const trace = runMachine(fx);
+  const firstErr = trace.findIndex(t => t.status === 'error');
+  assert.notEqual(firstErr, -1, 'gated run never classified as error');
+  for (let i = 0; i < firstErr; i++) {
+    assert.equal(trace[i].status, 'running', `errorCode=24 noise misclassified at window ${i}`);
+  }
+  assert.equal(trace[firstErr].hasFail, true, 'error entered without DOWNLOAD_FAILED in-window');
+});
+
+test('aria2c exit-2 failure run: fails only on the sentinel, never on optimistic per-file lines', () => {
+  const trace = runMachine(FIX('aria2c_transcript_exit2_failure.txt'));
+  const firstErr = trace.findIndex(t => t.status === 'error');
+  assert.notEqual(firstErr, -1);
+  assert.equal(trace[firstErr].hasFail, true);
+  for (let i = 0; i < firstErr; i++) assert.notEqual(trace[i].status, 'done', 'false done on a failed run');
+});
+
+test('mid-run window: stays running under aria2c noise', () => {
+  const trace = runMachine(FIX('aria2c_transcript_midrun.txt'));
+  for (const t of trace) assert.equal(t.status, 'running');
+});
+
+test('DOWNLOAD_OK beats DOWNLOAD_FAILED when one pane holds both (failed attempt, then success)', () => {
+  const both = 'DOWNLOAD_FAILED (exit 1)\n...retry...\nDOWNLOAD_OK';
+  assert.equal(api._nextDownloadStatus('running', both), 'done');
+});
+
+test('auth pill: token + reached downloading phase infers authenticated (header lines evicted)', () => {
+  const t = { type: 'download', payload: { hf_token_used: true } };
+  assert.equal(api._authStatusForTask(t, '', 'downloading'), 'authenticated');
+  assert.equal(api._authStatusForTask(t, '', 'done'), 'authenticated');
+  // not yet resolved → still pending, not a lie
+  assert.equal(api._authStatusForTask(t, '', 'resolving'), 'token provided');
+  // no token never upgrades
+  assert.equal(api._authStatusForTask({ type: 'download', payload: { hf_token_used: false } }, '', 'downloading'),
+    'no token — public models only');
 });

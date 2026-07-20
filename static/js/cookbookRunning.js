@@ -4349,7 +4349,7 @@ async function _reconnectTask(el, task) {
               badge.textContent = 'finishing';
               badge.className = 'cookbook-task-status cookbook-task-running';
             }
-            if (snapshot.includes('DOWNLOAD_FAILED')) {
+            if (_nextDownloadStatus(task.status, snapshot) === 'error') {
               // The wrapper prints DOWNLOAD_FAILED but exits 0, and per-file
               // "Download complete"/"100%" lines make it look successful — so
               // catch the explicit failure marker and handle it.
@@ -4391,7 +4391,7 @@ async function _reconnectTask(el, task) {
               _showCookbookNotif(true);
               break;
             }
-            if (snapshot.includes('DOWNLOAD_OK') || (snapshot.includes('/snapshots/') && completed >= totalFiles && totalFiles > 0)) {
+            if (_nextDownloadStatus(task.status, snapshot) === 'done' || (snapshot.includes('/snapshots/') && completed >= totalFiles && totalFiles > 0)) {
               _clearDiagnosis(el);
               _dlRetryCount.delete(task.payload?.repo_id || task.name);
               badge.textContent = _statusLabel('done', task.type);
@@ -4909,6 +4909,29 @@ export async function _selfHealStaleTasks(opts = {}) {
   }
 }
 
+// Pure decision core for a download task's next status, given the previous
+// status, a fresh capture window, and (optionally) the server's live view.
+// Encodes the invariants that broke all week (D5/D16 family):
+//  - 'done' is terminal: no later window — noisy, empty, or a dead-pane
+//    "stopped" report — may regress it (the done→crashed oscillation).
+//  - 'done' is only ever ENTERED on the wrapper's DOWNLOAD_OK exit sentinel
+//    (or the server's own 'completed'), never on loose per-file markers.
+//  - DOWNLOAD_OK beats DOWNLOAD_FAILED when both appear in one pane: the
+//    wrapper prints FAILED and exits — OK can only be the later attempt.
+//  - benign aria2c noise ([ERROR] CUID lines, errorCode=24 during probing)
+//    never changes status; only the sentinels and the live view do.
+export function _nextDownloadStatus(prev, windowText, liveStatus) {
+  if (prev === 'done') return 'done';
+  const out = String(windowText || '');
+  if (out.includes('DOWNLOAD_OK')) return 'done';
+  if (out.includes('DOWNLOAD_FAILED')) return 'error';
+  if (liveStatus === 'completed') return 'done';
+  if (liveStatus === 'error') return 'error';
+  if (liveStatus === 'stopped') return 'crashed';
+  if (liveStatus === 'running') return 'running';
+  return prev || 'running';
+}
+
 // Pure decision: may the background monitor shut itself down?
 // `serverTasks` is the server's view, which LAGS at launch — the first poll
 // fires in the same tick as the download POST, before the server has
@@ -5083,8 +5106,12 @@ async function _pollBackgroundStatus() {
         // stream to debounce against), so unlike the reconnect loop it keys
         // off the conclusive exit sentinel only, never the `/snapshots/` path,
         // which can be printed mid-stream for multi-file downloads.
+        // _nextDownloadStatus keeps 'done' sticky: a task finalized by the
+        // reconnect loop's /snapshots/ heuristic (OK sentinel not retained in
+        // output) must not be downgraded to 'crashed' when the dead pane is
+        // later reported 'stopped' by this blind poll.
         const downloadDone = task.type === 'download'
-          && String(combinedOutput || '').includes('DOWNLOAD_OK');
+          && _nextDownloadStatus(task.status, combinedOutput) === 'done';
         const serveReady = task.type === 'serve'
           && (live.status === 'ready' || _serveOutputLooksReady({ ...task, output: live.output_tail || task.output || '' }));
         const completedByOutput = depDone || downloadDone;
