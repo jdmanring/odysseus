@@ -1330,14 +1330,18 @@ export function _hwfitRenderList(el, models) {
     const tps = tpsRaw > 0 ? (tpsRaw >= 100 ? Math.round(tpsRaw) : tpsRaw.toFixed(1)) : '?';
     const pcount = m.parameter_count || '?';
     const ctx = m.context ? (m.context >= 1024 ? (m.context / 1024).toFixed(0) + 'k' : m.context) : '?';
-    const fitLabel = (m.fit_level || '').replace('_', ' ');
+    // Unservable architecture (#150): the server pins fit to no_fit and sets
+    // arch_unservable; say WHY in place of the bare fit label.
+    const fitLabel = m.arch_unservable
+      ? 'research'
+      : (m.fit_level || '').replace('_', ' ');
     const modeLabel = _modeLabel(m);
     const vramLabel = m.required_gb ? m.required_gb.toFixed(1) + 'G' : '?';
     const moeBadge = m.is_moe ? '<span class="hwfit-badge hwfit-moe">MoE</span>' : '';
     const imgBadge = m.is_image_gen ? '<span class="hwfit-badge" style="background:color-mix(in srgb, var(--red) 20%, transparent);color:var(--red);font-size:8px;padding:1px 4px;border-radius:3px;margin-left:4px;">IMG</span>' : '';
     const dlDot = (_cachedModelIds && (_cachedModelIds.has(m.name) || [..._cachedModelIds].some(id => id === m.name?.split('/').pop()))) ? '<span class="hwfit-dl-dot" title="Downloaded">\u25CF</span>' : '';
     html += `<div class="hwfit-row" data-model="${esc(m.name)}">`;
-    html += `<span class="hwfit-col hwfit-fit" style="color:${fitColor}">${esc(fitLabel)}</span>`;
+    html += `<span class="hwfit-col hwfit-fit" style="color:${fitColor}"${m.arch_unservable ? ` title="Architecture ${esc(m.architecture || 'unknown')} has no supported inference engine — research checkpoint, not servable"` : ''}>${esc(fitLabel)}</span>`;
     // Append quant to the title when it's not already in the repo name. The
     // suffix strips quant-parts the name already contains — e.g. for
     // QuantTrio/MiniMax-M2-AWQ + quant=AWQ-4bit we just show "(4bit)", not
