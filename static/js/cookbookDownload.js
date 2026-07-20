@@ -572,6 +572,10 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
               if (meta.has_evals) parts.push('benchmarked');
               if (!meta.is_derived) parts.push('community source');
               console.log('GGUF discovery: ' + parts.join(' | '));
+              // The selection must be visible, not console-only: the download
+              // card is titled with the REQUESTED model, so a silently chosen
+              // source repo is otherwise invisible until the weights land.
+              uiModule.showToast(`GGUF source: ${ggufSource.repo} (score ${score}, ${dl.toLocaleString()} downloads)`, 8000);
             }
           }
         }
