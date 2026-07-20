@@ -1,0 +1,80 @@
+[*] Using aria2c: /home/james/.cookbook/bin/aria2c
+[*] Resolving file list for hf-internal-testing/tiny-random-gpt2...
+[*] HF auth: no token — public models only
+[*] 10 file(s) to download.
+[*] Total size: 12512611 bytes
+[*] Commit: 71034c5d8bde
+[*] Saving to: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9
+[*] Downloading 10 file(s) (4 in parallel)...
+
+07/19 23:38:36 [[1;32mNOTICE[0m] Downloading 10 item(s)
+
+07/19 23:38:36 [[1;32mNOTICE[0m] CUID#7 - Redirecting to https://huggingface.co/api/resolve-cache/models/hf-internal-testing/tiny-random-gpt2/71034c5d8bde858ff824298bdedc65515b97d2b9/.gitattributes?%2Fhf-internal-testing%2Ftiny-random-gpt2%2Fresolve%2F71034c5d8bde858ff824298bdedc65515b97d2b9%2F.gitattributes=&etag=%228d1395b12188a31e8a22acea211f312d818744e9%22
+
+07/19 23:38:36 [[1;32mNOTICE[0m] CUID#9 - Redirecting to https://huggingface.co/api/resolve-cache/models/hf-internal-testing/tiny-random-gpt2/71034c5d8bde858ff824298bdedc65515b97d2b9/merges.txt?%2Fhf-internal-testing%2Ftiny-random-gpt2%2Fresolve%2F71034c5d8bde858ff824298bdedc65515b97d2b9%2Fmerges.txt=&etag=%2213121be363780fa6e2b08af6a066099c954d9d8c%22
+
+07/19 23:38:36 [[1;32mNOTICE[0m] CUID#8 - Redirecting to https://huggingface.co/api/resolve-cache/models/hf-internal-testing/tiny-random-gpt2/71034c5d8bde858ff824298bdedc65515b97d2b9/config.json?%2Fhf-internal-testing%2Ftiny-random-gpt2%2Fresolve%2F71034c5d8bde858ff824298bdedc65515b97d2b9%2Fconfig.json=&etag=%224ff64fe5192d88c0b5dbfc578c775c0ce05dd7d0%22
+
+07/19 23:38:36 [[1;32mNOTICE[0m] CUID#10 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/621ffdc136468d709f17ba61/f8accece953fd366d4ce30597b97acc1ccedc3c785187a5ef6ecb4a8e1755122?user_id=public&X-Xet-Cas-Uid=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model.safetensors%3B+filename%3D%22model.safetensors%22%3B&Expires=1784533224&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjIxZmZkYzEzNjQ2OGQ3MDlmMTdiYTYxL2Y4YWNjZWNlOTUzZmQzNjZkNGNlMzA1OTdiOTdhY2MxY2NlZGMzYzc4NTE4N2E1ZWY2ZWNiNGE4ZTE3NTUxMjJcXD91c2VyX2lkPXB1YmxpYyZYLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC5zYWZldGVuc29ycyUyMiUzQiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTMzMjI0fX19XX0_&Signature=MEYCIQCfPHcQjxHZNLGIcGAMlXyBMm4gW4TsZy1u-TcG-MyHEgIhAMKTIwV%7EoqdF54Ck0cHYM7UmtGbYEDRGl0cIr2uMg%7Eou&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F
+
+07/19 23:38:36 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/merges.txt
+
+07/19 23:38:36 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/config.json
+
+07/19 23:38:36 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/.gitattributes
+
+07/19 23:38:36 [[1;32mNOTICE[0m] CUID#16 - Redirecting to https://huggingface.co/api/resolve-cache/models/hf-internal-testing/tiny-random-gpt2/71034c5d8bde858ff824298bdedc65515b97d2b9/special_tokens_map.json?%2Fhf-internal-testing%2Ftiny-random-gpt2%2Fresolve%2F71034c5d8bde858ff824298bdedc65515b97d2b9%2Fspecial_tokens_map.json=&etag=%22817762d631ad6f9c799f6b9dc713c46420e65546%22
+
+07/19 23:38:36 [[1;32mNOTICE[0m] CUID#15 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/621ffdc136468d709f17ba61/72d5008077bcb694b439abace86b6708478cbba54d128303d755a02ea505fa0a?X-Xet-Cas-Uid=public&response-content-type=application%2Foctet-stream&user_id=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27pytorch_model.bin%3B+filename%3D%22pytorch_model.bin%22%3B&Expires=1784533224&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjIxZmZkYzEzNjQ2OGQ3MDlmMTdiYTYxLzcyZDUwMDgwNzdiY2I2OTRiNDM5YWJhY2U4NmI2NzA4NDc4Y2JiYTU0ZDEyODMwM2Q3NTVhMDJlYTUwNWZhMGFcXD9YLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LXR5cGU9YXBwbGljYXRpb24lMkZvY3RldC1zdHJlYW0mdXNlcl9pZD1wdWJsaWMmcmVzcG9uc2UtY29udGVudC1kaXNwb3NpdGlvbj1pbmxpbmUlM0IrZmlsZW5hbWUlMkElM0RVVEYtOCUyNyUyN3B5dG9yY2hfbW9kZWwuYmluJTNCK2ZpbGVuYW1lJTNEJTIycHl0b3JjaF9tb2RlbC5iaW4lMjIlM0IiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkVwb2NoVGltZSI6MTc4NDUzMzIyNH19fV19&Signature=MEUCIQC7z1uMSGmcycRxS6IpdMYCQZ70576VPP9vvYMBZLxWtAIgQZ7N6mqtbIDnBqOeicbFZ9Ki33EieyHlSyg17te7TRw_&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F
+
+07/19 23:38:36 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/special_tokens_map.json
+
+07/19 23:38:36 [[1;32mNOTICE[0m] CUID#17 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/621ffdc136468d709f17ba61/47b8e93c2c6e74ebdc71a472f1c4be795bf5546832e1d4f0c42762540d5c487d?user_id=public&X-Xet-Cas-Uid=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27tf_model.h5%3B+filename%3D%22tf_model.h5%22%3B&Expires=1784533224&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjIxZmZkYzEzNjQ2OGQ3MDlmMTdiYTYxLzQ3YjhlOTNjMmM2ZTc0ZWJkYzcxYTQ3MmYxYzRiZTc5NWJmNTU0NjgzMmUxZDRmMGM0Mjc2MjU0MGQ1YzQ4N2RcXD91c2VyX2lkPXB1YmxpYyZYLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3dGZfbW9kZWwuaDUlM0IrZmlsZW5hbWUlM0QlMjJ0Zl9tb2RlbC5oNSUyMiUzQiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTMzMjI0fX19XX0_&Signature=MEYCIQDzgIHKRsMLF0bkxYTx%7EWYhyMlYH1h9jlM%7EfhxPSpjgwQIhAOTcmQB2nJJn-RylR8WXyn0gbqPKmuvEmC7BDFYwmshh&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F
+
+07/19 23:38:36 [[1;32mNOTICE[0m] CUID#18 - Redirecting to https://huggingface.co/api/resolve-cache/models/hf-internal-testing/tiny-random-gpt2/71034c5d8bde858ff824298bdedc65515b97d2b9/tokenizer.json?%2Fhf-internal-testing%2Ftiny-random-gpt2%2Fresolve%2F71034c5d8bde858ff824298bdedc65515b97d2b9%2Ftokenizer.json=&etag=%22980677bff66333505f8bea2719064a6e43f95314%22
+
+07/19 23:38:36 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/tokenizer.json
+
+07/19 23:38:37 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/model.safetensors
+
+07/19 23:38:37 [[1;32mNOTICE[0m] CUID#19 - Redirecting to https://huggingface.co/api/resolve-cache/models/hf-internal-testing/tiny-random-gpt2/71034c5d8bde858ff824298bdedc65515b97d2b9/tokenizer_config.json?%2Fhf-internal-testing%2Ftiny-random-gpt2%2Fresolve%2F71034c5d8bde858ff824298bdedc65515b97d2b9%2Ftokenizer_config.json=&etag=%22c92208ce39324aadabc239d73dd9bb3ec1cd45ca%22
+
+07/19 23:38:37 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/tokenizer_config.json
+
+07/19 23:38:37 [[1;32mNOTICE[0m] CUID#20 - Redirecting to https://huggingface.co/api/resolve-cache/models/hf-internal-testing/tiny-random-gpt2/71034c5d8bde858ff824298bdedc65515b97d2b9/vocab.json?%2Fhf-internal-testing%2Ftiny-random-gpt2%2Fresolve%2F71034c5d8bde858ff824298bdedc65515b97d2b9%2Fvocab.json=&etag=%2264bcba2cd1b7220fc0494c83f4effe8a6448b36c%22
+
+07/19 23:38:37 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/vocab.json
+
+07/19 23:38:37 [[1;32mNOTICE[0m] CUID#22 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/621ffdc136468d709f17ba61/47b8e93c2c6e74ebdc71a472f1c4be795bf5546832e1d4f0c42762540d5c487d?user_id=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27tf_model.h5%3B+filename%3D%22tf_model.h5%22%3B&X-Xet-Cas-Uid=public&Expires=1784533224&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjIxZmZkYzEzNjQ2OGQ3MDlmMTdiYTYxLzQ3YjhlOTNjMmM2ZTc0ZWJkYzcxYTQ3MmYxYzRiZTc5NWJmNTU0NjgzMmUxZDRmMGM0Mjc2MjU0MGQ1YzQ4N2RcXD91c2VyX2lkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3dGZfbW9kZWwuaDUlM0IrZmlsZW5hbWUlM0QlMjJ0Zl9tb2RlbC5oNSUyMiUzQiZYLVhldC1DYXMtVWlkPXB1YmxpYyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTMzMjI0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MzE0NTcyOC01MjQyODc5In19fV19&Signature=MEUCIQCsslQEq%7E-1u6WHItFLwxB-WXoo%7EQ1a8qZFb0JqH%7ErQ2QIga7lhGuMbTb4Wj8FhoyqZckwsgkPr9KqbvdD3Ebbb4yY_&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F
+
+07/19 23:38:37 [[1;32mNOTICE[0m] CUID#21 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/621ffdc136468d709f17ba61/47b8e93c2c6e74ebdc71a472f1c4be795bf5546832e1d4f0c42762540d5c487d?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27tf_model.h5%3B+filename%3D%22tf_model.h5%22%3B&user_id=public&X-Xet-Cas-Uid=public&Expires=1784533224&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjIxZmZkYzEzNjQ2OGQ3MDlmMTdiYTYxLzQ3YjhlOTNjMmM2ZTc0ZWJkYzcxYTQ3MmYxYzRiZTc5NWJmNTU0NjgzMmUxZDRmMGM0Mjc2MjU0MGQ1YzQ4N2RcXD9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3dGZfbW9kZWwuaDUlM0IrZmlsZW5hbWUlM0QlMjJ0Zl9tb2RlbC5oNSUyMiUzQiZ1c2VyX2lkPXB1YmxpYyZYLVhldC1DYXMtVWlkPXB1YmxpYyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTMzMjI0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9NTI0Mjg4MC04NDYyMjU1In19fV19&Signature=MEUCIQD8OZpZBLgSoa%7EfUMuLVL8EJnH%7ETEtbAUsjjPu1irZhCQIgR9R4cDJqPEWyo11VV0fY-yJKz0Dk1tVMsBL39AkNcco_&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F
+
+07/19 23:38:37 [[1;32mNOTICE[0m] CUID#23 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/621ffdc136468d709f17ba61/72d5008077bcb694b439abace86b6708478cbba54d128303d755a02ea505fa0a?X-Xet-Cas-Uid=public&user_id=public&response-content-type=application%2Foctet-stream&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27pytorch_model.bin%3B+filename%3D%22pytorch_model.bin%22%3B&Expires=1784533224&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjIxZmZkYzEzNjQ2OGQ3MDlmMTdiYTYxLzcyZDUwMDgwNzdiY2I2OTRiNDM5YWJhY2U4NmI2NzA4NDc4Y2JiYTU0ZDEyODMwM2Q3NTVhMDJlYTUwNWZhMGFcXD9YLVhldC1DYXMtVWlkPXB1YmxpYyZ1c2VyX2lkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LXR5cGU9YXBwbGljYXRpb24lMkZvY3RldC1zdHJlYW0mcmVzcG9uc2UtY29udGVudC1kaXNwb3NpdGlvbj1pbmxpbmUlM0IrZmlsZW5hbWUlMkElM0RVVEYtOCUyNyUyN3B5dG9yY2hfbW9kZWwuYmluJTNCK2ZpbGVuYW1lJTNEJTIycHl0b3JjaF9tb2RlbC5iaW4lMjIlM0IiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkVwb2NoVGltZSI6MTc4NDUzMzIyNH0sIkJ5dGVSYW5nZSI6eyJFeHBlY3RlZEhlYWRlciI6ImJ5dGVzPTIwOTcxNTItMzU2MTgxMCJ9fX1dfQ__&Signature=MEUCIQC0UHibs85GWLNI9I5zsoHmKVjsc8-6cMtUWLmwupLMRQIgWddJ8-hSP2WaYGWChDxVtleyf81PymzA8tQkx3X1wxw_&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F
+[DL:8.3MiB][#135d37 2.1MiB/3.3MiB(63%)][#39ae18 4.0MiB/8.0MiB(50%)]
+
+07/19 23:38:37 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/pytorch_model.bin
+
+07/19 23:38:37 [[1;31mERROR[0m] CUID#22 - Download aborted. URI=https://huggingface.co/hf-internal-testing/tiny-random-gpt2/resolve/71034c5d8bde858ff824298bdedc65515b97d2b9/tf_model.h5
+Exception: [AbstractCommand.cc:351] errorCode=22 URI=https://us.aws.cdn.hf.co/xet-bridge-us/621ffdc136468d709f17ba61/47b8e93c2c6e74ebdc71a472f1c4be795bf5546832e1d4f0c42762540d5c487d?user_id=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27tf_model.h5%3B+filename%3D%22tf_model.h5%22%3B&X-Xet-Cas-Uid=public&Expires=1784533224&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjIxZmZkYzEzNjQ2OGQ3MDlmMTdiYTYxLzQ3YjhlOTNjMmM2ZTc0ZWJkYzcxYTQ3MmYxYzRiZTc5NWJmNTU0NjgzMmUxZDRmMGM0Mjc2MjU0MGQ1YzQ4N2RcXD91c2VyX2lkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3dGZfbW9kZWwuaDUlM0IrZmlsZW5hbWUlM0QlMjJ0Zl9tb2RlbC5oNSUyMiUzQiZYLVhldC1DYXMtVWlkPXB1YmxpYyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTMzMjI0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MzE0NTcyOC01MjQyODc5In19fV19&Signature=MEUCIQCsslQEq%7E-1u6WHItFLwxB-WXoo%7EQ1a8qZFb0JqH%7ErQ2QIga7lhGuMbTb4Wj8FhoyqZckwsgkPr9KqbvdD3Ebbb4yY_&Key-Pair-Id=01KXEF4KZ1B6FV465MAWR4M21F
+  -> [HttpSkipResponseCommand.cc:240] errorCode=22 The response status is not successful. status=403
+
+07/19 23:38:37 [[1;32mNOTICE[0m] Download complete: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/tf_model.h5
+
+Download Results:
+gid   |stat|avg speed  |  %|path/URI
+======+====+===========+===+===================================================
+b2bec9|OK  |   1.1MiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/merges.txt
+180b06|OK  |   394KiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/config.json
+2789e4|OK  |   386KiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/.gitattributes
+6700cc|OK  |    43KiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/special_tokens_map.json
+afb1a2|OK  |   5.5MiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/tokenizer.json
+caf2d1|OK  |   4.0MiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/model.safetensors
+7af13d|OK  |   115KiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/tokenizer_config.json
+d7d74a|OK  |   4.9MiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/vocab.json
+135d37|OK  |   6.5MiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/pytorch_model.bin
+39ae18|OK  |   9.9MiB/s|100|/home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9/tf_model.h5
+
+Status Legend:
+(OK):download completed.
+
+[*] Download complete. Model cached at: /home/james/.cache/huggingface/hub/models--hf-internal-testing--tiny-random-gpt2/snapshots/71034c5d8bde858ff824298bdedc65515b97d2b9
