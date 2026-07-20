@@ -359,3 +359,69 @@ test('shell-exec outcome: HTTP 200 with nonzero exit_code is a FAILURE, not succ
   // the delete path must actually consume it
   assert.match(SERVE_SRC, /_shellExecFailure\(_delResult\)/);
 });
+
+// ── tier-4 adjacent paths: pause/resume semantics and the full card build ──
+test('paused is user intent: no window content or live report may flip it', () => {
+  // Pause sends C-c, which makes the wrapper print DOWNLOAD_FAILED — that
+  // artifact must never turn a paused task into error/crashed.
+  assert.equal(api._nextDownloadStatus('paused', 'DOWNLOAD_FAILED (exit 1)'), 'paused');
+  assert.equal(api._nextDownloadStatus('paused', '', 'stopped'), 'paused');
+  assert.equal(api._nextDownloadStatus('paused', '', 'error'), 'paused');
+  // even a stale DOWNLOAD_OK from a previous attempt in the same scrollback
+  // does not auto-resume a task the user paused
+  assert.equal(api._nextDownloadStatus('paused', 'DOWNLOAD_OK'), 'paused');
+});
+
+function buildCardSandbox() {
+  const UI_SRC = readFileSync(join(ROOT, 'static', 'js', 'ui.js'), 'utf8');
+  const escStart = UI_SRC.indexOf('export function esc');
+  assert.notEqual(escStart, -1);
+  const escOpen = UI_SRC.indexOf('{', escStart);
+  let d = 0, j = escOpen;
+  for (; j < UI_SRC.length; j++) {
+    if (UI_SRC[j] === '{') d++;
+    else if (UI_SRC[j] === '}') { d--; if (d === 0) break; }
+  }
+  const code = [
+    'const _dlFileTracker = new Map();',
+    // esc() depends on module-level _ESC_MAP — pull the REAL line from ui.js
+    UI_SRC.split('\n').find(l => l.startsWith('const _ESC_MAP')),
+    UI_SRC.slice(escStart, j + 1).replace(/^export /, ''),
+    extractBlock('function _parseIecBytes'),
+    extractBlock('function _fmtIecBytes'),
+    extractBlock('function _fmtSpeed'),
+    extractBlock('function _fmtEtaSecs'),
+    extractBlock('function _parseDownloadState'),
+    extractBlock('function _midTrunc'),
+    extractBlock('function _buildSingleFileRow'),
+    extractBlock('function _authStatusForTask'),
+    extractBlock('function _buildAuthPillHtml'),
+    extractBlock('function _buildDownloadCardHtml'),
+  ].join('\n');
+  const ctx = { console, Math, Date, JSON };
+  vm.createContext(ctx);
+  vm.runInContext(code + ';globalThis.build = _buildDownloadCardHtml;', ctx);
+  return ctx.build;
+}
+
+test('card build: paused status overrides a downloading transcript (pause during downloading)', () => {
+  const build = buildCardSandbox();
+  const out = FIX('aria2c_transcript_midrun.txt');
+  const html = build({ status: 'paused', output: out, sessionId: 'sid-p' });
+  assert.match(html, /data-dl-phase="paused"/,
+    'paused task must render the paused card even while the pane still shows progress');
+});
+
+test('card build: multi-file run renders downloading phase with per-file rows', () => {
+  const build = buildCardSandbox();
+  const out = FIX('aria2c_transcript_midrun.txt');
+  const html = build({ status: 'running', output: out, sessionId: 'sid-m' });
+  assert.match(html, /data-dl-phase="downloading"/);
+  assert.match(html, /dl-file-row/, 'per-file progress rows missing for a parallel download');
+});
+
+test('card build: early flood window (no markers yet) renders initializing, not error', () => {
+  const build = buildCardSandbox();
+  const html = build({ status: 'running', output: 'random noise with no markers', sessionId: 'sid-i' });
+  assert.match(html, /data-dl-phase="initializing"/);
+});
