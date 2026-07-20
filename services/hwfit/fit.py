@@ -502,9 +502,22 @@ def analyze_model(model, system, target_quant=None, scoring_use_case=None, targe
         # can't actually serve with vLLM on >1 GPU.
         quant_to_try = "BF16"
     else:
-        # Default: Q4_K_M (user's stated preference) — kept for single-GPU
-        # and RAM modes where llama.cpp serving is the natural path.
-        quant_to_try = "Q4_K_M"
+        # Default: Q4_K_M (user's stated preference) for models that actually
+        # HAVE a GGUF path — single-GPU and RAM modes where llama.cpp serving
+        # is the natural route. A plain safetensors repo with no GGUF evidence
+        # can only be served by vLLM/SGLang at its native precision: rating it
+        # at a hypothetical Q4_K_M fabricated a llama.cpp identity for models
+        # with no GGUF anywhere (a BF16 research repo rendered as
+        # "Q4_K_M / llama.cpp", so Run used the wrong engine and Download
+        # hunted a GGUF that does not exist — issue #149).
+        if model.get("is_gguf") or model.get("gguf_sources"):
+            quant_to_try = "Q4_K_M"
+        else:
+            quant_to_try = native_quant
+            # The catalog's legacy default tags quantization-less safetensors
+            # entries "Q4_K_M" too — same fabrication, same guard.
+            if quant_to_try.upper().startswith(("Q2", "Q3", "Q4", "Q5", "Q6", "Q8", "IQ")):
+                quant_to_try = "BF16"
 
     # Multi-GPU filter: skip the row if the resolved quant is a GGUF tier
     # (Q*/IQ-prefixed) — vLLM/SGLang can't serve those, so showing them on
@@ -532,6 +545,8 @@ def analyze_model(model, system, target_quant=None, scoring_use_case=None, targe
             "fit_level": "too_tight",
             "run_mode": "no_fit",
             "quant": quant_to_try,
+            "format": model.get("format", ""),
+            "is_gguf": bool(model.get("is_gguf")),
             "context": ctx,
             "required_gb": round(oversized_required, 1),
             "speed_tps": 0,
@@ -618,6 +633,10 @@ def analyze_model(model, system, target_quant=None, scoring_use_case=None, targe
             "context": round(c_score, 1),
         },
         "gguf_sources": model.get("gguf_sources", []),
+        # The client's backend detection must be able to tell a real GGUF
+        # model from a safetensors repo rated at a hypothetical quant (#149).
+        "format": model.get("format", ""),
+        "is_gguf": bool(model.get("is_gguf")),
         "context_length": model_ctx,
         "release_date": model.get("release_date", ""),
         "target_context": target_context or None,

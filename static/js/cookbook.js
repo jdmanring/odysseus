@@ -518,7 +518,17 @@ export function _detectBackend(model) {
   const isAwqLike = /^AWQ|^GPTQ|^NVFP4/.test(q) || ['FP8', 'FP4', 'MXFP4', 'NF4', 'INT4', 'INT8', 'W4A16', 'W8A8', 'W8A16'].includes(q) || /\b(awq|gptq|fp8|fp4|nvfp4|mxfp4|nf4|int4|int8|w4a16|w8a8|w8a16)\b/i.test(_nm);
   const hasGgufFile = Array.isArray(model.gguf_files)
     && model.gguf_files.some(f => f && typeof f.rel_path === 'string' && /\.gguf$/i.test(f.rel_path));
-  const isGgufLike = model.is_gguf || hasGgufFile || /^Q[2-8]/.test(q) || /^IQ/.test(q) || q === 'GGUF' || _nm.includes('gguf');
+  // Real GGUF evidence: the model says so, ships .gguf files, lists GGUF
+  // sources, or carries gguf in its name. A bare Q-tier quant label is NOT
+  // evidence when the model is declared safetensors — the fit engine used to
+  // stamp a hypothetical Q4_K_M onto plain safetensors repos, and trusting it
+  // here gave GGUF-less models a llama.cpp identity everywhere (issue #149).
+  const _hasGgufEvidence = model.is_gguf || hasGgufFile
+    || (Array.isArray(model.gguf_sources) && model.gguf_sources.length > 0)
+    || q === 'GGUF' || _nm.includes('gguf');
+  const _declaredSafetensors = String(model.format || '').toLowerCase() === 'safetensors';
+  const _quantImpliesGguf = (/^Q[2-8]/.test(q) || /^IQ/.test(q)) && !_declaredSafetensors;
+  const isGgufLike = _hasGgufEvidence || _quantImpliesGguf;
 
   // AWQ / GPTQ / FP8 are safetensors GPU-serving formats. Never route them
   // through llama.cpp/Ollama just because the host is Mac/Windows; those engines
