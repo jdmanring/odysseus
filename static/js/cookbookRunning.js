@@ -1145,8 +1145,10 @@ function _buildDownloadCardHtml(task, state) {
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
       <span>Show log</span>
     </button>
-    <pre class="cookbook-output-pre dl-raw-log" style="display:none">${esc(task.output || '')}</pre>
-    <button type="button" class="copy-code cookbook-output-copy dl-copy-btn" style="display:none" title="Copy log"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    <div class="cookbook-output-wrap dl-log-wrap" style="display:none">
+      <pre class="cookbook-output-pre dl-raw-log">${esc(task.output || '')}</pre>
+      <button type="button" class="copy-code cookbook-output-copy dl-copy-btn" title="Copy log"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+    </div>
   </div>`;
 }
 
@@ -3728,8 +3730,11 @@ export function _renderRunningTab() {
     // Wire retry
     el.querySelector('.cookbook-task-action-retry').addEventListener('click', () => _retryTask(el, task));
 
-    // Wire copy button
-    el.querySelector('.cookbook-output-copy').addEventListener('click', (e) => {
+    // Wire copy button (download cards wire their own .dl-copy-btn below —
+    // binding here too would double-fire on the same click)
+    const _genCopyBtn = el.querySelector('.cookbook-output-copy');
+    if (_genCopyBtn && !_genCopyBtn.classList.contains('dl-copy-btn'))
+    _genCopyBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const text = el.querySelector('.cookbook-output-pre')?.textContent || '';
       if (!text.trim()) {
@@ -3816,13 +3821,11 @@ export function _renderRunningTab() {
         if (_dlLogToggle) {
           _dlLogToggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            const log = _dlCard.querySelector('.dl-raw-log');
-            const copyBtn = _dlCard.querySelector('.dl-copy-btn');
+            const logWrap = _dlCard.querySelector('.dl-log-wrap');
             const label = _dlLogToggle.querySelector('span');
-            if (!log) return;
-            const shown = log.style.display !== 'none';
-            log.style.display = shown ? 'none' : '';
-            if (copyBtn) copyBtn.style.display = shown ? 'none' : '';
+            if (!logWrap) return;
+            const shown = logWrap.style.display !== 'none';
+            logWrap.style.display = shown ? 'none' : '';
             // Rotate the SVG chevron rather than swapping text
             const _ico = _dlLogToggle.querySelector('svg');
             if (_ico) _ico.style.transform = shown ? '' : 'rotate(90deg)';
@@ -3841,6 +3844,10 @@ export function _renderRunningTab() {
           _dlCopyBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const text = _dlCard.querySelector('.dl-raw-log')?.textContent || '';
+            if (!text.trim()) {
+              uiModule.showToast('No log content available yet');
+              return;
+            }
             _copyText(text).then(() => {
               const origHTML = _dlCopyBtn.innerHTML;
               _dlCopyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
