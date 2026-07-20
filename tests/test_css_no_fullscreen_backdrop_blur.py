@@ -10,7 +10,12 @@ sidebar dropped its backdrop-filter for the same class of bug.
 import re
 from pathlib import Path
 
-CSS = (Path(__file__).parent.parent / "static" / "style.css").read_text()
+CSS = re.sub(
+    r"/\*.*?\*/",
+    "",
+    (Path(__file__).parent.parent / "static" / "style.css").read_text(),
+    flags=re.S,
+)
 
 FULLSCREEN_OVERLAYS = [
     "#styled-confirm-overlay",
