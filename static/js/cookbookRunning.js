@@ -100,6 +100,18 @@ function _downloadServeFields(task) {
 // (e.g. "model-00012-of-00082.safetensors: 56%|") is NOT actually finished —
 // the cookbook just lost track. The clear pill becomes a "reconnect" affordance
 // in that case (click → revive the row + reattach the poll loop).
+// A task is an aria2c run if the launch payload says so, OR if the output
+// carries the launcher's fingerprint. The fallback matters: tasks adopted
+// from the server's live tmux status (`_pollBackgroundStatus`) get a minimal
+// payload with no `use_aria2c`, and for those the loose hf-CLI success
+// markers ('/snapshots/', per-file 'Download complete') are ambient noise
+// that aria2c prints from its very first progress tick.
+function _isAria2cRun(task) {
+  if (task?.payload?.use_aria2c) return true;
+  const out = task?.output || '';
+  return out.includes('[*] Using aria2c:') || /\[#[0-9a-f]{4,}\s/i.test(out);
+}
+
 function _downloadOutputLooksActive(task) {
   if (!task || task.type !== 'download') return false;
 
@@ -3886,7 +3898,7 @@ async function _reconnectTask(el, task) {
           // follows). The loose markers stay for hf-CLI downloads, whose
           // output has no sentinel.
           const downloadLooksSuccessful = !lastOutput.includes('DOWNLOAD_FAILED')
-            && (task.payload?.use_aria2c
+            && (_isAria2cRun(task)
               ? lastOutput.includes('DOWNLOAD_OK')
               : (lastOutput.includes('DONE') || lastOutput.includes('100%') || lastOutput.includes('/snapshots/') || lastOutput.includes('Download complete') || lastOutput.includes('DOWNLOAD_OK')));
           // Pip install / reinstall tasks are launched via _launchServeTask (so
@@ -4015,7 +4027,8 @@ async function _reconnectTask(el, task) {
             // ambiguous markers (bare "100%" / "Download complete") which can
             // appear mid-stream during multi-file downloads.
             const _strongDone = task.type === 'download'
-              && (lastOutput.includes('DOWNLOAD_OK') || lastOutput.includes('/snapshots/'));
+              && (lastOutput.includes('DOWNLOAD_OK')
+                || (!_isAria2cRun(task) && lastOutput.includes('/snapshots/')));
             if (_strongDone) {
               _updateTask(task.sessionId, { status: 'done', _doneConfirmAt: null, _lastStatusFlipAt: Date.now() });
               el.dataset.status = 'done';
@@ -4784,7 +4797,14 @@ export async function _selfHealStaleTasks(opts = {}) {
     // long-lived shell that hosted the download or a flapping SSH that
     // reports the session as up). This was the main source of finished↔
     // downloading oscillation on a flaky connection.
-    if (t.status === 'done' && /DOWNLOAD_OK|\/snapshots\//.test(t.output || '')) return false;
+    // For aria2c runs only the exit sentinel is conclusive — '/snapshots/'
+    // appears in its output from the first tick (the launcher's "Saving to:"
+    // line), so trusting it here would permanently block the self-heal probe
+    // for a wrongly-persisted 'done' while the download still runs in tmux.
+    if (t.status === 'done'
+        && (_isAria2cRun(t)
+          ? /DOWNLOAD_OK/.test(t.output || '')
+          : /DOWNLOAD_OK|\/snapshots\//.test(t.output || ''))) return false;
     // Cooldown: never flip the same task more than once every 45s. A flapping
     // SSH connection used to drive the badge back-and-forth on every probe
     // cycle; this enforces a stable view between flaps.
