@@ -90,6 +90,11 @@ def _install_model_route_import_stubs(monkeypatch):
     exceptions_mod.SessionNotFoundError = type("SessionNotFoundError", (Exception,), {})
     session_mgr_mod = types.ModuleType("core.session_manager")
     session_mgr_mod.SessionManager = MagicMock()
+    # core.log_safety arrived with the #4750 ingest; without this stub the
+    # from-import only succeeds when an earlier test left the REAL module in
+    # sys.modules — i.e. these tests failed when run alone (order-dependent).
+    log_safety_mod = types.ModuleType("core.log_safety")
+    log_safety_mod.redact_url = lambda url, *a, **k: url
 
     monkeypatch.delitem(sys.modules, "routes.model_routes", raising=False)
     monkeypatch.delitem(sys.modules, "routes.chat_routes", raising=False)
@@ -101,6 +106,7 @@ def _install_model_route_import_stubs(monkeypatch):
     monkeypatch.setitem(sys.modules, "core.models", models_mod)
     monkeypatch.setitem(sys.modules, "core.exceptions", exceptions_mod)
     monkeypatch.setitem(sys.modules, "core.session_manager", session_mgr_mod)
+    monkeypatch.setitem(sys.modules, "core.log_safety", log_safety_mod)
 
 
 def _install_core_auth_stub(monkeypatch):
