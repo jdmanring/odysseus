@@ -44,6 +44,23 @@ def test_profile_is_logged():
 
 def test_detection_is_failsafe():
     # The signal readers must swallow errors so a glitch never degrades a good machine.
-    block = _SRC[_SRC.index("def _linux_total_ram_gb"): _SRC.index("_low_resource, _profile_reason")]
-    assert "except (OSError, ValueError)" in block
-    assert "except Exception" in block
+    ram = _SRC[_SRC.index("def _linux_total_ram_gb"): _SRC.index("_low_resource, _profile_reason")]
+    assert "except (OSError, ValueError)" in ram
+    # _linux_software_render lives next to the Chromium flag block (it must run
+    # before the flags are assembled) — its failsafe is asserted where it is.
+    sw = _SRC[_SRC.index("def _linux_software_render"): _SRC.index("_software_render = _linux_software_render()")]
+    assert "except Exception" in sw
+    assert "return False" in sw  # error ⇒ hardware assumed ⇒ STANDARD profile
+
+
+def test_gpu_flags_gated_on_software_render():
+    # Forcing GPU raster onto llvmpipe/SwiftShader worsens rendering (macOS-bench
+    # lesson, ca3ee03d): acceleration flags and WebGPU only with a real render node.
+    assert '_gpu_flags = []\nif not _software_render:' in _SRC
+    gated = _SRC[_SRC.index("if not _software_render:"): _SRC.index('os.environ["QTWEBENGINE_CHROMIUM_FLAGS"]')]
+    assert '"--ignore-gpu-blocklist"' in gated
+    assert '"--enable-gpu-rasterization"' in gated
+    assert '"--enable-zero-copy"' in gated
+    assert '_features = "WebGPU," + _features' in gated
+    assert '--ignore-gpu-blocklist' not in _SRC[_SRC.index('os.environ["QTWEBENGINE_CHROMIUM_FLAGS"]'):]
+    assert '_classify_resources(_linux_total_ram_gb(), _software_render)' in _SRC
