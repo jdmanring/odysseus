@@ -39,10 +39,34 @@ function _downloadBadgeText(progress) {
 // the same state, so the badge shouldn't flip between two different labels on
 // every re-render. Returns { text, cls } where cls is appended after
 // "cookbook-task-status" ('' = the neutral loading style).
+// Compact human text for a download badge from any progress source. The
+// server's `progress` field can be aria2c's raw compact line
+// ("[#b051af 5.8GiB/6.3GiB(91%) CN:2 DL:23MiB ETA:23s]") — never echo that
+// raw into the UI. Both badge writers (the render path and the reconnect
+// loop) go through this, so the badge doesn't flicker between two formats.
+export function _formatDownloadBadge(progress) {
+  const p = String(progress || '').trim();
+  if (!p) return '';
+  if (p.startsWith('[#') || p.startsWith('[DL:')) {
+    const pct = p.match(/\((\d{1,3})%\)/);
+    const spd = p.match(/DL:([0-9.]+\s?[KMGT]i?B?)/i);
+    const eta = p.match(/ETA:([0-9hms]+)/i);
+    const parts = [];
+    if (pct) parts.push(pct[1] + '%');
+    if (spd) parts.push(spd[1].replace(/\s/g, '') + '/s');
+    if (eta) parts.push('ETA ' + eta[1]);
+    return parts.length ? parts.join(' · ') : 'downloading';
+  }
+  // Anything long or URL-ish is log noise, not a badge.
+  if (p.length > 48 || p.includes('http')) return 'downloading';
+  return p;
+}
+
 function _taskBadge(task) {
   if (task._unreachable && task.status === 'running') return { text: 'unreachable', cls: 'cookbook-task-error' };
   if (task.type === 'download' && task.status === 'running') {
-    return { text: _downloadBadgeText(task.progress), cls: 'cookbook-task-downloading' };
+    const progress = _formatDownloadBadge(task.progress);
+    return { text: progress || _statusLabel(task.status, task.type), cls: 'cookbook-task-downloading' };
   }
   if (task.type === 'serve' && task.status === 'running' && task.progress) {
     // Same green "running" pill — just with dynamic phase text, so it doesn't
@@ -4346,10 +4370,21 @@ async function _reconnectTask(el, task) {
               // since the HF-specific patterns don't exist in aria2c output and
               // would produce garbage (e.g. "finishing" when completed > 0 because
               // aria2c prints "Download complete" for each finished file).
-              const _aria2cPhase = _parseDownloadState(snapshot, task.sessionId).phase;
+              const _ariaSt = _parseDownloadState(snapshot, task.sessionId);
               const _aria2cLabels = { initializing: 'initializing', starting: 'starting', resolving: 'resolving', downloading: 'downloading' };
               if (!badge._retryBound) {
-                badge.textContent = _aria2cLabels[_aria2cPhase] || 'downloading';
+                // While downloading, show the same compact "91% · 23MiB/s ·
+                // ETA 23s" the render path derives from server progress —
+                // two writers with two formats made the badge flicker.
+                let _ariaText = _aria2cLabels[_ariaSt.phase] || 'downloading';
+                if (_ariaSt.phase === 'downloading') {
+                  const parts = [];
+                  if (_ariaSt.pct) parts.push(_ariaSt.pct + '%');
+                  if (_ariaSt.speed) parts.push(_ariaSt.speed);
+                  if (_ariaSt.eta) parts.push('ETA ' + _ariaSt.eta);
+                  if (parts.length) _ariaText = parts.join(' · ');
+                }
+                badge.textContent = _ariaText;
                 badge.className = 'cookbook-task-status cookbook-task-running';
               }
             } else if (_useShardAgg) {
