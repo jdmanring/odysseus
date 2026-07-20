@@ -61,37 +61,49 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # Icon: build a proper multi-resolution .icns via iconutil from an .iconset.
-# Rendering each size at native resolution (from the SVG when available) yields
-# crisp icons at every Dock/Finder/Retina scale — the old single-size sips path
-# produced one 512px image that macOS then down/up-scaled to every other slot.
-# PNG fallback upscales past the 512px source, so 512@2x (1024) is softer there.
+# Preferred source is icon-macos-1024.png — a macOS-style tile (dark #282c34
+# rounded rectangle on Apple's 824/1024 icon grid, corners baked in because
+# macOS does NOT auto-round app icons, with the sail glyph sized to sit on par
+# with native Dock icons). It is a native 1024, so every slot including 512@2x
+# downsamples cleanly. Fallbacks (SVG via rsvg, then the bare transparent
+# icon-512 via sips) exist only for environments without the composed master.
 ICNS_OUT="$APP/Contents/Resources/odysseus.icns"
+MACOS_SRC="$REPO_DIR/static/icons/icon-macos-1024.png"
 SVG_SRC="$REPO_DIR/static/icons/odysseus.svg"
 PNG_SRC="$REPO_DIR/static/icons/icon-512.png"
 ICON_BASE_SIZES="16 32 128 256 512"   # each emitted at 1x and @2x
 
-# $1 = kind (svg|png), $2 = .iconset dir. Renders every required slot; any
-# single failure aborts so a partial iconset never reaches iconutil.
+# $1 = renderer (rsvg|sips), $2 = .iconset dir, $3 = source file. Renders every
+# required slot; any single failure aborts so a partial iconset never reaches
+# iconutil.
 make_iconset() {
-    local kind="$1" set_dir="$2" base scale px name
+    local renderer="$1" set_dir="$2" src="$3" base scale px name
     mkdir -p "$set_dir" || return 1
     for base in $ICON_BASE_SIZES; do
         for scale in 1 2; do
             px=$((base * scale))
             if [ "$scale" = "1" ]; then name="icon_${base}x${base}.png"
             else name="icon_${base}x${base}@2x.png"; fi
-            if [ "$kind" = "svg" ]; then
-                rsvg-convert -w "$px" -h "$px" "$SVG_SRC" -o "$set_dir/$name" >/dev/null 2>&1 || return 1
+            if [ "$renderer" = "rsvg" ]; then
+                rsvg-convert -w "$px" -h "$px" "$src" -o "$set_dir/$name" >/dev/null 2>&1 || return 1
             else
-                sips -z "$px" "$px" "$PNG_SRC" --out "$set_dir/$name" >/dev/null 2>&1 || return 1
+                sips -z "$px" "$px" "$src" --out "$set_dir/$name" >/dev/null 2>&1 || return 1
             fi
         done
     done
 }
 
-if command -v iconutil >/dev/null 2>&1 && [ -f "$SVG_SRC" ] && command -v rsvg-convert >/dev/null 2>&1; then
+if command -v iconutil >/dev/null 2>&1 && [ -f "$MACOS_SRC" ] && command -v sips >/dev/null 2>&1; then
     TMPSET="$(mktemp -d)/icon.iconset"
-    if make_iconset svg "$TMPSET" && iconutil -c icns "$TMPSET" -o "$ICNS_OUT" >/dev/null 2>&1; then
+    if make_iconset sips "$TMPSET" "$MACOS_SRC" && iconutil -c icns "$TMPSET" -o "$ICNS_OUT" >/dev/null 2>&1; then
+        echo "  icon: odysseus.icns (macOS tile from icon-macos-1024.png)"
+    else
+        echo "  icon: (iconset build from macOS master failed — non-fatal)"
+    fi
+    rm -rf "$(dirname "$TMPSET")"
+elif command -v iconutil >/dev/null 2>&1 && [ -f "$SVG_SRC" ] && command -v rsvg-convert >/dev/null 2>&1; then
+    TMPSET="$(mktemp -d)/icon.iconset"
+    if make_iconset rsvg "$TMPSET" "$SVG_SRC" && iconutil -c icns "$TMPSET" -o "$ICNS_OUT" >/dev/null 2>&1; then
         echo "  icon: odysseus.icns (multi-res iconset from SVG)"
     else
         echo "  icon: (iconset build from SVG failed — non-fatal)"
@@ -99,8 +111,8 @@ if command -v iconutil >/dev/null 2>&1 && [ -f "$SVG_SRC" ] && command -v rsvg-c
     rm -rf "$(dirname "$TMPSET")"
 elif command -v iconutil >/dev/null 2>&1 && [ -f "$PNG_SRC" ] && command -v sips >/dev/null 2>&1; then
     TMPSET="$(mktemp -d)/icon.iconset"
-    if make_iconset png "$TMPSET" && iconutil -c icns "$TMPSET" -o "$ICNS_OUT" >/dev/null 2>&1; then
-        echo "  icon: odysseus.icns (multi-res iconset from 512px PNG; 512@2x upscaled)"
+    if make_iconset sips "$TMPSET" "$PNG_SRC" && iconutil -c icns "$TMPSET" -o "$ICNS_OUT" >/dev/null 2>&1; then
+        echo "  icon: odysseus.icns (multi-res iconset from 512px PNG; no macOS tile)"
     else
         echo "  icon: (iconset build from PNG failed — non-fatal)"
     fi
@@ -157,6 +169,10 @@ Open Terminal and run:
 [ -f "$WRAPPER" ] || die_gui "mac_wrapper.py not found at $REPO_DIR.
 Reinstall Odysseus or check the installation."
 
+# Mark this as a bundled launch so the wrapper leaves the Dock tile to the
+# bundle's .icns instead of overriding it with setWindowIcon (which made the
+# icon change — lose its background — the moment the app started).
+export ODYSSEUS_BUNDLE=1
 exec "$VENV_PY" "$WRAPPER"
 LAUNCHER
 
