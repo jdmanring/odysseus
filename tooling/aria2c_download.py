@@ -249,6 +249,13 @@ def _main(args) -> None:
             print(f"[!] Fix: visit https://huggingface.co/{args.repo} and accept the")
             print(f"[!] license / request access (approval can take time). If you use a")
             print(f"[!] fine-grained token, it also needs the 'read gated repos' permission.")
+            # Offer ungated community quantizations (hub provenance metadata,
+            # not name guessing). Suggestions only — never silent substitution.
+            alts = HfUrlResolver(token=args.token or None).find_community_quants(args.repo)
+            if alts:
+                print(f"[!] Ungated community quantizations of this model you can fetch now:")
+                for a in alts:
+                    print(f"[!]   - {a['id']}  ({a['downloads']:,} downloads)")
         sys.exit(1)
 
     # Final verification: did we actually get any files?
