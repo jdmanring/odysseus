@@ -638,10 +638,6 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
 
   const payload = { repo_id: repo, backend };
   if (include) payload.include = include;
-  // Large downloads are where hf_transfer most often dies near the end. Use the
-  // plain HuggingFace downloader up front for big model files; it is slower, but
-  // resumes cached partials more reliably.
-  if ((model.required_gb || 0) >= 10 || backend === 'llamacpp') payload.disable_hf_transfer = true;
   if (_envState.hfToken) payload.hf_token = _envState.hfToken;
   if (host) {
     payload.remote_host = host;

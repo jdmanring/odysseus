@@ -1064,7 +1064,11 @@ class ModelDownloadRequest(BaseModel):
     ssh_port: str | None = None    # e.g. "8022" for Termux
     platform: str | None = None    # "linux", "termux", or "windows"
     local_dir: str | None = None   # base dir to download into (a per-model subfolder is created under it); None = default HF cache
-    disable_hf_transfer: bool = True  # skip the Rust hf_transfer downloader — slower but far more reliable on large files (used by retries)
+    # hf_transfer is deliberately unsupported: the Rust parallel path crashes
+    # near the end of large files at high throughput. aria2c is the fast path;
+    # the hf fallback always runs the plain Python downloader. (The old
+    # opt-out knob is gone — unknown fields from stale clients are ignored
+    # by pydantic.)
     use_aria2c: bool = True
 
 

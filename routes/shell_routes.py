@@ -1154,13 +1154,8 @@ def setup_shell_routes() -> APIRouter:
             # cluttering the panel with raw OS package names that aren't
             # meaningful product-level dependencies on their own.
             # ── LLM ── installs on GPU servers for model serving/downloading
-            {
-                "name": "hf_transfer",
-                "pip": "hf_transfer",
-                "desc": "Fast model downloads from HuggingFace",
-                "category": "LLM",
-                "target": "remote",
-            },
+            # hf_transfer deliberately absent: it crashes near the end of large
+            # files at high throughput. aria2c is the fast download path.
             {
                 "name": "llama_cpp",
                 "pip": "llama-cpp-python[server]",
@@ -1583,7 +1578,6 @@ def setup_shell_routes() -> APIRouter:
         # Validate against known packages to prevent arbitrary pip install
         known = {
             "rembg[gpu]",
-            "hf_transfer",
             "llama-cpp-python[server]",
             "sglang[all]",
             "diffusers",
