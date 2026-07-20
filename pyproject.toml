@@ -19,4 +19,5 @@ markers = [
     # taxonomy. The fast lane runs `not slow`; mark a test slow only with
     # duration evidence (see tests/run_focus.py --durations and tests/README.md).
     "slow: opt-in marker for known-slow tests; excluded by the fast lane (not slow)",
+    "live: opt-in live E2E tests that boot their own app instance and use the network; run with RUN_LIVE_E2E=1",
 ]
