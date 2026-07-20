@@ -1226,6 +1226,17 @@ def _diagnose_serve_output(text: str) -> dict | None:
     tail = text[-6000:]
     patterns = [
         (
+            # Pre-startup free-memory check: desktop GPUs always have the
+            # compositor/shell/app holding VRAM, so a fixed 0.9 utilization
+            # can exceed what is actually free before vLLM even loads.
+            r"Free memory on device .* is less than desired GPU memory utilization",
+            "Other processes (desktop compositor, shell, this app) hold part of the GPU; the requested utilization exceeds what is actually free.",
+            [
+                {"label": "retry with GPU memory utilization 0.80", "op": "replace", "flag": "--gpu-memory-utilization", "value": "0.80"},
+                {"label": "retry with context 8192", "op": "replace", "flag": "--max-model-len", "value": "8192"},
+            ],
+        ),
+        (
             r"No available memory for the cache blocks|Available KV cache memory:.*-",
             "No GPU memory left for KV cache after loading model.",
             [
