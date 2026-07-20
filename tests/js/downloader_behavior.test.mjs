@@ -42,12 +42,13 @@ function buildSandbox() {
     extractBlock('function _fmtEtaSecs'),
     extractBlock('function _parseDownloadState'),
     extractBlock('function _isAria2cRun'),
+    extractBlock('function _authStatusForTask'),
     extractBlock('export function _shouldStopBackgroundMonitor').replace(/^export /, ''),
   ].join('\n');
   const ctx = { console, Math, Date, JSON };
   vm.createContext(ctx);
   vm.runInContext(code + `
-    ;globalThis.api = { _parseDownloadState, _isAria2cRun, _shouldStopBackgroundMonitor, _dlFileTracker };`,
+    ;globalThis.api = { _parseDownloadState, _isAria2cRun, _shouldStopBackgroundMonitor, _authStatusForTask, _dlFileTracker };`,
     ctx);
   return ctx.api;
 }
@@ -123,4 +124,18 @@ test('monitor stops only when BOTH views are idle', () => {
   assert.equal(api._shouldStopBackgroundMonitor([{ status: 'done' }], false), true);
   assert.equal(api._shouldStopBackgroundMonitor([{ status: 'running' }], false), false);
   assert.equal(api._shouldStopBackgroundMonitor([{ status: 'error' }], false), false);
+});
+
+// ── auth pill survival (the "auth indicator is missing" regression) ─────────
+test('auth status survives after the header lines scroll out of the capture window', () => {
+  // parsed output wins while present
+  assert.equal(api._authStatusForTask({ type: 'download' }, 'authenticated'), 'authenticated');
+  // once persisted on the task, it survives an output that lost the header
+  assert.equal(api._authStatusForTask({ type: 'download', _authStatus: 'authenticated' }, ''), 'authenticated');
+  // payload fallback when nothing was ever parsed
+  assert.equal(api._authStatusForTask({ type: 'download', payload: { hf_token: 'hf_x' } }, ''), 'token provided');
+  assert.equal(api._authStatusForTask({ type: 'download', payload: { hf_token: '' } }, ''), 'no token — public models only');
+  // never invents a pill for non-downloads or unknown auth
+  assert.equal(api._authStatusForTask({ type: 'serve', _authStatus: 'authenticated' }, ''), '');
+  assert.equal(api._authStatusForTask({ type: 'download', payload: { repo_id: 'x' } }, ''), '');
 });
