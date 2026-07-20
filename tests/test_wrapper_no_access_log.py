@@ -74,3 +74,21 @@ def test_wrapper_has_single_instance_guard(wrapper):
     assert probe < launch_kill, (
         f"{wrapper}: singleton probe must run BEFORE kill_zombies() in main"
     )
+
+
+@pytest.mark.parametrize("wrapper", _WRAPPERS)
+def test_purge_engine_has_busy_page_gate(wrapper):
+    """Renderer segfaulted three times on 2026-07-19 (exit=11), each right after
+    a forcible purge fired during an active model download: input-idle timers
+    treat a repainting-but-untouched page as quiescent. Idle-path purges must
+    check the page's own task list first; genuine-pressure reasons stay exempt."""
+    src = (_ROOT / wrapper).read_text(encoding="utf-8")
+    if "def _purge_renderer" not in src:
+        pytest.skip(f"{wrapper} has no idle purge engine")
+    assert "_PURGE_PRESSURE_REASONS" in src and "_renderer_busy()" in src, (
+        f"{wrapper} lost the busy-page purge gate"
+    )
+    body = src.split("def _purge_renderer", 1)[1]
+    assert body.index("_renderer_busy()") < body.index(
+        "Memory.forciblyPurgeJavaScriptMemory"
+    ), f"{wrapper}: busy gate must run before the purge call"
