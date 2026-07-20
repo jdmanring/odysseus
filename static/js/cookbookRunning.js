@@ -3916,8 +3916,16 @@ async function _reconnectTask(el, task) {
           if (badge) { badge.textContent = _statusLabel('error', task.type); badge.className = 'cookbook-task-status cookbook-task-error'; }
           _showCookbookNotif(true);
         } else {
+          // aria2c runs print '/snapshots/' paths and per-file "Download
+          // complete" lines from the very first progress tick, so those
+          // markers say nothing about overall success — only the runner's
+          // exit sentinel does (same rule the background poll already
+          // follows). The loose markers stay for hf-CLI downloads, whose
+          // output has no sentinel.
           const downloadLooksSuccessful = !lastOutput.includes('DOWNLOAD_FAILED')
-            && (lastOutput.includes('DONE') || lastOutput.includes('100%') || lastOutput.includes('/snapshots/') || lastOutput.includes('Download complete') || lastOutput.includes('DOWNLOAD_OK'));
+            && (task.payload?.use_aria2c
+              ? lastOutput.includes('DOWNLOAD_OK')
+              : (lastOutput.includes('DONE') || lastOutput.includes('100%') || lastOutput.includes('/snapshots/') || lastOutput.includes('Download complete') || lastOutput.includes('DOWNLOAD_OK')));
           // Pip install / reinstall tasks are launched via _launchServeTask (so
           // they show up in the Running tab + use tmux) but they aren't real
           // serves — the cmd is `python3 -m pip ...` and the success markers
