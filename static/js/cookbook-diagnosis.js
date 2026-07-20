@@ -293,6 +293,17 @@ export const ERROR_PATTERNS = [
     ],
   },
   {
+    // Final KV-cache sizing gate: model loaded, but the requested context
+    // doesn't fit in the VRAM that remains. The log states the estimated
+    // maximum model length — offer sizes below common ceilings.
+    pattern: /is larger than the available KV cache memory/i,
+    message: 'Model loaded, but the requested context does not fit in remaining VRAM — the log states the estimated maximum model length.',
+    fixes: [
+      { label: 'Retry with context 16384', action: (panel) => _serveAutoRetryReplace(panel, '--max-model-len', '16384') },
+      { label: 'Retry with context 8192', action: (panel) => _serveAutoRetryReplace(panel, '--max-model-len', '8192') },
+    ],
+  },
+  {
     // flashinfer JIT needs nvcc; absent toolkit kills the engine at startup.
     // The serve runner now auto-falls-back to the torch sampler, so a plain
     // relaunch fixes tasks started before that shipped.
