@@ -201,3 +201,25 @@ def test_js_behavioral_suite_passes():
         capture_output=True, text=True, timeout=60,
     )
     assert res.returncode == 0, f"node behavioral tests failed:\n{res.stdout[-3000:]}{res.stderr[-2000:]}"
+
+
+def test_hf_transfer_is_structurally_dead():
+    """hf_transfer is deliberately unsupported (it crashes near the end of
+    large files at high throughput; aria2c is the fast path, the plain Python
+    downloader is the fallback). No code path may install it or enable it —
+    this guard makes reintroduction a visible test failure, not a review
+    judgment call."""
+    helpers = (REPO / "routes" / "cookbook_helpers.py").read_text(encoding="utf-8")
+    shell = (REPO / "routes" / "shell_routes.py").read_text(encoding="utf-8")
+    for name, text in [("cookbook_routes.py", ROUTES), ("cookbook_helpers.py", helpers),
+                       ("shell_routes.py", shell)]:
+        assert "HF_HUB_ENABLE_HF_TRANSFER=1" not in text, f"{name} enables hf_transfer"
+        assert 'HF_HUB_ENABLE_HF_TRANSFER = "1"' not in text, f"{name} enables hf_transfer (PS)"
+        assert "pip install -q hf_transfer" not in text, f"{name} installs hf_transfer"
+        assert "huggingface_hub hf_transfer" not in text, f"{name} installs hf_transfer"
+        assert "disable_hf_transfer" not in text, f"{name} resurrects the dead knob"
+    for js in ("cookbookDownload.js", "cookbookRunning.js"):
+        text = (REPO / "static" / "js" / js).read_text(encoding="utf-8")
+        assert "disable_hf_transfer" not in text, f"{js} sends the dead knob"
+    # The package panel must not offer it either.
+    assert '"pip": "hf_transfer"' not in shell, "package panel offers hf_transfer"
