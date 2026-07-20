@@ -15,7 +15,10 @@ class HfUrlResolver:
     """
 
     def __init__(self, token: Optional[str] = None):
-        self.api = HfApi(token=token)
+        # An empty string must not reach HfApi: it produces a literal
+        # "Authorization: Bearer " header, which the hub rejects with
+        # "Illegal header value" and knocks out the sized list_repo_tree path.
+        self.api = HfApi(token=token or None)
 
     def get_commit_hash(self, repo_id: str) -> Optional[str]:
         """Return the current HEAD commit SHA for repo_id's main branch, or None on failure."""

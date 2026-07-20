@@ -130,7 +130,7 @@ def _main(args) -> None:
         print("[*] HF auth: token provided")
     else:
         print("[*] HF auth: no token — public models only")
-    resolver = HfUrlResolver(token=args.token)
+    resolver = HfUrlResolver(token=args.token or None)
     try:
         urls, commit = resolver.resolve_snapshot_urls(args.repo, include=args.include)
     except Exception as e:
