@@ -21,6 +21,43 @@ class HfUrlResolver:
         # "Illegal header value" and knocks out the sized list_repo_tree path.
         self.api = HfApi(token=token or None)
 
+    def find_community_quants(self, base_repo_id: str, limit: int = 5) -> list:
+        """Return ungated community quantizations of base_repo_id, best first.
+
+        Uses the hub's provenance metadata (filter=base_model:quantized:<repo>),
+        not name matching — the same evidence standard as _is_quant_of. Sorted
+        by downloads server-side; gated results are dropped because the whole
+        point is offering repos the user can actually fetch. Returns
+        [{"id", "downloads"}]; [] on any failure (this is a best-effort hint
+        path and must never break the caller).
+        """
+        try:
+            headers = {}
+            if self.api.token:
+                headers["Authorization"] = f"Bearer {self.api.token}"
+            resp = requests.get(
+                "https://huggingface.co/api/models",
+                params={
+                    "filter": f"base_model:quantized:{base_repo_id}",
+                    "sort": "downloads",
+                    "direction": "-1",
+                    "limit": str(max(limit * 3, limit)),  # headroom for gated drops
+                },
+                headers=headers,
+                timeout=10,
+            )
+            resp.raise_for_status()
+            out = []
+            for m in resp.json():
+                if m.get("gated"):
+                    continue
+                out.append({"id": m.get("id", ""), "downloads": int(m.get("downloads") or 0)})
+                if len(out) >= limit:
+                    break
+            return out
+        except Exception:
+            return []
+
     def get_commit_hash(self, repo_id: str) -> Optional[str]:
         """Return the current HEAD commit SHA for repo_id's main branch, or None on failure."""
         try:
