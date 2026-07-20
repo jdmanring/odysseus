@@ -41,6 +41,19 @@ def test_fullscreen_overlays_have_no_backdrop_filter():
                     assert "none" in decl, f"{sel} uses backdrop-filter: {decl.strip()}"
 
 
+def test_backdrop_filter_only_in_frosted_theme():
+    """backdrop-filter re-samples its backdrop every invalidated frame. The
+    only sanctioned user is the opt-in theme-frosted skin, where the blur IS
+    the feature. Everything else uses flat translucency (2026-07-20 sweep)."""
+    for m in re.finditer(r"([^{}]+)\{([^}]*)\}", CSS):
+        body = m.group(2)
+        for decl in body.split(";"):
+            if "backdrop-filter" in decl and "none" not in decl:
+                sel = m.group(1).strip()
+                assert "theme-frosted" in sel, \
+                    f"backdrop-filter outside theme-frosted: {sel.splitlines()[-1].strip()!r}"
+
+
 def test_will_change_stays_scoped():
     """will-change = a standing compositor layer (VRAM). Only transient,
     mode-scoped uses are allowed; a hint that outlives its entry animation
