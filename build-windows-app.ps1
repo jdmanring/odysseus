@@ -71,6 +71,62 @@ if (-not (Test-Path $icoPath)) {
 # --- Create shortcuts via WScript.Shell ---
 $shell = New-Object -ComObject WScript.Shell
 
+# The shortcut must carry the same AppUserModelID the wrapper sets via
+# SetCurrentProcessExplicitAppUserModelID (windows_wrapper.py), or Windows
+# treats the pinned shortcut and the running window as two different apps
+# and shows two taskbar icons instead of reusing the pin. WScript.Shell
+# cannot write that property; it lives in the .lnk's property store
+# (PKEY_AppUserModel_ID = {9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5).
+$AppUserModelID = "Odysseus.Odysseus"
+
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
+public struct PropertyKey {
+    public Guid fmtid; public uint pid;
+    public PropertyKey(Guid f, uint p) { fmtid = f; pid = p; }
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct PropVariant {
+    [FieldOffset(0)] public ushort vt;
+    [FieldOffset(8)] public IntPtr pointerValue;
+}
+
+[ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"),
+ InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IPropertyStore {
+    void GetCount(out uint count);
+    void GetAt(uint iProp, out PropertyKey pkey);
+    void GetValue(ref PropertyKey key, out PropVariant pv);
+    void SetValue(ref PropertyKey key, ref PropVariant pv);
+    void Commit();
+}
+
+public static class LnkAumid {
+    static readonly PropertyKey PKEY_AppUserModel_ID =
+        new PropertyKey(new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), 5);
+
+    public static void Set(string lnkPath, string aumid) {
+        var link = (IPersistFile)Activator.CreateInstance(
+            Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046")));
+        link.Load(lnkPath, 2 /* STGM_READWRITE */);
+        var store = (IPropertyStore)link;
+        var key = PKEY_AppUserModel_ID;
+        var pv = new PropVariant { vt = 31 /* VT_LPWSTR */,
+                                   pointerValue = Marshal.StringToCoTaskMemUni(aumid) };
+        try {
+            store.SetValue(ref key, ref pv);
+            store.Commit();
+        } finally { Marshal.FreeCoTaskMem(pv.pointerValue); }
+        link.Save(lnkPath, true);
+    }
+}
+"@
+
 function New-OdysseusShortcut {
     param([string]$ShortcutPath)
     $sc = $shell.CreateShortcut($ShortcutPath)
@@ -80,6 +136,7 @@ function New-OdysseusShortcut {
     $sc.Description      = "Personal AI Workspace"
     if ($icoPath) { $sc.IconLocation = $icoPath }
     $sc.Save()
+    [LnkAumid]::Set($ShortcutPath, $AppUserModelID)
 }
 
 # Start Menu shortcut

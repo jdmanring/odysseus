@@ -105,6 +105,7 @@ from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineS
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QColor, QIcon
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 # Every subprocess this wrapper spawns must pass CREATE_NO_WINDOW: under
 # pythonw there is no console to inherit, so console-subsystem children
@@ -1045,15 +1046,37 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
 
-    kill_zombies()
-    start_server()
-
     # Without an explicit AppUserModelID, Windows groups the window under
     # pythonw.exe on the taskbar and shows the generic Python icon there
-    # regardless of any Qt window icon.
+    # regardless of any Qt window icon. Must match the AppUserModelID stamped
+    # on the shortcuts (build-windows-app.ps1), or the pinned icon and the
+    # running window appear as two separate taskbar buttons.
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Odysseus.Odysseus")
 
     app = QApplication(sys.argv)
+
+    # Single-instance guard, BEFORE kill_zombies/start_server: a second launch
+    # (double-clicked shortcut, pinned icon while already running) must focus
+    # the existing window — the behavior users expect from a desktop app — not
+    # start a rival wrapper whose kill_zombies would murder the first
+    # instance's server. QLocalServer.removeServer() clears a stale pipe left
+    # by a crashed previous instance, so a real second instance is detected
+    # only by a live connect.
+    _SINGLETON = "odysseus-desktop-wrapper"
+    _probe = QLocalSocket()
+    _probe.connectToServer(_SINGLETON)
+    if _probe.waitForConnected(500):
+        _probe.write(b"raise\n")
+        _probe.waitForBytesWritten(500)
+        _probe.disconnectFromServer()
+        print("[SINGLETON] already running; focused the existing window instead")
+        sys.exit(0)
+    QLocalServer.removeServer(_SINGLETON)
+    _singleton_server = QLocalServer()
+    _singleton_server.listen(_SINGLETON)
+
+    kill_zombies()
+    start_server()
     _icon_path = os.path.join(INSTALL_DIR, "static", "icon.ico")
     if os.path.isfile(_icon_path):
         app.setWindowIcon(QIcon(_icon_path))
@@ -1074,6 +1097,20 @@ if __name__ == "__main__":
 
     win = OdysseusWindow(profile)
     win.show()
+
+    def _raise_existing_window():
+        # A second launch connected to the singleton pipe: bring this window
+        # to the foreground the way the shell would (un-minimize first, or
+        # raise_() targets the minimized placeholder and nothing visible moves).
+        conn = _singleton_server.nextPendingConnection()
+        if conn is not None:
+            conn.disconnectFromServer()
+        if win.isMinimized():
+            win.showNormal()
+        win.show()
+        win.raise_()
+        win.activateWindow()
+    _singleton_server.newConnection.connect(_raise_existing_window)
 
     # Restore window state from previous session. show() must precede any
     # geometry calls so the window handle exists. When opening maximized we skip
