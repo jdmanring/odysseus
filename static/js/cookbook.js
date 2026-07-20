@@ -1981,6 +1981,13 @@ function _wireTabEvents(body) {
       body.querySelectorAll('.cookbook-group').forEach(g => {
         g.classList.toggle('hidden', g.dataset.backendGroup !== backend);
       });
+      if (backend === 'Running') {
+        // Re-render on entry: cards created while another tab was up were
+        // built with _isRunningTabVisible() false, so their live tmux
+        // stream (_reconnectTask) never attached — the download card sat on
+        // "Initializing…" forever while only the header badge moved.
+        _renderRunningTab();
+      }
       if (backend === 'Search') {
         _hwfitInit();
         _hwfitFetch(false, { allowNetwork: false });
