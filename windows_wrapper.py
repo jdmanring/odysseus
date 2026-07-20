@@ -73,11 +73,52 @@ print(f'[LOG] wrapper_system.log opened at {_time.strftime("%Y-%m-%dT%H:%M:%S")}
 # Windows: Qt WebEngine uses ANGLE (D3D11) by default. No GPU vendor detection
 # needed — ANGLE handles the backend selection transparently, so none of the
 # Linux wrapper's GBM/zero-copy/NVIDIA branching applies here.
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
-    "--no-sandbox",
+
+def _windows_software_render() -> bool:
+    """True when no hardware display adapter is active, so ANGLE falls back to
+    WARP (software D3D). Probe: EnumDisplayDevicesW — every ACTIVE adapter being
+    the driverless "Microsoft Basic Display Adapter"/"Microsoft Basic Render
+    Driver" is the WARP signal. Microseconds, no WMI/subprocess. Conservative:
+    any error, or any real adapter present, reads as hardware."""
+    DISPLAY_DEVICE_ACTIVE = 0x1
+    try:
+        import ctypes as _ct
+        import ctypes.wintypes as _wt
+        class _DISPLAY_DEVICEW(_ct.Structure):
+            _fields_ = [("cb", _wt.DWORD), ("DeviceName", _wt.WCHAR * 32),
+                        ("DeviceString", _wt.WCHAR * 128), ("StateFlags", _wt.DWORD),
+                        ("DeviceID", _wt.WCHAR * 128), ("DeviceKey", _wt.WCHAR * 128)]
+        enum = _ct.windll.user32.EnumDisplayDevicesW
+        dev = _DISPLAY_DEVICEW(); i = 0; active = []
+        while True:
+            dev.cb = _ct.sizeof(dev)
+            if not enum(None, i, _ct.byref(dev), 0):
+                break
+            if dev.StateFlags & DISPLAY_DEVICE_ACTIVE:
+                active.append(dev.DeviceString)
+            i += 1
+        return bool(active) and all(
+            s.startswith("Microsoft Basic") for s in active)
+    except Exception:
+        return False
+
+_software_render = _windows_software_render()
+
+# Forcing GPU rasterization onto a software raster (WARP here, SwiftShader on
+# the macOS bench where the flicker was diagnosed) makes rendering worse, and
+# WebGPU on it is pointless feature surface — emit both only with real hardware.
+_gpu_flags = [] if _software_render else [
     "--ignore-gpu-blocklist",
     "--enable-gpu-rasterization",
-    "--enable-features=WebGPU,SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction",
+]
+_features = "SharedArrayBuffer,PartitionAllocMemoryReclaimer,BlinkHeapCompaction"
+if not _software_render:
+    _features = "WebGPU," + _features
+
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
+    "--no-sandbox",
+    *_gpu_flags,
+    f"--enable-features={_features}",
     "--enable-logging=stderr --log-level=1",  # captured via os.dup2 into wrapper_system.log
     "--remote-debugging-port=9222",            # Chrome DevTools at http://localhost:9222
     "--js-flags=--expose-gc,--initial-old-space-size=128,--max-old-space-size=512,--optimize-for-size,--minor-mc",
@@ -486,11 +527,9 @@ def _windows_total_ram_gb():
         return stat.ullTotalPhys / (1024 ** 3)
     return None
 
-# Software-render detection: conservative default of False on Windows. Qt WebEngine
-# rides ANGLE/D3D11 here, which falls back to WARP (software D3D) only on truly
-# GPU-less boxes; detecting WARP would need a WMI/DXGI query, not worth the cost
-# for a signal that the RAM check already covers on the machines that matter.
-_low_resource, _profile_reason = _classify_resources(_windows_total_ram_gb(), False)
+# Software-render detection: _windows_software_render() (EnumDisplayDevicesW, next
+# to the Chromium flag block — it must run before the flags are assembled).
+_low_resource, _profile_reason = _classify_resources(_windows_total_ram_gb(), _software_render)
 
 # RSS ceiling: the renderer is only purged above this. Measured working set after a
 # purge is ~430 MB, so the off-interaction reclaim sawtooth stays ~0.43 GB → ceiling.
