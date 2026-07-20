@@ -330,3 +330,17 @@ def test_retry_backend_pinning_semantics():
 
     # client pins on retries of a known-aria2c run
     assert "_payload.pin_backend = true" in RUNNING_JS
+
+
+def test_running_tab_renders_on_tab_switch():
+    """Cards created while another tab was up are built with
+    _isRunningTabVisible() false, so _reconnectTask never attaches and the
+    download card freezes on "Initializing…" while only the header badge
+    moves (live repro 2026-07-20, session 861f99f5). Switching to the
+    Running tab must re-render so the stream attaches."""
+    cookbook = (Path(__file__).parent.parent / "static" / "js" / "cookbook.js").read_text()
+    handler = cookbook[cookbook.index("body.querySelectorAll('.cookbook-tab').forEach(tab =>"):]
+    handler = handler[:handler.index("Mobile: swipe")]
+    assert "backend === 'Running'" in handler and "_renderRunningTab()" in handler, (
+        "tab switch to Running no longer re-renders — reconnect loops won't attach"
+    )
