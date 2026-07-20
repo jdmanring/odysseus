@@ -34,7 +34,13 @@ def _cdp_up():
         return False
 
 
-pytestmark = pytest.mark.skipif(not _cdp_up(), reason="no CDP endpoint on localhost:9222")
+# Opt-in ONLY: this test drives the USER'S LIVE SESSION via CDP (it types into
+# the editor). Same policy as test_idle_gc_integration — never auto-run just
+# because the app happens to be open.
+pytestmark = pytest.mark.skipif(
+    os.environ.get("ODYSSEUS_LIVE_UI_TESTS") != "1" or not _cdp_up(),
+    reason="live-session test: set ODYSSEUS_LIVE_UI_TESTS=1 with the app open to run",
+)
 
 
 def _ws_url():
