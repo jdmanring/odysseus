@@ -179,3 +179,38 @@ class TestFindCommunityQuants:
         monkeypatch.setattr("tooling.hf_url_resolver.requests.get", _get)
         r.find_community_quants("meta-llama/X")
         assert seen.get("filter") == "base_model:quantized:meta-llama/X"
+
+
+class TestGatedReroute:
+    """Gated-repo reroute: Q6-floor tier preference over scored GGUF sources."""
+
+    def test_prefers_q6_tier_in_order(self):
+        from tooling.aria2c_download import _pick_reroute_source
+        class _R:
+            def find_gguf_sources(self, repo):
+                return [{"repo": "a/M-GGUF", "preferred_file": "M-Q4_K_M.gguf",
+                         "files": ["M-Q4_K_M.gguf", "M-Q6_K.gguf", "M-Q6_K_L.gguf"]}]
+        repo, f = _pick_reroute_source(_R(), "orig/M")
+        assert (repo, f) == ("a/M-GGUF", "M-Q6_K_L.gguf")
+
+    def test_falls_back_to_preferred_file_when_no_q6_tier(self):
+        from tooling.aria2c_download import _pick_reroute_source
+        class _R:
+            def find_gguf_sources(self, repo):
+                return [{"repo": "a/M-GGUF", "preferred_file": "M-IQ4_XS.gguf",
+                         "files": ["M-IQ4_XS.gguf", "M-Q3_K_M.gguf"]}]
+        assert _pick_reroute_source(_R(), "orig/M")[1] == "M-IQ4_XS.gguf"
+
+    def test_no_sources_returns_none(self):
+        from tooling.aria2c_download import _pick_reroute_source
+        class _R:
+            def find_gguf_sources(self, repo): return []
+        assert _pick_reroute_source(_R(), "orig/M") == (None, None)
+
+    def test_probe_treats_network_error_as_accessible(self, monkeypatch):
+        # Never reroute on uncertainty — a flaky network must not swap repos.
+        from tooling import aria2c_download as mod
+        import requests as _rq
+        def _boom(*a, **k): raise OSError("net down")
+        monkeypatch.setattr(_rq, "get", _boom)
+        assert mod._content_accessible("https://x/y", None) is True
