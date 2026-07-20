@@ -59,3 +59,24 @@ def test_incomplete_probe_sees_aria2_control_files(tmp_path):
 def test_incomplete_probe_clean_cache_is_not_incomplete(tmp_path):
     root = _mk_cache(tmp_path, ["model.safetensors"])
     assert _run(HF_CACHE_INCOMPLETE_PROBE, root) != 0
+
+
+# ── output tail sizing (routes/cookbook_output.py) ───────────────────────────
+
+def test_download_tail_is_big_enough_for_a_multifile_summary_and_drops_url_walls():
+    from routes.cookbook_output import error_aware_output_tail
+    summary = "\n".join(
+        [f"[#aaaa{i:02d} 1.0GiB/2.0GiB(50%) CN:2 DL:2.0MiB ETA:5m]\nFILE: /cache/model-{i}.safetensors"
+         for i in range(5)]
+    )
+    url_wall = "\n".join(
+        f"07/20 [NOTICE] Redirecting to https://cdn.example/{'A' * 2500}" for _ in range(4)
+    )
+    snap = summary + "\n" + url_wall
+    tail = error_aware_output_tail(snap, "running", "download")
+    assert "https://" not in tail, "signed-URL walls are stripped for downloads"
+    for i in range(5):
+        assert f"[#aaaa{i:02d}" in tail, "every per-file progress line survives"
+    # non-download running tasks keep the cheap 12-line tail
+    serve_tail = error_aware_output_tail("\n".join(str(i) for i in range(40)), "running", "serve")
+    assert len(serve_tail.splitlines()) == 12
