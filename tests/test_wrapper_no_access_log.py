@@ -34,3 +34,24 @@ def test_windows_wrapper_spawns_server_without_console():
     assert "subprocess.CREATE_NO_WINDOW" in src, (
         "windows_wrapper.py must spawn the server with CREATE_NO_WINDOW"
     )
+
+
+def test_windows_wrapper_all_subprocesses_are_console_less():
+    """Every subprocess spawn in windows_wrapper.py must pass creationflags
+    (CREATE_NO_WINDOW): the 60s tasklist memory poll without it flashed a
+    console window over the app once a minute under pythonw."""
+    import ast
+    path = _ROOT / "windows_wrapper.py"
+    if not path.is_file():
+        pytest.skip("windows_wrapper.py not present")
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    offenders = []
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "subprocess"
+                and node.func.attr in ("run", "Popen", "call", "check_output")):
+            if not any(k.arg == "creationflags" for k in node.keywords):
+                offenders.append(f"line {node.lineno}: subprocess.{node.func.attr}")
+    assert not offenders, f"subprocess calls without creationflags: {offenders}"
