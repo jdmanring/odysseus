@@ -12,8 +12,11 @@ contract is pinned statically, matching the other wrapper suites.
 import re
 from pathlib import Path
 
-MAC = Path("mac_wrapper.py").read_text(encoding="utf-8")
-WIN = Path("windows_wrapper.py").read_text(encoding="utf-8")
+# Staging branches carry a single platform's wrapper; guard whichever exist.
+WRAPPERS = [p.read_text(encoding="utf-8")
+            for p in (Path("mac_wrapper.py"), Path("windows_wrapper.py"))
+            if p.exists()]
+assert WRAPPERS, "no wrapper source found"
 JS = Path("static/js/colorPicker.js").read_text(encoding="utf-8")
 
 
@@ -23,7 +26,7 @@ def _picker_block(src):
 
 
 def test_wrappers_gate_native_picker_on_software_render():
-    for src in (MAC, WIN):
+    for src in WRAPPERS:
         block = _picker_block(src)
         gate = block.index("_software_render and self._view is not None")
         native = block.index("QColorDialog.getColor()")
@@ -32,7 +35,7 @@ def test_wrappers_gate_native_picker_on_software_render():
 
 
 def test_wrappers_sample_from_widget_grab_not_screen():
-    for src in (MAC, WIN):
+    for src in WRAPPERS:
         block = re.search(r"def samplePagePixel.*?in-page sample failed",
                           src, re.S).group(0)
         assert "self._view.grab()" in block
