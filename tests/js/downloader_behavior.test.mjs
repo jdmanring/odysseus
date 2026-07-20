@@ -292,3 +292,37 @@ test('auth pill: token + reached downloading phase infers authenticated (header 
   assert.equal(api._authStatusForTask({ type: 'download', payload: { hf_token_used: false } }, '', 'downloading'),
     'no token — public models only');
 });
+
+// ── /api/shell/exec outcome semantics (tier-2: guard the behavior, not the string)
+const SERVE_SRC = readFileSync(join(ROOT, 'static', 'js', 'cookbookServe.js'), 'utf8');
+function extractFromServe(marker) {
+  const start = SERVE_SRC.indexOf(marker);
+  assert.notEqual(start, -1, `marker not found in cookbookServe.js: ${marker}`);
+  const open = SERVE_SRC.indexOf('{', start);
+  let depth = 0, i = open;
+  for (; i < SERVE_SRC.length; i++) {
+    if (SERVE_SRC[i] === '{') depth++;
+    else if (SERVE_SRC[i] === '}') { depth--; if (depth === 0) break; }
+  }
+  return SERVE_SRC.slice(start, i + 1).replace(/^export /, '');
+}
+
+test('shell-exec outcome: HTTP 200 with nonzero exit_code is a FAILURE, not success', () => {
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(extractFromServe('export function _shellExecFailure')
+    + ';globalThis.f = _shellExecFailure;', ctx);
+  const f = ctx.f;
+  // real success shape
+  assert.equal(f({ exit_code: 0, stdout: '', stderr: '' }), '');
+  // failed rm: HTTP 200, exit_code 1 — must surface stderr
+  assert.equal(f({ exit_code: 1, stderr: 'rm: cannot remove: Permission denied' }),
+    'rm: cannot remove: Permission denied');
+  // stdout-only failure (some shells write errors to stdout)
+  assert.equal(f({ exit_code: 2, stdout: 'no such file' }), 'no such file');
+  // unparseable / missing body is a failure, never a silent success
+  assert.equal(f(null), 'unknown error');
+  assert.equal(f({}), 'unknown error');
+  // the delete path must actually consume it
+  assert.match(SERVE_SRC, /_shellExecFailure\(_delResult\)/);
+});

@@ -169,7 +169,7 @@ def test_launch_scan_cache_is_invalidated_on_mutation():
     # every download-done site in the running-tab module drops the snapshot
     assert RUNNING_JS.count("_invalidateCachedModelScan?.()") >= 3
     # delete must judge the command's exit_code, not the HTTP status
-    assert "_delResult.exit_code !== 0" in serve_js
+    assert "_shellExecFailure(_delResult)" in serve_js  # behavioral predicate, tested in downloader_behavior.test.mjs
 
 
 def test_resolve_gguf_endpoint_exists():
@@ -298,3 +298,35 @@ def test_auth_pill_infers_authed_from_reached_download_phase():
         "pill no longer infers authed from token + reached download phase"
     )
     assert "_authStatusForTask(task, st.authStatus, st.phase)" in RUNNING_JS
+
+
+def test_retry_backend_pinning_semantics():
+    """P2-2: aria2c and hf write different disk layouts; a silent backend
+    switch on a retry orphans the partials the retry was meant to resume.
+    Pinned + unavailable must FAIL LOUDLY, never fall back."""
+    from routes.cookbook_helpers import resolve_download_backend, ModelDownloadRequest
+
+    # fresh request, aria2c present: use it
+    assert resolve_download_backend(True, False, True) == (True, None)
+    # fresh request, aria2c missing: silent fallback is fine (no partials yet)
+    use, err = resolve_download_backend(True, False, False)
+    assert (use, err) == (False, None)
+    # pinned retry, aria2c missing: refuse — never switch layouts
+    use, err = resolve_download_backend(True, True, False)
+    assert use is True and err and "orphan" in err
+    # pinned retry, aria2c present: proceed normally
+    assert resolve_download_backend(True, True, True) == (True, None)
+    # aria2c never requested: pin is irrelevant
+    assert resolve_download_backend(False, True, False) == (False, None)
+
+    # the request model accepts the flag (stale clients simply omit it)
+    assert ModelDownloadRequest(repo_id="a/b").pin_backend is False
+    assert ModelDownloadRequest(repo_id="a/b", pin_backend=True).pin_backend is True
+
+    # route consumes the helper and refuses on error
+    route_src = (Path(__file__).parent.parent / "routes" / "cookbook_routes.py").read_text()
+    assert "resolve_download_backend(" in route_src
+    assert '"error": _pin_err' in route_src or 'return {"ok": False, "error": _pin_err}' in route_src
+
+    # client pins on retries of a known-aria2c run
+    assert "_payload.pin_backend = true" in RUNNING_JS

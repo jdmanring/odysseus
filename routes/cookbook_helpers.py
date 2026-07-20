@@ -1054,6 +1054,30 @@ def _llama_cpp_rebuild_cmd(update_source: bool = False) -> str:
     )
 
 
+def resolve_download_backend(
+    use_aria2c: bool, pin_backend: bool, aria2c_available: bool
+) -> tuple[bool, str | None]:
+    """Decide the download backend after the aria2c pre-flight.
+
+    Returns (use_aria2c, error). aria2c and hf write different disk layouts
+    (flat snapshot dir vs hub blob cache); a silent backend switch on a RETRY
+    orphans the partials the retry was supposed to resume and re-downloads
+    from zero (audit P2-2). A pinned request therefore fails loudly instead
+    of falling back.
+    """
+    if not use_aria2c:
+        return False, None
+    if aria2c_available:
+        return True, None
+    if pin_backend:
+        return True, (
+            "aria2c is unavailable, but this retry is pinned to the aria2c disk "
+            "layout — a backend switch would orphan the partial files and restart "
+            "from zero. Install aria2, or remove the partial download to start fresh."
+        )
+    return False, None
+
+
 class ModelDownloadRequest(BaseModel):
     repo_id: str
     backend: str | None = None  # "hf" (default) or "ollama"
@@ -1070,6 +1094,10 @@ class ModelDownloadRequest(BaseModel):
     # opt-out knob is gone — unknown fields from stale clients are ignored
     # by pydantic.)
     use_aria2c: bool = True
+    # Set by the client on RETRIES of an aria2c download: partials already on
+    # disk use aria2c's flat layout, so a silent fallback to hf (hub blob
+    # layout) would orphan them and re-download from zero (audit P2-2).
+    pin_backend: bool = False
 
 
 class ServeRequest(BaseModel):
