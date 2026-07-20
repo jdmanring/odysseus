@@ -386,7 +386,12 @@ def setup_cookbook_routes() -> APIRouter:
         if isinstance(tasks, list):
             for task in tasks:
                 if isinstance(task, dict) and isinstance(task.get("payload"), dict):
-                    task["payload"].pop("hf_token", None)
+                    payload = task["payload"]
+                    # Preserve a non-secret marker for the UI auth pill before
+                    # scrubbing the token itself.
+                    if "hf_token" in payload and "hf_token_used" not in payload:
+                        payload["hf_token_used"] = bool(payload.get("hf_token"))
+                    payload.pop("hf_token", None)
         return state
 
     def _diagnose_serve_output(text: str) -> dict | None:
@@ -1748,9 +1753,9 @@ def setup_cookbook_routes() -> APIRouter:
             ssh_args = ["ssh"]
             if ssh_port and ssh_port != "22":
                 ssh_args.extend(["-p", str(ssh_port)])
-            capture_cmd = ssh_args + [remote, _remote_tmux_command("capture-pane", "-t", session_id, "-p", "-S", "-2000")]
+            capture_cmd = ssh_args + [remote, _remote_tmux_command("capture-pane", "-t", session_id, "-p", "-J", "-S", "-2000")]
         else:
-            capture_cmd = ["tmux", "capture-pane", "-t", session_id, "-p", "-S", "-2000"]
+            capture_cmd = ["tmux", "capture-pane", "-t", session_id, "-p", "-J", "-S", "-2000"]
 
         _exit_re = re.compile(r"=== Process exited with code (-?\d+) ===")
         for wait_s in _waits:
@@ -4351,7 +4356,12 @@ def setup_cookbook_routes() -> APIRouter:
                 # fills the visible tail. Without this, output_tail ends up
                 # as just "Locale: C / Ubuntu_Odysseus ❯" and the agent
                 # can't diagnose the actual error.
-                capture_cmd = ssh_base + [remote, _remote_tmux_command("capture-pane", "-t", session_id, "-p", "-S", "-500")]
+                # -J joins pane-width-wrapped lines back into logical lines.
+                # Without it, aria2c's 2-3 KB signed-URL NOTICE lines wrap into
+                # ~80-char fragments that defeat the long-URL filter in
+                # error_aware_output_tail and push the real progress summary
+                # out of the tail window.
+                capture_cmd = ssh_base + [remote, _remote_tmux_command("capture-pane", "-t", session_id, "-p", "-J", "-S", "-500")]
             elif IS_WINDOWS:
                 # LOCAL Windows task: launched as a detached process (no tmux).
                 # Liveness comes from the <session>.pid file, output from the
@@ -4360,7 +4370,7 @@ def setup_cookbook_routes() -> APIRouter:
                 capture_cmd = None
             else:
                 check_cmd = ["tmux", "has-session", "-t", session_id]
-                capture_cmd = ["tmux", "capture-pane", "-t", session_id, "-p", "-S", "-500"]
+                capture_cmd = ["tmux", "capture-pane", "-t", session_id, "-p", "-J", "-S", "-500"]
 
             local_win_task = (not remote) and IS_WINDOWS
 
@@ -4461,8 +4471,12 @@ def setup_cookbook_routes() -> APIRouter:
                         status = "completed" if exit_code == 0 else "error"
                 elif has_exit and "unrecognized arguments" in lower:
                     status = "error"
-                elif has_error and not ("application startup complete" in lower):
-                    status = "error"
+                # Download branches MUST precede the generic has_error sniff:
+                # aria2c prints benign, self-retried "[ERROR] CUID#N - Download
+                # aborted ... errorCode=22" lines mid-run (xet-bridge redirect
+                # range rejections), which classified a healthy live download
+                # as "error"/crashed. Only the runner's DOWNLOAD_FAILED marker
+                # is authoritative for download failure.
                 elif task_type == "download" and download_has_ok:
                     if re.search(r"Fetching\s+0\s+files", full_snapshot, re.IGNORECASE):
                         status = "error"
@@ -4473,6 +4487,9 @@ def setup_cookbook_routes() -> APIRouter:
                     status = "error"
                 elif task_type == "download" and download_has_incomplete_evidence:
                     status = "running" if is_alive else "stopped"
+                elif has_error and not (task_type == "download" and is_alive) \
+                        and not ("application startup complete" in lower):
+                    status = "error"
                 elif "application startup complete" in lower:
                     status = "ready"
                 elif not is_alive:
