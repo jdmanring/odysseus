@@ -1118,11 +1118,16 @@ def setup_cookbook_routes() -> APIRouter:
             _aria2c_script = (
                 Path(__file__).resolve().parent.parent / "tooling" / "aria2c_download.py"
             ).as_posix()
-            token_quoted = _bash_squote(req.hf_token) if req.hf_token else "''"
-            include_quoted = _bash_squote(req.include) if req.include else "''"
-            local_dir_quoted = _bash_squote(_dl_base) if _dl_base else "''"
+            # _bash_squote escapes embedded quotes but does NOT wrap the
+            # value — the surrounding single quotes must be added here.
+            # Unquoted, a local-dir with a space word-splits into bogus
+            # argv (instant argparse failure) and an include glob like
+            # *.gguf is expanded by bash against the tmux session's cwd.
+            token_quoted = f"'{_bash_squote(req.hf_token)}'" if req.hf_token else "''"
+            include_quoted = f"'{_bash_squote(req.include)}'" if req.include else "''"
+            local_dir_quoted = f"'{_bash_squote(_dl_base)}'" if _dl_base else "''"
             _aria2c_args = (
-                f"--repo {_bash_squote(req.repo_id)} "
+                f"--repo '{_bash_squote(req.repo_id)}' "
                 f"--token {token_quoted} "
                 f"--local-dir {local_dir_quoted} "
                 f"--include {include_quoted}"
@@ -1131,7 +1136,7 @@ def setup_cookbook_routes() -> APIRouter:
             # native-Windows server, where bare `python3` does not exist. Use
             # the server's own interpreter there (POSIX path form for bash).
             _py_local = Path(sys.executable).as_posix() if IS_WINDOWS else "python3"
-            hf_cmd = f"{_py_local} {_bash_squote(_aria2c_script)} {_aria2c_args}"
+            hf_cmd = f"{_py_local} '{_bash_squote(_aria2c_script)}' {_aria2c_args}"
             # Remote hosts run the copy scp'd to ~/.cookbook/tooling/ — the
             # server-local absolute path does not exist there.
             _aria2c_remote_cmd = f"python3 ~/.cookbook/tooling/aria2c_download.py {_aria2c_args}"
