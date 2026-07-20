@@ -344,3 +344,20 @@ def test_running_tab_renders_on_tab_switch():
     assert "backend === 'Running'" in handler and "_renderRunningTab()" in handler, (
         "tab switch to Running no longer re-renders — reconnect loops won't attach"
     )
+
+
+def test_copy_log_button_docked_inside_log_wrap():
+    """The download card's copy button must live INSIDE the
+    .cookbook-output-wrap around the raw log — as a bare sibling it has no
+    positioned ancestor, so it floated unanchored over the progress area
+    (screenshot 2026-07-20 10:11). The wrap is what gives .copy-code its
+    absolute top-right docking and hover-reveal."""
+    wrap_start = RUNNING_JS.index('class="cookbook-output-wrap dl-log-wrap"')
+    wrap_end = RUNNING_JS.index("</div>", wrap_start)
+    inside = RUNNING_JS[wrap_start:wrap_end]
+    assert "dl-raw-log" in inside and "dl-copy-btn" in inside
+
+    # the toggle shows/hides the wrap (pre + button together), and the
+    # generic copy wiring must not double-bind the download card's button
+    assert "_dlCard.querySelector('.dl-log-wrap')" in RUNNING_JS
+    assert "!_genCopyBtn.classList.contains('dl-copy-btn')" in RUNNING_JS
