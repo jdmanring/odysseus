@@ -128,8 +128,8 @@ from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
 )
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
-from PyQt6.QtGui import QDesktopServices, QColor, QIcon
+from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
+from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QAction, QKeySequence
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -694,6 +694,29 @@ class _InputIdleFilter(QObject):
         return False
 
 
+class _QuitFilter(QObject):
+    """App-level event filter that flags a genuine quit before any window's
+    closeEvent runs.
+
+    macOS delivers ⌘Q, the application/Dock menu's Quit, and the quit Apple
+    Event as a QEvent.Quit posted to the QApplication, which Qt then turns into
+    closeAllWindows(). OdysseusWindow.closeEvent hides-and-vetoes by default (so
+    the red button keeps the app in the Dock); on a real quit it must accept
+    instead. Catching QEvent.Quit here — before the derived closeEvents — sets
+    the window's _quitting flag so it accepts. We do not consume the event
+    (return False): Qt still runs its normal termination.
+    """
+    def __init__(self, window, parent=None):
+        super().__init__(parent)
+        self._window = window
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.Quit:
+            print('[LIFECYCLE] _QuitFilter: QEvent.Quit -> arm quit', flush=True)
+            self._window._quitting = True
+        return False
+
+
 class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
         super().__init__()
@@ -710,6 +733,7 @@ class OdysseusWindow(QMainWindow):
             QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
         self._last_purge = 0.0  # monotonic ts of last forcible renderer purge
         self._last_input = time.monotonic()  # ts of last mouse/keyboard activity
+        self._quitting = False  # set by the app-level Quit filter; see closeEvent
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
@@ -982,6 +1006,7 @@ class OdysseusWindow(QMainWindow):
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
         self.resize(1280, 800)
+        self._build_menus()
 
     def _renderer_rss_kb(self) -> int:
         page = getattr(self, '_page', None)
@@ -1071,7 +1096,7 @@ class OdysseusWindow(QMainWindow):
             self._gc_focus_timer.stop()
         super().changeEvent(event)
 
-    def closeEvent(self, event):
+    def _save_window_state(self):
         s = QSettings("odysseus", "odysseus")
         s.setValue("windowMaximized", self.isMaximized())
         # Only write geometry when windowed: saveGeometry() while maximized would
@@ -1081,9 +1106,52 @@ class OdysseusWindow(QMainWindow):
         if not self.isMaximized():
             s.setValue("windowGeometry", self.saveGeometry())
         s.sync()
-        self.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.browser))
-        stop_server()
-        event.accept()
+
+    def closeEvent(self, event):
+        # macOS convention: the red close button hides the window; the app stays
+        # in the Dock and is re-shown on Dock-click / Cmd-Tab (_on_app_state_
+        # changed). It quits only via ⌘Q, the application/Dock menu's Quit, or
+        # the quit Apple Event — all of which post a QEvent.Quit that _QuitFilter
+        # catches, setting self._quitting so this handler accepts instead of
+        # hiding. Without that flag an ignore() here would VETO the quit (Qt
+        # routes Quit through closeAllWindows() → closeEvent); with it, a real
+        # quit closes the window and proceeds to aboutToQuit teardown.
+        if self._quitting:
+            print('[LIFECYCLE] closeEvent: quitting -> accept', flush=True)
+            event.accept()
+            return
+        print('[LIFECYCLE] closeEvent: hide, keep app in Dock', flush=True)
+        self._save_window_state()
+        self.hide()
+        event.ignore()
+
+    def _build_menus(self):
+        # QMainWindow.menuBar() with no parent becomes the global macOS menu bar.
+        # A native Edit menu is required so the standard ⌘X/C/V/A/Z shortcuts
+        # reach the web view: on macOS those keys route through the first-
+        # responder/menu chain, not the widget directly (unlike Win/Linux, where
+        # QtWebEngine consumes them itself — hence this menu is mac-only).
+        WA = QWebEnginePage.WebAction
+        edit = self.menuBar().addMenu("Edit")
+
+        def _action(title, std_key, web_action):
+            act = QAction(title, self)
+            act.setShortcut(QKeySequence(std_key))
+            # triggerPageAction routes to whatever currently has focus in the page
+            # (any input, textarea, or contenteditable), matching native behavior.
+            act.triggered.connect(
+                lambda _checked=False, wa=web_action: self.browser.triggerPageAction(wa))
+            edit.addAction(act)
+
+        SK = QKeySequence.StandardKey
+        _action("Undo", SK.Undo, WA.Undo)
+        _action("Redo", SK.Redo, WA.Redo)
+        edit.addSeparator()
+        _action("Cut", SK.Cut, WA.Cut)
+        _action("Copy", SK.Copy, WA.Copy)
+        _action("Paste", SK.Paste, WA.Paste)
+        edit.addSeparator()
+        _action("Select All", SK.SelectAll, WA.SelectAll)
 
 
 if __name__ == "__main__":
@@ -1091,6 +1159,11 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, _signal_handler)
 
     app = QApplication(sys.argv)
+    # macOS convention: closing the last window does NOT quit the app — it stays
+    # in the Dock. OdysseusWindow.closeEvent hides instead of closing; the app
+    # quits only via ⌘Q / the application menu's Quit (Qt's automatic items),
+    # which exit the event loop and fire aboutToQuit for teardown below.
+    app.setQuitOnLastWindowClosed(False)
 
     # Single-instance guard, BEFORE kill_zombies/start_server: a second launch
     # (double-clicked launcher, Dock click race) must focus the existing
@@ -1140,19 +1213,50 @@ if __name__ == "__main__":
     win = OdysseusWindow(profile)
     win.show()
 
-    def _raise_existing_window():
-        # A second launch connected to the singleton pipe: bring this window
-        # to the foreground (un-minimize first, or raise_() targets the
-        # minimized placeholder and nothing visible moves).
-        conn = _singleton_server.nextPendingConnection()
-        if conn is not None:
-            conn.disconnectFromServer()
+    def _show_and_raise():
+        # Bring the window to the foreground: un-minimize first, or raise_()
+        # targets the minimized placeholder and nothing visible moves.
         if win.isMinimized():
             win.showNormal()
         win.show()
         win.raise_()
         win.activateWindow()
+
+    def _raise_existing_window():
+        # A second launch connected to the singleton pipe.
+        conn = _singleton_server.nextPendingConnection()
+        if conn is not None:
+            conn.disconnectFromServer()
+        _show_and_raise()
     _singleton_server.newConnection.connect(_raise_existing_window)
+
+    def _on_app_state_changed(state):
+        # macOS Dock-reopen: after the red button hides the window, clicking the
+        # Dock icon (or Cmd-Tab back) re-activates the app; if the window is
+        # hidden we re-show it — the standard "reopen" behavior. Idempotent and
+        # safe when the window is already visible, so we don't depend on
+        # identifying the one true reopen event.
+        if state == Qt.ApplicationState.ApplicationActive and not win.isVisible():
+            print('[LIFECYCLE] reopen: app activated with hidden window -> show', flush=True)
+            _show_and_raise()
+    app.applicationStateChanged.connect(_on_app_state_changed)
+
+    def _teardown():
+        # Single teardown path for every real quit (⌘Q, application-menu Quit,
+        # app.quit()): persist window state, detach the page so the renderer
+        # stops, and stop the embedded server. SIGTERM/SIGINT bypass the Qt
+        # event loop, so _signal_handler stops the server directly instead.
+        print('[LIFECYCLE] aboutToQuit teardown running', flush=True)
+        win._save_window_state()
+        win.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), win.browser))
+        stop_server()
+    app.aboutToQuit.connect(_teardown)
+
+    # _QuitFilter must be installed on the app AFTER the window exists: it arms
+    # win._quitting on QEvent.Quit so closeEvent can tell a real quit from a
+    # red-button hide. Held in a name so it is not garbage-collected.
+    _quit_filter = _QuitFilter(win)
+    app.installEventFilter(_quit_filter)
 
     # Restore window state from previous session. show() must precede any
     # geometry calls so the window handle exists. When opening maximized we skip
