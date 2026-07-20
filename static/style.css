@@ -19977,6 +19977,10 @@ body.gallery-selecting .gallery-dl-btn,
 .dl-log-toggle:hover { opacity: 1; }
 .dl-log-toggle svg { transition: transform 0.2s ease; flex-shrink: 0; }
 
+/* Raw log copy button: the log pre scrolls, so clear the scrollbar gutter
+   that the generic right:6px inset would overlap */
+.dl-log-wrap .copy-code { right: 18px; }
+
 /* Raw log pre */
 .dl-raw-log {
   font-size: 10px;
