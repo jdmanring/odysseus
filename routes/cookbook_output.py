@@ -70,15 +70,25 @@ def classify_dead_download(full_snapshot: str):
     return None
 
 
-def error_aware_output_tail(full_snapshot: str, status: str) -> str:
+_LONG_URL_LINE_RE = re.compile(r"https?://\S{200,}")
+
+
+def error_aware_output_tail(full_snapshot: str, status: str, task_type: str = "") -> str:
     """Return the trailing slice of a task log for the status response.
 
     Failed tasks return the last 50 lines so the "Copy last 50 lines" action
-    surfaces the actual error context (stack traces, build output). Running and
-    other non-error tasks keep the cheaper 12-line tail to limit the payload on
-    the 10s polling interval.
+    surfaces the actual error context (stack traces, build output). Running
+    non-download tasks keep the cheap 12-line tail to limit the payload on the
+    10s polling interval. Running DOWNLOADS need more: an aria2c multi-file
+    progress-summary block alone exceeds 12 lines, and the 2-3 KB signed-URL
+    redirect NOTICEs crowd out what remains — the client's per-file bars
+    starved and vanished. Downloads get 60 lines with the URL walls (zero
+    display value) stripped at the source.
     """
     if not full_snapshot:
         return ""
+    if status != "error" and task_type == "download":
+        lines = [l for l in full_snapshot.splitlines() if not _LONG_URL_LINE_RE.search(l)]
+        return "\n".join(lines[-60:])
     tail_lines = 50 if status == "error" else 12
     return "\n".join(full_snapshot.splitlines()[-tail_lines:])
