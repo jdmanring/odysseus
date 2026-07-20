@@ -1,0 +1,857 @@
+[odysseus] HF token: applied
+[*] Using aria2c: /home/james/.cookbook/bin/aria2c
+[*] Resolving file list for nytopop/Qwen3-8B.w8a8...
+[*] HF auth: token provided
+[*] HF auth: authenticated
+[*] 14 file(s) to download.
+[*] Total size: 9454523614 bytes
+[*] Commit: 13e255a9648e
+[*] Saving to: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43
+[*] Downloading 14 file(s) (4 in parallel)...
+
+07/20 04:47:35 [NOTICE] Downloading 14 item(s)
+
+07/20 04:47:35 [NOTICE] CUID#9 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/added_tokens.json?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Fadded_tokens.json=&etag=%22b54f9135e44c1e81047e8d05cb027af8bc039eed%22
+
+07/20 04:47:35 [NOTICE] CUID#7 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/.gitattributes?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2F.gitattributes=&etag=%2252373fe24473b1aa44333d318f578ae6bf04b49b%22
+
+07/20 04:47:35 [NOTICE] CUID#10 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/config.json?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Fconfig.json=&etag=%22972442a4a7236108757f642e4c1f318fa6b9664d%22
+
+07/20 04:47:35 [NOTICE] CUID#8 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/README.md?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2FREADME.md=&etag=%22be37436bb2479b2d2809b2f54b17c6422a7b9a33%22
+
+07/20 04:47:35 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/.gitattributes
+
+07/20 04:47:35 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/added_tokens.json
+
+07/20 04:47:35 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/config.json
+
+07/20 04:47:35 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/README.md
+
+07/20 04:47:35 [NOTICE] CUID#15 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/generation_config.json?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Fgeneration_config.json=&etag=%22e4f1d3193e99a3e5d7047edf56e93a6e933fa31b%22
+
+07/20 04:47:35 [NOTICE] CUID#17 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/47ec3aef17a86296877eeed6d7aced532d3a4f7facffac2df50801e9cb481a47?X-Xet-Cas-Uid=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00001-of-00002.safetensors%3B+filename%3D%22model-00001-of-00002.safetensors%22%3B&user_id=public&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzQ3ZWMzYWVmMTdhODYyOTY4NzdlZWVkNmQ3YWNlZDUzMmQzYTRmN2ZhY2ZmYWMyZGY1MDgwMWU5Y2I0ODFhNDdcXD9YLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDEtb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMS1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiZ1c2VyX2lkPXB1YmxpYyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzYzfX19XX0_
+
+07/20 04:47:35 [NOTICE] CUID#18 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/4b6bf35c5fcf628b4dd66d51c750f65507983958fdc4cd60069b140017f864c7?user_id=public&X-Xet-Cas-Uid=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00002-of-00002.safetensors%3B+filename%3D%22model-00002-of-00002.safetensors%22%3B&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzRiNmJmMzVjNWZjZjYyOGI0ZGQ2NmQ1MWM3NTBmNjU1MDc5ODM5NThmZGM0Y2Q2MDA2OWIxNDAwMTdmODY0YzdcXD91c2VyX2lkPXB1YmxpYyZYLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDItb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMi1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzYzfX19XX0_
+
+07/20 04:47:35 [NOTICE] CUID#16 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/merges.txt?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Fmerges.txt=&etag=%2231349551d90c7606f325fe0f11bbb8bd5fa0d7c7%22
+
+07/20 04:47:35 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/generation_config.json
+
+07/20 04:47:35 [NOTICE] CUID#19 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/model.safetensors.index.json?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Fmodel.safetensors.index.json=&etag=%22fb2bf4add319768f281b7a1a4ff0272854a7a7a0%22
+
+07/20 04:47:35 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model.safetensors.index.json
+
+07/20 04:47:35 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/merges.txt
+
+07/20 04:47:35 [NOTICE] CUID#21 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/recipe.yaml?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Frecipe.yaml=&etag=%22343e0f428cd227ffe6c34ce233fb55a53dc66a73%22
+
+07/20 04:47:36 [NOTICE] CUID#22 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/special_tokens_map.json?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Fspecial_tokens_map.json=&etag=%22ac23c0aaa2434523c494330aeb79c58395378103%22
+
+07/20 04:47:36 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/recipe.yaml
+
+07/20 04:47:36 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/special_tokens_map.json
+
+07/20 04:47:36 [NOTICE] CUID#23 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/a365a0e37651969f6dd6bf3089e327f5eeff4f725387a624e1305be3e4184208?X-Xet-Cas-Uid=public&response-content-type=application%2Fjson&user_id=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27tokenizer.json%3B+filename%3D%22tokenizer.json%22%3B&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1L2EzNjVhMGUzNzY1MTk2OWY2ZGQ2YmYzMDg5ZTMyN2Y1ZWVmZjRmNzI1Mzg3YTYyNGUxMzA1YmUzZTQxODQyMDhcXD9YLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LXR5cGU9YXBwbGljYXRpb24lMkZqc29uJnVzZXJfaWQ9cHVibGljJnJlc3BvbnNlLWNvbnRlbnQtZGlzcG9zaXRpb249aW5saW5lJTNCK2ZpbGVuYW1lJTJBJTNEVVRGLTglMjclMjd0b2tlbml6ZXIuanNvbiUzQitmaWxlbmFtZSUzRCUyMnRva2VuaXplci5qc29uJTIyJTNCIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJFcG9jaFRpbWUiOjE3ODQ1NTE3NjR9fX1dfQ__
+
+07/20 04:47:36 [NOTICE] CUID#24 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/tokenizer_config.json?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Ftokenizer_config.json=&etag=%227345216a0785dc7086e8c245b2a9d3896ce2b756%22
+
+07/20 04:47:36 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/tokenizer_config.json
+
+07/20 04:47:36 [NOTICE] CUID#25 - Redirecting to https://huggingface.co/api/resolve-cache/models/nytopop/Qwen3-8B.w8a8/13e255a9648ec08d3873bce1c3d9886a76494c43/vocab.json?%2Fnytopop%2FQwen3-8B.w8a8%2Fresolve%2F13e255a9648ec08d3873bce1c3d9886a76494c43%2Fvocab.json=&etag=%224783fe10ac3adce15ac8f358ef5462739852c569%22
+
+07/20 04:47:36 [NOTICE] CUID#26 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/4b6bf35c5fcf628b4dd66d51c750f65507983958fdc4cd60069b140017f864c7?X-Xet-Cas-Uid=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00002-of-00002.safetensors%3B+filename%3D%22model-00002-of-00002.safetensors%22%3B&user_id=public&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzRiNmJmMzVjNWZjZjYyOGI0ZGQ2NmQ1MWM3NTBmNjU1MDc5ODM5NThmZGM0Y2Q2MDA2OWIxNDAwMTdmODY0YzdcXD9YLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDItb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMi1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiZ1c2VyX2lkPXB1YmxpYyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzY0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MjI0MjkwNDA2NC00NDg0Mjk0NTY3In19fV19
+
+07/20 04:47:36 [NOTICE] CUID#27 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/4b6bf35c5fcf628b4dd66d51c750f65507983958fdc4cd60069b140017f864c7?user_id=public&X-Xet-Cas-Uid=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00002-of-00002.safetensors%3B+filename%3D%22model-00002-of-00002.safetensors%22%3B&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzRiNmJmMzVjNWZjZjYyOGI0ZGQ2NmQ1MWM3NTBmNjU1MDc5ODM5NThmZGM0Y2Q2MDA2OWIxNDAwMTdmODY0YzdcXD91c2VyX2lkPXB1YmxpYyZYLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDItb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMi1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzY0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MTEyMTk3NjMyMC0yMjQyOTA0MDYzIn19fV19
+
+07/20 04:47:36 [NOTICE] CUID#27 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/4b6bf35c5fcf628b4dd66d51c750f65507983958fdc4cd60069b140017f864c7?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00002-of-00002.safetensors%3B+filename%3D%22model-00002-of-00002.safetensors%22%3B&X-Xet-Cas-Uid=public&user_id=public&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzRiNmJmMzVjNWZjZjYyOGI0ZGQ2NmQ1MWM3NTBmNjU1MDc5ODM5NThmZGM0Y2Q2MDA2OWIxNDAwMTdmODY0YzdcXD9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDItb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMi1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiZYLVhldC1DYXMtVWlkPXB1YmxpYyZ1c2VyX2lkPXB1YmxpYyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzY0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MTEyMTk3NjMyMC0yMjQyOTA0MDYzIn19fV19
+
+07/20 04:47:36 [NOTICE] CUID#29 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/47ec3aef17a86296877eeed6d7aced532d3a4f7facffac2df50801e9cb481a47?user_id=public&X-Xet-Cas-Uid=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00001-of-00002.safetensors%3B+filename%3D%22model-00001-of-00002.safetensors%22%3B&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzQ3ZWMzYWVmMTdhODYyOTY4NzdlZWVkNmQ3YWNlZDUzMmQzYTRmN2ZhY2ZmYWMyZGY1MDgwMWU5Y2I0ODFhNDdcXD91c2VyX2lkPXB1YmxpYyZYLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDEtb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMS1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzY0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MTIzOTQxNjgzMi0yNDc3Nzg1MDg3In19fV19
+[DL:4.9MiB][#362407 0B/4.6GiB(0%)][#302381 0B/4.1GiB(0%)][#e4a939 0B/0B][#b4ab68 2.4MiB/2.6MiB(91%)]
+
+07/20 04:47:36 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/vocab.json
+
+07/20 04:47:36 [NOTICE] CUID#28 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/47ec3aef17a86296877eeed6d7aced532d3a4f7facffac2df50801e9cb481a47?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00001-of-00002.safetensors%3B+filename%3D%22model-00001-of-00002.safetensors%22%3B&user_id=public&X-Xet-Cas-Uid=public&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzQ3ZWMzYWVmMTdhODYyOTY4NzdlZWVkNmQ3YWNlZDUzMmQzYTRmN2ZhY2ZmYWMyZGY1MDgwMWU5Y2I0ODFhNDdcXD9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDEtb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMS1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiZ1c2VyX2lkPXB1YmxpYyZYLVhldC1DYXMtVWlkPXB1YmxpYyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzY0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MjQ3Nzc4NTA4OC00OTU0Mjg2MTM1In19fV19
+
+07/20 04:47:36 [NOTICE] CUID#35 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/a365a0e37651969f6dd6bf3089e327f5eeff4f725387a624e1305be3e4184208?user_id=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27tokenizer.json%3B+filename%3D%22tokenizer.json%22%3B&response-content-type=application%2Fjson&X-Xet-Cas-Uid=public&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1L2EzNjVhMGUzNzY1MTk2OWY2ZGQ2YmYzMDg5ZTMyN2Y1ZWVmZjRmNzI1Mzg3YTYyNGUxMzA1YmUzZTQxODQyMDhcXD91c2VyX2lkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3dG9rZW5pemVyLmpzb24lM0IrZmlsZW5hbWUlM0QlMjJ0b2tlbml6ZXIuanNvbiUyMiUzQiZyZXNwb25zZS1jb250ZW50LXR5cGU9YXBwbGljYXRpb24lMkZqc29uJlgtWGV0LUNhcy1VaWQ9cHVibGljIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJFcG9jaFRpbWUiOjE3ODQ1NTE3NjR9LCJCeXRlUmFuZ2UiOnsiRXhwZWN0ZWRIZWFkZXIiOiJieXRlcz02MjkxNDU2LTExNDIyOTMzIn19fV19
+
+07/20 04:47:36 [NOTICE] CUID#36 - Redirecting to https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/a365a0e37651969f6dd6bf3089e327f5eeff4f725387a624e1305be3e4184208?response-content-type=application%2Fjson&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27tokenizer.json%3B+filename%3D%22tokenizer.json%22%3B&user_id=public&X-Xet-Cas-Uid=public&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1L2EzNjVhMGUzNzY1MTk2OWY2ZGQ2YmYzMDg5ZTMyN2Y1ZWVmZjRmNzI1Mzg3YTYyNGUxMzA1YmUzZTQxODQyMDhcXD9yZXNwb25zZS1jb250ZW50LXR5cGU9YXBwbGljYXRpb24lMkZqc29uJnJlc3BvbnNlLWNvbnRlbnQtZGlzcG9zaXRpb249aW5saW5lJTNCK2ZpbGVuYW1lJTJBJTNEVVRGLTglMjclMjd0b2tlbml6ZXIuanNvbiUzQitmaWxlbmFtZSUzRCUyMnRva2VuaXplci5qc29uJTIyJTNCJnVzZXJfaWQ9cHVibGljJlgtWGV0LUNhcy1VaWQ9cHVibGljIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJFcG9jaFRpbWUiOjE3ODQ1NTE3NjR9LCJCeXRlUmFuZ2UiOnsiRXhwZWN0ZWRIZWFkZXIiOiJieXRlcz0zMTQ1NzI4LTYyOTE0NTUifX19XX0_
+
+07/20 04:47:36 [ERROR] CUID#36 - Download aborted. URI=https://huggingface.co/nytopop/Qwen3-8B.w8a8/resolve/13e255a9648ec08d3873bce1c3d9886a76494c43/tokenizer.json
+Exception: [AbstractCommand.cc:351] errorCode=22 URI=https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/a365a0e37651969f6dd6bf3089e327f5eeff4f725387a624e1305be3e4184208?response-content-type=application%2Fjson&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27tokenizer.json%3B+filename%3D%22tokenizer.json%22%3B&user_id=public&X-Xet-Cas-Uid=public&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1L2EzNjVhMGUzNzY1MTk2OWY2ZGQ2YmYzMDg5ZTMyN2Y1ZWVmZjRmNzI1Mzg3YTYyNGUxMzA1YmUzZTQxODQyMDhcXD9yZXNwb25zZS1jb250ZW50LXR5cGU9YXBwbGljYXRpb24lMkZqc29uJnJlc3BvbnNlLWNvbnRlbnQtZGlzcG9zaXRpb249aW5saW5lJTNCK2ZpbGVuYW1lJTJBJTNEVVRGLTglMjclMjd0b2tlbml6ZXIuanNvbiUzQitmaWxlbmFtZSUzRCUyMnRva2VuaXplci5qc29uJTIyJTNCJnVzZXJfaWQ9cHVibGljJlgtWGV0LUNhcy1VaWQ9cHVibGljIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJFcG9jaFRpbWUiOjE3ODQ1NTE3NjR9LCJCeXRlUmFuZ2UiOnsiRXhwZWN0ZWRIZWFkZXIiOiJieXRlcz0zMTQ1NzI4LTYyOTE0NTUifX19XX0_
+  -> [HttpSkipResponseCommand.cc:240] errorCode=22 The response status is not successful. status=403
+
+07/20 04:47:37 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/tokenizer.json
+[DL:16MiB][#362407 3.3MiB/4.6GiB(0%)][#302381 12MiB/4.1GiB(0%)]
+[DL:24MiB][#362407 16MiB/4.6GiB(0%)][#302381 36MiB/4.1GiB(0%)]
+ *** Download Progress Summary as of Mon Jul 20 04:47:39 2026 *** 
+===============================================================================
+[#362407 33MiB/4.6GiB(0%) CN:3 DL:13MiB ETA:5m58s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 65MiB/4.1GiB(1%) CN:3 DL:23MiB ETA:2m57s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:29MiB][#362407 33MiB/4.6GiB(0%)][#302381 65MiB/4.1GiB(1%)]
+[DL:32MiB][#362407 50MiB/4.6GiB(1%)][#302381 88MiB/4.1GiB(2%)]
+[DL:34MiB][#362407 67MiB/4.6GiB(1%)][#302381 117MiB/4.1GiB(2%)]
+[DL:35MiB][#362407 82MiB/4.6GiB(1%)][#302381 143MiB/4.1GiB(3%)]
+ *** Download Progress Summary as of Mon Jul 20 04:47:43 2026 *** 
+===============================================================================
+[#362407 100MiB/4.6GiB(2%) CN:3 DL:15MiB ETA:5m]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 171MiB/4.1GiB(4%) CN:3 DL:25MiB ETA:2m41s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:36MiB][#362407 100MiB/4.6GiB(2%)][#302381 171MiB/4.1GiB(4%)]
+[DL:37MiB][#362407 117MiB/4.6GiB(2%)][#302381 197MiB/4.1GiB(4%)]
+[DL:38MiB][#362407 135MiB/4.6GiB(2%)][#302381 219MiB/4.1GiB(5%)]
+[DL:41MiB][#362407 155MiB/4.6GiB(3%)][#302381 241MiB/4.1GiB(5%)]
+ *** Download Progress Summary as of Mon Jul 20 04:47:47 2026 *** 
+===============================================================================
+[#362407 171MiB/4.6GiB(3%) CN:3 DL:16MiB ETA:4m28s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 258MiB/4.1GiB(6%) CN:3 DL:24MiB ETA:2m42s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 171MiB/4.6GiB(3%)][#302381 258MiB/4.1GiB(6%)]
+[DL:41MiB][#362407 189MiB/4.6GiB(4%)][#302381 278MiB/4.1GiB(6%)]
+[DL:41MiB][#362407 210MiB/4.6GiB(4%)][#302381 298MiB/4.1GiB(6%)]
+[DL:41MiB][#362407 230MiB/4.6GiB(4%)][#302381 320MiB/4.1GiB(7%)]
+ *** Download Progress Summary as of Mon Jul 20 04:47:51 2026 *** 
+===============================================================================
+[#362407 251MiB/4.6GiB(5%) CN:3 DL:18MiB ETA:3m59s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 340MiB/4.1GiB(7%) CN:3 DL:22MiB ETA:2m56s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:40MiB][#362407 251MiB/4.6GiB(5%)][#302381 340MiB/4.1GiB(7%)]
+[DL:40MiB][#362407 272MiB/4.6GiB(5%)][#302381 359MiB/4.1GiB(8%)]
+[DL:40MiB][#362407 295MiB/4.6GiB(6%)][#302381 378MiB/4.1GiB(8%)]
+[DL:40MiB][#362407 317MiB/4.6GiB(6%)][#302381 399MiB/4.1GiB(9%)]
+ *** Download Progress Summary as of Mon Jul 20 04:47:55 2026 *** 
+===============================================================================
+[#362407 339MiB/4.6GiB(7%) CN:3 DL:20MiB ETA:3m33s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 419MiB/4.1GiB(9%) CN:3 DL:20MiB ETA:3m12s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:40MiB][#362407 339MiB/4.6GiB(7%)][#302381 419MiB/4.1GiB(9%)]
+[DL:40MiB][#362407 359MiB/4.6GiB(7%)][#302381 441MiB/4.1GiB(10%)]
+[DL:41MiB][#362407 380MiB/4.6GiB(8%)][#302381 463MiB/4.1GiB(10%)]
+[DL:41MiB][#362407 398MiB/4.6GiB(8%)][#302381 482MiB/4.1GiB(11%)]
+ *** Download Progress Summary as of Mon Jul 20 04:47:59 2026 *** 
+===============================================================================
+[#362407 416MiB/4.6GiB(8%) CN:3 DL:20MiB ETA:3m27s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 504MiB/4.1GiB(11%) CN:3 DL:20MiB ETA:3m3s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 416MiB/4.6GiB(8%)][#302381 504MiB/4.1GiB(11%)]
+[DL:41MiB][#362407 434MiB/4.6GiB(9%)][#302381 525MiB/4.1GiB(12%)]
+[DL:41MiB][#362407 454MiB/4.6GiB(9%)][#302381 546MiB/4.1GiB(12%)]
+[DL:41MiB][#362407 473MiB/4.6GiB(10%)][#302381 568MiB/4.1GiB(13%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:03 2026 *** 
+===============================================================================
+[#362407 490MiB/4.6GiB(10%) CN:3 DL:19MiB ETA:3m37s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 592MiB/4.1GiB(13%) CN:3 DL:21MiB ETA:2m50s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 490MiB/4.6GiB(10%)][#302381 592MiB/4.1GiB(13%)]
+[DL:41MiB][#362407 509MiB/4.6GiB(10%)][#302381 617MiB/4.1GiB(14%)]
+[DL:41MiB][#362407 527MiB/4.6GiB(11%)][#302381 641MiB/4.1GiB(15%)]
+[DL:41MiB][#362407 545MiB/4.6GiB(11%)][#302381 664MiB/4.1GiB(15%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:07 2026 *** 
+===============================================================================
+[#362407 563MiB/4.6GiB(11%) CN:3 DL:18MiB ETA:3m45s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 688MiB/4.1GiB(16%) CN:3 DL:22MiB ETA:2m36s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 563MiB/4.6GiB(11%)][#302381 688MiB/4.1GiB(16%)]
+[DL:41MiB][#362407 584MiB/4.6GiB(12%)][#302381 707MiB/4.1GiB(16%)]
+[DL:41MiB][#362407 607MiB/4.6GiB(12%)][#302381 728MiB/4.1GiB(17%)]
+[DL:41MiB][#362407 628MiB/4.6GiB(13%)][#302381 748MiB/4.1GiB(17%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:11 2026 *** 
+===============================================================================
+[#362407 649MiB/4.6GiB(13%) CN:3 DL:19MiB ETA:3m26s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 768MiB/4.1GiB(17%) CN:3 DL:22MiB ETA:2m37s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 649MiB/4.6GiB(13%)][#302381 768MiB/4.1GiB(17%)]
+[DL:42MiB][#362407 673MiB/4.6GiB(14%)][#302381 789MiB/4.1GiB(18%)]
+[DL:42MiB][#362407 696MiB/4.6GiB(14%)][#302381 807MiB/4.1GiB(18%)]
+[DL:42MiB][#362407 720MiB/4.6GiB(15%)][#302381 825MiB/4.1GiB(19%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:15 2026 *** 
+===============================================================================
+[#362407 744MiB/4.6GiB(15%) CN:3 DL:22MiB ETA:2m59s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 843MiB/4.1GiB(19%) CN:3 DL:20MiB ETA:2m50s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 744MiB/4.6GiB(15%)][#302381 843MiB/4.1GiB(19%)]
+[DL:42MiB][#362407 766MiB/4.6GiB(16%)][#302381 862MiB/4.1GiB(20%)]
+[DL:42MiB][#362407 788MiB/4.6GiB(16%)][#302381 881MiB/4.1GiB(20%)]
+[DL:41MiB][#362407 803MiB/4.6GiB(17%)][#302381 902MiB/4.1GiB(21%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:19 2026 *** 
+===============================================================================
+[#362407 822MiB/4.6GiB(17%) CN:3 DL:21MiB ETA:2m59s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 0.9GiB/4.1GiB(21%) CN:3 DL:19MiB ETA:2m48s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 822MiB/4.6GiB(17%)][#302381 0.9GiB/4.1GiB(21%)]
+[DL:41MiB][#362407 843MiB/4.6GiB(17%)][#302381 0.9GiB/4.1GiB(22%)]
+[DL:41MiB][#362407 863MiB/4.6GiB(18%)][#302381 0.9GiB/4.1GiB(22%)]
+[DL:41MiB][#362407 882MiB/4.6GiB(18%)][#302381 0.9GiB/4.1GiB(23%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:23 2026 *** 
+===============================================================================
+[#362407 901MiB/4.6GiB(19%) CN:3 DL:20MiB ETA:3m8s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 0.9GiB/4.1GiB(23%) CN:3 DL:20MiB ETA:2m37s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 901MiB/4.6GiB(19%)][#302381 0.9GiB/4.1GiB(23%)]
+[DL:40MiB][#362407 0.9GiB/4.6GiB(19%)][#302381 1.0GiB/4.1GiB(24%)]
+[DL:40MiB][#362407 0.9GiB/4.6GiB(20%)][#302381 1.0GiB/4.1GiB(24%)]
+[DL:40MiB][#362407 0.9GiB/4.6GiB(20%)][#302381 1.0GiB/4.1GiB(24%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:27 2026 *** 
+===============================================================================
+[#362407 0.9GiB/4.6GiB(21%) CN:3 DL:21MiB ETA:2m52s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.0GiB/4.1GiB(25%) CN:3 DL:18MiB ETA:2m50s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:40MiB][#362407 0.9GiB/4.6GiB(21%)][#302381 1.0GiB/4.1GiB(25%)]
+[DL:39MiB][#362407 0.9GiB/4.6GiB(21%)][#302381 1.0GiB/4.1GiB(25%)]
+[DL:39MiB][#362407 1.0GiB/4.6GiB(22%)][#302381 1.0GiB/4.1GiB(25%)]
+[DL:38MiB][#362407 1.0GiB/4.6GiB(22%)][#302381 1.0GiB/4.1GiB(25%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:31 2026 *** 
+===============================================================================
+[#362407 1.0GiB/4.6GiB(23%) CN:3 DL:24MiB ETA:2m28s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.0GiB/4.1GiB(26%) CN:3 DL:14MiB ETA:3m44s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:38MiB][#362407 1.0GiB/4.6GiB(23%)][#302381 1.0GiB/4.1GiB(26%)]
+[DL:39MiB][#362407 1.1GiB/4.6GiB(23%)][#302381 1.1GiB/4.1GiB(26%)]
+[DL:39MiB][#362407 1.1GiB/4.6GiB(24%)][#302381 1.1GiB/4.1GiB(26%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:34 2026 *** 
+===============================================================================
+[#362407 1.1GiB/4.6GiB(25%) CN:3 DL:26MiB ETA:2m14s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.1GiB/4.1GiB(27%) CN:3 DL:13MiB ETA:3m58s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:39MiB][#362407 1.1GiB/4.6GiB(25%)][#302381 1.1GiB/4.1GiB(27%)]
+[DL:39MiB][#362407 1.1GiB/4.6GiB(25%)][#302381 1.1GiB/4.1GiB(27%)]
+[DL:39MiB][#362407 1.2GiB/4.6GiB(26%)][#302381 1.1GiB/4.1GiB(27%)]
+[DL:38MiB][#362407 1.2GiB/4.6GiB(26%)][#302381 1.1GiB/4.1GiB(28%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:37 2026 *** 
+===============================================================================
+[#362407 1.2GiB/4.6GiB(26%) CN:3 DL:25MiB ETA:2m16s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.1GiB/4.1GiB(28%) CN:3 DL:13MiB ETA:3m46s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:38MiB][#362407 1.2GiB/4.6GiB(26%)][#302381 1.1GiB/4.1GiB(28%)]
+[DL:38MiB][#362407 1.2GiB/4.6GiB(27%)][#302381 1.1GiB/4.1GiB(28%)]
+[DL:39MiB][#362407 1.2GiB/4.6GiB(28%)][#302381 1.2GiB/4.1GiB(29%)]
+[DL:38MiB][#362407 1.3GiB/4.6GiB(28%)][#302381 1.2GiB/4.1GiB(29%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:41 2026 *** 
+===============================================================================
+[#362407 1.3GiB/4.6GiB(29%) CN:3 DL:24MiB ETA:2m14s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.2GiB/4.1GiB(29%) CN:3 DL:14MiB ETA:3m34s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:38MiB][#362407 1.3GiB/4.6GiB(29%)][#302381 1.2GiB/4.1GiB(29%)]
+[DL:38MiB][#362407 1.3GiB/4.6GiB(29%)][#302381 1.2GiB/4.1GiB(30%)]
+[DL:38MiB][#362407 1.3GiB/4.6GiB(30%)][#302381 1.2GiB/4.1GiB(30%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:44 2026 *** 
+===============================================================================
+[#362407 1.4GiB/4.6GiB(30%) CN:3 DL:24MiB ETA:2m12s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.2GiB/4.1GiB(30%) CN:3 DL:14MiB ETA:3m25s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:38MiB][#362407 1.4GiB/4.6GiB(30%)][#302381 1.2GiB/4.1GiB(30%)]
+[DL:39MiB][#362407 1.4GiB/4.6GiB(31%)][#302381 1.2GiB/4.1GiB(31%)]
+[DL:40MiB][#362407 1.4GiB/4.6GiB(31%)][#302381 1.3GiB/4.1GiB(31%)]
+[DL:40MiB][#362407 1.4GiB/4.6GiB(32%)][#302381 1.3GiB/4.1GiB(31%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:48 2026 *** 
+===============================================================================
+[#362407 1.5GiB/4.6GiB(32%) CN:3 DL:25MiB ETA:2m2s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.3GiB/4.1GiB(32%) CN:3 DL:14MiB ETA:3m18s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:40MiB][#362407 1.5GiB/4.6GiB(32%)][#302381 1.3GiB/4.1GiB(32%)]
+[DL:40MiB][#362407 1.5GiB/4.6GiB(33%)][#302381 1.3GiB/4.1GiB(32%)]
+[DL:40MiB][#362407 1.5GiB/4.6GiB(34%)][#302381 1.3GiB/4.1GiB(32%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:51 2026 *** 
+===============================================================================
+[#362407 1.5GiB/4.6GiB(34%) CN:3 DL:25MiB ETA:1m59s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.3GiB/4.1GiB(33%) CN:3 DL:14MiB ETA:3m11s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:40MiB][#362407 1.5GiB/4.6GiB(34%)][#302381 1.3GiB/4.1GiB(33%)]
+[DL:40MiB][#362407 1.6GiB/4.6GiB(35%)][#302381 1.4GiB/4.1GiB(33%)]
+[DL:41MiB][#362407 1.6GiB/4.6GiB(35%)][#302381 1.4GiB/4.1GiB(34%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:54 2026 *** 
+===============================================================================
+[#362407 1.6GiB/4.6GiB(36%) CN:3 DL:25MiB ETA:1m58s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.4GiB/4.1GiB(34%) CN:3 DL:15MiB ETA:2m59s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 1.6GiB/4.6GiB(36%)][#302381 1.4GiB/4.1GiB(34%)]
+[DL:41MiB][#362407 1.6GiB/4.6GiB(36%)][#302381 1.4GiB/4.1GiB(34%)]
+[DL:42MiB][#362407 1.7GiB/4.6GiB(37%)][#302381 1.4GiB/4.1GiB(35%)]
+ *** Download Progress Summary as of Mon Jul 20 04:48:57 2026 *** 
+===============================================================================
+[#362407 1.7GiB/4.6GiB(37%) CN:3 DL:25MiB ETA:1m54s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.4GiB/4.1GiB(35%) CN:3 DL:16MiB ETA:2m48s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 1.7GiB/4.6GiB(37%)][#302381 1.4GiB/4.1GiB(35%)]
+[DL:41MiB][#362407 1.7GiB/4.6GiB(38%)][#302381 1.5GiB/4.1GiB(35%)]
+[DL:41MiB][#362407 1.7GiB/4.6GiB(38%)][#302381 1.5GiB/4.1GiB(36%)]
+[DL:41MiB][#362407 1.8GiB/4.6GiB(39%)][#302381 1.5GiB/4.1GiB(36%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:01 2026 *** 
+===============================================================================
+[#362407 1.8GiB/4.6GiB(40%) CN:3 DL:25MiB ETA:1m50s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.5GiB/4.1GiB(37%) CN:3 DL:16MiB ETA:2m44s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 1.8GiB/4.6GiB(40%)][#302381 1.5GiB/4.1GiB(37%)]
+
+07/20 04:49:02 [ERROR] CUID#29 - Download aborted. URI=https://huggingface.co/nytopop/Qwen3-8B.w8a8/resolve/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+Exception: [AbstractCommand.cc:351] errorCode=22 URI=https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/47ec3aef17a86296877eeed6d7aced532d3a4f7facffac2df50801e9cb481a47?user_id=public&X-Xet-Cas-Uid=public&response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00001-of-00002.safetensors%3B+filename%3D%22model-00001-of-00002.safetensors%22%3B&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzQ3ZWMzYWVmMTdhODYyOTY4NzdlZWVkNmQ3YWNlZDUzMmQzYTRmN2ZhY2ZmYWMyZGY1MDgwMWU5Y2I0ODFhNDdcXD91c2VyX2lkPXB1YmxpYyZYLVhldC1DYXMtVWlkPXB1YmxpYyZyZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDEtb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMS1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzY0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MTIzOTQxNjgzMi0yNDc3Nzg1MDg3In19fV19
+  -> [HttpSkipResponseCommand.cc:240] errorCode=22 The response status is not successful. status=403
+[DL:41MiB][#362407 1.8GiB/4.6GiB(40%)][#302381 1.5GiB/4.1GiB(37%)]
+[DL:40MiB][#362407 1.8GiB/4.6GiB(40%)][#302381 1.5GiB/4.1GiB(38%)]
+[DL:40MiB][#362407 1.8GiB/4.6GiB(40%)][#302381 1.6GiB/4.1GiB(38%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:05 2026 *** 
+===============================================================================
+[#362407 1.8GiB/4.6GiB(41%) CN:2 DL:20MiB ETA:2m15s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.6GiB/4.1GiB(39%) CN:3 DL:19MiB ETA:2m10s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:40MiB][#362407 1.8GiB/4.6GiB(41%)][#302381 1.6GiB/4.1GiB(39%)]
+[DL:40MiB][#362407 1.9GiB/4.6GiB(41%)][#302381 1.6GiB/4.1GiB(40%)]
+[DL:41MiB][#362407 1.9GiB/4.6GiB(41%)][#302381 1.7GiB/4.1GiB(40%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:08 2026 *** 
+===============================================================================
+[#362407 1.9GiB/4.6GiB(41%) CN:2 DL:16MiB ETA:2m50s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.7GiB/4.1GiB(41%) CN:3 DL:24MiB ETA:1m41s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:40MiB][#362407 1.9GiB/4.6GiB(41%)][#302381 1.7GiB/4.1GiB(41%)]
+[DL:41MiB][#362407 1.9GiB/4.6GiB(42%)][#302381 1.7GiB/4.1GiB(42%)]
+[DL:41MiB][#362407 1.9GiB/4.6GiB(42%)][#302381 1.7GiB/4.1GiB(43%)]
+[DL:41MiB][#362407 1.9GiB/4.6GiB(42%)][#302381 1.8GiB/4.1GiB(43%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:12 2026 *** 
+===============================================================================
+[#362407 1.9GiB/4.6GiB(42%) CN:2 DL:12MiB ETA:3m35s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.8GiB/4.1GiB(44%) CN:3 DL:29MiB ETA:1m20s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 1.9GiB/4.6GiB(42%)][#302381 1.8GiB/4.1GiB(44%)]
+[DL:41MiB][#362407 1.9GiB/4.6GiB(43%)][#302381 1.8GiB/4.1GiB(44%)]
+[DL:41MiB][#362407 2.0GiB/4.6GiB(43%)][#302381 1.8GiB/4.1GiB(45%)]
+[DL:41MiB][#362407 2.0GiB/4.6GiB(43%)][#302381 1.9GiB/4.1GiB(45%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:16 2026 *** 
+===============================================================================
+[#362407 2.0GiB/4.6GiB(44%) CN:2 DL:13MiB ETA:3m8s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 1.9GiB/4.1GiB(46%) CN:3 DL:26MiB ETA:1m24s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 2.0GiB/4.6GiB(44%)][#302381 1.9GiB/4.1GiB(46%)]
+[DL:41MiB][#362407 2.0GiB/4.6GiB(44%)][#302381 1.9GiB/4.1GiB(47%)]
+[DL:41MiB][#362407 2.0GiB/4.6GiB(45%)][#302381 1.9GiB/4.1GiB(47%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:19 2026 *** 
+===============================================================================
+[#362407 2.0GiB/4.6GiB(45%) CN:2 DL:16MiB ETA:2m39s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.0GiB/4.1GiB(48%) CN:3 DL:25MiB ETA:1m26s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 2.0GiB/4.6GiB(45%)][#302381 2.0GiB/4.1GiB(48%)]
+[DL:41MiB][#362407 2.1GiB/4.6GiB(45%)][#302381 2.0GiB/4.1GiB(48%)]
+[DL:41MiB][#362407 2.1GiB/4.6GiB(46%)][#302381 2.0GiB/4.1GiB(49%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:22 2026 *** 
+===============================================================================
+[#362407 2.1GiB/4.6GiB(46%) CN:2 DL:17MiB ETA:2m25s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.0GiB/4.1GiB(50%) CN:3 DL:25MiB ETA:1m24s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 2.1GiB/4.6GiB(46%)][#302381 2.0GiB/4.1GiB(50%)]
+[DL:42MiB][#362407 2.1GiB/4.6GiB(46%)][#302381 2.1GiB/4.1GiB(50%)]
+[DL:42MiB][#362407 2.1GiB/4.6GiB(47%)][#302381 2.1GiB/4.1GiB(51%)]
+[DL:42MiB][#362407 2.1GiB/4.6GiB(47%)][#302381 2.1GiB/4.1GiB(51%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:26 2026 *** 
+===============================================================================
+[#362407 2.2GiB/4.6GiB(47%) CN:2 DL:17MiB ETA:2m23s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.1GiB/4.1GiB(52%) CN:3 DL:25MiB ETA:1m19s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 2.2GiB/4.6GiB(47%)][#302381 2.1GiB/4.1GiB(52%)]
+[DL:42MiB][#362407 2.2GiB/4.6GiB(48%)][#302381 2.2GiB/4.1GiB(53%)]
+[DL:42MiB][#362407 2.2GiB/4.6GiB(48%)][#302381 2.2GiB/4.1GiB(53%)]
+[DL:41MiB][#362407 2.2GiB/4.6GiB(48%)][#302381 2.2GiB/4.1GiB(54%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:30 2026 *** 
+===============================================================================
+[#362407 2.2GiB/4.6GiB(49%) CN:2 DL:15MiB ETA:2m39s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.2GiB/4.1GiB(55%) CN:3 DL:26MiB ETA:1m12s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 2.2GiB/4.6GiB(49%)][#302381 2.2GiB/4.1GiB(55%)]
+[DL:41MiB][#362407 2.2GiB/4.6GiB(49%)][#302381 2.3GiB/4.1GiB(55%)]
+[DL:41MiB][#362407 2.2GiB/4.6GiB(49%)][#302381 2.3GiB/4.1GiB(56%)]
+[DL:41MiB][#362407 2.3GiB/4.6GiB(50%)][#302381 2.3GiB/4.1GiB(56%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:34 2026 *** 
+===============================================================================
+[#362407 2.3GiB/4.6GiB(50%) CN:2 DL:14MiB ETA:2m43s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.4GiB/4.1GiB(57%) CN:3 DL:27MiB ETA:1m6s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 2.3GiB/4.6GiB(50%)][#302381 2.4GiB/4.1GiB(57%)]
+[DL:40MiB][#362407 2.3GiB/4.6GiB(50%)][#302381 2.4GiB/4.1GiB(58%)]
+[DL:42MiB][#362407 2.3GiB/4.6GiB(50%)][#302381 2.4GiB/4.1GiB(58%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:37 2026 *** 
+===============================================================================
+[#362407 2.3GiB/4.6GiB(51%) CN:2 DL:14MiB ETA:2m39s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.4GiB/4.1GiB(59%) CN:3 DL:27MiB ETA:1m2s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 2.3GiB/4.6GiB(51%)][#302381 2.4GiB/4.1GiB(59%)]
+[DL:42MiB][#362407 2.3GiB/4.6GiB(51%)][#302381 2.5GiB/4.1GiB(60%)]
+[DL:42MiB][#362407 2.3GiB/4.6GiB(51%)][#302381 2.5GiB/4.1GiB(60%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:40 2026 *** 
+===============================================================================
+[#362407 2.4GiB/4.6GiB(52%) CN:2 DL:15MiB ETA:2m25s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.5GiB/4.1GiB(61%) CN:3 DL:26MiB ETA:1m1s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 2.4GiB/4.6GiB(52%)][#302381 2.5GiB/4.1GiB(61%)]
+[DL:42MiB][#362407 2.4GiB/4.6GiB(52%)][#302381 2.5GiB/4.1GiB(61%)]
+[DL:42MiB][#362407 2.4GiB/4.6GiB(53%)][#302381 2.6GiB/4.1GiB(62%)]
+[DL:42MiB][#362407 2.4GiB/4.6GiB(53%)][#302381 2.6GiB/4.1GiB(62%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:44 2026 *** 
+===============================================================================
+[#362407 2.4GiB/4.6GiB(54%) CN:2 DL:18MiB ETA:1m56s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.6GiB/4.1GiB(63%) CN:3 DL:24MiB ETA:1m4s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 2.4GiB/4.6GiB(54%)][#302381 2.6GiB/4.1GiB(63%)]
+[DL:42MiB][#362407 2.5GiB/4.6GiB(54%)][#302381 2.6GiB/4.1GiB(63%)]
+[DL:42MiB][#362407 2.5GiB/4.6GiB(54%)][#302381 2.6GiB/4.1GiB(64%)]
+[DL:42MiB][#362407 2.5GiB/4.6GiB(55%)][#302381 2.7GiB/4.1GiB(64%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:48 2026 *** 
+===============================================================================
+[#362407 2.5GiB/4.6GiB(55%) CN:2 DL:19MiB ETA:1m47s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.7GiB/4.1GiB(65%) CN:3 DL:22MiB ETA:1m4s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 2.5GiB/4.6GiB(55%)][#302381 2.7GiB/4.1GiB(65%)]
+[DL:42MiB][#362407 2.5GiB/4.6GiB(56%)][#302381 2.7GiB/4.1GiB(65%)]
+[DL:42MiB][#362407 2.6GiB/4.6GiB(56%)][#302381 2.7GiB/4.1GiB(66%)]
+[DL:42MiB][#362407 2.6GiB/4.6GiB(56%)][#302381 2.8GiB/4.1GiB(67%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:52 2026 *** 
+===============================================================================
+[#362407 2.6GiB/4.6GiB(57%) CN:2 DL:19MiB ETA:1m42s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.8GiB/4.1GiB(67%) CN:3 DL:22MiB ETA:1m]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 2.6GiB/4.6GiB(57%)][#302381 2.8GiB/4.1GiB(67%)]
+[DL:43MiB][#362407 2.6GiB/4.6GiB(57%)][#302381 2.8GiB/4.1GiB(68%)]
+
+07/20 04:49:54 [ERROR] CUID#27 - Download aborted. URI=https://huggingface.co/nytopop/Qwen3-8B.w8a8/resolve/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+Exception: [AbstractCommand.cc:351] errorCode=22 URI=https://us.aws.cdn.hf.co/xet-bridge-us/68103bf3603c22ddab185945/4b6bf35c5fcf628b4dd66d51c750f65507983958fdc4cd60069b140017f864c7?response-content-disposition=inline%3B+filename*%3DUTF-8%27%27model-00002-of-00002.safetensors%3B+filename%3D%22model-00002-of-00002.safetensors%22%3B&X-Xet-Cas-Uid=public&user_id=public&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly91cy5hd3MuY2RuLmhmLmNvL3hldC1icmlkZ2UtdXMvNjgxMDNiZjM2MDNjMjJkZGFiMTg1OTQ1LzRiNmJmMzVjNWZjZjYyOGI0ZGQ2NmQ1MWM3NTBmNjU1MDc5ODM5NThmZGM0Y2Q2MDA2OWIxNDAwMTdmODY0YzdcXD9yZXNwb25zZS1jb250ZW50LWRpc3Bvc2l0aW9uPWlubGluZSUzQitmaWxlbmFtZSUyQSUzRFVURi04JTI3JTI3bW9kZWwtMDAwMDItb2YtMDAwMDIuc2FmZXRlbnNvcnMlM0IrZmlsZW5hbWUlM0QlMjJtb2RlbC0wMDAwMi1vZi0wMDAwMi5zYWZldGVuc29ycyUyMiUzQiZYLVhldC1DYXMtVWlkPXB1YmxpYyZ1c2VyX2lkPXB1YmxpYyIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiRXBvY2hUaW1lIjoxNzg0NTUxNzY0fSwiQnl0ZVJhbmdlIjp7IkV4cGVjdGVkSGVhZGVyIjoiYnl0ZXM9MTEyMTk3NjMyMC0yMjQyOTA0MDYzIn19fV19
+  -> [HttpSkipResponseCommand.cc:240] errorCode=22 The response status is not successful. status=403
+[DL:42MiB][#362407 2.6GiB/4.6GiB(58%)][#302381 2.8GiB/4.1GiB(68%)]
+[DL:41MiB][#362407 2.7GiB/4.6GiB(58%)][#302381 2.8GiB/4.1GiB(68%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:56 2026 *** 
+===============================================================================
+[#362407 2.7GiB/4.6GiB(59%) CN:2 DL:21MiB ETA:1m30s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.8GiB/4.1GiB(69%) CN:2 DL:20MiB ETA:1m3s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 2.7GiB/4.6GiB(59%)][#302381 2.8GiB/4.1GiB(69%)]
+[DL:41MiB][#362407 2.7GiB/4.6GiB(59%)][#302381 2.8GiB/4.1GiB(69%)]
+[DL:42MiB][#362407 2.7GiB/4.6GiB(60%)][#302381 2.9GiB/4.1GiB(69%)]
+ *** Download Progress Summary as of Mon Jul 20 04:49:59 2026 *** 
+===============================================================================
+[#362407 2.8GiB/4.6GiB(61%) CN:2 DL:24MiB ETA:1m14s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.9GiB/4.1GiB(70%) CN:2 DL:17MiB ETA:1m14s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 2.8GiB/4.6GiB(61%)][#302381 2.9GiB/4.1GiB(70%)]
+[DL:42MiB][#362407 2.8GiB/4.6GiB(61%)][#302381 2.9GiB/4.1GiB(70%)]
+[DL:42MiB][#362407 2.8GiB/4.6GiB(62%)][#302381 2.9GiB/4.1GiB(70%)]
+[DL:42MiB][#362407 2.9GiB/4.6GiB(62%)][#302381 2.9GiB/4.1GiB(71%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:03 2026 *** 
+===============================================================================
+[#362407 2.9GiB/4.6GiB(63%) CN:2 DL:27MiB ETA:1m1s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 2.9GiB/4.1GiB(71%) CN:2 DL:14MiB ETA:1m22s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:43MiB][#362407 2.9GiB/4.6GiB(63%)][#302381 2.9GiB/4.1GiB(71%)]
+[DL:43MiB][#362407 2.9GiB/4.6GiB(64%)][#302381 3.0GiB/4.1GiB(72%)]
+[DL:42MiB][#362407 2.9GiB/4.6GiB(64%)][#302381 3.0GiB/4.1GiB(72%)]
+[DL:42MiB][#362407 2.9GiB/4.6GiB(64%)][#302381 3.0GiB/4.1GiB(72%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:07 2026 *** 
+===============================================================================
+[#362407 3.0GiB/4.6GiB(65%) CN:2 DL:25MiB ETA:1m2s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.0GiB/4.1GiB(73%) CN:2 DL:17MiB ETA:1m6s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 3.0GiB/4.6GiB(65%)][#302381 3.0GiB/4.1GiB(73%)]
+[DL:42MiB][#362407 3.0GiB/4.6GiB(65%)][#302381 3.0GiB/4.1GiB(73%)]
+[DL:42MiB][#362407 3.0GiB/4.6GiB(66%)][#302381 3.0GiB/4.1GiB(74%)]
+[DL:42MiB][#362407 3.0GiB/4.6GiB(66%)][#302381 3.1GiB/4.1GiB(74%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:11 2026 *** 
+===============================================================================
+[#362407 3.1GiB/4.6GiB(67%) CN:2 DL:23MiB ETA:1m4s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.1GiB/4.1GiB(75%) CN:2 DL:18MiB ETA:57s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 3.1GiB/4.6GiB(67%)][#302381 3.1GiB/4.1GiB(75%)]
+[DL:42MiB][#362407 3.1GiB/4.6GiB(67%)][#302381 3.1GiB/4.1GiB(75%)]
+[DL:41MiB][#362407 3.1GiB/4.6GiB(68%)][#302381 3.1GiB/4.1GiB(75%)]
+[DL:42MiB][#362407 3.1GiB/4.6GiB(68%)][#302381 3.1GiB/4.1GiB(76%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:15 2026 *** 
+===============================================================================
+[#362407 3.2GiB/4.6GiB(69%) CN:2 DL:23MiB ETA:1m]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.2GiB/4.1GiB(76%) CN:2 DL:18MiB ETA:53s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 3.2GiB/4.6GiB(69%)][#302381 3.2GiB/4.1GiB(76%)]
+[DL:42MiB][#362407 3.2GiB/4.6GiB(69%)][#302381 3.2GiB/4.1GiB(77%)]
+[DL:41MiB][#362407 3.2GiB/4.6GiB(70%)][#302381 3.2GiB/4.1GiB(77%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:18 2026 *** 
+===============================================================================
+[#362407 3.2GiB/4.6GiB(71%) CN:2 DL:24MiB ETA:56s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.2GiB/4.1GiB(77%) CN:2 DL:18MiB ETA:52s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 3.2GiB/4.6GiB(71%)][#302381 3.2GiB/4.1GiB(77%)]
+[DL:41MiB][#362407 3.3GiB/4.6GiB(71%)][#302381 3.2GiB/4.1GiB(78%)]
+[DL:41MiB][#362407 3.3GiB/4.6GiB(72%)][#302381 3.2GiB/4.1GiB(78%)]
+[DL:42MiB][#362407 3.3GiB/4.6GiB(72%)][#302381 3.3GiB/4.1GiB(79%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:22 2026 *** 
+===============================================================================
+[#362407 3.3GiB/4.6GiB(73%) CN:2 DL:24MiB ETA:51s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.3GiB/4.1GiB(79%) CN:2 DL:17MiB ETA:48s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 3.3GiB/4.6GiB(73%)][#302381 3.3GiB/4.1GiB(79%)]
+[DL:43MiB][#362407 3.3GiB/4.6GiB(73%)][#302381 3.3GiB/4.1GiB(80%)]
+[DL:43MiB][#362407 3.4GiB/4.6GiB(73%)][#302381 3.3GiB/4.1GiB(80%)]
+[DL:42MiB][#362407 3.4GiB/4.6GiB(74%)][#302381 3.3GiB/4.1GiB(81%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:26 2026 *** 
+===============================================================================
+[#362407 3.4GiB/4.6GiB(74%) CN:2 DL:21MiB ETA:55s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.4GiB/4.1GiB(82%) CN:2 DL:21MiB ETA:35s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 3.4GiB/4.6GiB(74%)][#302381 3.4GiB/4.1GiB(82%)]
+[DL:42MiB][#362407 3.4GiB/4.6GiB(74%)][#302381 3.4GiB/4.1GiB(82%)]
+[DL:42MiB][#362407 3.4GiB/4.6GiB(75%)][#302381 3.4GiB/4.1GiB(83%)]
+[DL:42MiB][#362407 3.4GiB/4.6GiB(75%)][#302381 3.5GiB/4.1GiB(83%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:30 2026 *** 
+===============================================================================
+[#362407 3.5GiB/4.6GiB(75%) CN:2 DL:18MiB ETA:1m2s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.5GiB/4.1GiB(84%) CN:2 DL:24MiB ETA:27s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 3.5GiB/4.6GiB(75%)][#302381 3.5GiB/4.1GiB(84%)]
+[DL:42MiB][#362407 3.5GiB/4.6GiB(76%)][#302381 3.5GiB/4.1GiB(85%)]
+[DL:43MiB][#362407 3.5GiB/4.6GiB(76%)][#302381 3.5GiB/4.1GiB(85%)]
+[DL:43MiB][#362407 3.5GiB/4.6GiB(77%)][#302381 3.6GiB/4.1GiB(86%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:34 2026 *** 
+===============================================================================
+[#362407 3.5GiB/4.6GiB(77%) CN:2 DL:17MiB ETA:1m1s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.6GiB/4.1GiB(86%) CN:2 DL:25MiB ETA:22s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 3.5GiB/4.6GiB(77%)][#302381 3.6GiB/4.1GiB(86%)]
+[DL:42MiB][#362407 3.5GiB/4.6GiB(77%)][#302381 3.6GiB/4.1GiB(87%)]
+[DL:42MiB][#362407 3.6GiB/4.6GiB(78%)][#302381 3.6GiB/4.1GiB(87%)]
+[DL:41MiB][#362407 3.6GiB/4.6GiB(78%)][#302381 3.6GiB/4.1GiB(88%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:38 2026 *** 
+===============================================================================
+[#362407 3.6GiB/4.6GiB(79%) CN:2 DL:18MiB ETA:53s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.7GiB/4.1GiB(88%) CN:2 DL:23MiB ETA:20s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 3.6GiB/4.6GiB(79%)][#302381 3.7GiB/4.1GiB(88%)]
+[DL:41MiB][#362407 3.6GiB/4.6GiB(79%)][#302381 3.7GiB/4.1GiB(89%)]
+[DL:41MiB][#362407 3.6GiB/4.6GiB(79%)][#302381 3.7GiB/4.1GiB(89%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:41 2026 *** 
+===============================================================================
+[#362407 3.6GiB/4.6GiB(80%) CN:2 DL:17MiB ETA:52s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.7GiB/4.1GiB(90%) CN:2 DL:22MiB ETA:17s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:40MiB][#362407 3.6GiB/4.6GiB(80%)][#302381 3.7GiB/4.1GiB(90%)]
+[DL:40MiB][#362407 3.7GiB/4.6GiB(80%)][#302381 3.7GiB/4.1GiB(90%)]
+[DL:40MiB][#362407 3.7GiB/4.6GiB(80%)][#302381 3.8GiB/4.1GiB(91%)]
+[DL:41MiB][#362407 3.7GiB/4.6GiB(81%)][#302381 3.8GiB/4.1GiB(92%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:45 2026 *** 
+===============================================================================
+[#362407 3.7GiB/4.6GiB(81%) CN:2 DL:18MiB ETA:47s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.8GiB/4.1GiB(92%) CN:2 DL:24MiB ETA:12s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:41MiB][#362407 3.7GiB/4.6GiB(81%)][#302381 3.8GiB/4.1GiB(92%)]
+[DL:41MiB][#362407 3.7GiB/4.6GiB(82%)][#302381 3.8GiB/4.1GiB(93%)]
+[DL:42MiB][#362407 3.8GiB/4.6GiB(82%)][#302381 3.9GiB/4.1GiB(93%)]
+[DL:43MiB][#362407 3.8GiB/4.6GiB(83%)][#302381 3.9GiB/4.1GiB(94%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:49 2026 *** 
+===============================================================================
+[#362407 3.8GiB/4.6GiB(83%) CN:2 DL:19MiB ETA:40s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 3.9GiB/4.1GiB(94%) CN:2 DL:23MiB ETA:9s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:43MiB][#362407 3.8GiB/4.6GiB(83%)][#302381 3.9GiB/4.1GiB(94%)]
+[DL:43MiB][#362407 3.8GiB/4.6GiB(83%)][#302381 3.9GiB/4.1GiB(95%)]
+[DL:43MiB][#362407 3.8GiB/4.6GiB(84%)][#302381 4.0GiB/4.1GiB(95%)]
+[DL:43MiB][#362407 3.9GiB/4.6GiB(84%)][#302381 4.0GiB/4.1GiB(96%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:53 2026 *** 
+===============================================================================
+[#362407 3.9GiB/4.6GiB(85%) CN:2 DL:19MiB ETA:36s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 4.0GiB/4.1GiB(97%) CN:2 DL:23MiB ETA:5s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:43MiB][#362407 3.9GiB/4.6GiB(85%)][#302381 4.0GiB/4.1GiB(97%)]
+[DL:43MiB][#362407 3.9GiB/4.6GiB(85%)][#302381 4.0GiB/4.1GiB(97%)]
+[DL:42MiB][#362407 3.9GiB/4.6GiB(85%)][#302381 4.0GiB/4.1GiB(98%)]
+[DL:42MiB][#362407 3.9GiB/4.6GiB(86%)][#302381 4.1GiB/4.1GiB(98%)]
+ *** Download Progress Summary as of Mon Jul 20 04:50:57 2026 *** 
+===============================================================================
+[#362407 4.0GiB/4.6GiB(86%) CN:2 DL:20MiB ETA:30s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+[#302381 4.1GiB/4.1GiB(98%) CN:2 DL:21MiB ETA:2s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[DL:42MiB][#362407 4.0GiB/4.6GiB(86%)][#302381 4.1GiB/4.1GiB(98%)]
+[DL:41MiB][#362407 4.0GiB/4.6GiB(87%)][#302381 4.1GiB/4.1GiB(99%)]
+[DL:41MiB][#362407 4.0GiB/4.6GiB(87%)][#302381 4.1GiB/4.1GiB(99%)]
+[DL:41MiB][#362407 4.0GiB/4.6GiB(88%)][#302381 4.1GiB/4.1GiB(99%)]
+
+07/20 04:51:00 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+ *** Download Progress Summary as of Mon Jul 20 04:51:01 2026 *** 
+===============================================================================
+[#362407 4.1GiB/4.6GiB(89%) CN:2 DL:23MiB ETA:21s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[#362407 4.1GiB/4.6GiB(89%) CN:2 DL:23MiB ETA:21s]
+[#362407 4.1GiB/4.6GiB(89%) CN:2 DL:25MiB ETA:18s]
+[#362407 4.1GiB/4.6GiB(90%) CN:2 DL:27MiB ETA:15s]
+ *** Download Progress Summary as of Mon Jul 20 04:51:04 2026 *** 
+===============================================================================
+[#362407 4.2GiB/4.6GiB(91%) CN:2 DL:30MiB ETA:12s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[#362407 4.2GiB/4.6GiB(91%) CN:2 DL:30MiB ETA:12s]
+[#362407 4.2GiB/4.6GiB(92%) CN:2 DL:32MiB ETA:10s]
+[#362407 4.3GiB/4.6GiB(93%) CN:2 DL:33MiB ETA:9s]
+ *** Download Progress Summary as of Mon Jul 20 04:51:07 2026 *** 
+===============================================================================
+[#362407 4.3GiB/4.6GiB(94%) CN:2 DL:34MiB ETA:7s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[#362407 4.3GiB/4.6GiB(94%) CN:2 DL:34MiB ETA:7s]
+[#362407 4.3GiB/4.6GiB(95%) CN:2 DL:36MiB ETA:6s]
+[#362407 4.4GiB/4.6GiB(96%) CN:2 DL:38MiB ETA:4s]
+ *** Download Progress Summary as of Mon Jul 20 04:51:10 2026 *** 
+===============================================================================
+[#362407 4.4GiB/4.6GiB(96%) CN:2 DL:40MiB ETA:3s]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[#362407 4.4GiB/4.6GiB(96%) CN:2 DL:40MiB ETA:3s]
+[#362407 4.5GiB/4.6GiB(97%) CN:2 DL:41MiB ETA:2s]
+[#362407 4.5GiB/4.6GiB(98%) CN:2 DL:41MiB ETA:1s]
+ *** Download Progress Summary as of Mon Jul 20 04:51:13 2026 *** 
+===============================================================================
+[#362407 4.5GiB/4.6GiB(99%) CN:2 DL:40MiB]
+FILE: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+-------------------------------------------------------------------------------
+
+[#362407 4.5GiB/4.6GiB(99%) CN:2 DL:40MiB]
+
+07/20 04:51:14 [NOTICE] Download complete: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+
+Download Results:
+gid   |stat|avg speed  |  %|path/URI
+======+====+===========+===+===================================================
+85e9f9|OK  |   766KiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/.gitattributes
+ca0797|OK  |   345KiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/added_tokens.json
+64cd58|OK  |   876KiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/config.json
+381b9d|OK  |   536KiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/README.md
+21aad4|OK  |    41KiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/generation_config.json
+32e272|OK  |   2.7MiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model.safetensors.index.json
+606a7d|OK  |    11MiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/merges.txt
+59c9a6|OK  |    48KiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/recipe.yaml
+056691|OK  |   299KiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/special_tokens_map.json
+c79d77|OK  |   2.3MiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/tokenizer_config.json
+b4ab68|OK  |    14MiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/vocab.json
+e4a939|OK  |    20MiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/tokenizer.json
+302381|OK  |    20MiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00002-of-00002.safetensors
+362407|OK  |    21MiB/s|100|/home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43/model-00001-of-00002.safetensors
+
+Status Legend:
+(OK):download completed.
+
+[*] Download complete. Model cached at: /home/james/.cache/huggingface/hub/models--nytopop--Qwen3-8B.w8a8/snapshots/13e255a9648ec08d3873bce1c3d9886a76494c43
+
+DOWNLOAD_OK
+
+odysseus on  develop via  v22.12.0 via 🐍 v3.14.6 
+❯ 
