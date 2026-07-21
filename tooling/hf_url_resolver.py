@@ -80,6 +80,14 @@ class HfUrlResolver:
         commit = self.get_commit_hash(repo_id) or "main"
 
         file_entries: List[Tuple[str, int]] = []
+        # Track whether ANY listing method returned an authoritative answer.
+        # An empty list from a method that *succeeded* means "repo has no
+        # matching files"; an empty list because every method errored (429
+        # rate-limit, network) means "we never found out" — a hard failure the
+        # caller must not mistake for an empty repo. See jdmanring/odysseus: a
+        # rate-limited resolve returned [] and the downloader reported success.
+        listing_ok = False
+        listing_errors: List[str] = []
 
         # Primary: list_repo_tree returns sizes in a single call.
         try:
@@ -89,8 +97,10 @@ class HfUrlResolver:
                 for item in items
                 if getattr(item, "size", None) is not None
             ]
+            listing_ok = True
             logger.debug("list_repo_tree: %d files", len(file_entries))
         except Exception as e:
+            listing_errors.append(f"list_repo_tree: {e}")
             logger.warning("list_repo_tree failed for %s: %s", repo_id, e)
 
         # Fallback 1: list_repo_files — paths only, no sizes.
@@ -98,8 +108,10 @@ class HfUrlResolver:
             try:
                 paths = list(self.api.list_repo_files(repo_id))
                 file_entries = [(p, 0) for p in paths]
+                listing_ok = True
                 logger.debug("list_repo_files fallback: %d files (sizes unavailable)", len(file_entries))
             except Exception as e:
+                listing_errors.append(f"list_repo_files: {e}")
                 logger.warning("list_repo_files failed for %s: %s", repo_id, e)
 
         # Fallback 2: raw HF API tree endpoint — returns sizes in JSON.
@@ -119,11 +131,23 @@ class HfUrlResolver:
                         for item in resp.json()
                         if item.get("type") == "file"
                     ]
+                    listing_ok = True
                     logger.debug("API tree fallback: %d files", len(file_entries))
                 else:
+                    listing_errors.append(f"API tree: HTTP {resp.status_code}")
                     logger.warning("API tree fallback returned %d for %s", resp.status_code, repo_id)
             except Exception as e:
+                listing_errors.append(f"API tree: {e}")
                 logger.warning("API tree fallback failed for %s: %s", repo_id, e)
+
+        # Every listing method failed — this is not an empty repo, it's a failed
+        # lookup (typically a 429 rate-limit when no HF token is set). Raise so
+        # the caller reports a real error instead of "nothing to download".
+        if not listing_ok:
+            raise RuntimeError(
+                f"could not list files for {repo_id}: all HuggingFace listing "
+                f"methods failed ({'; '.join(listing_errors) or 'unknown error'})"
+            )
 
         if include:
             filtered = [

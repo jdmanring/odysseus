@@ -22,6 +22,15 @@ def test_fetching_zero_files_is_error_even_with_ok():
     assert status == "error" and zero is True
 
 
+def test_no_files_matched_is_error_even_with_ok():
+    # Real Windows failure: HF 429-rate-limited the listing, the aria2c resolver
+    # matched nothing and printed "No files matched", yet a DOWNLOAD_OK marker
+    # slipped through. The UI must show an error, not "complete".
+    snap = "[!] No files matched — nothing to download.\nDOWNLOAD_OK\n"
+    status, zero = classify_dead_download(snap)
+    assert status == "error" and zero is True
+
+
 def test_no_marker_returns_none_for_cache_probe_fallback():
     assert classify_dead_download("just some progress 42%\n") is None
     assert classify_dead_download("") is None
