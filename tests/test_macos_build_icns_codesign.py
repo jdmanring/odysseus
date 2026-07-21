@@ -46,6 +46,22 @@ def test_launcher_marks_bundle_so_tile_is_not_overridden():
     assert "export ODYSSEUS_BUNDLE=1" in SH
 
 
+def test_installs_by_default_like_other_platforms():
+    # macOS must install in one run (to /Applications + Dock pin) like the
+    # Linux/*BSD/Windows installers, so `./install.sh` behaves the same
+    # everywhere. --build-only opts out.
+    assert "DO_INSTALL=1" in SH
+    assert "--build-only|--no-install) DO_INSTALL=0" in SH
+
+
+def test_installsh_runs_openbsd_with_sh_not_bash():
+    installsh = (Path("install.sh")).read_text(encoding="utf-8")
+    # build-openbsd-app.sh is #!/bin/sh (no bash in OpenBSD base); the dispatcher
+    # must not force bash.
+    assert 'exec sh "$SCRIPT_DIR/build-openbsd-app.sh"' in installsh
+    assert 'exec bash "$SCRIPT_DIR/build-openbsd-app.sh"' not in installsh
+
+
 def test_launcher_prepends_tool_path_dirs():
     # A Finder/Dock/open-launched .app inherits launchd's minimal PATH, so the
     # server preflight can't see a Homebrew/user-installed aria2c and downloads

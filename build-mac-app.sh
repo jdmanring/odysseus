@@ -6,9 +6,13 @@
 # Builds Odysseus as a native macOS desktop application.
 # Creates dist/Odysseus.app (Qt WebEngine wrapper) and dist/Odysseus.dmg.
 #
-#   ./build-mac-app.sh            build dist/Odysseus.app + .dmg only
-#   ./build-mac-app.sh --install  also install to /Applications, refresh the
-#                                 icon caches, and (re-)pin to the Dock
+#   ./build-mac-app.sh             build the app AND install it to /Applications
+#                                  + refresh icon caches + (re-)pin to the Dock
+#   ./build-mac-app.sh --build-only  only build dist/Odysseus.app + .dmg
+#
+# Installing by default matches the other platforms' installers (Linux/*BSD
+# write the XDG .desktop entry, Windows creates its shortcuts, all in one run),
+# so `./install.sh` behaves the same everywhere. --install is still accepted.
 #
 # This is the Qt native wrapper installer. See build-macos-app.sh for the
 # Chrome --app mode alternative (no Qt dependency, browser-based UI).
@@ -37,12 +41,14 @@ INSTALLED_APP="/Applications/$APP_NAME.app"
 VENV_PY="$REPO_DIR/venv/bin/python"
 WRAPPER="$REPO_DIR/mac_wrapper.py"
 
-# --install: after building, copy the bundle into /Applications, refresh the
-# icon caches, and (re-)pin it to the Dock. Without it the script only builds
-# dist/ + the .dmg (drag-to-Applications install, no Dock pin).
-DO_INSTALL=0
+# Install to /Applications (+ icon-cache refresh + Dock pin) by default, so this
+# installer behaves like the Linux/*BSD/Windows ones. --build-only skips the
+# install and just produces dist/ + the .dmg (drag-to-Applications). --install
+# is accepted for backward compatibility (install is now the default).
+DO_INSTALL=1
 for _arg in "$@"; do
     case "$_arg" in
+        --build-only|--no-install) DO_INSTALL=0 ;;
         --install) DO_INSTALL=1 ;;
     esac
 done
@@ -247,7 +253,7 @@ hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO \
 rm -rf "$STAGE"
 
 # --- Install to /Applications + refresh icon caches + (re-)pin to the Dock ---
-# Only with --install. Reinstalling over an existing bundle changes its inode,
+# Runs by default; skipped only with --build-only. Reinstalling over an existing bundle changes its inode,
 # which leaves BOTH the icon-services cache and the Dock pin's cached bookmark
 # stale — the app then shows the old/blank icon when it is NOT running (a
 # running app's tile comes from the live process, so it still looks right). The
@@ -288,8 +294,10 @@ if [ "$DO_INSTALL" = "1" ]; then
     echo "  $INSTALLED_APP  (installed + Dock-pinned)"
 fi
 echo ""
-echo "Run:     open '$APP'"
-if [ "$DO_INSTALL" != "1" ]; then
-    echo "Install: ./build-mac-app.sh --install   (to /Applications + Dock pin)"
+if [ "$DO_INSTALL" = "1" ]; then
+    echo "Run:     open -a Odysseus   (installed to /Applications + Dock-pinned)"
+else
+    echo "Run:     open '$APP'"
+    echo "Install: ./build-mac-app.sh   (installs to /Applications + Dock pin)"
     echo "     or: open '$DIST/$APP_NAME.dmg'  (drag Odysseus to Applications)"
 fi
