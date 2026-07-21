@@ -148,9 +148,9 @@ them first, then hides:
   is still animating the exit, so hiding there is overridden by the finishing
   animation (the window reappears at normal size). The correct signal is the
   Cocoa `NSWindowDidExitFullScreenNotification`, observed via the Obj-C runtime
-  (ctypes — the same mechanism used for `proc_pid_rusage`/`memorystatus`). The
-  hide fires once, at true completion, and sticks on the first try (logged
-  `retries=0`). Registered with `object:nil` so it survives Qt swapping the
+  (ctypes, the same mechanism used for `proc_pid_rusage`/`memorystatus`). The hide
+  fires once, at true completion, and sticks on the first try (logged
+  `retries=0`). It registers with `object:nil` so it survives Qt swapping the
   native `NSWindow`. Install is fully guarded; on any failure the code degrades to
   the retry path below, and a 1.5 s backstop timer guarantees the window can never
   be stranded visible.
@@ -189,8 +189,18 @@ after that the remembered size wins.
   on macOS the bundle launcher already searches the common locations.
 - **Blank window / flicker on a VM or GPU-less box.** Chromium falls back to
   software rendering (SwiftShader/llvmpipe); the wrapper detects this and does
-  not force GPU rasterization. Expect reduced smoothness — it's the software
-  renderer, not a bug.
+  not force GPU rasterization. Reduced smoothness here is the software renderer,
+  not a bug.
+- **A macOS VM cannot use the host GPU, so the bench is always software-rendered.**
+  A macOS guest has no virtio-gpu driver, so it cannot consume the paravirtual 3D
+  acceleration (VirGL) the host offers, even when the VM is configured with
+  `virtio-vga accel3d='yes'`. It also has no driver for a host integrated GPU
+  (e.g. an AMD Ryzen iGPU was never shipped in a Mac). macOS VM acceleration is
+  only possible by passing through a discrete GPU that macOS natively supports
+  (certain AMD Polaris/Vega/Navi cards). Consequence: flicker, garble, and
+  transition jank seen on the macOS bench are software-renderer artifacts and do
+  not reproduce on a real Mac with Metal. Treat the bench as functional-test
+  only; judge rendering on real hardware.
 - **macOS "Odysseus quit unexpectedly" + WindowServer freeze/garble.** Root
   cause (corrected after an earlier misdiagnosis): it happened when a window in
   **native fullscreen** (green button — a separate macOS Space) *or zoomed*
