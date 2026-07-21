@@ -131,6 +131,46 @@ intended path.
 (`kill -pgid` / `os.killpg` locally; `taskkill /T` on Windows) so the downloader
 child dies too, not just the shell.
 
+## macOS window lifecycle (red button, fullscreen, zoom, reopen)
+
+The macOS wrapper follows the native convention: the **red button hides the
+window to the Dock** (the app keeps running and re-shows on Dock-click / Cmd-Tab),
+while **⌘Q / Dock-Quit** fully quit. This matches how Apple's own single-window
+apps behave (TextEdit, Notes) and is deliberate for a serving app — a careless
+close must not tear down in-flight work.
+
+The complication is the crash above: a `QWebEngineView` cannot be hidden while the
+window is in native fullscreen **or** zoomed (maximized) without a reparent
+null-deref. So the wrapper never hides from those states directly — it leaves
+them first, then hides:
+
+- **Fullscreen exit is event-driven.** Qt's `WindowStateChange` fires while macOS
+  is still animating the exit, so hiding there is overridden by the finishing
+  animation (the window reappears at normal size). The correct signal is the
+  Cocoa `NSWindowDidExitFullScreenNotification`, observed via the Obj-C runtime
+  (ctypes — the same mechanism used for `proc_pid_rusage`/`memorystatus`). The
+  hide fires once, at true completion, and sticks on the first try (logged
+  `retries=0`). Registered with `object:nil` so it survives Qt swapping the
+  native `NSWindow`. Install is fully guarded; on any failure the code degrades to
+  the retry path below, and a 1.5 s backstop timer guarantees the window can never
+  be stranded visible.
+- **Zoom exit uses a bounded retry.** A zoom (maximized, not fullscreen) exit has
+  no completion notification, so that path hides on `WindowStateChange` and
+  re-checks after 300 ms, re-hiding if the animation overrode it (capped; normally
+  one retry). This is the fallback, used only where macOS gives no signal.
+- **The window is invisible during the exit** (`setWindowOpacity(0)`), restored on
+  the next show, so the user never sees it flash at normal size before it hides.
+  The residual fullscreen-**Space** transition is macOS's own and is intentionally
+  left alone — Apple's apps show the same, and it is not a per-app window
+  animation to suppress.
+
+**State is remembered like a native app.** Size and the zoomed/normal state are
+saved (`saveGeometry` + `windowMaximized`) and restored on relaunch and on
+Dock-reopen: a window that was zoomed before going fullscreen returns zoomed, not
+to a plain window — matching macOS's pre-fullscreen-frame restoration. The
+first-run default is a plain 1000×650 window (nothing scaled to the screen);
+after that the remembered size wins.
+
 ## Troubleshooting
 
 - **Linux/*BSD: "System PyQt6 with WebEngine not found."** Install the system
@@ -151,12 +191,19 @@ child dies too, not just the shell.
   software rendering (SwiftShader/llvmpipe); the wrapper detects this and does
   not force GPU rasterization. Expect reduced smoothness — it's the software
   renderer, not a bug.
-- **macOS "Odysseus quit unexpectedly" on quit.** Fixed: QtWebEngine 6.11
-  intermittently null-derefs in `QWebEnginePage::setVisible` while Qt destroys
-  the web view at shutdown. The wrapper now hard-exits (`os._exit`) after saving
-  state and stopping the server, pre-empting Qt's racy WebEngine teardown — the
-  app was already fully cleaned up, so nothing is lost. If you still see it on an
-  older build, update to the current `mac_wrapper.py`.
+- **macOS "Odysseus quit unexpectedly" + WindowServer freeze/garble.** Root
+  cause (corrected after an earlier misdiagnosis): it happened when a window in
+  **native fullscreen** (green button — a separate macOS Space) *or zoomed*
+  (maximized) was closed. Hiding the `QWebEngineView` while in that state
+  reparents it (`QWidgetPrivate::reparentFocusWidgets` during the Space/zoom
+  transition), and `setVisible()` fired on the view mid-reparent null-derefs on
+  the CrBrowserMain thread — the crash then leaves WindowServer with a corrupt
+  full-screen composite (frozen/garbled screen; the Dock won't unhide). It is a
+  documented QtWebEngine reparent-on-teardown class (Zeal #577, Inkscape,
+  ChimeraX #3761). A normal windowed close never triggered it. See the **window
+  lifecycle** section below for the fix, which is the current design (an earlier
+  `os._exit`-on-quit change addressed a *different*, mis-scoped teardown path and
+  did NOT fix this; it remains only as quit-path hygiene).
 - **macOS crash reports** live in `~/Library/Logs/DiagnosticReports/*.ips`
   (per-user) and `/Library/Logs/DiagnosticReports/` (system). Each is JSON after
   the first line; read the faulting thread's frames to find the cause. For an
