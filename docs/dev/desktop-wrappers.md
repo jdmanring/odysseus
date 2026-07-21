@@ -25,13 +25,12 @@ color picker, etc.).
 
 This is the key design split and it drives the PyQt6 sourcing.
 
-- **Linux / FreeBSD / OpenBSD — two interpreters.** The display layer runs under
-  the **system** `python3` so it can use the distro's system-built PyQt6/Qt,
-  which has native **Wayland** integration and desktop theming. The Odysseus
-  **backend** runs under the repo `venv` (where all server deps live). So the
-  venv deliberately does **not** contain PyQt6 — the system `python3` could not
-  import venv packages anyway.
-- **macOS / Windows — one interpreter.** There is no system Qt to lean on, so
+- **Linux / FreeBSD / OpenBSD: two interpreters.** The display layer runs under
+  the system `python3` so it can use the distro's system-built PyQt6/Qt, which
+  has native Wayland integration and desktop theming. The Odysseus backend runs
+  under the repo `venv` (where all server deps live). The venv deliberately does
+  not contain PyQt6; the system `python3` could not import venv packages anyway.
+- **macOS / Windows: one interpreter.** There is no system Qt to lean on, so
   PyQt6 is pip-installed into the venv and the wrapper runs under the venv
   `python`. Single interpreter, standard delivery.
 
@@ -39,8 +38,8 @@ This is the key design split and it drives the PyQt6 sourcing.
 
 - System PyQt6 on Linux/*BSD is optimal, not a compromise: native Wayland,
   distro Qt theming, and it avoids the ~250 MB Chromium binary the pip
-  `PyQt6-WebEngine` wheel downloads. The cost — coupling to the distro's Qt
-  version — is the right trade for a Wayland GUI. Installing it needs root
+  `PyQt6-WebEngine` wheel downloads. The cost (coupling to the distro's Qt
+  version) is the right trade for a Wayland GUI. Installing it needs root
   (a system package), which is why the installer *guides* that one step.
 - pip-into-venv PyQt6 on macOS/Windows is optimal there: no system Qt exists,
   one interpreter, no root needed.
@@ -59,7 +58,7 @@ point (install the native app around an existing venv).
 
 `install.sh` dispatches by `uname` to the per-OS builder
 (`build-linux-app.sh` / `build-freebsd-app.sh` / `build-openbsd-app.sh` /
-`build-mac-app.sh`). All builders **install in one run** — the XDG `.desktop`
+`build-mac-app.sh`). All builders **install in one run**: the XDG `.desktop`
 entry on Linux/*BSD, the `/Applications` bundle + Dock pin on macOS, the
 Start-Menu/Desktop shortcuts on Windows. On macOS, `--build-only` produces
 `dist/` + the `.dmg` without installing.
@@ -100,16 +99,16 @@ so the one privileged step is yours.
   ```
 - **Windows**: delete the Start-Menu and Desktop `Odysseus` shortcuts.
 
-The repo checkout, `venv/`, and your `data/` are never touched by uninstall —
-remove the checkout directory to remove those.
+The repo checkout, `venv/`, and your `data/` are never touched by uninstall.
+Remove the checkout directory to remove those.
 
 ## Cookbook background tasks (downloads and serves)
 
 Cookbook runs model downloads and serves as **background** jobs so they survive
 a browser/SSE disconnect. Two launch models:
 
-- **tmux** — on Linux (and any host with tmux), and on all **remote** hosts.
-- **detached process + logfile** — on **macOS and Windows** (tmux is not in
+- **tmux:** on Linux (and any host with tmux), and on all remote hosts.
+- **detached process + logfile:** on macOS and Windows (tmux is not in
   their base systems) and on any local POSIX host without tmux. The job runs
   detached, writing `<session>.log` and `<session>.pid` under the session dir
   (`tempfile.gettempdir()/odysseus-tmux`); the status poller reads those files.
@@ -117,14 +116,14 @@ a browser/SSE disconnect. Two launch models:
 The poller distinguishes the two per task by the pidfile's presence, so launch
 and polling always agree for the task's whole life.
 
-**Download backend.** aria2c (fast, multi-connection) is **the** downloader —
+**Download backend.** aria2c (fast, multi-connection) is **the** downloader:
 the fork's replacement for the flaky `hf_transfer`, not an optional accelerator.
 It is auto-installed by `BinManager` (static build) on Linux and Windows; on
 macOS, which has no static build, it is installed during setup
 (`start-macos.sh` → `brew install aria2`, or conda-forge), and the bundle
 launcher prepends the usual tool dirs (`/opt/homebrew/bin`, `~/bin`, …) so it is
 found. The built-in Python (`huggingface_hub`) downloader is an **emergency
-fallback only** — used when aria2c genuinely can't be provisioned, never as the
+fallback only**, used when aria2c genuinely can't be provisioned, never as the
 intended path.
 
 **Stopping.** Detached jobs are stopped by killing their **process group**
@@ -136,21 +135,21 @@ child dies too, not just the shell.
 The macOS wrapper follows the native convention: the **red button hides the
 window to the Dock** (the app keeps running and re-shows on Dock-click / Cmd-Tab),
 while **⌘Q / Dock-Quit** fully quit. This matches how Apple's own single-window
-apps behave (TextEdit, Notes) and is deliberate for a serving app — a careless
+apps behave (TextEdit, Notes) and is deliberate for a serving app: a careless
 close must not tear down in-flight work.
 
-The complication is the crash above: a `QWebEngineView` cannot be hidden while the
-window is in native fullscreen **or** zoomed (maximized) without a reparent
-null-deref. So the wrapper never hides from those states directly — it leaves
+The complication is the crash above. A `QWebEngineView` cannot be hidden while
+the window is in native fullscreen or zoomed (maximized) without a reparent
+null-deref, so the wrapper never hides from those states directly. It leaves
 them first, then hides:
 
 - **Fullscreen exit is event-driven.** Qt's `WindowStateChange` fires while macOS
   is still animating the exit, so hiding there is overridden by the finishing
   animation (the window reappears at normal size). The correct signal is the
   Cocoa `NSWindowDidExitFullScreenNotification`, observed via the Obj-C runtime
-  (ctypes — the same mechanism used for `proc_pid_rusage`/`memorystatus`). The
-  hide fires once, at true completion, and sticks on the first try (logged
-  `retries=0`). Registered with `object:nil` so it survives Qt swapping the
+  (ctypes, the same mechanism used for `proc_pid_rusage`/`memorystatus`). The hide
+  fires once, at true completion, and sticks on the first try (logged
+  `retries=0`). It registers with `object:nil` so it survives Qt swapping the
   native `NSWindow`. Install is fully guarded; on any failure the code degrades to
   the retry path below, and a 1.5 s backstop timer guarantees the window can never
   be stranded visible.
@@ -160,16 +159,84 @@ them first, then hides:
   one retry). This is the fallback, used only where macOS gives no signal.
 - **The window is invisible during the exit** (`setWindowOpacity(0)`), restored on
   the next show, so the user never sees it flash at normal size before it hides.
-  The residual fullscreen-**Space** transition is macOS's own and is intentionally
-  left alone — Apple's apps show the same, and it is not a per-app window
+  The residual fullscreen-Space transition is macOS's own and is intentionally
+  left alone. Apple's apps show the same, and it is not a per-app window
   animation to suppress.
 
 **State is remembered like a native app.** Size and the zoomed/normal state are
 saved (`saveGeometry` + `windowMaximized`) and restored on relaunch and on
-Dock-reopen: a window that was zoomed before going fullscreen returns zoomed, not
-to a plain window — matching macOS's pre-fullscreen-frame restoration. The
-first-run default is a plain 1000×650 window (nothing scaled to the screen);
+Dock-reopen: a window that was zoomed before going fullscreen returns zoomed
+rather than a plain window, matching macOS's pre-fullscreen-frame restoration.
+The first-run default is a plain 1000×650 window (nothing scaled to the screen);
 after that the remembered size wins.
+
+## System tray and close-to-tray lifecycle
+
+Odysseus is a control plane for model servers and an API host, not just a viewer
+(`app.py` binds `APP_BIND`, defaults to loopback; auth + reverse-proxy/tunnel
+support exist for remote access). So the wrappers keep the local server reachable
+after the window is closed, the way Ollama and LM Studio do.
+
+- **Windows / Linux** get a `QSystemTrayIcon` (notification area / status tray).
+  The close (X) button **hides to the tray** and leaves the embedded server —
+  and any detached model server or download it manages — running, so the local
+  API stays up. With the **Close to tray** toggle off, X quits instead of hiding.
+- **macOS** already hides to the **Dock** on the red button (`setQuitOnLast
+  WindowClosed(False)` + `closeEvent` hides; see the lifecycle section above), so
+  the menu-bar item is additive. It is rendered by a **separate helper process**
+  (`mac_tray_helper.py`, built on `rumps`): an `NSStatusItem` created inside the
+  Qt process does not render on macOS 26 (Tahoe) — Qt's event dispatcher services
+  it instead of an AppKit run loop — so a standalone helper with its own run loop
+  is used. The helper talks to the wrapper over an `AF_UNIX` socket (a
+  `QSocketNotifier` accepts on the Qt loop, no polling): one-word verbs for
+  actions, and a periodic `status` query the wrapper answers with
+  `running|host:port|expose` to keep the helper's status line and Expose
+  checkmark live. There is no Close-to-tray toggle on macOS — hiding on the red
+  button is the native convention.
+
+### Tray menu (all three OSes)
+
+Modelled on the server-runner convention shared by Docker Desktop, Tailscale,
+Syncthing, and Ollama — a background server you keep resident should be
+controllable from the tray, not merely opened and quit:
+
+| Item | Behaviour |
+|------|-----------|
+| Status line (disabled) | `● Running — host:port` / `○ Stopped`, refreshed each time the menu opens (`QMenu.aboutToShow`; a 3 s poll on macOS) |
+| Open Odysseus | show / raise the window |
+| Open in Browser | open `http://host:port` in the default browser |
+| Copy Server URL | copy that URL to the clipboard |
+| Settings… | open the settings modal (drives the same DOM the app does: clicks `#rail-settings` → falls back to `#user-bar-settings` / `#tool-settings-btn`) |
+| Shortcut Keys… | open settings on the Keyboard Shortcuts tab (`[data-settings-tab="shortcuts"]`) |
+| Expose to Network | persisted `QSettings` toggle (`exposeToNetwork`); rebinds the server to `0.0.0.0`; **enabling is gated behind a confirmation** — it changes security posture |
+| View Logs | open the `logs/` directory |
+| Restart Server | stop + start the uvicorn process off the GUI thread (`_ServerRestartThread`), then reload the webview |
+| Close to tray | checkable, `QSettings` `closeToTray` (default on); Windows/Linux only |
+| README / About Odysseus | open the README; show the native About dialog (icon, version from `src/constants.py`, copyright, AGPL notice, links) |
+| Quit Odysseus | real teardown |
+
+- **`settingsModule` is not a window global.** It is an ES-module export, so the
+  Settings / Shortcut Keys items must drive the DOM the app itself uses rather
+  than call `window.settingsModule.open()` (which resolves to `undefined`).
+- **Expose-aware host.** `start_server()` reads `exposeToNetwork` and tracks the
+  live bind host; `_reachable_host()` resolves the primary LAN IP when bound to
+  `0.0.0.0` (that address is not itself connectable) so the URL/status items are
+  useful. `restart_server()` terminates only uvicorn and relaunches — unlike
+  `stop_server()` it leaves the CDP executor intact.
+- **Availability guard.** The `QSystemTrayIcon` is created only when
+  `QSystemTrayIcon.isSystemTrayAvailable()` is true. On a session with no tray
+  host (a minimal WM with no StatusNotifier), the wrapper falls back to
+  quit-on-close so the window can never be hidden with no way to bring it back.
+- **Teardown is single-pathed.** A real quit (tray Quit, toggle off, or no tray)
+  routes through `app.aboutToQuit` → release the web page, then `stop_server()`;
+  on macOS it also terminates the helper process and removes the socket. Detached
+  model servers/downloads are independent and intentionally survive.
+- **The Expose toggle is a convenience, not the production serve path.** It binds
+  `0.0.0.0` for the current GUI session so another device on a trusted LAN can
+  reach the API. To run Odysseus as a real always-on service ("run it on a
+  server, remote in through the API"), still run the server headless under a
+  service manager — a Windows Service, systemd/s6, or launchd — not the GUI
+  wrapper, which needs an interactive desktop session.
 
 ## Troubleshooting
 
@@ -189,26 +256,66 @@ after that the remembered size wins.
   on macOS the bundle launcher already searches the common locations.
 - **Blank window / flicker on a VM or GPU-less box.** Chromium falls back to
   software rendering (SwiftShader/llvmpipe); the wrapper detects this and does
-  not force GPU rasterization. Expect reduced smoothness — it's the software
-  renderer, not a bug.
+  not force GPU rasterization. Reduced smoothness here is the software renderer,
+  not a bug.
+- **A macOS VM cannot use the host GPU, so the bench is always software-rendered.**
+  A macOS guest has no virtio-gpu driver, so it cannot consume the paravirtual 3D
+  acceleration (VirGL) the host offers, even when the VM is configured with
+  `virtio-vga accel3d='yes'`. It also has no driver for a host integrated GPU
+  (e.g. an AMD Ryzen iGPU was never shipped in a Mac). macOS VM acceleration is
+  only possible by passing through a discrete GPU that macOS natively supports
+  (certain AMD Polaris/Vega/Navi cards). Consequence: flicker, garble, and
+  transition jank seen on the macOS bench are software-renderer artifacts and do
+  not reproduce on a real Mac with Metal. Treat the bench as functional-test
+  only; judge rendering on real hardware.
 - **macOS "Odysseus quit unexpectedly" + WindowServer freeze/garble.** Root
   cause (corrected after an earlier misdiagnosis): it happened when a window in
-  **native fullscreen** (green button — a separate macOS Space) *or zoomed*
+  **native fullscreen** (green button, a separate macOS Space) *or zoomed*
   (maximized) was closed. Hiding the `QWebEngineView` while in that state
   reparents it (`QWidgetPrivate::reparentFocusWidgets` during the Space/zoom
   transition), and `setVisible()` fired on the view mid-reparent null-derefs on
-  the CrBrowserMain thread — the crash then leaves WindowServer with a corrupt
+  the CrBrowserMain thread. The crash then leaves WindowServer with a corrupt
   full-screen composite (frozen/garbled screen; the Dock won't unhide). It is a
   documented QtWebEngine reparent-on-teardown class (Zeal #577, Inkscape,
   ChimeraX #3761). A normal windowed close never triggered it. See the **window
   lifecycle** section below for the fix, which is the current design (an earlier
   `os._exit`-on-quit change addressed a *different*, mis-scoped teardown path and
   did NOT fix this; it remains only as quit-path hygiene).
+- **macOS bench: display and input freeze while SSH stays alive (a hang, not a
+  crash).** Distinct from the crash above: the app stays healthy (steady `[MEM]`
+  telemetry, CDP `responsive:true` on `:9222`) but the guest's mouse, keyboard,
+  and screen freeze. This is the **software WindowServer wedging** on the
+  GPU-less VM under sustained load — not the app. A hang writes **no** crash
+  report (only a `shutdownStall` if you then reboot), so a clean crash count
+  proves nothing about it. It does not reproduce on real Mac hardware with Metal.
+  Recover from the host over SSH without a full reboot via
+  `sudo killall WindowServer` (drops to loginwindow, restores input in seconds),
+  or `sudo reboot` for a clean restart. The reparent-crash class above is a
+  separate, fixed issue — confirm which you have by checking for a *new*
+  `python3.12-*.ips` (crash) vs none (hang).
 - **macOS crash reports** live in `~/Library/Logs/DiagnosticReports/*.ips`
   (per-user) and `/Library/Logs/DiagnosticReports/` (system). Each is JSON after
   the first line; read the faulting thread's frames to find the cause. For an
   intermittent crash, count reports before/after a triggered action to attribute
   it, and confirm the *current* build still produces a *new* one.
+- **Stale JS/CSS after a redeploy (e.g. an old download card, stuck spinner).**
+  The app is a PWA with a service worker (`static/sw.js`). A persisted worker and
+  its Cache Storage survive app restarts, so a redeployed unversioned module
+  (ES-module imports carry no `?v=` buster) could be served stale indefinitely —
+  closing and reopening the app did not help. Fixed: `static/index.html`
+  registers the worker with a forced `reg.update()` on every load and reloads
+  once when a new worker activates over an existing controller, so a bumped
+  `CACHE_NAME` propagates on the next load. QtWebEngine's HTTP cache is also
+  in-memory (`MemoryHttpCache`) so it never persists a stale disk copy. To force
+  a refresh manually over the debug port: unregister the worker + delete caches
+  via CDP `Runtime.evaluate`, then `Page.reload {ignoreCache:true}`.
+- **Windows bench: SSH default shell is PowerShell.** The OpenSSH server on the
+  Windows bench is configured (`HKLM\SOFTWARE\OpenSSH`: `DefaultShell` =
+  `…\WindowsPowerShell\v1.0\powershell.exe`, `DefaultShellCommandOption` =
+  `-Command`) so `ssh win11 '<cmd>'` runs PowerShell, matching the platform's
+  intended shell. Pass real Python via a `.ps1`/`.py` script file rather than
+  inline `python -c` — quoting code through any remote shell is fragile
+  regardless of which shell it is.
 
 ## Tests
 
