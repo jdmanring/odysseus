@@ -1,10 +1,18 @@
 # Local Setup and Running
 
+> For the **native desktop app** (build/install, per-OS architecture, uninstall,
+> troubleshooting) see [desktop-wrappers.md](desktop-wrappers.md). The
+> one-command setup is `./setup.sh` (Linux/*BSD), `./start-macos.sh` (macOS), or
+> `setup.ps1` (Windows).
+
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - `pip` / virtualenv
-- `aria2c` (optional — auto-installed by `BinManager` if missing)
+- `aria2c` (optional, for faster Cookbook downloads). Auto-installed by
+  `BinManager` on Linux/Windows; on **macOS** there is no static build, so
+  install it yourself (`brew install aria2`, or conda-forge) — Cookbook falls
+  back to the built-in Python downloader when it is absent.
 
 ## Install
 

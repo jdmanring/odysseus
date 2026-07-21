@@ -50,6 +50,12 @@ the native desktop app:
 `./install.sh` alone (or `install.bat` on Windows) builds+installs the native app
 when a venv already exists; `setup.sh`/`setup.ps1` add the from-scratch provisioning.
 
+See **[docs/dev/desktop-wrappers.md](dev/desktop-wrappers.md)** for the full
+reference: per-OS architecture (the two-interpreter model and why PyQt6 sources
+differ), what each installer produces, **uninstall** steps, and troubleshooting
+(system-Qt-missing, Apple-Silicon arch mismatch, aria2c/downloads, software
+rendering, crash reports).
+
 ### Manual Linux / macOS (if you prefer to run the steps yourself)
 ```bash
 git clone https://github.com/pewdiepie-archdaemon/odysseus.git
