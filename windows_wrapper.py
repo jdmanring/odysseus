@@ -1328,6 +1328,9 @@ if __name__ == "__main__":
         _tray.activated.connect(_on_tray_activated)
         _tray.show()
         win._tray = _tray
+        print('[LIFECYCLE] tray icon installed (visible=%s)' % _tray.isVisible(), flush=True)
+    else:
+        print('[LIFECYCLE] system tray unavailable; X will quit', flush=True)
 
     def _teardown():
         # Single teardown for every real quit (tray Quit, SIGTERM/SIGINT): release

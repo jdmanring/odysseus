@@ -1517,6 +1517,10 @@ if __name__ == "__main__":
         _tray.activated.connect(_on_tray_activated)
         _tray.show()
         win._tray = _tray
+        print('[LIFECYCLE] menu-bar tray item installed (visible=%s)'
+              % _tray.isVisible(), flush=True)
+    else:
+        print('[LIFECYCLE] system tray unavailable; menu-bar item skipped', flush=True)
 
     def _teardown():
         # Single teardown path for every real quit (⌘Q, application-menu Quit,
