@@ -9,10 +9,12 @@
 
 - Python 3.11+
 - `pip` / virtualenv
-- `aria2c` (optional, for faster Cookbook downloads). Auto-installed by
-  `BinManager` on Linux/Windows; on **macOS** there is no static build, so
-  install it yourself (`brew install aria2`, or conda-forge) — Cookbook falls
-  back to the built-in Python downloader when it is absent.
+- `aria2c` — **the** Cookbook downloader (the fork's replacement for the flaky
+  `hf_transfer`; it is not an optional accelerator). Auto-installed by
+  `BinManager` on Linux/Windows; on **macOS** there is no static build, so it is
+  installed by `start-macos.sh` (`brew install aria2`; conda-forge also works).
+  The built-in Python (`huggingface_hub`) downloader exists only as an emergency
+  fallback when aria2c genuinely can't be provisioned.
 
 ## Install
 

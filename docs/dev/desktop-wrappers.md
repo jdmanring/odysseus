@@ -117,11 +117,15 @@ a browser/SSE disconnect. Two launch models:
 The poller distinguishes the two per task by the pidfile's presence, so launch
 and polling always agree for the task's whole life.
 
-**Download backends.** aria2c (fast, multi-connection) is used when a system
-`aria2c` is on the app's `PATH`; otherwise Cookbook falls back automatically to
-the built-in Python (`huggingface_hub`) downloader. On macOS the bundle launcher
-prepends the usual tool dirs (`/opt/homebrew/bin`, `~/bin`, …) so a
-Homebrew/MacPorts/conda/user `aria2c` is found.
+**Download backend.** aria2c (fast, multi-connection) is **the** downloader —
+the fork's replacement for the flaky `hf_transfer`, not an optional accelerator.
+It is auto-installed by `BinManager` (static build) on Linux and Windows; on
+macOS, which has no static build, it is installed during setup
+(`start-macos.sh` → `brew install aria2`, or conda-forge), and the bundle
+launcher prepends the usual tool dirs (`/opt/homebrew/bin`, `~/bin`, …) so it is
+found. The built-in Python (`huggingface_hub`) downloader is an **emergency
+fallback only** — used when aria2c genuinely can't be provisioned, never as the
+intended path.
 
 **Stopping.** Detached jobs are stopped by killing their **process group**
 (`kill -pgid` / `os.killpg` locally; `taskkill /T` on Windows) so the downloader
