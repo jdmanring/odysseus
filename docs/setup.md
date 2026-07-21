@@ -36,7 +36,21 @@ only when you intentionally want LAN/reverse-proxy access.
 > Cookbook serves local models on CPU only. For GPU-accelerated model serving,
 > run natively instead — see [Apple Silicon](#apple-silicon) below.
 
-### Native Linux / macOS
+### One-command native setup (from a fresh checkout to an installed app)
+
+Each OS has a single command that provisions the Python environment and installs
+the native desktop app:
+
+| OS | Command | Notes |
+|----|---------|-------|
+| Linux / FreeBSD / OpenBSD | `./setup.sh` | Uses **system** PyQt6 (native Wayland); if it's missing, the script prints the exact `sudo pacman`/`apt`/`doas pkg_add` line to run, then re-run `./setup.sh`. |
+| macOS | `./start-macos.sh` (sets up + runs), then `./install.sh` for the native `.app` | Homebrew installs everything in userspace — no root needed. |
+| Windows | `powershell -ExecutionPolicy Bypass -File .\setup.ps1` | Installs PyQt6 into the venv; creates Start-Menu/Desktop shortcuts. |
+
+`./install.sh` alone (or `install.bat` on Windows) builds+installs the native app
+when a venv already exists; `setup.sh`/`setup.ps1` add the from-scratch provisioning.
+
+### Manual Linux / macOS (if you prefer to run the steps yourself)
 ```bash
 git clone https://github.com/pewdiepie-archdaemon/odysseus.git
 cd odysseus
