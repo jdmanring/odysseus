@@ -53,3 +53,6 @@ python-docx
 # TestClient import when only classic httpx is present. Runtime code keeps
 # using `httpx` above; this is test-client only.
 httpx2
+# macOS menu-bar helper (mac_tray_helper.py). macOS-only: Qt's QSystemTrayIcon
+# does not render on macOS 26, so a standalone rumps process owns the status item.
+rumps; sys_platform == "darwin"
