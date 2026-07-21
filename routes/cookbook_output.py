@@ -6,7 +6,13 @@ unit-tested without standing up the whole app.
 
 import re
 
-_FETCHING_ZERO_FILES_RE = re.compile(r"Fetching\s+0\s+files", re.IGNORECASE)
+# A download that fetched nothing is an error even if a DOWNLOAD_OK marker slips
+# through: hf_hub prints "Fetching 0 files", the aria2c resolver prints
+# "No files matched — nothing to download". Either phrase over a DOWNLOAD_OK is a
+# zero-file run, not a completed download.
+_FETCHING_ZERO_FILES_RE = re.compile(
+    r"Fetching\s+0\s+files|No files matched|nothing to download", re.IGNORECASE
+)
 
 # Probe scripts for the dead-session download check, run as
 # `python3 -c <PROBE> <repo_id> <cache_root>` (locally or over SSH).
