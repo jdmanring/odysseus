@@ -2509,6 +2509,18 @@
 <script type="module" src="/static/app.js?v=20260630mdfontsize"></script>  <!-- app.js must be LAST -->
 <script type="module" src="/static/js/init.js"></script>
 <script type="module" src="/static/js/a11y.js"></script>
-<script nonce="{{CSP_NONCE}}">if('serviceWorker' in navigator){navigator.serviceWorker.register('/static/sw.js').catch(()=>{});}</script>
+<script nonce="{{CSP_NONCE}}">if('serviceWorker' in navigator){navigator.serviceWorker.register('/static/sw.js').then(function(reg){
+  // Force an update check every load so a redeployed sw.js (and the fresh JS/CSS
+  // it caches) is picked up instead of an old worker serving stale code forever.
+  reg.update();
+  reg.addEventListener('updatefound',function(){
+    var nw=reg.installing; if(!nw) return;
+    nw.addEventListener('statechange',function(){
+      // Reload once when a NEW worker activates over an EXISTING one (controller
+      // is set only on an update, never on first install) so the page runs new code.
+      if(nw.state==='activated'&&navigator.serviceWorker.controller){ location.reload(); }
+    });
+  });
+}).catch(function(){});}</script>
 </body>
 </html>
