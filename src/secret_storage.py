@@ -72,7 +72,16 @@ def decrypt(value: str) -> str:
     if not value:
         return value or ""
     if not value.startswith(_PREFIX):
-        return value
+        # Legacy rows stored the raw Fernet token with no enc: prefix. Attempt a
+        # decrypt anyway: a real Fernet ciphertext round-trips to plaintext, and
+        # a genuine legacy-plaintext secret fails the HMAC/format check and falls
+        # through unchanged. Without this, an unprefixed token was handed back as
+        # ciphertext — e.g. an HF token that then failed every authenticated call
+        # while the UI's bool() auth indicator still showed configured.
+        try:
+            return _get_fernet().decrypt(value.encode("ascii")).decode("utf-8")
+        except Exception:
+            return value
     try:
         return _get_fernet().decrypt(value[len(_PREFIX):].encode("ascii")).decode("utf-8")
     except InvalidToken:
