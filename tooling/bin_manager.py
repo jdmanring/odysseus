@@ -35,18 +35,15 @@ class BinManager:
                 "zip", 
                 "aria2c"
             ),
-            # macOS Intel
-            ("Darwin", "x86_64"): (
-                "https://github.com/abcfy2/aria2-static-build/releases/download/1.37.0/aria2-x86_64-darwin_static.zip", 
-                "zip", 
-                "aria2c"
-            ),
-            # macOS ARM (M1/M2/M3)
-            ("Darwin", "arm64"): (
-                "https://github.com/abcfy2/aria2-static-build/releases/download/1.37.0/aria2-arm64-darwin_static.zip", 
-                "zip", 
-                "aria2c"
-            ),
+            # macOS (Intel + Apple Silicon): intentionally NOT auto-downloaded.
+            # There is no reliable maintained static aria2c build for Darwin from
+            # abcfy2 (Linux/Windows only) or upstream aria2, and a binary fetched
+            # from GitHub would be Gatekeeper-quarantined and refused at exec on a
+            # stock Mac anyway. So on macOS BinManager returns None here and
+            # get_aria2c() falls through to shutil.which("aria2c") — a system
+            # aria2c (e.g. `brew install aria2`) is used when present, otherwise
+            # the caller falls back to the hf Python downloader. (The previous
+            # Darwin entries pointed at non-existent release assets and 404'd.)
             # Windows x86_64
             ("Windows", "AMD64"): (
                 "https://github.com/abcfy2/aria2-static-build/releases/download/1.37.0/aria2-x86_64-w64-mingw32_static.zip", 
