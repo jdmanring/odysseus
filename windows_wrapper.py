@@ -187,6 +187,39 @@ def _theme_bg_color() -> QColor:
     return QColor(0x28, 0x2c, 0x34)  # default Odysseus dark theme
 
 
+def _apply_dark_titlebar(window):
+    """Match the native Windows title bar (the DWM caption) to the Odysseus theme.
+
+    The caption is painted by the Desktop Window Manager, not Qt, and defaults to
+    light. Qt 6 does not opt windows into dark mode, and Odysseus themes
+    independently of the Windows light/dark setting, so a dark in-app theme
+    otherwise sits under a bright frame. DwmSetWindowAttribute with
+    DWMWA_USE_IMMERSIVE_DARK_MODE flips the caption dark.
+
+    Keyed off the Odysseus theme's own luminance (not the OS setting) so the frame
+    tracks the theme the user actually sees. Native call, fully guarded: any
+    failure leaves the default light frame — no regression. Set once at startup;
+    a mid-session theme switch would need re-invocation to repaint the caption.
+    """
+    try:
+        c = _theme_bg_color()
+        # Rec. 601 perceived luminance; only darken the caption for a dark theme.
+        if (0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()) >= 128:
+            return
+        hwnd = int(window.winId())
+        value = ctypes.c_int(1)  # TRUE
+        dwm = ctypes.windll.dwmapi
+        # DWMWA_USE_IMMERSIVE_DARK_MODE is 20 on Win10 20H1+/Win11, 19 on older
+        # Win10 builds — try the modern value first, fall back to the legacy one.
+        for attr in (20, 19):
+            if dwm.DwmSetWindowAttribute(
+                    ctypes.c_void_p(hwnd), ctypes.c_uint(attr),
+                    ctypes.byref(value), ctypes.sizeof(value)) == 0:  # S_OK
+                break
+    except Exception as e:
+        print('[LIFECYCLE] dark title bar not applied: %r' % (e,), flush=True)
+
+
 # APPDATA for data (shared across user sessions); LOCALAPPDATA for cache (per-machine)
 DATA_DIR = os.path.join(
     os.environ.get("APPDATA", os.path.expanduser("~")), "odysseus", "webengine")
@@ -1434,6 +1467,10 @@ if __name__ == "__main__":
         _geom = _s.value("windowGeometry")
         if _geom:
             win.restoreGeometry(_geom)
+
+    # Match the native title bar to the Odysseus theme (window is shown by now, so
+    # the HWND exists). Windows-only, no-op fallback on any failure.
+    _apply_dark_titlebar(win)
 
     # Keep the process alive when the window is hidden to the tray — a hidden last
     # window would otherwise quit the app.
