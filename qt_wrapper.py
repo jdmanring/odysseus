@@ -137,15 +137,17 @@ import urllib.request as _cdp_req
 import subprocess
 import threading as _threading
 import time
-from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QColorDialog, QSystemTrayIcon,
+                             QMenu, QDialog, QLabel, QVBoxLayout, QHBoxLayout, QPushButton,
+                             QMessageBox)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
 )
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
-from PyQt6.QtCore import QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
-from PyQt6.QtGui import QDesktopServices, QColor
+from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QThread, QSettings, QEvent, pyqtSlot, pyqtSignal
+from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QPixmap
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -181,6 +183,43 @@ CACHE_DIR = os.path.expanduser("~/.cache/odysseus/webengine")
 
 _UVICORN_PATTERN = "uvicorn app:app"
 _server_proc = None
+# Bind host the server is currently launched on. 127.0.0.1 = local only;
+# 0.0.0.0 = reachable from the LAN (the tray "Expose to Network" toggle).
+_bind_host = "127.0.0.1"
+
+
+def _desired_host():
+    """Bind host implied by the persisted Expose-to-Network preference."""
+    try:
+        return "0.0.0.0" if QSettings("odysseus", "odysseus").value(
+            "exposeToNetwork", False, type=bool) else "127.0.0.1"
+    except Exception:
+        return "127.0.0.1"
+
+
+def _reachable_host():
+    """Address a client should actually connect to. When bound to all
+    interfaces, 0.0.0.0 is not connectable — resolve the primary LAN IP so
+    'Open in Browser' / 'Copy Server URL' / the status line are useful."""
+    if _bind_host != "0.0.0.0":
+        return "localhost"
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))         # no packets sent; just picks the egress iface
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "localhost"
+
+
+def _server_url():
+    return f"http://{_reachable_host()}:{PORT}"
+
+
+def _server_running():
+    return _server_proc is not None and _server_proc.poll() is None
 
 
 def kill_zombies():
@@ -191,15 +230,16 @@ def kill_zombies():
 
 
 def start_server():
-    global _server_proc
-    print(f"Starting Odysseus server on port {PORT}...")
+    global _server_proc, _bind_host
+    _bind_host = _desired_host()
+    print(f"Starting Odysseus server on {_bind_host}:{PORT}...")
     # --no-access-log: uvicorn's access log defaults to ON, emitting one log line
     # per HTTP request. For this embedded, localhost, single-user deployment the
     # always-on UI polls (email/tasks/calendar) would churn that log forever with
     # no operator reading it; errors still surface via server.log. Startup banners
     # and tracebacks still reach server_access.log via the subprocess stdout/stderr.
     cmd = [VENV_PYTHON, "-m", "uvicorn", "app:app",
-           "--host", "127.0.0.1", "--port", PORT, "--no-access-log"]
+           "--host", _bind_host, "--port", PORT, "--no-access-log"]
     env = os.environ.copy()
     env["ODYSSEUS_LOG_FILE"] = os.path.join(LOG_DIR, "server.log")
     _rotate_log(os.path.join(LOG_DIR, "server_access.log"))
@@ -240,6 +280,38 @@ def stop_server():
     _cdp_executor.shutdown(wait=False, cancel_futures=True)
     subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
     print("Server stopped.")
+
+
+def restart_server():
+    """Stop just the uvicorn process and start it again (re-reading the bind
+    host). Unlike stop_server() this leaves the CDP executor intact — a restart
+    must not permanently tear down debugging infrastructure the wrapper reuses."""
+    global _server_proc
+    if _server_proc is not None:
+        try:
+            _server_proc.terminate()
+            _server_proc.wait(timeout=5)
+        except Exception:
+            try:
+                _server_proc.kill()
+            except Exception:
+                pass
+        _server_proc = None
+    subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
+    return start_server()
+
+
+class _ServerRestartThread(QThread):
+    """start_server() blocks up to ~15s polling for readiness; running it on the
+    GUI thread would freeze the window. Do it off-thread and signal back."""
+    finished_ok = pyqtSignal(bool)
+
+    def run(self):
+        try:
+            ok = restart_server()
+        except Exception:
+            ok = False
+        self.finished_ok.emit(bool(ok))
 
 
 def _signal_handler(sig, frame):
@@ -630,6 +702,13 @@ class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
         super().__init__()
         self.setWindowTitle(WINDOW_TITLE)
+        # Tray lifecycle flags (see closeEvent / request_quit / the tray in
+        # __main__): _quitting distinguishes a real Quit from a close-to-tray;
+        # _tray holds the QSystemTrayIcon when the platform has one; _tray_notified
+        # gates the one-time "still running in the tray" balloon.
+        self._quitting = False
+        self._tray = None
+        self._tray_notified = False
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
         self._page = page  # held for lifecycle management in changeEvent
@@ -1016,6 +1095,13 @@ class OdysseusWindow(QMainWindow):
             self._gc_focus_timer.stop()
         super().changeEvent(event)
 
+    def request_quit(self):
+        # Deterministic real quit (tray "Quit Odysseus"): set _quitting so
+        # closeEvent accepts instead of hiding, then exit the event loop. Teardown
+        # runs on app.aboutToQuit.
+        self._quitting = True
+        QApplication.instance().quit()
+
     def closeEvent(self, event):
         s = QSettings("odysseus", "odysseus")
         s.setValue("windowMaximized", self.isMaximized())
@@ -1026,9 +1112,104 @@ class OdysseusWindow(QMainWindow):
         if not self.isMaximized():
             s.setValue("windowGeometry", self.saveGeometry())
         s.sync()
-        self.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.browser))
-        stop_server()
-        event.accept()
+        # With "Close to tray" on (default), the close button hides to the system
+        # tray and keeps the embedded server — and any detached model server or
+        # download it manages — alive, so the local API stays reachable (the
+        # Ollama/LM Studio pattern). Teardown happens only via the tray's Quit
+        # (request_quit), when the user turns the toggle off, or when there is no
+        # tray to hide into (e.g. a session with no StatusNotifier host). Server
+        # shutdown runs once on app.aboutToQuit, not here.
+        _close_to_tray = s.value("closeToTray", True, type=bool)
+        if self._quitting or self._tray is None or not _close_to_tray:
+            event.accept()
+            QApplication.instance().quit()
+            return
+        self.hide()
+        event.ignore()
+        if not self._tray_notified:
+            self._tray.showMessage(
+                "Odysseus",
+                "Still running in the system tray. Right-click the tray icon to quit.",
+                QSystemTrayIcon.MessageIcon.Information, 4000)
+            self._tray_notified = True
+
+
+# Canonical project details for the About dialog (from the upstream README).
+_ABOUT_GITHUB = "https://github.com/odysseus-dev/odysseus"
+_ABOUT_LICENSE = "https://github.com/odysseus-dev/odysseus/blob/main/LICENSE"
+_ABOUT_ISSUES = "https://github.com/odysseus-dev/odysseus/issues"
+
+
+def _app_version():
+    """Read APP_VERSION from src/constants.py by text scan. Importing the module
+    would pull in runtime path deps the wrapper deliberately avoids; a regex over
+    one line is enough and never fails the dialog. Returns '' if unavailable."""
+    try:
+        with open(os.path.join(INSTALL_DIR, "src", "constants.py"), encoding="utf-8") as fh:
+            for line in fh:
+                m = _re.match(r"""\s*APP_VERSION\s*=\s*["']([^"']+)["']""", line)
+                if m:
+                    return m.group(1)
+    except Exception:
+        pass
+    return ""
+
+
+def _about_html():
+    ver = _app_version()
+    subtitle = f"Version {ver}" if ver else "Desktop app"
+    # AGPL-3.0 §5 requires an interactive UI to show a copyright notice and the
+    # no-warranty statement; the About box is where those live.
+    return (
+        '<div style="min-width:380px">'
+        '<h2 style="margin:0 0 2px">Odysseus</h2>'
+        f'<p style="margin:0 0 12px;color:#888">{subtitle}</p>'
+        '<p style="margin:0 0 12px">A self-hosted AI workspace for chat, agents, '
+        'research, documents, email, notes, calendar, and local model workflows.</p>'
+        '<p style="margin:0 0 8px">&#169; The Odysseus authors &#183; '
+        f'<a href="{_ABOUT_LICENSE}">AGPL-3.0-or-later</a></p>'
+        '<p style="margin:0 0 12px;font-size:small;color:#888">This program comes '
+        'with ABSOLUTELY NO WARRANTY. It is free software, and you are welcome to '
+        'redistribute it under the terms of the GNU AGPL, version 3 or later.</p>'
+        f'<p style="margin:0"><a href="{_ABOUT_GITHUB}">Website</a> &#183; '
+        f'<a href="{_ABOUT_ISSUES}">Report an issue</a></p>'
+        '</div>')
+
+
+def _show_about_dialog(parent):
+    """Native About dialog: icon, name, version, description, copyright, license,
+    the AGPL no-warranty notice, and Website / Report-an-issue links."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("About Odysseus")
+    layout = QVBoxLayout(dlg)
+    layout.setContentsMargins(24, 20, 24, 16)
+    layout.setSpacing(10)
+
+    icon_path = os.path.join(INSTALL_DIR, "static", "icons", "icon-192.png")
+    pm = QPixmap(icon_path) if os.path.isfile(icon_path) else QPixmap()
+    if not pm.isNull():
+        ic = QLabel()
+        ic.setPixmap(pm.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation))
+        ic.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(ic)
+
+    label = QLabel(_about_html())
+    label.setOpenExternalLinks(True)   # links open in the default browser
+    label.setWordWrap(True)
+    label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+    layout.addWidget(label)
+
+    close_btn = QPushButton("Close")
+    close_btn.setDefault(True)
+    close_btn.clicked.connect(dlg.accept)
+    row = QHBoxLayout()
+    row.addStretch(1)
+    row.addWidget(close_btn)
+    row.addStretch(1)
+    layout.addLayout(row)
+
+    dlg.exec()
 
 
 if __name__ == "__main__":
@@ -1074,8 +1255,13 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
-    # App serves from localhost; HTTP cache is almost entirely idle but grows
-    # without bound by default. Cap at 50 MB.
+    # App serves from localhost, so a persistent disk HTTP cache buys almost
+    # nothing and is the one thing that can serve a STALE asset across an app
+    # restart (an ES-module import like cookbookRunning.js has no ?v= buster, so
+    # its URL is stable and the disk cache kept returning the old file even after
+    # a redeploy). Use an in-memory cache: it is rebuilt on every launch, so
+    # closing and reopening the app always loads the current code. Capped anyway.
+    profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
     profile.setHttpCacheMaximumSize(50_000_000)
 
     win = OdysseusWindow(profile)
@@ -1113,5 +1299,172 @@ if __name__ == "__main__":
         _geom = _s.value("windowGeometry")
         if _geom:
             win.restoreGeometry(_geom)
+
+    # Keep the process alive when the window is hidden to the tray — a hidden last
+    # window would otherwise quit the app.
+    app.setQuitOnLastWindowClosed(False)
+
+    def _show_from_tray():
+        if win.isMinimized():
+            win.showNormal()
+        win.show()
+        win.raise_()
+        win.activateWindow()
+
+    # System tray: X hides here and keeps the server alive; "Quit Odysseus" tears
+    # down. Guarded on availability so a desktop session with no StatusNotifier
+    # host (some minimal WMs) still gets a normal quit-on-close, never a trapped
+    # window. KDE (the primary target) hosts the tray natively.
+    if QSystemTrayIcon.isSystemTrayAvailable():
+        _icon_path = os.path.join(INSTALL_DIR, "static", "icons", "icon-192.png")
+        _tray_icon = QIcon(_icon_path) if os.path.isfile(_icon_path) else app.windowIcon()
+        _tray = QSystemTrayIcon(_tray_icon, app)
+        _tray.setToolTip("Odysseus")
+        _tray_menu = QMenu()
+
+        # ── Status line (disabled; refreshed each time the menu opens) ──
+        _status_act = _tray_menu.addAction("Odysseus")
+        _status_act.setEnabled(False)
+        _tray_menu.addSeparator()
+
+        # ── Open / web access ──
+        _tray_menu.addAction("Open Odysseus").triggered.connect(_show_from_tray)
+
+        def _open_in_browser():
+            QDesktopServices.openUrl(QUrl(_server_url()))
+        _tray_menu.addAction("Open in Browser").triggered.connect(_open_in_browser)
+
+        def _copy_server_url():
+            app.clipboard().setText(_server_url())
+            if _tray.supportsMessages():
+                _tray.showMessage("Odysseus", f"Copied {_server_url()}",
+                                  QSystemTrayIcon.MessageIcon.Information, 2500)
+        _tray_menu.addAction("Copy Server URL").triggered.connect(_copy_server_url)
+        _tray_menu.addSeparator()
+
+        # ── Settings / shortcuts / expose ──
+        def _open_settings(tab=None):
+            # settingsModule is an ES module, not a window global — drive the same
+            # DOM the app itself uses: click the settings opener, then (for a
+            # specific tab) the matching nav button once the modal is up.
+            _show_from_tray()
+            js = ("var m=document.getElementById('settings-modal');"
+                  "if(!m||m.classList.contains('hidden')){"
+                  "var o=document.getElementById('rail-settings')"
+                  "||document.getElementById('user-bar-settings')"
+                  "||document.getElementById('tool-settings-btn');"
+                  "if(o)o.click();}")
+            if tab:
+                js += ("setTimeout(function(){var t=document.querySelector("
+                       "'[data-settings-tab=\"%s\"]');if(t)t.click();},60);" % tab)
+            try:
+                win.browser.page().runJavaScript("(function(){%s})();" % js)
+            except Exception:
+                pass
+        _tray_menu.addAction("Settings…").triggered.connect(lambda: _open_settings())
+        _tray_menu.addAction("Shortcut Keys…").triggered.connect(
+            lambda: _open_settings("shortcuts"))
+
+        _expose_act = _tray_menu.addAction("Expose to Network")
+        _expose_act.setCheckable(True)
+        _expose_act.setChecked(_desired_host() == "0.0.0.0")
+
+        def _toggle_expose(checked):
+            if checked:
+                r = QMessageBox.warning(
+                    win, "Expose to Network",
+                    "Make Odysseus reachable by other devices on your network?\n\n"
+                    "This binds the server to all interfaces (0.0.0.0). Only enable "
+                    "on a network you trust.",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No)
+                if r != QMessageBox.StandardButton.Yes:
+                    _expose_act.blockSignals(True)
+                    _expose_act.setChecked(False)
+                    _expose_act.blockSignals(False)
+                    return
+            _qs = QSettings("odysseus", "odysseus")
+            _qs.setValue("exposeToNetwork", checked)
+            _qs.sync()
+            _do_restart()
+        _expose_act.toggled.connect(_toggle_expose)
+        _tray_menu.addSeparator()
+
+        # ── Diagnostics ──
+        _tray_menu.addAction("View Logs").triggered.connect(
+            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(LOG_DIR)))
+
+        def _do_restart():
+            th = getattr(win, "_restart_thread", None)
+            if th is not None and th.isRunning():
+                return
+            _status_act.setText("○ Restarting…")
+            th = _ServerRestartThread()
+            win._restart_thread = th
+
+            def _on_done(ok):
+                try:
+                    win.browser.reload()   # re-point the page at the restarted server
+                except Exception:
+                    pass
+            th.finished_ok.connect(_on_done)
+            th.start()
+        _tray_menu.addAction("Restart Server").triggered.connect(_do_restart)
+        _tray_menu.addSeparator()
+
+        # ── Checkable "Close to tray" — when off, close quits instead of hiding. ──
+        _ctt_act = _tray_menu.addAction("Close to tray")
+        _ctt_act.setCheckable(True)
+        _ctt_act.setChecked(_s.value("closeToTray", True, type=bool))
+
+        def _toggle_close_to_tray(checked):
+            _qs = QSettings("odysseus", "odysseus")
+            _qs.setValue("closeToTray", checked)
+            _qs.sync()
+        _ctt_act.toggled.connect(_toggle_close_to_tray)
+
+        _tray_menu.addAction("README").triggered.connect(
+            lambda: QDesktopServices.openUrl(
+                QUrl("https://github.com/odysseus-dev/odysseus#readme")))
+        _tray_menu.addAction("About Odysseus").triggered.connect(
+            lambda: _show_about_dialog(win))
+        _tray_menu.addSeparator()
+        _tray_menu.addAction("Quit Odysseus").triggered.connect(win.request_quit)
+
+        # Refresh live state whenever the menu is about to open.
+        def _refresh_tray_menu():
+            _status_act.setText(
+                f"● Running — {_reachable_host()}:{PORT}" if _server_running()
+                else "○ Stopped")
+            _expose_act.blockSignals(True)
+            _expose_act.setChecked(_desired_host() == "0.0.0.0")
+            _expose_act.blockSignals(False)
+        _tray_menu.aboutToShow.connect(_refresh_tray_menu)
+        _refresh_tray_menu()
+        _tray.setContextMenu(_tray_menu)
+
+        def _on_tray_activated(reason):
+            if reason in (QSystemTrayIcon.ActivationReason.Trigger,
+                          QSystemTrayIcon.ActivationReason.DoubleClick):
+                _show_from_tray()
+        _tray.activated.connect(_on_tray_activated)
+        _tray.show()
+        win._tray = _tray
+        print('[LIFECYCLE] tray icon installed (visible=%s)' % _tray.isVisible(), flush=True)
+    else:
+        print('[LIFECYCLE] system tray unavailable; X will quit', flush=True)
+
+    def _teardown():
+        # Single teardown for every real quit (tray Quit, SIGTERM/SIGINT): release
+        # the web page before Qt destroys it, then stop the embedded server.
+        # Detached model servers/downloads are independent and intentionally
+        # survive.
+        print('[LIFECYCLE] aboutToQuit teardown running', flush=True)
+        try:
+            win.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), win.browser))
+        except Exception:
+            pass
+        stop_server()
+    app.aboutToQuit.connect(_teardown)
 
     sys.exit(app.exec())
