@@ -3333,6 +3333,12 @@ def setup_cookbook_routes() -> APIRouter:
         host: str | None = None
         ssh_port: str | None = None
         signal: str = "TERM"  # TERM (graceful) or KILL (force)
+        # Kill the whole process GROUP, not just the pid. Needed to stop a
+        # detached local download/serve (bash → bash → python → aria2c are all in
+        # the session-leader's group): a single-pid kill would leave the
+        # downloader child running. LOCAL POSIX only — Windows already tears down
+        # the tree via taskkill /T, and remote tasks use tmux.
+        group: bool = False
 
     @router.post("/api/cookbook/kill-pid")
     async def kill_pid(request: Request, req: KillPidRequest):
@@ -3368,6 +3374,21 @@ def setup_cookbook_routes() -> APIRouter:
                     return {"ok": False, "error": f"PID {req.pid} is not running"}
                 await asyncio.to_thread(kill_process_tree, req.pid)
                 return {"ok": True, "pid": req.pid, "signal": sig}
+            elif req.group and not host:
+                # LOCAL POSIX process-group kill for a detached task: signal the
+                # whole group so the download/serve child dies too, not just the
+                # shell. os.getpgid/os.killpg — no shell, no ps subprocess.
+                import signal as _signalmod
+                _sigmap = {"TERM": _signalmod.SIGTERM, "KILL": _signalmod.SIGKILL,
+                           "INT": _signalmod.SIGINT}
+                try:
+                    pgid = os.getpgid(req.pid)
+                except ProcessLookupError:
+                    return {"ok": False, "error": f"PID {req.pid} is not running"}
+                if pgid < 100:
+                    raise HTTPException(400, f"Refusing to signal process group {pgid} (<100)")
+                os.killpg(pgid, _sigmap[sig])
+                return {"ok": True, "pid": req.pid, "pgid": pgid, "signal": sig, "group": True}
             else:
                 proc = await asyncio.create_subprocess_exec(
                     "kill", f"-{sig}", str(req.pid),
@@ -4463,6 +4484,9 @@ def setup_cookbook_routes() -> APIRouter:
 
             progress_text = ""
             full_snapshot = (task.get("output") or "")[-12000:] if task_type == "serve" else ""
+            # Session-leader pid of a detached local task, surfaced so the UI can
+            # stop it (there is no tmux session to kill). None for tmux tasks.
+            detached_pid = None
 
             if local_detached_task:
                 # File-based liveness + output for the detached-process model.
@@ -4473,6 +4497,7 @@ def setup_cookbook_routes() -> APIRouter:
                     task_pid = int(pid_path.read_text(encoding="utf-8").strip())
                 except Exception:
                     task_pid = None
+                detached_pid = task_pid
                 is_alive = pid_alive(task_pid)
                 try:
                     if log_path.exists():
@@ -4629,6 +4654,7 @@ def setup_cookbook_routes() -> APIRouter:
                 "diagnosis": diagnosis,
                 "output_tail": output_tail,
                 "exit_code": exit_code,
+                "pid": detached_pid,
                 "cmd": _payload.get("_cmd") or "",
                 "tps": phase_info.get("tps"),
                 "reqs": phase_info.get("reqs"),
