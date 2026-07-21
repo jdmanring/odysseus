@@ -85,6 +85,11 @@ done
 
 # System dependencies (each installed only if missing, so re-runs stay fast and
 # don't re-hit Homebrew over the network):
+#    - aria2c    : THE Cookbook downloader (the fork's replacement for the
+#                  flaky hf_transfer). Linux/Windows self-install it via
+#                  BinManager, but there is no static macOS build, so it must be
+#                  installed here. The plain-Python hf downloader is only an
+#                  emergency fallback, not the intended path.
 #    - tmux      : Cookbook runs model downloads/serves in the background
 #    - llama.cpp : a prebuilt, Metal-enabled llama-server so Cookbook can serve
 #                  GGUF models on the GPU with no compile step
@@ -117,6 +122,7 @@ else
     brew install python@3.11 || true
     PY="$(command -v /opt/homebrew/bin/python3.11 || command -v python3.11 || true)"
 fi
+brew_ensure aria2c aria2
 brew_ensure tmux tmux
 brew_ensure llama-server llama.cpp
 brew_ensure apfel apfel
