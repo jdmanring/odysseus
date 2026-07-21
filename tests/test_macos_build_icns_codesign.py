@@ -46,6 +46,13 @@ def test_launcher_marks_bundle_so_tile_is_not_overridden():
     assert "export ODYSSEUS_BUNDLE=1" in SH
 
 
+def test_launcher_prepends_tool_path_dirs():
+    # A Finder/Dock/open-launched .app inherits launchd's minimal PATH, so the
+    # server preflight can't see a Homebrew/user-installed aria2c and downloads
+    # silently fall back to hf. The launcher must prepend the usual bin dirs.
+    assert 'export PATH="/opt/homebrew/bin:/usr/local/bin:/opt/local/bin:$HOME/.local/bin:$HOME/bin:$PATH"' in SH
+
+
 def test_macos_tile_asset_present_and_dark():
     from PIL import Image
     p = Path("static/icons/icon-macos-1024.png")
