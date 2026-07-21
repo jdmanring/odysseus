@@ -140,7 +140,8 @@ import urllib.request as _cdp_req
 import subprocess
 import threading as _threading
 import time
-from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog, QSystemTrayIcon, QMenu
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QColorDialog, QSystemTrayIcon,
+                             QMenu, QDialog, QLabel, QVBoxLayout, QPushButton)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
@@ -1195,6 +1196,34 @@ class OdysseusWindow(QMainWindow):
             self._tray_notified = True
 
 
+# Canonical project details for the About dialog (from the upstream README).
+_ABOUT_GITHUB = "https://github.com/odysseus-dev/odysseus"
+_ABOUT_LICENSE = "https://github.com/odysseus-dev/odysseus/blob/main/LICENSE"
+_ABOUT_HTML = (
+    '<div style="min-width:360px">'
+    '<h2 style="margin:0 0 4px">Odysseus</h2>'
+    '<p style="margin:0 0 12px">A self-hosted AI workspace for chat, agents, research, '
+    'documents, email, notes, calendar, and local model workflows.</p>'
+    f'<p style="margin:0 0 6px">License: <a href="{_ABOUT_LICENSE}">AGPL-3.0-or-later</a></p>'
+    f'<p style="margin:0"><a href="{_ABOUT_GITHUB}">GitHub repository</a></p>'
+    '</div>')
+
+
+def _show_about_dialog(parent):
+    """Native About dialog: name, description, and clickable license/GitHub links."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("About Odysseus")
+    layout = QVBoxLayout(dlg)
+    label = QLabel(_ABOUT_HTML)
+    label.setOpenExternalLinks(True)   # links open in the default browser
+    label.setWordWrap(True)
+    layout.addWidget(label)
+    close_btn = QPushButton("Close")
+    close_btn.clicked.connect(dlg.accept)
+    layout.addWidget(close_btn)
+    dlg.exec()
+
+
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
@@ -1307,7 +1336,8 @@ if __name__ == "__main__":
         _tray_menu.addAction("Open Odysseus").triggered.connect(_show_from_tray)
         _tray_menu.addAction("README").triggered.connect(
             lambda: QDesktopServices.openUrl(
-                QUrl("https://github.com/pewdiepie-archdaemon/odysseus#readme")))
+                QUrl("https://github.com/odysseus-dev/odysseus#readme")))
+        _tray_menu.addAction("About Odysseus").triggered.connect(lambda: _show_about_dialog(win))
         _tray_menu.addSeparator()
         # Checkable "Close to tray" — when off, the X button quits instead of
         # hiding. Persisted in QSettings so the choice survives restarts.

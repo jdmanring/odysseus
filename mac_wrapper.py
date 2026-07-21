@@ -123,7 +123,8 @@ import base64 as _cdp_b64
 import urllib.request as _cdp_req
 import threading as _threading
 import time
-from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QColorDialog,
+                             QDialog, QLabel, QVBoxLayout, QPushButton)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
@@ -1299,6 +1300,34 @@ class OdysseusWindow(QMainWindow):
         edit.addAction(quit_act)
 
 
+# Canonical project details for the About dialog (from the upstream README).
+_ABOUT_GITHUB = "https://github.com/odysseus-dev/odysseus"
+_ABOUT_LICENSE = "https://github.com/odysseus-dev/odysseus/blob/main/LICENSE"
+_ABOUT_HTML = (
+    '<div style="min-width:360px">'
+    '<h2 style="margin:0 0 4px">Odysseus</h2>'
+    '<p style="margin:0 0 12px">A self-hosted AI workspace for chat, agents, research, '
+    'documents, email, notes, calendar, and local model workflows.</p>'
+    f'<p style="margin:0 0 6px">License: <a href="{_ABOUT_LICENSE}">AGPL-3.0-or-later</a></p>'
+    f'<p style="margin:0"><a href="{_ABOUT_GITHUB}">GitHub repository</a></p>'
+    '</div>')
+
+
+def _show_about_dialog(parent):
+    """Native About dialog: name, description, and clickable license/GitHub links."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("About Odysseus")
+    layout = QVBoxLayout(dlg)
+    label = QLabel(_ABOUT_HTML)
+    label.setOpenExternalLinks(True)   # links open in the default browser
+    label.setWordWrap(True)
+    layout.addWidget(label)
+    close_btn = QPushButton("Close")
+    close_btn.clicked.connect(dlg.accept)
+    layout.addWidget(close_btn)
+    dlg.exec()
+
+
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
@@ -1525,6 +1554,8 @@ if __name__ == "__main__":
                 _show_and_raise()
             elif data == "quit":
                 win.request_quit()
+            elif data == "about":
+                _show_about_dialog(win)
         except Exception:
             pass
 
