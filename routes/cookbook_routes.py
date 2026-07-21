@@ -1798,8 +1798,13 @@ def setup_cookbook_routes() -> APIRouter:
         # entirely on native-Windows local runs (no tmux). The Windows
         # detached-process path writes its log to a known file and has its
         # own lifecycle tracking; punting here keeps the code simple.
-        local_win = is_windows and not remote
-        if local_win:
+        # Skip the tmux-based watchdog for any LOCAL detached task (native
+        # Windows, or POSIX without tmux e.g. a real Mac): it has no tmux pane to
+        # capture, and the file-based status poller already tracks it from the
+        # <session>.log / <session>.pid. Detected by the pidfile the detached
+        # launcher writes.
+        local_detached_serve = (not remote) and (is_windows or (TMUX_LOG_DIR / f"{session_id}.pid").exists())
+        if local_detached_serve:
             return
         if remote:
             ssh_args = ["ssh"]
@@ -2171,16 +2176,21 @@ def setup_cookbook_routes() -> APIRouter:
             )
             if _ollama_chosen_port:
                 req.cmd = f"OLLAMA_HOST={_ollama_bind_host}:{_ollama_chosen_port} {req.cmd}"
-        # LOCAL execution on a native-Windows host never uses tmux (detached
-        # process path below), regardless of the UI-supplied platform.
+        # LOCAL execution uses a detached process + logfile instead of tmux on
+        # native Windows AND on any POSIX host without tmux (e.g. a real Mac,
+        # where tmux is not in the base system) — so serving works there. Only
+        # REMOTE POSIX still requires tmux. local_windows stays for the genuinely
+        # Windows-specific command handling below (llama.cpp paths, etc.).
         local_windows = IS_WINDOWS and not remote
+        _tmux_ok = await _binary_available("tmux", remote, req.ssh_port)
+        local_detached = (not remote) and (IS_WINDOWS or not _tmux_ok)
         if is_windows and remote and "diffusion_server.py" in req.cmd:
             raise HTTPException(
                 400,
                 "Remote Windows Diffusers serving is not supported yet; use local Windows or a Linux remote server.",
             )
 
-        if not is_windows and not local_windows and not await _binary_available("tmux", remote, req.ssh_port):
+        if not is_windows and not local_detached and not _tmux_ok:
             return {
                 "ok": False,
                 "error": _missing_binary_message("tmux", remote or "local server"),
@@ -2268,10 +2278,16 @@ def setup_cookbook_routes() -> APIRouter:
             # the post-crash interactive shell's neofetch banner ALSO gets
             # teed into the log file and `tail -N` returns ONLY the banner —
             # the actual traceback ends up earlier than the tail window.
-            runner_lines.append("mkdir -p /tmp/odysseus-tmux 2>/dev/null || true")
+            # Log to the REAL session log dir (tempfile.gettempdir()/odysseus-tmux),
+            # not a hardcoded /tmp — on macOS that dir is under $TMPDIR, and the
+            # detached-serve poller reads it there. (On Linux it resolves to
+            # /tmp/odysseus-tmux, unchanged.) This tee is what actually populates
+            # the log the poller tails for a detached serve.
+            _serve_log_dir = TMUX_LOG_DIR.as_posix()
+            runner_lines.append(f"mkdir -p {shlex.quote(_serve_log_dir)} 2>/dev/null || true")
             runner_lines.append("exec 3>&1 4>&2")
             runner_lines.append(
-                f"exec > >(tee -a /tmp/odysseus-tmux/{session_id}.log) 2>&1"
+                f"exec > >(tee -a {shlex.quote(_serve_log_dir + f'/{session_id}.log')}) 2>&1"
             )
             runner_lines.extend(_user_shell_path_bootstrap())
             runner_lines.append('ODYSSEUS_PREFLIGHT_EXIT=""')
@@ -2720,7 +2736,7 @@ def setup_cookbook_routes() -> APIRouter:
             if not handled_ollama_serve and not handled_ollama_sidecar_probe:
                 _append_serve_preflight_exit_lines(
                     runner_lines,
-                    keep_shell_open=not local_windows,
+                    keep_shell_open=not local_detached,
                 )
                 if "vllm serve" in req.cmd or "mlx_lm.server" in req.cmd:
                     runner_lines.append('eval "$ODYSSEUS_SERVE_CMD"')
@@ -2731,7 +2747,7 @@ def setup_cookbook_routes() -> APIRouter:
                     _append_pip_install_runner_lines(runner_lines, req.cmd)
                 else:
                     runner_lines.append(req.cmd)
-                if local_windows:
+                if local_detached:
                     # Detached background process — no interactive shell to keep open.
                     # Print the exit marker the status poller looks for, then stop.
                     _append_serve_exit_code_lines(
@@ -2753,8 +2769,9 @@ def setup_cookbook_routes() -> APIRouter:
             # regardless of the executable bit.
             safe_chmod(runner_path, 0o755)
 
-            if local_windows:
-                # LOCAL Windows: launch the bash runner detached (tmux replacement).
+            if local_detached:
+                # LOCAL detached (Windows, or POSIX without tmux e.g. a real Mac):
+                # launch the bash runner detached (tmux replacement).
                 setup_cmd = None
             elif remote:
                 remote_runner = f".{session_id}_run.sh"
@@ -2783,7 +2800,8 @@ def setup_cookbook_routes() -> APIRouter:
                 setup_cmd = f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} {shlex.quote(str(runner_path))}"
 
         if setup_cmd is None:
-            # LOCAL Windows: launch the bash runner detached; no tmux setup_cmd.
+            # LOCAL detached (Windows, or POSIX without tmux e.g. a real Mac):
+            # launch the bash runner detached; no tmux setup_cmd.
             try:
                 _launch_local_detached(session_id, runner_lines)
             except Exception as e:
