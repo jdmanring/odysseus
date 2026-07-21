@@ -1172,6 +1172,9 @@ if __name__ == "__main__":
         _tray.setToolTip("Odysseus")
         _tray_menu = QMenu()
         _tray_menu.addAction("Open Odysseus").triggered.connect(_show_from_tray)
+        _tray_menu.addAction("README").triggered.connect(
+            lambda: QDesktopServices.openUrl(
+                QUrl("https://github.com/pewdiepie-archdaemon/odysseus#readme")))
         _tray_menu.addSeparator()
         # Checkable "Close to tray" — when off, the close button quits instead of
         # hiding. Persisted in QSettings so the choice survives restarts.
