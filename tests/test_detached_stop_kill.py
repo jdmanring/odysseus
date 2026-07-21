@@ -49,3 +49,14 @@ def test_graceful_kill_local_posix_kills_process_group():
 def test_windows_stop_is_tree_kill():
     # Regression guard: Windows detached stop must remain a recursive tree kill.
     assert "function Stop-Tree" in RUNNING_JS
+
+
+def test_download_panel_kill_button_stops_detached():
+    # The download panel's own Kill button must also group-kill a detached
+    # download (it can't rely on a "Started tmux session" line that detached
+    # output never prints), so it remembers the session id.
+    DL_JS = (REPO / "static" / "js" / "cookbookDownload.js").read_text(encoding="utf-8")
+    assert "panel._downloadSession = data.session_id" in DL_JS
+    assert "const sid = tmuxMatch ? tmuxMatch[1] : panel._downloadSession" in DL_JS
+    assert 'ps -o pgid= -p "$P"' in DL_JS
+    assert 'kill -TERM "-$G"' in DL_JS

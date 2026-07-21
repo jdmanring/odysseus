@@ -361,12 +361,18 @@ export function _wirePanelEvents(panel, model, backend) {
       if (panel._cookbookAbort) panel._cookbookAbort.abort();
       const outputText = panel.querySelector('.cookbook-output-pre')?.textContent || '';
       const tmuxMatch = outputText.match(/Started tmux session: (cookbook-[a-f0-9]+)/);
-      if (tmuxMatch) {
+      const sid = tmuxMatch ? tmuxMatch[1] : panel._downloadSession;
+      if (sid) {
+        // Kill the process GROUP of a detached download (reads <session>.pid)
+        // AND the tmux session — whichever the local host used. Harmless when
+        // the other doesn't apply. ${'$'}{TMPDIR:-/tmp}/odysseus-tmux matches the
+        // server's log dir (the exec runs as a server subprocess).
+        const killCmd = `D="\${TMPDIR:-/tmp}/odysseus-tmux"; P=$(cat "$D/${sid}.pid" 2>/dev/null); if [ -n "$P" ]; then G=$(ps -o pgid= -p "$P" 2>/dev/null | tr -d ' '); [ -n "$G" ] && kill -TERM "-$G" 2>/dev/null; fi; tmux kill-session -t ${sid} 2>/dev/null`;
         fetch('/api/shell/exec', {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: `tmux kill-session -t ${tmuxMatch[1]} 2>/dev/null` }),
+          body: JSON.stringify({ command: killCmd }),
         }).catch(() => {});
       }
       const wrap = panel.querySelector('.cookbook-output-wrap');
@@ -761,6 +767,10 @@ export async function _runModelDownload(panel, model, backend, hostOverride) {
     if ('hf_auth' in data) {
       payload.hf_token_used = !!data.hf_auth;
     }
+    // Remember the session so the Kill button can stop a DETACHED download
+    // (macOS / any host without tmux) by its process group — those never print
+    // a "Started tmux session" line for the button's output-grep to find.
+    panel._downloadSession = data.session_id;
     _addTask(data.session_id, taskName, 'download', payload);
     uiModule.showToast(`Downloading ${taskName}...`);
   } catch (e) {
