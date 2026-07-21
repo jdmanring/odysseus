@@ -191,6 +191,13 @@ Open Terminal and run:
 [ -f "$WRAPPER" ] || die_gui "mac_wrapper.py not found at $REPO_DIR.
 Reinstall Odysseus or check the installation."
 
+# A Finder/Dock/open-launched .app inherits launchd's minimal PATH
+# (/usr/bin:/bin:/usr/sbin:/sbin) — not the user's shell PATH. Without the
+# common tool locations here, the server's own preflight (e.g. shutil.which
+# for aria2c) can't see a Homebrew/MacPorts/conda/user-installed binary, so
+# Cookbook downloads silently fall back to the slower hf path even when aria2c
+# is installed. Prepend the usual bin dirs so the app finds them.
+export PATH="/opt/homebrew/bin:/usr/local/bin:/opt/local/bin:$HOME/.local/bin:$HOME/bin:$PATH"
 # Mark this as a bundled launch so the wrapper leaves the Dock tile to the
 # bundle's .icns instead of overriding it with setWindowIcon (which made the
 # icon change — lose its background — the moment the app started).
