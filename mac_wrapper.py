@@ -230,8 +230,15 @@ def stop_server():
 
 
 def _signal_handler(sig, frame):
+    # SIGTERM/SIGINT (e.g. a relaunch killing the old instance). Stop the server,
+    # then HARD-EXIT rather than sys.exit: letting the interpreter unwind runs
+    # Qt's QWebEngineView teardown, which intermittently null-derefs in
+    # setVisible on CrBrowserMain (Qt 6.11) and logs a spurious crash. Nothing
+    # meaningful is lost — the persistent profile flushes as it changes.
     stop_server()
-    sys.exit(0)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
 
 
 def _cdp_ws_call(ws_url, method, params=None):
@@ -734,6 +741,12 @@ class OdysseusWindow(QMainWindow):
         self._last_purge = 0.0  # monotonic ts of last forcible renderer purge
         self._last_input = time.monotonic()  # ts of last mouse/keyboard activity
         self._quitting = False  # set by the app-level Quit filter; see closeEvent
+        self._pending_hide = False  # closeEvent-from-fullscreen defers the hide
+        self._last_hide_ts = 0.0    # guards the reopen against the post-hide bounce
+        self._fs_prev_maximized = False  # was the window zoomed BEFORE it went FS?
+        self._restore_maximized = False  # re-zoom on the next Dock-reopen?
+        self._fs_observer_ok = False     # native FS-exit observer installed?
+        self._hide_on_fs_observer = False  # this close waits on the FS-exit event
 
         # Inject synchronous flag so JS knows it's running inside the Qt wrapper
         flag_script = QWebEngineScript()
@@ -1005,7 +1018,12 @@ class OdysseusWindow(QMainWindow):
         page.setBackgroundColor(_theme_bg_color())
         self.browser.setUrl(QUrl(f"http://localhost:{PORT}"))
         self.setCentralWidget(self.browser)
-        self.resize(1280, 800)
+        # First-run default window size ONLY. After the first launch the size and
+        # the zoomed/normal state are remembered (save/restoreGeometry +
+        # windowMaximized) and restored on relaunch and on Dock-reopen — the way a
+        # native macOS app remembers its window. Nothing here is scaled to the
+        # screen; this is just a sensible starting window.
+        self.resize(1000, 650)
         self._build_menus()
 
     def _renderer_rss_kb(self) -> int:
@@ -1075,6 +1093,30 @@ class OdysseusWindow(QMainWindow):
 
     def changeEvent(self, event):
         if event.type() == QEvent.Type.WindowStateChange:
+            _old = event.oldState()
+            # Remember whether the window was ZOOMED (maximized) right before it
+            # entered native fullscreen, so a later reopen can return to that same
+            # state — the way macOS returns a fullscreen window to its pre-
+            # fullscreen frame instead of to a plain normal window.
+            if self.isFullScreen() and not (_old & Qt.WindowState.WindowFullScreen):
+                self._fs_prev_maximized = bool(_old & Qt.WindowState.WindowMaximized)
+            if self._pending_hide and self._hide_on_fs_observer:
+                # A native FS-exit observer owns this close; it will hide at the
+                # true completion instant (NSWindowDidExitFullScreen). Qt's state
+                # change here is TOO EARLY — hiding now is the very override the
+                # retry used to fight — so do nothing and wait for the event.
+                super().changeEvent(event)
+                return
+            if self._pending_hide and not (
+                    self.isFullScreen() or self.isMaximized() or self.isMinimized()):
+                # Zoom (maximized) exit, or the fallback when the native observer
+                # isn't available: there is no completion notification, so hide
+                # here and let _hide_to_dock's bounded retry defeat the animation.
+                self._pending_hide = False
+                print('[LIFECYCLE] zoom/fallback exit -> hide to Dock', flush=True)
+                self._hide_to_dock()
+                super().changeEvent(event)
+                return
             if self.isMinimized():
                 # Reclaim renderer memory while minimized WITHOUT freezing the page.
                 # The lifecycle freeze released compositor memory but left the web
@@ -1096,14 +1138,57 @@ class OdysseusWindow(QMainWindow):
             self._gc_focus_timer.stop()
         super().changeEvent(event)
 
+    def _hide_to_dock(self, _retries=0):
+        # Hide the window to the Dock. Recording WHEN lets the app-activation
+        # reopen handler tell a deliberate red-button hide (which bounces the app
+        # Inactive->Active and would otherwise instantly un-hide it) from a real
+        # Dock-click reopen made later.
+        #
+        # When the red button is pressed in fullscreen we exit fullscreen first
+        # (green-button behaviour), and macOS's exit-fullscreen ANIMATION can
+        # override a hide issued before it finishes — the window reappears at its
+        # normal size. So verify shortly after: if it's visible again, the
+        # animation overrode us; hide again until it sticks (capped).
+        self._last_hide_ts = time.monotonic()
+        self.hide()
+
+        def _verify():
+            if self.isVisible() and _retries < 8:
+                self._hide_to_dock(_retries + 1)
+            else:
+                # Settled (hidden). Restore opacity so the next show is visible
+                # even if it doesn't go through _show_and_raise.
+                self.setWindowOpacity(1.0)
+                print(f'[LIFECYCLE] hide settled: isVisible={self.isVisible()} '
+                      f'(retries={_retries})', flush=True)
+        QTimer.singleShot(300, _verify)
+
+    def _fs_observer_fired(self):
+        # NSWindowDidExitFullScreen arrived — the exit animation is genuinely done,
+        # so a single hide sticks (the first _hide_to_dock verify settles at
+        # retries=0). This is the event-driven replacement for the poll.
+        if self._pending_hide and self._hide_on_fs_observer:
+            self._pending_hide = False
+            self._hide_on_fs_observer = False
+            print('[LIFECYCLE] FS-exit observer -> hide to Dock', flush=True)
+            self._hide_to_dock()
+
+    def _fs_observer_safety(self):
+        # Backstop armed by closeEvent: if the observer somehow never fires, hide
+        # anyway so the window can never be stranded visible.
+        if self._pending_hide and self._hide_on_fs_observer:
+            self._pending_hide = False
+            self._hide_on_fs_observer = False
+            print('[LIFECYCLE] FS-exit observer missed -> safety hide', flush=True)
+            self._hide_to_dock()
+
     def _save_window_state(self):
         s = QSettings("odysseus", "odysseus")
         s.setValue("windowMaximized", self.isMaximized())
-        # Only write geometry when windowed: saveGeometry() while maximized would
-        # record the maximized dimensions as the "normal" size and destroy the
-        # restore target on next open. Skipping the write when maximized leaves
-        # the last good windowed geometry intact in QSettings.
-        if not self.isMaximized():
+        # Only write geometry when a genuine window: saveGeometry() while
+        # maximized OR fullscreen would record the screen-filling size as the
+        # "normal" size and destroy the windowed restore target on next open.
+        if not self.isMaximized() and not self.isFullScreen():
             s.setValue("windowGeometry", self.saveGeometry())
         s.sync()
 
@@ -1131,9 +1216,45 @@ class OdysseusWindow(QMainWindow):
             print('[LIFECYCLE] closeEvent: quitting -> accept', flush=True)
             event.accept()
             return
-        print('[LIFECYCLE] closeEvent: hide, keep app in Dock', flush=True)
         self._save_window_state()
-        self.hide()
+        # Decide what a later Dock-reopen should restore, matching macOS: a
+        # fullscreen window returns to whatever it was before fullscreen (zoomed
+        # or normal); a zoomed window returns zoomed; a normal window stays normal.
+        if self.isFullScreen():
+            self._restore_maximized = self._fs_prev_maximized
+        else:
+            self._restore_maximized = self.isMaximized()
+        if self.isFullScreen() or self.isMaximized():
+            # Hiding the web view while the window is in native fullscreen (green
+            # button — a separate macOS Space) or a zoomed state CRASHES
+            # QtWebEngine: leaving that state reparents the QWebEngineView
+            # (QWidgetPrivate::reparentFocusWidgets during the Space transition),
+            # and setVisible() fired on the view mid-reparent null-derefs on the
+            # CrBrowserMain thread — the app crashes and leaves WindowServer with
+            # a corrupt full-screen composite (the freeze/garble). This is a
+            # documented QtWebEngine teardown/reparent class (Zeal #577, Inkscape,
+            # ChimeraX #3761). Fix: leave fullscreen/zoom FIRST and defer the hide
+            # until that transition settles (handled in changeEvent), so the view
+            # only ever hides from a normal window — the proven-safe path.
+            print('[LIFECYCLE] closeEvent: exit fullscreen/zoom, then hide', flush=True)
+            self._pending_hide = True
+            # A fullscreen exit posts NSWindowDidExitFullScreen at true completion,
+            # so (when the native observer is installed) let THAT drive the hide —
+            # deterministic, no polling. A zoom (maximized, not fullscreen) exit has
+            # no such notification, so it falls through to the changeEvent+retry
+            # path. Either way, arm a safety backstop so a missed event can never
+            # leave the window stuck visible.
+            self._hide_on_fs_observer = self.isFullScreen() and self._fs_observer_ok
+            # Make the window invisible during the exit animation so the user never
+            # sees it flash at normal size before it hides. Opacity is restored on
+            # the next show (_show_and_raise / _hide_to_dock settle).
+            self.setWindowOpacity(0.0)
+            self.showNormal()
+            if self._hide_on_fs_observer:
+                QTimer.singleShot(1500, self._fs_observer_safety)
+        else:
+            print('[LIFECYCLE] closeEvent: hide, keep app in Dock', flush=True)
+            self._hide_to_dock()
         event.ignore()
 
     def _build_menus(self):
@@ -1243,12 +1364,98 @@ if __name__ == "__main__":
     win = OdysseusWindow(profile)
     win.show()
 
+    # --- Native macOS fullscreen-exit signal ----------------------------------
+    # Qt fires WindowStateChange while macOS is still animating the fullscreen
+    # exit, so a hide there is overridden (see the retries=1 evidence) and we
+    # currently poll-retry to defeat it. The correct, event-driven signal is the
+    # Cocoa NSWindowDidExitFullScreenNotification. We observe it via the
+    # Objective-C runtime (ctypes) — the same mechanism this wrapper already uses
+    # for proc_pid_rusage / memorystatus. Fully guarded: any failure returns False
+    # and the caller keeps the Qt-side retry fallback, so it can never crash boot.
+    _fs_observer_keepalive = []
+
+    def _install_fullscreen_exit_observer(widget, on_exit):
+        try:
+            import ctypes as C
+            objc = C.CDLL("/usr/lib/libobjc.A.dylib")
+            appkit = C.CDLL("/System/Library/Frameworks/AppKit.framework/AppKit")
+            objc.objc_getClass.restype = C.c_void_p
+            objc.objc_getClass.argtypes = [C.c_char_p]
+            objc.sel_registerName.restype = C.c_void_p
+            objc.sel_registerName.argtypes = [C.c_char_p]
+            objc.objc_allocateClassPair.restype = C.c_void_p
+            objc.objc_allocateClassPair.argtypes = [C.c_void_p, C.c_char_p, C.c_size_t]
+            objc.objc_registerClassPair.argtypes = [C.c_void_p]
+            objc.class_addMethod.restype = C.c_bool
+            objc.class_addMethod.argtypes = [C.c_void_p, C.c_void_p, C.c_void_p, C.c_char_p]
+
+            def msg(recv, sel, restype=C.c_void_p, argtypes=(), *args):
+                objc.objc_msgSend.restype = restype
+                objc.objc_msgSend.argtypes = [C.c_void_p, C.c_void_p, *argtypes]
+                r = C.c_void_p(recv) if isinstance(recv, int) else recv
+                return objc.objc_msgSend(r, objc.sel_registerName(sel), *args)
+
+            nswindow = msg(int(widget.winId()), b"window")
+            if not nswindow:
+                return False
+
+            cls = objc.objc_getClass(b"OdysseusFSObserver")
+            if not cls:
+                IMP = C.CFUNCTYPE(None, C.c_void_p, C.c_void_p, C.c_void_p)
+
+                def _cb(self_, cmd_, notif_):
+                    # Fires on the main thread during the run loop; marshal onto
+                    # the Qt event loop rather than touching widgets inline.
+                    try:
+                        QTimer.singleShot(0, on_exit)
+                    except Exception:
+                        pass
+
+                imp = IMP(_cb)
+                _fs_observer_keepalive.append(imp)  # must outlive the process
+                cls = objc.objc_allocateClassPair(
+                    objc.objc_getClass(b"NSObject"), b"OdysseusFSObserver", 0)
+                objc.class_addMethod(cls, objc.sel_registerName(b"onExit:"),
+                                     C.cast(imp, C.c_void_p), b"v@:@")
+                objc.objc_registerClassPair(cls)
+
+            observer = msg(msg(cls, b"alloc"), b"init")
+            _fs_observer_keepalive.append(observer)
+            name = C.c_void_p.in_dll(appkit, "NSWindowDidExitFullScreenNotification")
+            center = msg(objc.objc_getClass(b"NSNotificationCenter"), b"defaultCenter")
+            # object:nil — fire for the notification from ANY window. Qt can swap
+            # the native NSWindow out from under us (that caused the first-close
+            # hiccup when we filtered on a specific window); this app is single-
+            # window, so observing all windows is both simpler and robust.
+            msg(center, b"addObserver:selector:name:object:", C.c_void_p,
+                (C.c_void_p, C.c_void_p, C.c_void_p, C.c_void_p),
+                observer, objc.sel_registerName(b"onExit:"), name, C.c_void_p(0))
+            return True
+        except Exception as e:
+            print(f"[LIFECYCLE] native FS-exit observer install failed: {e!r}",
+                  flush=True)
+            return False
+
+    # Wire the native FS-exit event to the deterministic hide. If it can't be
+    # installed, _fs_observer_ok stays False and every close falls through to the
+    # changeEvent+retry path, so behaviour degrades safely, never breaks.
+    win._fs_observer_ok = _install_fullscreen_exit_observer(win, win._fs_observer_fired)
+    print(f'[LIFECYCLE] native FS-exit observer '
+          f'{"installed" if win._fs_observer_ok else "NOT installed (retry fallback active)"}',
+          flush=True)
+
     def _show_and_raise():
-        # Bring the window to the foreground: un-minimize first, or raise_()
-        # targets the minimized placeholder and nothing visible moves.
-        if win.isMinimized():
+        # Bring the window to the foreground, restoring the state it had when it
+        # was hidden — zoomed if it was zoomed, normal otherwise — the way a macOS
+        # Dock-reopen restores a window. Restore opacity in case it was zeroed to
+        # hide a fullscreen-exit flash.
+        win.setWindowOpacity(1.0)
+        if win._restore_maximized:
+            win.showMaximized()
+        elif win.isMinimized():
             win.showNormal()
-        win.show()
+        else:
+            win.show()
         win.raise_()
         win.activateWindow()
 
@@ -1267,19 +1474,38 @@ if __name__ == "__main__":
         # safe when the window is already visible, so we don't depend on
         # identifying the one true reopen event.
         if state == Qt.ApplicationState.ApplicationActive and not win.isVisible():
+            # Ignore the incidental Inactive->Active bounce that hiding the last
+            # window causes (it fires within a few hundred ms of the hide); only a
+            # genuine reopen — Dock click / Cmd-Tab back after the user left — comes
+            # later. Without this guard the reopen instantly un-hides a red-button
+            # hide, so the red button looks like it does nothing.
+            if time.monotonic() - getattr(win, '_last_hide_ts', 0.0) < 0.8:
+                return
             print('[LIFECYCLE] reopen: app activated with hidden window -> show', flush=True)
             _show_and_raise()
     app.applicationStateChanged.connect(_on_app_state_changed)
 
     def _teardown():
         # Single teardown path for every real quit (⌘Q, application-menu Quit,
-        # app.quit()): persist window state, detach the page so the renderer
-        # stops, and stop the embedded server. SIGTERM/SIGINT bypass the Qt
-        # event loop, so _signal_handler stops the server directly instead.
+        # app.quit()): persist window state and stop the embedded server, then
+        # HARD-EXIT before Qt destroys the QWebEngineView.
+        #
+        # Why hard-exit: QtWebEngine 6.11 intermittently null-derefs in
+        # QWebEnginePage::setVisible on the CrBrowserMain thread while Qt tears
+        # the web view down at shutdown (the view's hideEvent calls setVisible on
+        # a browser process that is already partly gone) — SIGSEGV
+        # KERN_INVALID_ADDRESS at 0x10, surfaced as "Odysseus quit unexpectedly".
+        # It happens AFTER all meaningful cleanup, so it is functionally harmless
+        # but alarming. We've saved geometry and stopped the server here, and the
+        # persistent profile flushes cookies/localStorage as they change, so
+        # os._exit skips Qt's racy WebEngine teardown and the app quits cleanly.
+        # aboutToQuit runs before widget destruction, so this pre-empts the crash.
         print('[LIFECYCLE] aboutToQuit teardown running', flush=True)
         win._save_window_state()
-        win.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), win.browser))
         stop_server()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
     app.aboutToQuit.connect(_teardown)
 
     # _QuitFilter must be installed on the app AFTER the window exists: it arms
@@ -1293,8 +1519,8 @@ if __name__ == "__main__":
     # restoreGeometry() entirely: the stored geometry blob was saved while
     # windowed and is correct, but calling restoreGeometry() before
     # showMaximized() would make Qt treat the blob's size as the maximized size
-    # rather than the restore target. We just maximize; Qt uses resize(1280,800)
-    # from __init__ as the un-maximize restore target.
+    # rather than the restore target. We just maximize; Qt uses the fit-to-screen
+    # resize() from __init__ as the un-maximize restore target.
     _s = QSettings("odysseus", "odysseus")
     if _s.value("windowMaximized", False, type=bool):
         win.showMaximized()
