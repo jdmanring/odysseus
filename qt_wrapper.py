@@ -77,7 +77,15 @@ if _is_nvidia:
 def _linux_software_render():
     """True when no hardware GPU render node exists (no /dev/dri/renderD*, or every
     card is bound only to the EFI framebuffer), so Chromium falls back to llvmpipe
-    software raster, detected pre-launch from devfs/sysfs (the GPU-incident signal)."""
+    software raster, detected pre-launch from devfs/sysfs (the GPU-incident signal).
+
+    On the BSD builds that reuse this wrapper, force software raster: OpenBSD's
+    Chromium ships with no working GPU acceleration, FreeBSD's is unreliable, and
+    the /sys/class/drm confirmation below doesn't exist there — so /dev/dri alone
+    would wrongly enable --enable-gpu-rasterization and WebEngine renders a black
+    window. Software raster is the correct native path on BSD."""
+    if not sys.platform.startswith('linux'):
+        return True
     import glob as _glob
     try:
         if not _glob.glob('/dev/dri/renderD*'):
@@ -145,7 +153,14 @@ from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
 )
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
+try:
+    from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
+    _HAS_QTDBUS = True
+except Exception:
+    # PyQt6.QtDBus can be absent on minimal BSD PyQt6 builds. Without it the
+    # Freedesktop-portal colour picker falls back to the in-page eyedropper; a
+    # missing module must never crash the whole wrapper at import.
+    _HAS_QTDBUS = False
 from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QThread, QSettings, QEvent, pyqtSlot, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QPixmap
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
@@ -584,6 +599,9 @@ class NativeBridge(QObject):
 
     @pyqtSlot()
     def openColorPicker(self):
+        if not _HAS_QTDBUS:
+            self._fallback()
+            return
         bus = QDBusConnection.sessionBus()
         portal = QDBusInterface(
             'org.freedesktop.portal.Desktop',
