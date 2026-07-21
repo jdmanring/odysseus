@@ -170,6 +170,35 @@ rather than a plain window, matching macOS's pre-fullscreen-frame restoration.
 The first-run default is a plain 1000×650 window (nothing scaled to the screen);
 after that the remembered size wins.
 
+## System tray and close-to-tray lifecycle
+
+Odysseus is a control plane for model servers and an API host, not just a viewer
+(`app.py` binds `APP_BIND`, defaults to loopback; auth + reverse-proxy/tunnel
+support exist for remote access). So the wrappers keep the local server reachable
+after the window is closed, the way Ollama and LM Studio do.
+
+- **Windows / Linux** get a `QSystemTrayIcon` (notification area / status tray).
+  The close (X) button **hides to the tray** and leaves the embedded server —
+  and any detached model server or download it manages — running, so the local
+  API stays up. The tray menu has **Open Odysseus**, a checkable **Close to tray**
+  toggle (persisted in `QSettings` under `closeToTray`, default on), and **Quit
+  Odysseus**. With the toggle off, X quits instead of hiding.
+- **macOS** already hides to the **Dock** on the red button (`setQuitOnLast
+  WindowClosed(False)` + `closeEvent` hides; see the lifecycle section above), so
+  the tray is purely additive: a menu-bar status item (`NSStatusItem`) with Open
+  and Quit. No close-to-tray toggle — hiding on close is the native convention.
+- **Availability guard.** The tray is created only when
+  `QSystemTrayIcon.isSystemTrayAvailable()` is true. On a session with no tray
+  host (a minimal WM with no StatusNotifier), the wrapper falls back to
+  quit-on-close so the window can never be hidden with no way to bring it back.
+- **Teardown is single-pathed.** A real quit (tray Quit, toggle off, or no tray)
+  routes through `app.aboutToQuit` → release the web page, then `stop_server()`.
+  Detached model servers/downloads are independent and intentionally survive.
+- **Not the remote-serve mechanism.** A tray needs an interactive desktop
+  session. To expose Odysseus to other machines ("run it on a server, remote in
+  through the API"), run the server headless (`APP_BIND=0.0.0.0`) under a service
+  manager — a Windows Service, systemd/s6, or launchd — not the GUI wrapper.
+
 ## Troubleshooting
 
 - **Linux/*BSD: "System PyQt6 with WebEngine not found."** Install the system
