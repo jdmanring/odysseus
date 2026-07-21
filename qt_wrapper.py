@@ -1074,8 +1074,13 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
-    # App serves from localhost; HTTP cache is almost entirely idle but grows
-    # without bound by default. Cap at 50 MB.
+    # App serves from localhost, so a persistent disk HTTP cache buys almost
+    # nothing and is the one thing that can serve a STALE asset across an app
+    # restart (an ES-module import like cookbookRunning.js has no ?v= buster, so
+    # its URL is stable and the disk cache kept returning the old file even after
+    # a redeploy). Use an in-memory cache: it is rebuilt on every launch, so
+    # closing and reopening the app always loads the current code. Capped anyway.
+    profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
     profile.setHttpCacheMaximumSize(50_000_000)
 
     win = OdysseusWindow(profile)
