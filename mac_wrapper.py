@@ -124,13 +124,14 @@ import urllib.request as _cdp_req
 import threading as _threading
 import time
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QColorDialog,
-                             QDialog, QLabel, QVBoxLayout, QHBoxLayout, QPushButton)
+                             QDialog, QLabel, QVBoxLayout, QHBoxLayout, QPushButton,
+                             QMessageBox)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
 )
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal, QSocketNotifier
+from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QThread, QSettings, QEvent, pyqtSlot, pyqtSignal, QSocketNotifier
 from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QAction, QKeySequence, QPixmap
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
@@ -170,6 +171,42 @@ CACHE_DIR = os.path.expanduser("~/Library/Caches/odysseus/webengine")
 
 _UVICORN_PATTERN = "uvicorn app:app"
 _server_proc = None
+# Bind host the server is currently launched on. 127.0.0.1 = local only;
+# 0.0.0.0 = reachable from the LAN (the tray "Expose to Network" toggle).
+_bind_host = "127.0.0.1"
+
+
+def _desired_host():
+    """Bind host implied by the persisted Expose-to-Network preference."""
+    try:
+        return "0.0.0.0" if QSettings("odysseus", "odysseus").value(
+            "exposeToNetwork", False, type=bool) else "127.0.0.1"
+    except Exception:
+        return "127.0.0.1"
+
+
+def _reachable_host():
+    """Address a client should actually connect to. When bound to all
+    interfaces, 0.0.0.0 is not connectable — resolve the primary LAN IP so
+    'Open in Browser' / 'Copy Server URL' / the status line are useful."""
+    if _bind_host != "0.0.0.0":
+        return "localhost"
+    try:
+        s = _cdp_sock.socket(_cdp_sock.AF_INET, _cdp_sock.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))         # no packets sent; just picks the egress iface
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "localhost"
+
+
+def _server_url():
+    return f"http://{_reachable_host()}:{PORT}"
+
+
+def _server_running():
+    return _server_proc is not None and _server_proc.poll() is None
 
 
 def kill_zombies():
@@ -180,15 +217,16 @@ def kill_zombies():
 
 
 def start_server():
-    global _server_proc
-    print(f"Starting Odysseus server on port {PORT}...")
+    global _server_proc, _bind_host
+    _bind_host = _desired_host()
+    print(f"Starting Odysseus server on {_bind_host}:{PORT}...")
     # --no-access-log: uvicorn's access log defaults to ON, emitting one log line
     # per HTTP request. For this embedded, localhost, single-user deployment the
     # always-on UI polls (email/tasks/calendar) would churn that log forever with
     # no operator reading it; errors still surface via server.log. Startup banners
     # and tracebacks still reach server_access.log via the subprocess stdout/stderr.
     cmd = [VENV_PYTHON, "-m", "uvicorn", "app:app",
-           "--host", "127.0.0.1", "--port", PORT, "--no-access-log"]
+           "--host", _bind_host, "--port", PORT, "--no-access-log"]
     env = os.environ.copy()
     env["ODYSSEUS_LOG_FILE"] = os.path.join(LOG_DIR, "server.log")
     _rotate_log(os.path.join(LOG_DIR, "server_access.log"))
@@ -229,6 +267,38 @@ def stop_server():
     _cdp_executor.shutdown(wait=False, cancel_futures=True)
     subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
     print("Server stopped.")
+
+
+def restart_server():
+    """Stop just the uvicorn process and start it again (re-reading the bind
+    host). Unlike stop_server() this leaves the CDP executor intact — a restart
+    must not permanently tear down debugging infrastructure the wrapper reuses."""
+    global _server_proc
+    if _server_proc is not None:
+        try:
+            _server_proc.terminate()
+            _server_proc.wait(timeout=5)
+        except Exception:
+            try:
+                _server_proc.kill()
+            except Exception:
+                pass
+        _server_proc = None
+    subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
+    return start_server()
+
+
+class _ServerRestartThread(QThread):
+    """start_server() blocks up to ~15s polling for readiness; running it on the
+    GUI thread would freeze the window. Do it off-thread and signal back."""
+    finished_ok = pyqtSignal(bool)
+
+    def run(self):
+        try:
+            ok = restart_server()
+        except Exception:
+            ok = False
+        self.finished_ok.emit(bool(ok))
 
 
 def _signal_handler(sig, frame):
@@ -1595,10 +1665,76 @@ if __name__ == "__main__":
     except Exception:
         pass
 
+    def _tray_open_settings(tab=None):
+        # settingsModule is an ES module, not a window global — drive the same DOM
+        # the app itself uses: click the settings opener, then (for a specific tab)
+        # the matching nav button once the modal is up.
+        _show_and_raise()
+        js = ("var m=document.getElementById('settings-modal');"
+              "if(!m||m.classList.contains('hidden')){"
+              "var o=document.getElementById('rail-settings')"
+              "||document.getElementById('user-bar-settings')"
+              "||document.getElementById('tool-settings-btn');"
+              "if(o)o.click();}")
+        if tab:
+            js += ("setTimeout(function(){var t=document.querySelector("
+                   "'[data-settings-tab=\"%s\"]');if(t)t.click();},60);" % tab)
+        try:
+            win.browser.page().runJavaScript("(function(){%s})();" % js)
+        except Exception:
+            pass
+
+    def _tray_restart():
+        th = getattr(win, "_restart_thread", None)
+        if th is not None and th.isRunning():
+            return
+        th = _ServerRestartThread()
+        win._restart_thread = th
+
+        def _on_done(ok):
+            try:
+                win.browser.reload()   # re-point the page at the restarted server
+            except Exception:
+                pass
+        th.finished_ok.connect(_on_done)
+        th.start()
+
+    def _tray_toggle_expose():
+        # The helper sends a bare "expose" toggle; the wrapper owns the state and
+        # gates *enabling* behind a confirmation (it changes security posture).
+        turning_on = _desired_host() != "0.0.0.0"
+        if turning_on:
+            r = QMessageBox.warning(
+                win, "Expose to Network",
+                "Make Odysseus reachable by other devices on your network?\n\n"
+                "This binds the server to all interfaces (0.0.0.0). Only enable "
+                "on a network you trust.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No)
+            if r != QMessageBox.StandardButton.Yes:
+                return
+        _qs = QSettings("odysseus", "odysseus")
+        _qs.setValue("exposeToNetwork", turning_on)
+        _qs.sync()
+        _tray_restart()
+
     def _on_tray_conn():
         try:
             conn, _ = win._tray_srv.accept()
             data = conn.recv(64).decode("utf-8", "ignore").strip()
+            # "status" is a query: reply with running|host:port|expose so the
+            # separate helper process can render a live status line + checkmark.
+            if data == "status":
+                reply = "%d|%s:%s|%d" % (
+                    1 if _server_running() else 0,
+                    _reachable_host(), PORT,
+                    1 if _desired_host() == "0.0.0.0" else 0)
+                try:
+                    conn.sendall(reply.encode("utf-8"))
+                except Exception:
+                    pass
+                conn.close()
+                return
             conn.close()
             if data == "open":
                 _show_and_raise()
@@ -1606,6 +1742,14 @@ if __name__ == "__main__":
                 win.request_quit()
             elif data == "about":
                 _show_about_dialog(win)
+            elif data == "settings":
+                _tray_open_settings()
+            elif data == "shortcuts":
+                _tray_open_settings("shortcuts")
+            elif data == "restart":
+                _tray_restart()
+            elif data == "expose":
+                _tray_toggle_expose()
         except Exception:
             pass
 
@@ -1625,7 +1769,7 @@ if __name__ == "__main__":
     try:
         win._tray_helper_proc = subprocess.Popen(
             [sys.executable, os.path.join(INSTALL_DIR, "mac_tray_helper.py"),
-             _tray_sock_path, _tray_icon_path])
+             _tray_sock_path, _tray_icon_path, LOG_DIR])
         print('[LIFECYCLE] menu-bar tray helper launched (pid %s)'
               % win._tray_helper_proc.pid, flush=True)
     except Exception as e:
