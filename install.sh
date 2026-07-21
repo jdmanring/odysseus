@@ -11,7 +11,9 @@ case "$(uname -s)" in
     exec bash "$SCRIPT_DIR/build-freebsd-app.sh" "$@"
     ;;
   OpenBSD)
-    exec bash "$SCRIPT_DIR/build-openbsd-app.sh" "$@"
+    # build-openbsd-app.sh is #!/bin/sh on purpose — bash is not in the OpenBSD
+    # base system. Run it with sh so `./install.sh` works on a stock OpenBSD box.
+    exec sh "$SCRIPT_DIR/build-openbsd-app.sh" "$@"
     ;;
   Darwin)
     exec bash "$SCRIPT_DIR/build-mac-app.sh" "$@"
