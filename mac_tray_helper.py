@@ -17,7 +17,7 @@ import webbrowser
 
 import rumps
 
-README_URL = "https://github.com/pewdiepie-archdaemon/odysseus#readme"
+README_URL = "https://github.com/odysseus-dev/odysseus#readme"
 
 SOCK_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/.odysseus_tray.sock")
 ICON = sys.argv[2] if len(sys.argv) > 2 and os.path.isfile(sys.argv[2]) else None
@@ -40,7 +40,7 @@ class OdysseusTray(rumps.App):
         # title falls back to text if the icon can't be loaded.
         super().__init__("Odysseus", title=None if ICON else "Odysseus",
                          icon=ICON, quit_button=None)
-        self.menu = ["Open Odysseus", "README", None, "Quit Odysseus"]
+        self.menu = ["Open Odysseus", "README", "About Odysseus", None, "Quit Odysseus"]
 
     @rumps.clicked("Open Odysseus")
     def _open(self, _):
@@ -49,6 +49,10 @@ class OdysseusTray(rumps.App):
     @rumps.clicked("README")
     def _readme(self, _):
         webbrowser.open(README_URL)
+
+    @rumps.clicked("About Odysseus")
+    def _about(self, _):
+        _send("about")
 
     @rumps.clicked("Quit Odysseus")
     def _quit(self, _):
