@@ -1344,11 +1344,21 @@ if __name__ == "__main__":
 
         # ── Settings / shortcuts / expose ──
         def _open_settings(tab=None):
+            # settingsModule is an ES module, not a window global — drive the same
+            # DOM the app itself uses: click the settings opener, then (for a
+            # specific tab) the matching nav button once the modal is up.
             _show_from_tray()
-            js = "window.settingsModule && window.settingsModule.open(%s)" % (
-                repr(tab) if tab else "")
+            js = ("var m=document.getElementById('settings-modal');"
+                  "if(!m||m.classList.contains('hidden')){"
+                  "var o=document.getElementById('rail-settings')"
+                  "||document.getElementById('user-bar-settings')"
+                  "||document.getElementById('tool-settings-btn');"
+                  "if(o)o.click();}")
+            if tab:
+                js += ("setTimeout(function(){var t=document.querySelector("
+                       "'[data-settings-tab=\"%s\"]');if(t)t.click();},60);" % tab)
             try:
-                win.browser.page().runJavaScript(js)
+                win.browser.page().runJavaScript("(function(){%s})();" % js)
             except Exception:
                 pass
         _tray_menu.addAction("Settings…").triggered.connect(lambda: _open_settings())
