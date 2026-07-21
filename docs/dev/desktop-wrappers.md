@@ -147,9 +147,17 @@ child dies too, not just the shell.
   software rendering (SwiftShader/llvmpipe); the wrapper detects this and does
   not force GPU rasterization. Expect reduced smoothness — it's the software
   renderer, not a bug.
+- **macOS "Odysseus quit unexpectedly" on quit.** Fixed: QtWebEngine 6.11
+  intermittently null-derefs in `QWebEnginePage::setVisible` while Qt destroys
+  the web view at shutdown. The wrapper now hard-exits (`os._exit`) after saving
+  state and stopping the server, pre-empting Qt's racy WebEngine teardown — the
+  app was already fully cleaned up, so nothing is lost. If you still see it on an
+  older build, update to the current `mac_wrapper.py`.
 - **macOS crash reports** live in `~/Library/Logs/DiagnosticReports/*.ips`
   (per-user) and `/Library/Logs/DiagnosticReports/` (system). Each is JSON after
-  the first line; read the faulting thread's frames to find the cause.
+  the first line; read the faulting thread's frames to find the cause. For an
+  intermittent crash, count reports before/after a triggered action to attribute
+  it, and confirm the *current* build still produces a *new* one.
 
 ## Tests
 
