@@ -124,14 +124,14 @@ import urllib.request as _cdp_req
 import threading as _threading
 import time
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QColorDialog,
-                             QDialog, QLabel, QVBoxLayout, QPushButton)
+                             QDialog, QLabel, QVBoxLayout, QHBoxLayout, QPushButton)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
 )
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal, QSocketNotifier
-from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QAction, QKeySequence
+from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QAction, QKeySequence, QPixmap
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1303,28 +1303,78 @@ class OdysseusWindow(QMainWindow):
 # Canonical project details for the About dialog (from the upstream README).
 _ABOUT_GITHUB = "https://github.com/odysseus-dev/odysseus"
 _ABOUT_LICENSE = "https://github.com/odysseus-dev/odysseus/blob/main/LICENSE"
-_ABOUT_HTML = (
-    '<div style="min-width:360px">'
-    '<h2 style="margin:0 0 4px">Odysseus</h2>'
-    '<p style="margin:0 0 12px">A self-hosted AI workspace for chat, agents, research, '
-    'documents, email, notes, calendar, and local model workflows.</p>'
-    f'<p style="margin:0 0 6px">License: <a href="{_ABOUT_LICENSE}">AGPL-3.0-or-later</a></p>'
-    f'<p style="margin:0"><a href="{_ABOUT_GITHUB}">GitHub repository</a></p>'
-    '</div>')
+_ABOUT_ISSUES = "https://github.com/odysseus-dev/odysseus/issues"
+
+
+def _app_version():
+    """Read APP_VERSION from src/constants.py by text scan. Importing the module
+    would pull in runtime path deps the wrapper deliberately avoids; a regex over
+    one line is enough and never fails the dialog. Returns '' if unavailable."""
+    try:
+        with open(os.path.join(INSTALL_DIR, "src", "constants.py"), encoding="utf-8") as fh:
+            for line in fh:
+                m = _re.match(r"""\s*APP_VERSION\s*=\s*["']([^"']+)["']""", line)
+                if m:
+                    return m.group(1)
+    except Exception:
+        pass
+    return ""
+
+
+def _about_html():
+    ver = _app_version()
+    subtitle = f"Version {ver}" if ver else "Desktop app"
+    # AGPL-3.0 §5 requires an interactive UI to show a copyright notice and the
+    # no-warranty statement; the About box is where those live.
+    return (
+        '<div style="min-width:380px">'
+        '<h2 style="margin:0 0 2px">Odysseus</h2>'
+        f'<p style="margin:0 0 12px;color:#888">{subtitle}</p>'
+        '<p style="margin:0 0 12px">A self-hosted AI workspace for chat, agents, '
+        'research, documents, email, notes, calendar, and local model workflows.</p>'
+        '<p style="margin:0 0 8px">&#169; The Odysseus authors &#183; '
+        f'<a href="{_ABOUT_LICENSE}">AGPL-3.0-or-later</a></p>'
+        '<p style="margin:0 0 12px;font-size:small;color:#888">This program comes '
+        'with ABSOLUTELY NO WARRANTY. It is free software, and you are welcome to '
+        'redistribute it under the terms of the GNU AGPL, version 3 or later.</p>'
+        f'<p style="margin:0"><a href="{_ABOUT_GITHUB}">Website</a> &#183; '
+        f'<a href="{_ABOUT_ISSUES}">Report an issue</a></p>'
+        '</div>')
 
 
 def _show_about_dialog(parent):
-    """Native About dialog: name, description, and clickable license/GitHub links."""
+    """Native About dialog: icon, name, version, description, copyright, license,
+    the AGPL no-warranty notice, and Website / Report-an-issue links."""
     dlg = QDialog(parent)
     dlg.setWindowTitle("About Odysseus")
     layout = QVBoxLayout(dlg)
-    label = QLabel(_ABOUT_HTML)
+    layout.setContentsMargins(24, 20, 24, 16)
+    layout.setSpacing(10)
+
+    icon_path = os.path.join(INSTALL_DIR, "static", "icons", "icon-192.png")
+    pm = QPixmap(icon_path) if os.path.isfile(icon_path) else QPixmap()
+    if not pm.isNull():
+        ic = QLabel()
+        ic.setPixmap(pm.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation))
+        ic.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(ic)
+
+    label = QLabel(_about_html())
     label.setOpenExternalLinks(True)   # links open in the default browser
     label.setWordWrap(True)
+    label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
     layout.addWidget(label)
+
     close_btn = QPushButton("Close")
+    close_btn.setDefault(True)
     close_btn.clicked.connect(dlg.accept)
-    layout.addWidget(close_btn)
+    row = QHBoxLayout()
+    row.addStretch(1)
+    row.addWidget(close_btn)
+    row.addStretch(1)
+    layout.addLayout(row)
+
     dlg.exec()
 
 
