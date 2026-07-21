@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-skill-extraction-threshold
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-skill-extraction-threshold.md`
 **Branch:** `fix/skill-extraction-threshold`
 **Type:** Bug

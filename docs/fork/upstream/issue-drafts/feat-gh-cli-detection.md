@@ -1,6 +1,6 @@
 # Upstream Issue Draft: feat-gh-cli-detection
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/feat-gh-cli-detection.md`
 **Branch:** `feat/gh-cli-detection`
 **Type:** Enhancement

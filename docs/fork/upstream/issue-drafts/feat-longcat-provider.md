@@ -1,6 +1,6 @@
 # Upstream Issue Draft: feat-longcat-provider
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/feat-longcat-provider.md`
 **Branch:** `feat/longcat-provider`
 **Type:** Enhancement / Bug fix

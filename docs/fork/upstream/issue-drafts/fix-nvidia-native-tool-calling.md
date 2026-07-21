@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-nvidia-native-tool-calling
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-nvidia-native-tool-calling.md`
 **Branch:** `fix/nvidia-native-tool-calling`
 **Type:** Bug

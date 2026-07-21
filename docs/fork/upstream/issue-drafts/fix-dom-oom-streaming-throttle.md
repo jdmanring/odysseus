@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-dom-oom-streaming-throttle
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-dom-oom-streaming-throttle.md`
 **Branch:** `fix/dom-oom-streaming-throttle`
 **Type:** Bug / Performance

@@ -5,7 +5,7 @@ This document provides an overview of the Odysseus fork (`jdmanring/odysseus`) a
 ## Purpose of This Fork
 
 This fork is a **contribution workbench**, not a divergent product. Its purpose is to:
-- Develop and stage upstream pull requests to `pewdiepie-archdaemon/odysseus`
+- Develop and stage upstream pull requests to `odysseus-dev/odysseus`
 - Test and verify fixes/features before submitting them upstream
 - Maintain a clean separation between fork-specific workbench features and upstream-candidate code
 
@@ -37,7 +37,7 @@ This fork is a **contribution workbench**, not a divergent product. Its purpose 
 
 This fork uses two remotes:
 - `origin` - `github.com/jdmanring/odysseus` (read/write - development target)
-- `upstream` - `github.com/pewdiepie-archdaemon/odysseus` (read-only - source project)
+- `upstream` - `github.com/odysseus-dev/odysseus` (read-only - source project)
 
 **Critical Rules**:
 - Never push to the `upstream` remote

@@ -1,4 +1,4 @@
-# PR Draft: fix/nvidia-native-tool-calling → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/nvidia-native-tool-calling → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/nvidia-native-tool-calling`
 **Fork issue:** [#60](https://github.com/jdmanring/odysseus/issues/60) (open)
@@ -104,7 +104,7 @@ Searched merged commits and open issues/PRs on `dev`:
 - Single commit (`116bb913`). No squash needed.
 - Branch: `fix/nvidia-native-tool-calling` — built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #___` before opening.
-- PR targets `pewdiepie-archdaemon/odysseus:dev`.
+- PR targets `odysseus-dev/odysseus:dev`.
 - This fix is a subset of the broader NVIDIA NIM support in `feat/nvidia-nim-support`
   (context windows, curated model list). If both PRs are filed, this one should be noted
   as the tool-calling companion to that PR. They are independent and can merge in any order.
@@ -132,7 +132,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

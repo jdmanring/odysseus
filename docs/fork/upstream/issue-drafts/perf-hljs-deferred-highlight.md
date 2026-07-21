@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-hljs-deferred-highlight
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** *(PR draft covers `deferHighlightAll` calls — part of GC micro-improvements series)*
 **Branch:** `perf/hljs-deferred-highlight`
 **Type:** Performance

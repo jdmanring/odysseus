@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-longcat-tool-parsing
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-longcat-tool-parsing.md`
 **Branch:** `fix/longcat-tool-parsing`
 **Type:** Bug

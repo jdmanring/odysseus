@@ -1,4 +1,4 @@
-# PR Draft: fix/basicsr-python314-compat → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/basicsr-python314-compat → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/basicsr-python314-compat`
 **Issue:** [#9](https://github.com/jdmanring/odysseus/issues/9) (fork tracking)
@@ -124,7 +124,7 @@ Fixes # <!-- [file upstream issue first using issue-drafts/fix-basicsr-python314
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate (see PR #3741 note above).
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls) — this is not a duplicate (see PR #3741 note above).
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
 - [x] I ran `python -m pytest` — 76 tests pass, 0 failures.

@@ -1,6 +1,6 @@
 # Upstream Reconnaissance — 2026-07-07
 
-Snapshot of `pewdiepie-archdaemon/odysseus` vs our staged contributions, taken
+Snapshot of `odysseus-dev/odysseus` vs our staged contributions, taken
 after the 320-commit ingest (upstream/dev @ `c67deaa6` / #5283; 0 new commits
 since). Upstream has ~1613 open issues+PRs; this covers only items overlapping
 our staged branches. **In-flight state moves — re-check the linked PRs/issues at
@@ -104,7 +104,7 @@ commit reassigned ownership of the exact code region three fork branches target.
 **PROVENANCE (verified via `gh` + git, 2026-07-07 — supersedes earlier #5090 wording):**
 - The history pager (frontend `_installHistoryPager`, backend `has_more_before`/limit/offset)
   was added by **maintainer direct commit `45ee5a71`** "Polish mobile UI and editor workflows"
-  (pewdiepie-archdaemon, 2026-06-27). Intent: deliberate history pagination for perf/mobile.
+  (odysseus-dev, 2026-06-27). Intent: deliberate history pagination for perf/mobile.
 - **#5090** (MERGED 2026-07-04, author Tal.Yuan, commit `6f6cb6ea`) = *"refactor(routes): move
   history domain into routes/history/ subpackage"* — a route move, no pager, no sessions.js.
 - **#4661** (OPEN, unmerged) = *"fix(ui): prevent browser OOM during long agent interactions"*

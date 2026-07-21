@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-memory-list-scroll-oom
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-memory-list-scroll-oom.md`
 **Branch:** `fix/memory-list-scroll-oom`
 **Type:** Bug / Performance

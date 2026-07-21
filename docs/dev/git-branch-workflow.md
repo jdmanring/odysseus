@@ -82,7 +82,7 @@ git merge feat/short-description
 
 ```
 origin    → git@github.com:<you>/odysseus.git                (your fork — normal dev target)
-upstream  → git@github.com:pewdiepie-archdaemon/odysseus.git  (source — NEVER push here)
+upstream  → git@github.com:odysseus-dev/odysseus.git  (source — NEVER push here)
 ```
 
 ---
@@ -107,7 +107,7 @@ Every piece of work starts with a GitHub issue. No exceptions.
 5. If upstream-candidate:
    - Branch stays at single clean commit, ready to file a PR
    - Update docs/fork/upstream/pr-status.md with status (Ready to file / Needs X)
-   - Open the PR: `<your-fork>:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
+   - Open the PR: `<your-fork>:<branch>` → `odysseus-dev/odysseus:dev`
    - Add upstream issue # to pr-status.md after the issue is created
 
 6. Close the fork issue when the fix is confirmed working
@@ -224,7 +224,7 @@ git branch -D sync/staging-TIMESTAMP
 **Pre-flight failure:** Most common causes:
 - Not on `integration` branch → `git checkout integration`
 - Uncommitted changes → `git stash` or commit them
-- Missing `upstream` remote → `git remote add upstream git@github.com:pewdiepie-archdaemon/odysseus.git`
+- Missing `upstream` remote → `git remote add upstream git@github.com:odysseus-dev/odysseus.git`
 - No venv (full run only) → `python3 -m venv venv && venv/bin/pip install -r requirements.txt`
 
 ---
@@ -249,7 +249,7 @@ Agents do not file upstream PRs. The human author files them. The agent's job is
 1. Open the issue draft in `docs/fork/upstream/issue-drafts/<name>.md`
 2. File the issue on the upstream repo — paste the title and body from the draft
 3. Fill the assigned issue number into `Fixes #` in the PR draft
-4. Open PR: `<your-fork>:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
+4. Open PR: `<your-fork>:<branch>` → `odysseus-dev/odysseus:dev`
 5. Record the upstream issue # and PR # in `docs/fork/upstream/pr-status.md`
 
 All upstream PRs target `upstream:dev`, never `upstream:main`.

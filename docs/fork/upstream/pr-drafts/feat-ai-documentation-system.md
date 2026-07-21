@@ -1,4 +1,4 @@
-# PR Draft: feat/ai-documentation-system → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: feat/ai-documentation-system → odysseus-dev/odysseus:dev
 
 **Branch:** `feat/ai-documentation-system`
 **Issue:** [#18](https://github.com/jdmanring/odysseus/issues/18) (fork tracking)
@@ -120,7 +120,7 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] Opened key documentation files on GitHub and verified they render correctly; links to CONTEXT.md and RULES.md resolve; no runtime behavior changed.

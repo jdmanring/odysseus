@@ -7,7 +7,7 @@
 
 # Upstream Issue Draft: fix-dom-oom-virtualization
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-dom-oom-virtualization.md`
 **Branch:** `fix/dom-oom-virtualization`
 **Type:** Bug

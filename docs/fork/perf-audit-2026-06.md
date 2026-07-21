@@ -447,7 +447,7 @@ E3 access-log reasoning. Defer until E2 data says whether per-tick host logging 
 
 ## Upstream alignment & external validation (researched 2026-06-25)
 
-Findings cross-checked against the upstream repo (`pewdiepie-archdaemon/odysseus`:
+Findings cross-checked against the upstream repo (`odysseus-dev/odysseus`:
 issues, discussions, ROADMAP) and Qt/Chromium primary docs. Performance work is an
 **actively welcomed** upstream direction, and several findings map onto open upstream items
 — which means they are contribution-worthy, not fork-local quirks.
@@ -487,9 +487,9 @@ issues, discussions, ROADMAP) and Qt/Chromium primary docs. Performance work is 
 
 *Sources:* [Qt 6 WebEngine Debugging & Profiling](https://doc.qt.io/qt-6/qtwebengine-debugging.html),
 [QtWebEngine/Rendering wiki](https://wiki.qt.io/QtWebEngine/Rendering),
-upstream issues [#3276](https://github.com/pewdiepie-archdaemon/odysseus/issues/3276),
-[#2140](https://github.com/pewdiepie-archdaemon/odysseus/issues/2140),
-[#3824](https://github.com/pewdiepie-archdaemon/odysseus/issues/3824).
+upstream issues [#3276](https://github.com/odysseus-dev/odysseus/issues/3276),
+[#2140](https://github.com/odysseus-dev/odysseus/issues/2140),
+[#3824](https://github.com/odysseus-dev/odysseus/issues/3824).
 
 ---
 

@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-basicsr-python314-compat
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-basicsr-python314-compat.md`
 **Branch:** `fix/basicsr-python314-compat`
 **Type:** Bug

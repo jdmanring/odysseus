@@ -1,4 +1,4 @@
-# PR Draft: fix/agent-context-budget-discovery → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/agent-context-budget-discovery → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/agent-context-budget-discovery`
 **Issue:** [#54](https://github.com/jdmanring/odysseus/issues/54) (fork tracking)
@@ -88,7 +88,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

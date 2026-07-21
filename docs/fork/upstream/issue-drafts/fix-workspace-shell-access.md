@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-workspace-shell-access
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-workspace-shell-access.md`
 **Branch:** `fix/workspace-shell-access`
 **Type:** Bug

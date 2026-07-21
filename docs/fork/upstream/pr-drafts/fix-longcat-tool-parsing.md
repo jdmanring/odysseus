@@ -2,7 +2,7 @@
 
 **Fork issue:** [#38](https://github.com/jdmanring/odysseus/issues/38)
 **Branch:** `fix/longcat-tool-parsing` (from `upstream-mirror`)
-**Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Target:** `odysseus-dev/odysseus:dev`
 **Status:** Ready to file
 
 ---
@@ -75,7 +75,7 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/fix-longcat-tool-parsi
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.

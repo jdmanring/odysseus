@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-agent-finalize-in-place
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/perf-agent-finalize-in-place.md`
 **Branch:** `perf/agent-finalize-in-place`
 **Type:** Performance

@@ -1,7 +1,7 @@
 # Upstream PR Draft: perf-mcp-lazy-connect
 
 **Branch:** `perf/mcp-lazy-connect` (from `upstream-mirror`)
-**Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Target:** `odysseus-dev/odysseus:dev`
 **Fixes:** #_ (file issue-drafts/perf-mcp-lazy-connect.md first, or link #2140)
 **Filing notes:** Single concern; one squashed commit. **Reconciled with open PR #4812**
 (retains startup tasks via a strong-ref `_spawn_bg` helper) — complementary, sharing one line.

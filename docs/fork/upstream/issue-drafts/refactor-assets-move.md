@@ -1,6 +1,6 @@
 # Upstream Issue Draft: refactor-assets-move
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/refactor-assets-move.md`
 **Branch:** `refactor/assets-move`
 **Type:** Refactor / Cleanup

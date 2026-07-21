@@ -1,4 +1,4 @@
-# PR Draft: fix/api-token-utcnow-deprecated → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/api-token-utcnow-deprecated → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/api-token-utcnow-deprecated`
 **Fork issue:** [#51](https://github.com/jdmanring/odysseus/issues/51) (open)
@@ -79,5 +79,5 @@ One file changed: `app.py` (+1 / -1 import, +1 / -1 call site). Two lines total.
   git commit --amend  # replace Fixes #51 with the upstream issue number
   git push --force-with-lease origin fix/api-token-utcnow-deprecated
   ```
-- PR targets `pewdiepie-archdaemon/odysseus:dev`.
+- PR targets `odysseus-dev/odysseus:dev`.
 - Reference `790ef81b` (the commit that missed this site) in the PR description.

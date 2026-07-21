@@ -1,4 +1,4 @@
-# PR Draft: perf/rewrite-streaming-renderer → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: perf/rewrite-streaming-renderer → odysseus-dev/odysseus:dev
 
 **Branch:** `perf/rewrite-streaming-renderer`
 **Issue:** [#79](https://github.com/jdmanring/odysseus/issues/79) (fork tracking)
@@ -128,7 +128,7 @@ upstream issue if warranted and link it here before submitting.
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

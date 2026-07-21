@@ -10,7 +10,7 @@
 ## Purpose of This Fork
 
 This fork is a contribution workbench, not a divergent product. Its purpose is to
-develop and stage upstream pull requests to `pewdiepie-archdaemon/odysseus`. Every
+develop and stage upstream pull requests to `odysseus-dev/odysseus`. Every
 fix, feature, and document defaults to upstream-candidate. Fork-only is the narrow
 exception: the sync pipeline (`tooling/sync-upstreams/`), the fork CI workflow
 (`sync-upstream.yml`), and the fork management docs (`docs/fork/`). Everything else —
@@ -39,7 +39,7 @@ session the first commit lands.
 **Search upstream prior art before staging.** Before opening the issue for any
 upstream-candidate work, search the upstream repo for the same problem area —
 issues, PRs, discussions, and `ROADMAP.md`:
-`gh issue list --repo pewdiepie-archdaemon/odysseus --search "<terms>" --state all`
+`gh issue list --repo odysseus-dev/odysseus --search "<terms>" --state all`
 (and `gh pr list ...`). Record the result in the fork issue and the PR draft: link
 related items, and state plainly whether the work **duplicates**, **complements**, or
 **conflicts** with an in-flight PR (a conflict — e.g. two competing approaches to the
@@ -49,7 +49,7 @@ that search, not just tick the box. Skipping this is how a contribution gets clo
 duplicate or lands next to a better existing proposal.
 
 **Never push to the `upstream` remote.** The `upstream` remote is
-`pewdiepie-archdaemon/odysseus` — read-only. Never push there under any circumstances.
+`odysseus-dev/odysseus` — read-only. Never push there under any circumstances.
 
 **Never file issues or PRs on upstream without explicit per-action authorization.**
 Agents stage work on clean branches; the human author files. Upstream's CONTRIBUTING.md
@@ -330,7 +330,7 @@ to reset, then re-cherry-pick.
 
 | Never | Because |
 |-------|---------|
-| `git push upstream ...` | Pushes to pewdiepie-archdaemon/odysseus — strictly read-only |
+| `git push upstream ...` | Pushes to odysseus-dev/odysseus — strictly read-only |
 | `git push --force origin develop` | Destroys history; develop is the primary working branch |
 | `git push --force origin fix/*` after a PR is filed | Breaks the PR; upstream reviewers lose context |
 | `git rebase develop` on a staging branch | Contaminates it with fork history — unusable as a PR |

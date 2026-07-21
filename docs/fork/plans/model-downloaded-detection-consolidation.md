@@ -43,15 +43,15 @@ there are ~16 and nothing canonical to converge to. That is the whole bug.
 ## Upstream landscape (researched 2026-06-27)
 
 Adjacent, none covering the client-side predicate:
-- [#4049](https://github.com/pewdiepie-archdaemon/odysseus/issues/4049) server cache
+- [#4049](https://github.com/odysseus-dev/odysseus/issues/4049) server cache
   unaware of installed models after update (server side).
-- [#2342](https://github.com/pewdiepie-archdaemon/odysseus/issues/2342) auto-discovered
+- [#2342](https://github.com/odysseus-dev/odysseus/issues/2342) auto-discovered
   models without `gguf_sources` (the data gap our discovery answers).
-- PRs [#3076](https://github.com/pewdiepie-archdaemon/odysseus/pull/3076) (191 missing
-  sources), [#2368](https://github.com/pewdiepie-archdaemon/odysseus/pull/2368) (warn on
-  missing source), [#2219](https://github.com/pewdiepie-archdaemon/odysseus/pull/2219) /
-  [#2993](https://github.com/pewdiepie-archdaemon/odysseus/pull/2993) (cached-model
-  serve/scan), [#368](https://github.com/pewdiepie-archdaemon/odysseus/pull/368) (merged,
+- PRs [#3076](https://github.com/odysseus-dev/odysseus/pull/3076) (191 missing
+  sources), [#2368](https://github.com/odysseus-dev/odysseus/pull/2368) (warn on
+  missing source), [#2219](https://github.com/odysseus-dev/odysseus/pull/2219) /
+  [#2993](https://github.com/odysseus-dev/odysseus/pull/2993) (cached-model
+  serve/scan), [#368](https://github.com/odysseus-dev/odysseus/pull/368) (merged,
   gguf-only downloads). Discussion: "No GGUF source configured for Cookbook models".
 
 These address *data* (missing sources) or *server* cache. The duplicated *client*

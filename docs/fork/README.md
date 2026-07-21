@@ -7,7 +7,7 @@ from the upstream project, and for tracking our work as contributors.
 
 ## What This Fork Is
 
-**Upstream:** `github.com/pewdiepie-archdaemon/odysseus` (remote: `upstream`)
+**Upstream:** `github.com/odysseus-dev/odysseus` (remote: `upstream`)
 **This fork:** `github.com/jdmanring/odysseus` (remote: `origin`)
 
 Odysseus is a self-hosted AI workspace. This fork is a personal AI stack

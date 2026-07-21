@@ -1,4 +1,4 @@
-# PR Draft: fix/skill-agent-prompt-language → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/skill-agent-prompt-language → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/skill-agent-prompt-language`
 **Issue:** [#85](https://github.com/jdmanring/odysseus/issues/85)
@@ -97,7 +97,7 @@ Relates to #2750 (Agent prompt token bloat: measure, slim, and modularize)
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate. Relates to #2750 (prompt bloat parent) and ROADMAP "Skill/tool prompt-injection audit".
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate. Relates to #2750 (prompt bloat parent) and ROADMAP "Skill/tool prompt-injection audit".
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-google-compat-toolcalls
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-google-compat-toolcalls.md`
 **Branch:** `fix/google-compat-toolcalls`
 **Type:** Bug

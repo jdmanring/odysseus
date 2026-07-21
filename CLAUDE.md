@@ -11,7 +11,7 @@ Branch and pipeline rules: `docs/dev/git-branch-workflow.md` — read before tou
 
 **This fork is a contribution workbench, not a divergent product.**
 
-It is used to develop fixes and features and stage them as upstream pull requests to `pewdiepie-archdaemon/odysseus`. The fork is not meant to stay separate — everything that improves Odysseus should go upstream.
+It is used to develop fixes and features and stage them as upstream pull requests to `odysseus-dev/odysseus`. The fork is not meant to stay separate — everything that improves Odysseus should go upstream.
 
 **The default classification for any fix, feature, or documentation is upstream-candidate.**
 
@@ -35,13 +35,13 @@ Everything else defaults to upstream-candidate: bug fixes, features, `qt_wrapper
 
 **Read before coding.** For any non-trivial change: read the relevant source, report what you found, then wait for direction before modifying. Don't start editing because you think you know what needs to change.
 
-**Never push to `upstream` remote.** The `upstream` remote is `pewdiepie-archdaemon/odysseus` — read-only. Never push there under any circumstances.
+**Never push to `upstream` remote.** The `upstream` remote is `odysseus-dev/odysseus` — read-only. Never push there under any circumstances.
 
 **Never commit to `upstream-mirror`.** This branch is reset-only. Any commits made to it will be destroyed on the next sync. Treat it as read-only.
 
 **Never cherry-pick upstream → `develop` directly.** Upstream changes come in through the ingest pipeline only: `upstream/dev` → `upstream-mirror` → `integration` → `develop`. This preserves gate verification and a clean merge history. See `docs/dev/git-branch-workflow.md` for the pipeline procedure.
 
-**Never file upstream issues or PRs.** Agents stage work; the human author files. Do not open issues or PRs on `pewdiepie-archdaemon/odysseus` without explicit per-action authorization. Upstream's CONTRIBUTING.md prohibits agent-filed PRs.
+**Never file upstream issues or PRs.** Agents stage work; the human author files. Do not open issues or PRs on `odysseus-dev/odysseus` without explicit per-action authorization. Upstream's CONTRIBUTING.md prohibits agent-filed PRs.
 
 **Issue first, branch second.** No branch exists without a corresponding issue on `jdmanring/odysseus`. Create the issue before creating any branch.
 

@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-api-token-utcnow-deprecated
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-api-token-utcnow-deprecated.md`
 **Branch:** `fix/api-token-utcnow-deprecated`
 **Fork issue:** [#51](https://github.com/jdmanring/odysseus/issues/51)

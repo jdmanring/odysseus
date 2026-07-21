@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-gpu-compositor-flicker
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-gpu-compositor-flicker.md`
 **Branch:** `fix/gpu-compositor-flicker`
 **Type:** Bug

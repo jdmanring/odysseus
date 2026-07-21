@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-pytest-timeout-dependency
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-pytest-timeout-dependency.md`
 **Branch:** `fix/pytest-timeout-dependency`
 **Type:** Bug

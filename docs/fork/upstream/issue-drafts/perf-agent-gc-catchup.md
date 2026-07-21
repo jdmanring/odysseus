@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-agent-gc-catchup
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/perf-agent-gc-catchup.md`
 **Branch:** `perf/agent-gc-catchup`
 **Type:** Performance

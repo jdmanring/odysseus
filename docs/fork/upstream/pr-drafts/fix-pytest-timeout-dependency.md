@@ -1,4 +1,4 @@
-# PR Draft: fix/pytest-timeout-dependency → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/pytest-timeout-dependency → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/pytest-timeout-dependency`
 **Issue:** [#6](https://github.com/jdmanring/odysseus/issues/6) (fork tracking)
@@ -72,7 +72,7 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.

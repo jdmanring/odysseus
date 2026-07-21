@@ -1,4 +1,4 @@
-# PR Draft: fix/editor-redo-shortcut → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/editor-redo-shortcut → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/editor-redo-shortcut`
 **Fork issue:** [#100](https://github.com/jdmanring/odysseus/issues/100)

@@ -1,10 +1,10 @@
-# PR Draft: feat/logging → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: feat/logging → odysseus-dev/odysseus:dev
 
 **Branch:** `feat/logging`
 **Issue:** [#31](https://github.com/jdmanring/odysseus/issues/31) (fork tracking)
 **Upstream Issues Addressed:**
-- [#3803](https://github.com/pewdiepie-archdaemon/odysseus/issues/3803); PII in logs, no audit trail for sensitive operations
-- [#3799](https://github.com/pewdiepie-archdaemon/odysseus/issues/3799); Hardening pass (PII scrubbed from logs)
+- [#3803](https://github.com/odysseus-dev/odysseus/issues/3803); PII in logs, no audit trail for sensitive operations
+- [#3799](https://github.com/odysseus-dev/odysseus/issues/3799); Hardening pass (PII scrubbed from logs)
 **Status:** Ready to file
 
 ---

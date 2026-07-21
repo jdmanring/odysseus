@@ -1,4 +1,4 @@
-# PR Draft: fix/provider-logo-ordering → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/provider-logo-ordering → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/provider-logo-ordering`
 **Fork issue:** [#59](https://github.com/jdmanring/odysseus/issues/59) (open)
@@ -129,7 +129,7 @@ Or run all 17 assertions inline as shown in the test file's Node.js subprocess p
 - Single commit (`a35b1b1d`). No squash needed.
 - Branch: `fix/provider-logo-ordering` — built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #___` before opening.
-- PR targets `pewdiepie-archdaemon/odysseus:dev`.
+- PR targets `odysseus-dev/odysseus:dev`.
 
 ## Visual / UI changes
 
@@ -158,7 +158,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

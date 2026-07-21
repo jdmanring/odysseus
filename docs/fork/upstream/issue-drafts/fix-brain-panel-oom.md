@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-brain-panel-oom
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-brain-panel-oom.md`
 **Branch:** `fix/brain-panel-oom`
 **Type:** Bug / Performance

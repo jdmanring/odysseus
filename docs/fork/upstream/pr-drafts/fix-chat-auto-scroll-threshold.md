@@ -2,7 +2,7 @@
 
 **Title:** fix(ui): adaptive threshold for chat auto-scroll drift guard
 
-**Branch:** `fix/chat-auto-scroll-threshold` → `pewdiepie-archdaemon/odysseus:dev`
+**Branch:** `fix/chat-auto-scroll-threshold` → `odysseus-dev/odysseus:dev`
 
 **Upstream issue required:** Yes — file from `issue-drafts/fix-chat-auto-scroll-threshold.md` first.
 
