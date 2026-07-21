@@ -127,14 +127,14 @@ reviewers — it does not assume they have seen our fork's issue tracker.
 
 For branches that require a new upstream issue to be filed first, a pre-written issue
 (title + body, ready to paste) lives in `docs/fork/upstream/issue-drafts/<name>.md`.
-File the issue on `pewdiepie-archdaemon/odysseus`, get its number, fill it into
+File the issue on `odysseus-dev/odysseus`, get its number, fill it into
 `Fixes #` in the PR draft, then open the PR.
 
 ## Filing Procedure
 
-1. File a GitHub issue on `pewdiepie-archdaemon/odysseus` (from `issue-drafts/<name>.md`)
+1. File a GitHub issue on `odysseus-dev/odysseus` (from `issue-drafts/<name>.md`)
 2. Add the upstream issue number to `Fixes #` in the PR draft
-3. Open PR from `<your-fork>:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
+3. Open PR from `<your-fork>:<branch>` → `odysseus-dev/odysseus:dev`
 4. All PRs target `dev`, not `main`
 
 ## Fork-Only Work (not going upstream)

@@ -1,4 +1,4 @@
-# PR Draft: fix/stream-429-backoff → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/stream-429-backoff → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/stream-429-backoff`
 **Issue:** [#55](https://github.com/jdmanring/odysseus/issues/55) (fork tracking)
@@ -79,7 +79,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

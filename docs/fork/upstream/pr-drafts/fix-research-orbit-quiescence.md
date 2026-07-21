@@ -1,7 +1,7 @@
 # Upstream PR Draft: fix-research-orbit-quiescence
 
 **Branch:** `fix/research-orbit-quiescence` (from `upstream-mirror`)
-**Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Target:** `odysseus-dev/odysseus:dev`
 **Fixes:** #_ (file issue-drafts/fix-research-orbit-quiescence.md first)
 **Filing notes:** Net diff vs `dev` = remove the orbit ring (the branch's interim throttle/compositor commits were exploration; squash on filing).
 

@@ -1,4 +1,4 @@
-# PR Draft: fix/workspace-shell-access → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/workspace-shell-access → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/workspace-shell-access`
 **Issue:** [#47](https://github.com/jdmanring/odysseus/issues/47) (fork tracking, open — bash/python verified; web_search unverified)
@@ -106,5 +106,5 @@ No schema changes, no new settings, no new tools.
   git commit --amend  # replace Fixes #___ with the real upstream issue number
   git push --force-with-lease origin fix/workspace-shell-access
   ```
-- PR targets `pewdiepie-archdaemon/odysseus:dev`.
+- PR targets `odysseus-dev/odysseus:dev`.
 - Reference PR #3665 (introduced the fast path) and PR #4398 (parallel fix for tasks) in the PR description body.

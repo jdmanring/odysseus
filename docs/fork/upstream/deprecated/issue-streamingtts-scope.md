@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-streamingtts-scope
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-streamingtts-scope.md`
 **Branch:** `fix/streamingtts-scope`
 **Type:** Bug

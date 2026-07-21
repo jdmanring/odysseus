@@ -1,4 +1,4 @@
-# PR Draft: fix/skill-lifecycle-correctness → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/skill-lifecycle-correctness → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/skill-lifecycle-correctness`
 **Issue:** [#86](https://github.com/jdmanring/odysseus/issues/86)
@@ -108,7 +108,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate. Related: #2750 (prompt token bloat).
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate. Related: #2750 (prompt token bloat).
 - [x] This PR targets `dev`.
 - [x] My changes are limited to the scope described above.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

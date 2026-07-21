@@ -1,4 +1,4 @@
-# PR Draft: fix/untrusted-tool-result-header → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/untrusted-tool-result-header → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/untrusted-tool-result-header`
 **Fork issue:** [#48](https://github.com/jdmanring/odysseus/issues/48) (open)
@@ -149,5 +149,5 @@ Searched merged commits and open issues/PRs on `dev`:
   git commit --amend  # replace Fixes #___ with the real upstream issue number
   git push --force-with-lease origin fix/untrusted-tool-result-header
   ```
-- PR targets `pewdiepie-archdaemon/odysseus:dev`.
+- PR targets `odysseus-dev/odysseus:dev`.
 - Reference commit `4e477741` / upstream PR #1629 (introduced the regression) in the description.

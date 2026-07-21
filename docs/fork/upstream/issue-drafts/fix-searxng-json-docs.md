@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-searxng-json-docs
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-searxng-json-docs.md`
 **Branch:** `fix/searxng-json-docs`
 **Type:** Bug / Documentation gap

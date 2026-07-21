@@ -6,7 +6,7 @@ Use this checklist to verify your understanding of the Odysseus fork workflow an
 - [ ] Cloned the correct repository: `git@github.com:jdmanring/odysseus.git`
 - [ ] Verified remotes:
   - `origin`: `github.com:jdmanring/odysseus.git` (read/write)
-  - `upstream`: `github.com:pewdiepie-archdaemon/odysseus.git` (read-only)
+  - `upstream`: `github.com:odysseus-dev/odysseus.git` (read-only)
 - [ ] Checked current branch: `git branch -a`
 - [ ] Confirmed you're on an appropriate base branch for your work
 

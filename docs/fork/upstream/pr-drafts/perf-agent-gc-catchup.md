@@ -151,7 +151,7 @@ File a focused upstream issue for the idle-GC behavior and link it here before s
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate. Related: #4644, #4661 (see above).
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate. Related: #4644, #4661 (see above).
 - [x] This PR targets `dev`.
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes are mixed in.
 - [ ] I reviewed and tested this change personally before submitting.

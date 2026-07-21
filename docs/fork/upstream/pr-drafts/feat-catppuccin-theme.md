@@ -1,4 +1,4 @@
-# PR Draft: feat/catppuccin-theme → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: feat/catppuccin-theme → odysseus-dev/odysseus:dev
 
 **Branch:** `feat/catppuccin-theme`
 **Base:** `dev`
@@ -193,13 +193,13 @@ not change without a clearly communicated major version bump.
 ### Addressing the ROADMAP note and prior PR closures
 
 The ROADMAP contains the entry: *"I prob shouldnt add more themes."* Both prior
-Catppuccin PRs ([#2814](https://github.com/pewdiepie-archdaemon/odysseus/pull/2814),
-[#3687](https://github.com/pewdiepie-archdaemon/odysseus/pull/3687)) were closed for
+Catppuccin PRs ([#2814](https://github.com/odysseus-dev/odysseus/pull/2814),
+[#3687](https://github.com/odysseus-dev/odysseus/pull/3687)) were closed for
 this reason, not for implementation problems; the maintainer noted "the palette is
 cleanly done" and "no issue with the implementation itself."
 
 The phrasing hedges rather than closes: "I prob shouldnt" and "if themes come back into scope later this can be revisited." Issue
-[#3692](https://github.com/pewdiepie-archdaemon/odysseus/issues/3692), opened June 2026
+[#3692](https://github.com/odysseus-dev/odysseus/issues/3692), opened June 2026
 and labeled "Ready for review," is the most recent community request for Catppuccin and
 shows the topic remains active.
 
@@ -253,7 +253,7 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.

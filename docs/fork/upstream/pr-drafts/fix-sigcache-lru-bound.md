@@ -1,7 +1,7 @@
 # Upstream PR Draft: fix-sigcache-lru-bound
 
 **Branch:** `fix/sigcache-lru-bound` (from `upstream-mirror`)
-**Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Target:** `odysseus-dev/odysseus:dev`
 **Fixes:** #_ (file issue-drafts/fix-sigcache-lru-bound.md first)
 **Filing notes:** Single concern, JS-only.
 

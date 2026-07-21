@@ -1,6 +1,6 @@
 # Upstream Issue Draft: feat-logging-timing
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/feat-logging-timing.md`
 **Branch:** `feat/logging-timing`
 **Type:** Enhancement

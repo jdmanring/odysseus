@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-tool-bubble-inplace
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** *(no dedicated PR draft — see streaming/GC series)*
 **Branch:** `perf/tool-bubble-inplace`
 **Type:** Performance

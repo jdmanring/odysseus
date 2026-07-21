@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-untrusted-tool-result-header
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-untrusted-tool-result-header.md`
 **Branch:** `fix/untrusted-tool-result-header`
 **Fork issue:** [#48](https://github.com/jdmanring/odysseus/issues/48)

@@ -1,7 +1,7 @@
 # Upstream PR Draft: fix-notes-quick-idle-quiescence
 
 **Branch:** `fix/notes-quick-idle-quiescence` (from `upstream-mirror`)
-**Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Target:** `odysseus-dev/odysseus:dev`
 **Fixes:** #_ (file issue-drafts/fix-notes-quick-idle-quiescence.md first)
 **Filing notes:** Single concern, one commit. Introduces a reusable `html.app-blurred` primitive.
 

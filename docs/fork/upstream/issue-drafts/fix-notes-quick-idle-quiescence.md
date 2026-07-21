@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-notes-quick-idle-quiescence
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-notes-quick-idle-quiescence.md`
 **Branch:** `fix/notes-quick-idle-quiescence`
 **Type:** Performance

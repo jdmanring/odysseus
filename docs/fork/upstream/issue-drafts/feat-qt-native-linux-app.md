@@ -1,6 +1,6 @@
 # Upstream Issue Draft: feat-qt-native-linux-app
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/feat-qt-native-linux-app.md`
 **Branch:** `feat/qt-native-linux-app`
 **Type:** Enhancement

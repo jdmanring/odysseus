@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-sigcache-lru-bound
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-sigcache-lru-bound.md`
 **Branch:** `fix/sigcache-lru-bound`
 **Type:** Performance

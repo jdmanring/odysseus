@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-continue-btn-weakref
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-continue-btn-weakref.md`
 **Branch:** `fix/continue-btn-weakref`
 **Type:** Bug

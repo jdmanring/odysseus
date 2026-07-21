@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-agent-tool-budget
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-agent-tool-budget.md`
 **Branch:** `fix/agent-tool-budget`
 **Type:** Bug

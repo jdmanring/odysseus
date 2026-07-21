@@ -27,7 +27,7 @@ logger = logging.getLogger("upstream_ingest_pipeline")
 REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
 INTEGRATION_BRANCH = "integration"
 MIRROR_BRANCH = "upstream-mirror"
-UPSTREAM_BRANCH = "dev"          # pewdiepie-archdaemon/odysseus default branch
+UPSTREAM_BRANCH = "dev"          # odysseus-dev/odysseus default branch
 REQUIRED_REMOTES = {"upstream", "origin"}
 
 # Files or directories owned by this fork that must not be overwritten by upstream merges.

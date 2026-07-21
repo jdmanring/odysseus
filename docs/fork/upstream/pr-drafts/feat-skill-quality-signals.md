@@ -1,4 +1,4 @@
-# PR Draft: feat/skill-quality-signals → pewdiepie-archdaemon/odysseus
+# PR Draft: feat/skill-quality-signals → odysseus-dev/odysseus
 
 **Fork issue:** [#87](https://github.com/jdmanring/odysseus/issues/87)
 **Branch:** `feat/skill-quality-signals`

@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-provider-logo-ordering
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-provider-logo-ordering.md`
 **Branch:** `fix/provider-logo-ordering`
 **Type:** Bug

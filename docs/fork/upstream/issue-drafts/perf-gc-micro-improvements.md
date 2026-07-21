@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-gc-micro-improvements
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/perf-gc-micro-improvements.md`
 **Branch:** `perf/gc-micro-improvements` (squashOutsideCode), `perf/hljs-deferred-highlight` (deferHighlightAll)
 **Type:** Performance

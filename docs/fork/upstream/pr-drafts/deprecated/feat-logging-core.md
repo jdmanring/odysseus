@@ -1,11 +1,11 @@
-# PR Draft: feat/logging-core → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: feat/logging-core → odysseus-dev/odysseus:dev
 
 **Branch:** `jdmanring/odysseus:feat/logging-core`
 **Base:** `jdmanring/odysseus:upstream-mirror`
 **Issue:** [#31](https://github.com/jdmanring/odysseus/issues/31) (fork tracking)
 **Upstream Issues Addressed:**
-- [#3803](https://github.com/pewdiepie-archdaemon/odysseus/issues/3803) — PII in logs, no audit trail for sensitive operations
-- [#3799](https://github.com/pewdiepie-archdaemon/odysseus/issues/3799) — Hardening pass (PII scrubbed from logs, audit logging for sensitive operations)
+- [#3803](https://github.com/odysseus-dev/odysseus/issues/3803) — PII in logs, no audit trail for sensitive operations
+- [#3799](https://github.com/odysseus-dev/odysseus/issues/3799) — Hardening pass (PII scrubbed from logs, audit logging for sensitive operations)
 **Follow-up PR:** `feat/logging-timing` (performance timing instrumentation)
 **Status:** Ready to file
 
@@ -115,7 +115,7 @@ Fixes # <!-- [file upstream issue first — see issue-drafts/feat-logging-core.m
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls) — this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.

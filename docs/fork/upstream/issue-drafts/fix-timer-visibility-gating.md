@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-timer-visibility-gating
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-timer-visibility-gating.md`
 **Branch:** `fix/timer-visibility-gating`
 **Type:** Performance

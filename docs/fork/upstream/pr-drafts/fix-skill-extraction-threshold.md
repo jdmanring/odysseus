@@ -1,4 +1,4 @@
-# PR Draft: fix/skill-extraction-threshold → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/skill-extraction-threshold → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/skill-extraction-threshold`
 **Issue:** [#84](https://github.com/jdmanring/odysseus/issues/84)
@@ -114,7 +114,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate. Related: PR #4520 (junk name rejection — different problem), issue #4466 (skill tier curation — future work).
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate. Related: PR #4520 (junk name rejection — different problem), issue #4466 (skill tier curation — future work).
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-streaming-final-render
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** *(no dedicated PR draft — see perf series)*
 **Branch:** `perf/streaming-final-render`
 **Type:** Performance

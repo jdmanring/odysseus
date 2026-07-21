@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-mcp-lazy-connect
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/perf-mcp-lazy-connect.md`
 **Branch:** `perf/mcp-lazy-connect`
 **Type:** Performance / Enhancement

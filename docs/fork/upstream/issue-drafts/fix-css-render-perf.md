@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-css-render-perf
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-css-render-perf.md`
 **Branch:** `fix/css-render-perf`
 **Type:** Bug / Performance

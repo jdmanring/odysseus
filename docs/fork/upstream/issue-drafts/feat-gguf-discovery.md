@@ -1,6 +1,6 @@
 # Upstream Issue Draft: feat-gguf-discovery
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/feat-gguf-discovery.md`
 **Branch:** `fix/gguf-quality-scored`
 **Type:** Enhancement / Bug fix

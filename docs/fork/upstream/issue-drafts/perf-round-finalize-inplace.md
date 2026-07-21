@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-round-finalize-inplace
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/perf-round-finalize-inplace.md`
 **Branch:** `perf/round-finalize-inplace`
 **Type:** Performance

@@ -1,7 +1,7 @@
 # Upstream PR Draft: fix-timer-visibility-gating
 
 **Branch:** `fix/timer-visibility-gating` (from `upstream-mirror`)
-**Target:** `pewdiepie-archdaemon/odysseus:dev`
+**Target:** `odysseus-dev/odysseus:dev`
 **Fixes:** #_ (file issue-drafts/fix-timer-visibility-gating.md first)
 **Filing notes:** One concern (visibility-gate background timers); JS-only.
 

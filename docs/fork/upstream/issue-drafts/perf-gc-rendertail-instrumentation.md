@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-gc-rendertail-instrumentation
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** *(no dedicated PR draft — instrumentation-only change)*
 **Branch:** `perf/gc-rendertail-instrumentation`
 **Type:** Performance / Observability

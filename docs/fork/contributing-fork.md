@@ -9,8 +9,8 @@ This file **extends** the upstream `CONTRIBUTING.md`. All upstream rules still a
 1. **Synchronise with upstream** – ensure `upstream‑mirror` and `develop` are up‑to‑date. Use the helper script `scripts/run_full_sync.sh` (see *Automation helpers* below).
 2. **Search upstream for overlap** – verify that there is no open upstream issue, discussion, roadmap item, or PR that already covers the change:
    ```bash
-   gh issue list --repo pewdiepie-archdaemon/odysseus --search "<short description>" --state open
-   gh pr list    --repo pewdiepie-archdaemon/odysseus --search "<short description>" --state open
+   gh issue list --repo odysseus-dev/odysseus --search "<short description>" --state open
+   gh pr list    --repo odysseus-dev/odysseus --search "<short description>" --state open
    ```
    **Always pass `--repo` explicitly, on reads as well as writes.** A bare `gh` command
    resolves against `gh repo set-default`, which has historically pointed at the *read‑only

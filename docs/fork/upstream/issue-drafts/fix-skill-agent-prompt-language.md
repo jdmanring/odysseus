@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-skill-agent-prompt-language
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-skill-agent-prompt-language.md`
 **Branch:** `fix/skill-agent-prompt-language`
 **Type:** Bug

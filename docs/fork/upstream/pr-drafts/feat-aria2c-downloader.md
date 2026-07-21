@@ -1,4 +1,4 @@
-# PR Draft: feat/aria2c-downloader → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: feat/aria2c-downloader → odysseus-dev/odysseus:dev
 
 **Branch:** `feat/aria2c-downloader`
 **Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) (fork tracking)
@@ -292,7 +292,7 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.

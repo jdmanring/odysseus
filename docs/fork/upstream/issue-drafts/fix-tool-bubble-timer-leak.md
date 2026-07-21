@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-tool-bubble-timer-leak
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-tool-bubble-timer-leak.md`
 **Branch:** `fix/tool-bubble-timer-leak`
 **Type:** Bug

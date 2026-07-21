@@ -1,4 +1,4 @@
-# Issue Draft: fix/skill-lifecycle-correctness → pewdiepie-archdaemon/odysseus
+# Issue Draft: fix/skill-lifecycle-correctness → odysseus-dev/odysseus
 
 **Fork issue:** [#86](https://github.com/jdmanring/odysseus/issues/86)
 **Branch:** `jdmanring/odysseus:fix/skill-lifecycle-correctness`

@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-editor-empty-save-guard
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-editor-empty-save-guard.md`
 **Branch:** `fix/editor-empty-save-guard`
 **Type:** Bug

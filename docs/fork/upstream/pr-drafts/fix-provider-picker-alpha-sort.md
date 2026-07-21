@@ -1,4 +1,4 @@
-# PR Draft: fix/provider-picker-alpha-sort → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/provider-picker-alpha-sort → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/provider-picker-alpha-sort`
 **Fork issue:** [#122](https://github.com/jdmanring/odysseus/issues/122)

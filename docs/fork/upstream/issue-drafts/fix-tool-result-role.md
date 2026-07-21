@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-tool-result-role
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-tool-result-role.md`
 **Branch:** `fix/tool-result-role`
 **Type:** Bug

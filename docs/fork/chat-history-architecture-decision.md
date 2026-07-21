@@ -4,7 +4,7 @@
 below is live and must be re-checked before filing any upstream PR.
 **Scope:** How the fork renders long chat histories, and what we contribute upstream.
 **Regression guard:** `tests/test_chat_history_render_paging_playwright.py` (on `develop`).
-**Last upstream survey:** 2026-07-08 (issues/PRs/ROADMAP/discussions of `pewdiepie-archdaemon/odysseus`).
+**Last upstream survey:** 2026-07-08 (issues/PRs/ROADMAP/discussions of `odysseus-dev/odysseus`).
 
 ---
 

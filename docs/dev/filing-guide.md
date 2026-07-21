@@ -10,7 +10,7 @@ How to file a professional, complete upstream issue and pull request from a cont
 
 ### Before You File
 
-1. Search existing issues on `pewdiepie-archdaemon/odysseus` for the bug or feature. Duplicate issues are closed without comment.
+1. Search existing issues on `odysseus-dev/odysseus` for the bug or feature. Duplicate issues are closed without comment.
 2. Check `docs/fork/upstream/pr-status.md` — if a staging branch already fixes the bug, you can skip the issue and file the PR directly (include a clear problem statement in the PR body).
 3. Verify the fix is not already in `upstream-mirror` — run `git diff upstream-mirror develop -- <relevant file>` to confirm.
 
@@ -281,14 +281,14 @@ The description body is pre-filled with all 8 required PR template sections (Sum
 
 ### Issue Drafts
 
-Branches whose Filing Notes say "File upstream issue first" have a corresponding issue draft in `docs/fork/upstream/issue-drafts/`. This is a **separate file** from the PR draft — it contains the upstream issue title and body pre-written and ready to paste into GitHub's new issue form on `pewdiepie-archdaemon/odysseus`.
+Branches whose Filing Notes say "File upstream issue first" have a corresponding issue draft in `docs/fork/upstream/issue-drafts/`. This is a **separate file** from the PR draft — it contains the upstream issue title and body pre-written and ready to paste into GitHub's new issue form on `odysseus-dev/odysseus`.
 
 **Issue draft format:**
 
 ```
 # Upstream Issue Draft: <name>
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** docs/fork/upstream/pr-drafts/<name>.md
 **Branch:** <branch-name>
 **Type:** Bug | Enhancement | Refactor
@@ -308,7 +308,7 @@ Branches whose Filing Notes say "File upstream issue first" have a corresponding
 
 The body uses the upstream bug or feature request template, fully filled out — not a skeleton. For bugs: Install method, OS/device, Steps to Reproduce, Expected, Actual, Logs, Additional context. For features: Area, Problem/Motivation, Proposed Solution, Alternatives Considered.
 
-**Every PR draft needs a new upstream issue filed on `pewdiepie-archdaemon/odysseus` before the PR is opened.** The issue draft for each branch lives in `docs/fork/upstream/issue-drafts/<name>.md`.
+**Every PR draft needs a new upstream issue filed on `odysseus-dev/odysseus` before the PR is opened.** The issue draft for each branch lives in `docs/fork/upstream/issue-drafts/<name>.md`.
 
 Even when a related upstream issue already exists (filed by someone else, or covering a broader topic), file a new issue for your specific PR. The new issue should describe your contribution's scope and approach precisely. Reference the existing issue in the body — `Related to #NNN` or `Addresses the [specific aspect] described in #NNN` — but use `Fixes #` on your own new issue, not on someone else's.
 
@@ -321,7 +321,7 @@ All active PR drafts have `Fixes # <!-- [file upstream issue first] -->` and a c
 **Step 1 — If the PR draft says "file upstream issue first":**
 
 1. Open `docs/fork/upstream/issue-drafts/<name>.md`
-2. Go to `https://github.com/pewdiepie-archdaemon/odysseus/issues/new`
+2. Go to `https://github.com/odysseus-dev/odysseus/issues/new`
 3. Paste the **Title** from the issue draft into the title field
 4. Paste the **Body** from the issue draft into the body field
 5. Submit and note the issue number assigned
@@ -331,7 +331,7 @@ All active PR drafts have `Fixes # <!-- [file upstream issue first] -->` and a c
 
 1. Open the PR draft file for the branch
 2. Read **Filing Notes** — confirm issue number is filled in and screenshots are ready
-3. Open: `<your-fork>:<branch>` → `pewdiepie-archdaemon/odysseus:dev`
+3. Open: `<your-fork>:<branch>` → `odysseus-dev/odysseus:dev`
 4. Paste the proposed title
 5. Paste the description body (everything above "Filing Notes")
 6. Attach screenshots by drag-and-drop

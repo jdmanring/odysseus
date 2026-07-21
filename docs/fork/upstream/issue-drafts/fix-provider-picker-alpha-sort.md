@@ -1,6 +1,6 @@
 # Upstream Issue Draft: fix-provider-picker-alpha-sort
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-provider-picker-alpha-sort.md`
 **Branch:** `fix/provider-picker-alpha-sort`
 **Type:** Bug (UX)

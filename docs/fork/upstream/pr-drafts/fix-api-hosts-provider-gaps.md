@@ -1,4 +1,4 @@
-# PR Draft: fix/api-hosts-provider-gaps → pewdiepie-archdaemon/odysseus:dev
+# PR Draft: fix/api-hosts-provider-gaps → odysseus-dev/odysseus:dev
 
 **Branch:** `fix/api-hosts-provider-gaps`
 **Fork issue:** [#62](https://github.com/jdmanring/odysseus/issues/62) (open)
@@ -110,7 +110,7 @@ Also verify that the existing primary `api.together.xyz` endpoint is unaffected.
 - Single commit (`4047e40a`). No squash needed.
 - Branch: `fix/api-hosts-provider-gaps` — built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #___` before opening.
-- PR targets `pewdiepie-archdaemon/odysseus:dev`.
+- PR targets `odysseus-dev/odysseus:dev`.
 - `fix/nvidia-native-tool-calling` addresses the same class of bug for NVIDIA NIM and
   can be filed separately or bundled. They are independent commits on separate branches.
 
@@ -137,7 +137,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/pewdiepie-archdaemon/odysseus/issues) and [open PRs](https://github.com/pewdiepie-archdaemon/odysseus/pulls); this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above; no unrelated refactors or whitespace changes mixed in.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.

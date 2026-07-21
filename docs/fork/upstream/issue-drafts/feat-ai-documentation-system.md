@@ -1,6 +1,6 @@
 # Upstream Issue Draft: feat-ai-documentation-system
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/feat-ai-documentation-system.md`
 **Branch:** `feat/ai-documentation-system`
 **Type:** Enhancement / Documentation

@@ -1,6 +1,6 @@
 # Upstream Issue Draft: perf-rendertail-text-only-path
 
-**File on:** `pewdiepie-archdaemon/odysseus`
+**File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/perf-rendertail-text-only-path.md`
 **Branch:** `perf/rendertail-text-only-path`
 **Type:** Performance
