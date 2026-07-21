@@ -25,13 +25,12 @@ color picker, etc.).
 
 This is the key design split and it drives the PyQt6 sourcing.
 
-- **Linux / FreeBSD / OpenBSD — two interpreters.** The display layer runs under
-  the **system** `python3` so it can use the distro's system-built PyQt6/Qt,
-  which has native **Wayland** integration and desktop theming. The Odysseus
-  **backend** runs under the repo `venv` (where all server deps live). So the
-  venv deliberately does **not** contain PyQt6 — the system `python3` could not
-  import venv packages anyway.
-- **macOS / Windows — one interpreter.** There is no system Qt to lean on, so
+- **Linux / FreeBSD / OpenBSD: two interpreters.** The display layer runs under
+  the system `python3` so it can use the distro's system-built PyQt6/Qt, which
+  has native Wayland integration and desktop theming. The Odysseus backend runs
+  under the repo `venv` (where all server deps live). The venv deliberately does
+  not contain PyQt6; the system `python3` could not import venv packages anyway.
+- **macOS / Windows: one interpreter.** There is no system Qt to lean on, so
   PyQt6 is pip-installed into the venv and the wrapper runs under the venv
   `python`. Single interpreter, standard delivery.
 
@@ -39,8 +38,8 @@ This is the key design split and it drives the PyQt6 sourcing.
 
 - System PyQt6 on Linux/*BSD is optimal, not a compromise: native Wayland,
   distro Qt theming, and it avoids the ~250 MB Chromium binary the pip
-  `PyQt6-WebEngine` wheel downloads. The cost — coupling to the distro's Qt
-  version — is the right trade for a Wayland GUI. Installing it needs root
+  `PyQt6-WebEngine` wheel downloads. The cost (coupling to the distro's Qt
+  version) is the right trade for a Wayland GUI. Installing it needs root
   (a system package), which is why the installer *guides* that one step.
 - pip-into-venv PyQt6 on macOS/Windows is optimal there: no system Qt exists,
   one interpreter, no root needed.
@@ -59,7 +58,7 @@ point (install the native app around an existing venv).
 
 `install.sh` dispatches by `uname` to the per-OS builder
 (`build-linux-app.sh` / `build-freebsd-app.sh` / `build-openbsd-app.sh` /
-`build-mac-app.sh`). All builders **install in one run** — the XDG `.desktop`
+`build-mac-app.sh`). All builders **install in one run**: the XDG `.desktop`
 entry on Linux/*BSD, the `/Applications` bundle + Dock pin on macOS, the
 Start-Menu/Desktop shortcuts on Windows. On macOS, `--build-only` produces
 `dist/` + the `.dmg` without installing.
@@ -100,16 +99,16 @@ so the one privileged step is yours.
   ```
 - **Windows**: delete the Start-Menu and Desktop `Odysseus` shortcuts.
 
-The repo checkout, `venv/`, and your `data/` are never touched by uninstall —
-remove the checkout directory to remove those.
+The repo checkout, `venv/`, and your `data/` are never touched by uninstall.
+Remove the checkout directory to remove those.
 
 ## Cookbook background tasks (downloads and serves)
 
 Cookbook runs model downloads and serves as **background** jobs so they survive
 a browser/SSE disconnect. Two launch models:
 
-- **tmux** — on Linux (and any host with tmux), and on all **remote** hosts.
-- **detached process + logfile** — on **macOS and Windows** (tmux is not in
+- **tmux:** on Linux (and any host with tmux), and on all remote hosts.
+- **detached process + logfile:** on macOS and Windows (tmux is not in
   their base systems) and on any local POSIX host without tmux. The job runs
   detached, writing `<session>.log` and `<session>.pid` under the session dir
   (`tempfile.gettempdir()/odysseus-tmux`); the status poller reads those files.
@@ -117,14 +116,14 @@ a browser/SSE disconnect. Two launch models:
 The poller distinguishes the two per task by the pidfile's presence, so launch
 and polling always agree for the task's whole life.
 
-**Download backend.** aria2c (fast, multi-connection) is **the** downloader —
+**Download backend.** aria2c (fast, multi-connection) is **the** downloader:
 the fork's replacement for the flaky `hf_transfer`, not an optional accelerator.
 It is auto-installed by `BinManager` (static build) on Linux and Windows; on
 macOS, which has no static build, it is installed during setup
 (`start-macos.sh` → `brew install aria2`, or conda-forge), and the bundle
 launcher prepends the usual tool dirs (`/opt/homebrew/bin`, `~/bin`, …) so it is
 found. The built-in Python (`huggingface_hub`) downloader is an **emergency
-fallback only** — used when aria2c genuinely can't be provisioned, never as the
+fallback only**, used when aria2c genuinely can't be provisioned, never as the
 intended path.
 
 **Stopping.** Detached jobs are stopped by killing their **process group**
@@ -136,12 +135,12 @@ child dies too, not just the shell.
 The macOS wrapper follows the native convention: the **red button hides the
 window to the Dock** (the app keeps running and re-shows on Dock-click / Cmd-Tab),
 while **⌘Q / Dock-Quit** fully quit. This matches how Apple's own single-window
-apps behave (TextEdit, Notes) and is deliberate for a serving app — a careless
+apps behave (TextEdit, Notes) and is deliberate for a serving app: a careless
 close must not tear down in-flight work.
 
-The complication is the crash above: a `QWebEngineView` cannot be hidden while the
-window is in native fullscreen **or** zoomed (maximized) without a reparent
-null-deref. So the wrapper never hides from those states directly — it leaves
+The complication is the crash above. A `QWebEngineView` cannot be hidden while
+the window is in native fullscreen or zoomed (maximized) without a reparent
+null-deref, so the wrapper never hides from those states directly. It leaves
 them first, then hides:
 
 - **Fullscreen exit is event-driven.** Qt's `WindowStateChange` fires while macOS
@@ -160,15 +159,15 @@ them first, then hides:
   one retry). This is the fallback, used only where macOS gives no signal.
 - **The window is invisible during the exit** (`setWindowOpacity(0)`), restored on
   the next show, so the user never sees it flash at normal size before it hides.
-  The residual fullscreen-**Space** transition is macOS's own and is intentionally
-  left alone — Apple's apps show the same, and it is not a per-app window
+  The residual fullscreen-Space transition is macOS's own and is intentionally
+  left alone. Apple's apps show the same, and it is not a per-app window
   animation to suppress.
 
 **State is remembered like a native app.** Size and the zoomed/normal state are
 saved (`saveGeometry` + `windowMaximized`) and restored on relaunch and on
-Dock-reopen: a window that was zoomed before going fullscreen returns zoomed, not
-to a plain window — matching macOS's pre-fullscreen-frame restoration. The
-first-run default is a plain 1000×650 window (nothing scaled to the screen);
+Dock-reopen: a window that was zoomed before going fullscreen returns zoomed
+rather than a plain window, matching macOS's pre-fullscreen-frame restoration.
+The first-run default is a plain 1000×650 window (nothing scaled to the screen);
 after that the remembered size wins.
 
 ## Troubleshooting
@@ -203,11 +202,11 @@ after that the remembered size wins.
   only; judge rendering on real hardware.
 - **macOS "Odysseus quit unexpectedly" + WindowServer freeze/garble.** Root
   cause (corrected after an earlier misdiagnosis): it happened when a window in
-  **native fullscreen** (green button — a separate macOS Space) *or zoomed*
+  **native fullscreen** (green button, a separate macOS Space) *or zoomed*
   (maximized) was closed. Hiding the `QWebEngineView` while in that state
   reparents it (`QWidgetPrivate::reparentFocusWidgets` during the Space/zoom
   transition), and `setVisible()` fired on the view mid-reparent null-derefs on
-  the CrBrowserMain thread — the crash then leaves WindowServer with a corrupt
+  the CrBrowserMain thread. The crash then leaves WindowServer with a corrupt
   full-screen composite (frozen/garbled screen; the Dock won't unhide). It is a
   documented QtWebEngine reparent-on-teardown class (Zeal #577, Inkscape,
   ChimeraX #3761). A normal windowed close never triggered it. See the **window
