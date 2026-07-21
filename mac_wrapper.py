@@ -71,6 +71,7 @@ print(f'[LOG] wrapper_system.log opened at {_time.strftime("%Y-%m-%dT%H:%M:%S")}
 # no-Metal-device signal. Fail-safe: any probe error reads as "has GPU" so a
 # glitch never degrades a real machine.
 import subprocess
+import tempfile
 
 
 def _macos_software_render() -> bool:
@@ -122,14 +123,16 @@ import base64 as _cdp_b64
 import urllib.request as _cdp_req
 import threading as _threading
 import time
-from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QColorDialog,
+                             QDialog, QLabel, QVBoxLayout, QHBoxLayout, QPushButton,
+                             QMessageBox)
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
 )
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
-from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QAction, QKeySequence
+from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QThread, QSettings, QEvent, pyqtSlot, pyqtSignal, QSocketNotifier
+from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QAction, QKeySequence, QPixmap
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -168,6 +171,42 @@ CACHE_DIR = os.path.expanduser("~/Library/Caches/odysseus/webengine")
 
 _UVICORN_PATTERN = "uvicorn app:app"
 _server_proc = None
+# Bind host the server is currently launched on. 127.0.0.1 = local only;
+# 0.0.0.0 = reachable from the LAN (the tray "Expose to Network" toggle).
+_bind_host = "127.0.0.1"
+
+
+def _desired_host():
+    """Bind host implied by the persisted Expose-to-Network preference."""
+    try:
+        return "0.0.0.0" if QSettings("odysseus", "odysseus").value(
+            "exposeToNetwork", False, type=bool) else "127.0.0.1"
+    except Exception:
+        return "127.0.0.1"
+
+
+def _reachable_host():
+    """Address a client should actually connect to. When bound to all
+    interfaces, 0.0.0.0 is not connectable — resolve the primary LAN IP so
+    'Open in Browser' / 'Copy Server URL' / the status line are useful."""
+    if _bind_host != "0.0.0.0":
+        return "localhost"
+    try:
+        s = _cdp_sock.socket(_cdp_sock.AF_INET, _cdp_sock.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))         # no packets sent; just picks the egress iface
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "localhost"
+
+
+def _server_url():
+    return f"http://{_reachable_host()}:{PORT}"
+
+
+def _server_running():
+    return _server_proc is not None and _server_proc.poll() is None
 
 
 def kill_zombies():
@@ -178,15 +217,16 @@ def kill_zombies():
 
 
 def start_server():
-    global _server_proc
-    print(f"Starting Odysseus server on port {PORT}...")
+    global _server_proc, _bind_host
+    _bind_host = _desired_host()
+    print(f"Starting Odysseus server on {_bind_host}:{PORT}...")
     # --no-access-log: uvicorn's access log defaults to ON, emitting one log line
     # per HTTP request. For this embedded, localhost, single-user deployment the
     # always-on UI polls (email/tasks/calendar) would churn that log forever with
     # no operator reading it; errors still surface via server.log. Startup banners
     # and tracebacks still reach server_access.log via the subprocess stdout/stderr.
     cmd = [VENV_PYTHON, "-m", "uvicorn", "app:app",
-           "--host", "127.0.0.1", "--port", PORT, "--no-access-log"]
+           "--host", _bind_host, "--port", PORT, "--no-access-log"]
     env = os.environ.copy()
     env["ODYSSEUS_LOG_FILE"] = os.path.join(LOG_DIR, "server.log")
     _rotate_log(os.path.join(LOG_DIR, "server_access.log"))
@@ -227,6 +267,38 @@ def stop_server():
     _cdp_executor.shutdown(wait=False, cancel_futures=True)
     subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
     print("Server stopped.")
+
+
+def restart_server():
+    """Stop just the uvicorn process and start it again (re-reading the bind
+    host). Unlike stop_server() this leaves the CDP executor intact — a restart
+    must not permanently tear down debugging infrastructure the wrapper reuses."""
+    global _server_proc
+    if _server_proc is not None:
+        try:
+            _server_proc.terminate()
+            _server_proc.wait(timeout=5)
+        except Exception:
+            try:
+                _server_proc.kill()
+            except Exception:
+                pass
+        _server_proc = None
+    subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
+    return start_server()
+
+
+class _ServerRestartThread(QThread):
+    """start_server() blocks up to ~15s polling for readiness; running it on the
+    GUI thread would freeze the window. Do it off-thread and signal back."""
+    finished_ok = pyqtSignal(bool)
+
+    def run(self):
+        try:
+            ok = restart_server()
+        except Exception:
+            ok = False
+        self.finished_ok.emit(bool(ok))
 
 
 def _signal_handler(sig, frame):
@@ -1298,6 +1370,84 @@ class OdysseusWindow(QMainWindow):
         edit.addAction(quit_act)
 
 
+# Canonical project details for the About dialog (from the upstream README).
+_ABOUT_GITHUB = "https://github.com/odysseus-dev/odysseus"
+_ABOUT_LICENSE = "https://github.com/odysseus-dev/odysseus/blob/main/LICENSE"
+_ABOUT_ISSUES = "https://github.com/odysseus-dev/odysseus/issues"
+
+
+def _app_version():
+    """Read APP_VERSION from src/constants.py by text scan. Importing the module
+    would pull in runtime path deps the wrapper deliberately avoids; a regex over
+    one line is enough and never fails the dialog. Returns '' if unavailable."""
+    try:
+        with open(os.path.join(INSTALL_DIR, "src", "constants.py"), encoding="utf-8") as fh:
+            for line in fh:
+                m = _re.match(r"""\s*APP_VERSION\s*=\s*["']([^"']+)["']""", line)
+                if m:
+                    return m.group(1)
+    except Exception:
+        pass
+    return ""
+
+
+def _about_html():
+    ver = _app_version()
+    subtitle = f"Version {ver}" if ver else "Desktop app"
+    # AGPL-3.0 §5 requires an interactive UI to show a copyright notice and the
+    # no-warranty statement; the About box is where those live.
+    return (
+        '<div style="min-width:380px">'
+        '<h2 style="margin:0 0 2px">Odysseus</h2>'
+        f'<p style="margin:0 0 12px;color:#888">{subtitle}</p>'
+        '<p style="margin:0 0 12px">A self-hosted AI workspace for chat, agents, '
+        'research, documents, email, notes, calendar, and local model workflows.</p>'
+        '<p style="margin:0 0 8px">&#169; The Odysseus authors &#183; '
+        f'<a href="{_ABOUT_LICENSE}">AGPL-3.0-or-later</a></p>'
+        '<p style="margin:0 0 12px;font-size:small;color:#888">This program comes '
+        'with ABSOLUTELY NO WARRANTY. It is free software, and you are welcome to '
+        'redistribute it under the terms of the GNU AGPL, version 3 or later.</p>'
+        f'<p style="margin:0"><a href="{_ABOUT_GITHUB}">Website</a> &#183; '
+        f'<a href="{_ABOUT_ISSUES}">Report an issue</a></p>'
+        '</div>')
+
+
+def _show_about_dialog(parent):
+    """Native About dialog: icon, name, version, description, copyright, license,
+    the AGPL no-warranty notice, and Website / Report-an-issue links."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle("About Odysseus")
+    layout = QVBoxLayout(dlg)
+    layout.setContentsMargins(24, 20, 24, 16)
+    layout.setSpacing(10)
+
+    icon_path = os.path.join(INSTALL_DIR, "static", "icons", "icon-192.png")
+    pm = QPixmap(icon_path) if os.path.isfile(icon_path) else QPixmap()
+    if not pm.isNull():
+        ic = QLabel()
+        ic.setPixmap(pm.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation))
+        ic.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(ic)
+
+    label = QLabel(_about_html())
+    label.setOpenExternalLinks(True)   # links open in the default browser
+    label.setWordWrap(True)
+    label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+    layout.addWidget(label)
+
+    close_btn = QPushButton("Close")
+    close_btn.setDefault(True)
+    close_btn.clicked.connect(dlg.accept)
+    row = QHBoxLayout()
+    row.addStretch(1)
+    row.addWidget(close_btn)
+    row.addStretch(1)
+    layout.addLayout(row)
+
+    dlg.exec()
+
+
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
@@ -1357,8 +1507,13 @@ if __name__ == "__main__":
     profile.setPersistentCookiesPolicy(
         QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
     )
-    # App serves from localhost; HTTP cache is almost entirely idle but grows
-    # without bound by default. Cap at 50 MB.
+    # App serves from localhost, so a persistent disk HTTP cache buys almost
+    # nothing and is the one thing that can serve a STALE asset across an app
+    # restart (an ES-module import like cookbookRunning.js has no ?v= buster, so
+    # its URL is stable and the disk cache kept returning the old file even after
+    # a redeploy). Use an in-memory cache: it is rebuilt on every launch, so
+    # closing and reopening the app always loads the current code. Capped anyway.
+    profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
     profile.setHttpCacheMaximumSize(50_000_000)
 
     win = OdysseusWindow(profile)
@@ -1485,6 +1640,141 @@ if __name__ == "__main__":
             _show_and_raise()
     app.applicationStateChanged.connect(_on_app_state_changed)
 
+    # Menu-bar status item via a SEPARATE native helper process (mac_tray_helper,
+    # built on rumps). An NSStatusItem created inside THIS Qt process does not
+    # render on macOS 26 (Tahoe) — the item is serviced by Qt's event dispatcher,
+    # not an AppKit run loop. A standalone helper with its own run loop renders
+    # reliably. The red button still hides to the Dock as before; this is additive.
+    #
+    # IPC is an AF_UNIX socket serviced by a QSocketNotifier (event-driven, no
+    # polling): the helper connects and sends "open"/"quit"; this side accepts on
+    # the Qt event loop and drives the window.
+    _tray_sock_path = os.path.join(tempfile.gettempdir(), "odysseus_tray.sock")
+    _tray_icon_path = ""
+    for _n in ("icon-512.png", "icon-macos-1024.png"):
+        _p = os.path.join(INSTALL_DIR, "static", "icons", _n)
+        if os.path.isfile(_p):
+            _tray_icon_path = _p
+            break
+    win._tray_helper_proc = None
+    win._tray_srv = None
+    try:
+        # Kill any stray helper (e.g. a prior run) so we never stack two icons.
+        subprocess.run(["pkill", "-f", "mac_tray_helper.py"],
+                       capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+    def _tray_open_settings(tab=None):
+        # settingsModule is an ES module, not a window global — drive the same DOM
+        # the app itself uses: click the settings opener, then (for a specific tab)
+        # the matching nav button once the modal is up.
+        _show_and_raise()
+        js = ("var m=document.getElementById('settings-modal');"
+              "if(!m||m.classList.contains('hidden')){"
+              "var o=document.getElementById('rail-settings')"
+              "||document.getElementById('user-bar-settings')"
+              "||document.getElementById('tool-settings-btn');"
+              "if(o)o.click();}")
+        if tab:
+            js += ("setTimeout(function(){var t=document.querySelector("
+                   "'[data-settings-tab=\"%s\"]');if(t)t.click();},60);" % tab)
+        try:
+            win.browser.page().runJavaScript("(function(){%s})();" % js)
+        except Exception:
+            pass
+
+    def _tray_restart():
+        th = getattr(win, "_restart_thread", None)
+        if th is not None and th.isRunning():
+            return
+        th = _ServerRestartThread()
+        win._restart_thread = th
+
+        def _on_done(ok):
+            try:
+                win.browser.reload()   # re-point the page at the restarted server
+            except Exception:
+                pass
+        th.finished_ok.connect(_on_done)
+        th.start()
+
+    def _tray_toggle_expose():
+        # The helper sends a bare "expose" toggle; the wrapper owns the state and
+        # gates *enabling* behind a confirmation (it changes security posture).
+        turning_on = _desired_host() != "0.0.0.0"
+        if turning_on:
+            r = QMessageBox.warning(
+                win, "Expose to Network",
+                "Make Odysseus reachable by other devices on your network?\n\n"
+                "This binds the server to all interfaces (0.0.0.0). Only enable "
+                "on a network you trust.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No)
+            if r != QMessageBox.StandardButton.Yes:
+                return
+        _qs = QSettings("odysseus", "odysseus")
+        _qs.setValue("exposeToNetwork", turning_on)
+        _qs.sync()
+        _tray_restart()
+
+    def _on_tray_conn():
+        try:
+            conn, _ = win._tray_srv.accept()
+            data = conn.recv(64).decode("utf-8", "ignore").strip()
+            # "status" is a query: reply with running|host:port|expose so the
+            # separate helper process can render a live status line + checkmark.
+            if data == "status":
+                reply = "%d|%s:%s|%d" % (
+                    1 if _server_running() else 0,
+                    _reachable_host(), PORT,
+                    1 if _desired_host() == "0.0.0.0" else 0)
+                try:
+                    conn.sendall(reply.encode("utf-8"))
+                except Exception:
+                    pass
+                conn.close()
+                return
+            conn.close()
+            if data == "open":
+                _show_and_raise()
+            elif data == "quit":
+                win.request_quit()
+            elif data == "about":
+                _show_about_dialog(win)
+            elif data == "settings":
+                _tray_open_settings()
+            elif data == "shortcuts":
+                _tray_open_settings("shortcuts")
+            elif data == "restart":
+                _tray_restart()
+            elif data == "expose":
+                _tray_toggle_expose()
+        except Exception:
+            pass
+
+    try:
+        if os.path.exists(_tray_sock_path):
+            os.remove(_tray_sock_path)
+        win._tray_srv = _cdp_sock.socket(_cdp_sock.AF_UNIX, _cdp_sock.SOCK_STREAM)
+        win._tray_srv.bind(_tray_sock_path)
+        win._tray_srv.listen(8)
+        win._tray_srv.setblocking(False)
+        win._tray_notifier = QSocketNotifier(
+            win._tray_srv.fileno(), QSocketNotifier.Type.Read)
+        win._tray_notifier.activated.connect(_on_tray_conn)
+    except Exception as e:
+        print('[LIFECYCLE] tray IPC socket failed: %r' % (e,), flush=True)
+
+    try:
+        win._tray_helper_proc = subprocess.Popen(
+            [sys.executable, os.path.join(INSTALL_DIR, "mac_tray_helper.py"),
+             _tray_sock_path, _tray_icon_path, LOG_DIR])
+        print('[LIFECYCLE] menu-bar tray helper launched (pid %s)'
+              % win._tray_helper_proc.pid, flush=True)
+    except Exception as e:
+        print('[LIFECYCLE] menu-bar tray helper failed to launch: %r' % (e,), flush=True)
+
     def _teardown():
         # Single teardown path for every real quit (⌘Q, application-menu Quit,
         # app.quit()): persist window state and stop the embedded server, then
@@ -1502,6 +1792,20 @@ if __name__ == "__main__":
         # aboutToQuit runs before widget destruction, so this pre-empts the crash.
         print('[LIFECYCLE] aboutToQuit teardown running', flush=True)
         win._save_window_state()
+        # Tear down the menu-bar helper and its IPC socket so no orphan icon or
+        # stale socket survives the app.
+        try:
+            if getattr(win, '_tray_helper_proc', None) is not None:
+                win._tray_helper_proc.terminate()
+        except Exception:
+            pass
+        try:
+            if getattr(win, '_tray_srv', None) is not None:
+                win._tray_srv.close()
+            if os.path.exists(_tray_sock_path):
+                os.remove(_tray_sock_path)
+        except Exception:
+            pass
         stop_server()
         sys.stdout.flush()
         sys.stderr.flush()
