@@ -1214,12 +1214,17 @@ def setup_cookbook_routes() -> APIRouter:
 
         remote = req.remote_host  # None for local
         is_windows = req.platform == "windows"
-        # LOCAL execution on a native-Windows host never uses tmux (it uses the
-        # detached-process path below), regardless of the UI-supplied platform.
-        local_windows = IS_WINDOWS and not remote
-        logger.info(f"Download request: repo={req.repo_id}, remote={remote}, ssh_port={req.ssh_port}, platform={req.platform}")
+        # LOCAL execution uses a detached process + logfile instead of tmux on
+        # two kinds of host: native Windows (tmux doesn't exist) AND any POSIX
+        # host without tmux — e.g. a stock macOS box, where tmux is not part of
+        # the base system. Both are launched by _launch_local_detached below and
+        # polled from the <session>.pid / <session>.log files. Only REMOTE POSIX
+        # hosts still require tmux (there is no remote detached path).
+        _tmux_ok = await _binary_available("tmux", remote, req.ssh_port)
+        local_detached = (not remote) and (IS_WINDOWS or not _tmux_ok)
+        logger.info(f"Download request: repo={req.repo_id}, remote={remote}, ssh_port={req.ssh_port}, platform={req.platform}, local_detached={local_detached}")
 
-        if not is_windows and not local_windows and not await _binary_available("tmux", remote, req.ssh_port):
+        if not is_windows and not local_detached and not _tmux_ok:
             return {
                 "ok": False,
                 "error": _missing_binary_message("tmux", remote or "local server"),
@@ -1480,18 +1485,26 @@ def setup_cookbook_routes() -> APIRouter:
                 lines.append('  fi')
                 lines.append('done')
                 lines.append('if [ $_ec -eq 0 ]; then echo ""; echo "DOWNLOAD_OK"; else echo ""; echo "DOWNLOAD_FAILED (exit $_ec after $_attempt attempts)"; fi')
-            if not IS_WINDOWS:
+            # The tmux path keeps its pane alive with a trailing interactive
+            # shell and writes the wrapper to disk for `tmux new-session`. The
+            # detached path (Windows OR POSIX-without-tmux) must NOT append the
+            # exec tail — it would leave the detached process parked on an
+            # interactive shell so its pid never goes dead — and it writes its
+            # own inner script inside _launch_local_detached from `lines`.
+            if not local_detached:
                 lines.append(f"rm -f '{wrapper_script}'")
                 lines.append('exec "${SHELL:-/bin/bash}"')
                 wrapper_script.write_text("\n".join(lines) + "\n", encoding="utf-8")
                 wrapper_script.chmod(0o755)
-            setup_cmd = None if IS_WINDOWS else f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} {shlex.quote(str(wrapper_script))}"
+            setup_cmd = None if local_detached else f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} {shlex.quote(str(wrapper_script))}"
 
         logger.info(f"Model download: {req.repo_id} (backend={'ollama' if is_ollama_download else 'hf'}, include={req.include}, session={session_id}, remote={remote})")
         logger.info(f"Download setup_cmd: {setup_cmd}")
 
         if setup_cmd is None:
-            # LOCAL Windows: launch the bash wrapper detached; no tmux setup_cmd.
+            # LOCAL detached (Windows, or POSIX without tmux e.g. macOS): launch
+            # the bash wrapper as a detached process writing <session>.log; no
+            # tmux setup_cmd. The poller reads that log + <session>.pid.
             try:
                 _launch_local_detached(session_id, lines)
             except Exception as e:
@@ -4377,6 +4390,14 @@ def setup_cookbook_routes() -> APIRouter:
             if not _SESSION_ID_RE.match(session_id):
                 logger.warning(f"Skipping task with unsafe session_id: {session_id!r}")
                 continue
+            # A LOCAL task launched detached (native Windows, or POSIX without
+            # tmux e.g. macOS) has no tmux session: liveness + output come from
+            # its <session>.pid / <session>.log files. Detect it by the pidfile
+            # the detached launcher writes and never removes mid-task (tmux tasks
+            # never write one), so poll-routing keys off the same signal launch
+            # did, for the task's whole life.
+            _pid_path = TMUX_LOG_DIR / f"{session_id}.pid"
+            local_detached_task = (not remote) and (IS_WINDOWS or _pid_path.exists())
             if remote:
                 try:
                     remote = validate_remote_host(remote)
@@ -4429,24 +4450,23 @@ def setup_cookbook_routes() -> APIRouter:
                 # error_aware_output_tail and push the real progress summary
                 # out of the tail window.
                 capture_cmd = ssh_base + [remote, _remote_tmux_command("capture-pane", "-t", session_id, "-p", "-J", "-S", "-500")]
-            elif IS_WINDOWS:
-                # LOCAL Windows task: launched as a detached process (no tmux).
-                # Liveness comes from the <session>.pid file, output from the
-                # <session>.log file the wrapper redirects into. No subprocess.
+            elif local_detached_task:
+                # LOCAL detached task (Windows, or POSIX without tmux e.g.
+                # macOS): launched as a detached process. Liveness comes from the
+                # <session>.pid file, output from the <session>.log file the
+                # wrapper redirects into. No subprocess.
                 check_cmd = None
                 capture_cmd = None
             else:
                 check_cmd = ["tmux", "has-session", "-t", session_id]
                 capture_cmd = ["tmux", "capture-pane", "-t", session_id, "-p", "-J", "-S", "-500"]
 
-            local_win_task = (not remote) and IS_WINDOWS
-
             progress_text = ""
             full_snapshot = (task.get("output") or "")[-12000:] if task_type == "serve" else ""
 
-            if local_win_task:
+            if local_detached_task:
                 # File-based liveness + output for the detached-process model.
-                pid_path = TMUX_LOG_DIR / f"{session_id}.pid"
+                pid_path = _pid_path
                 log_path = TMUX_LOG_DIR / f"{session_id}.log"
                 task_pid = None
                 try:
@@ -4520,7 +4540,7 @@ def setup_cookbook_routes() -> APIRouter:
                     or _download_cache_incomplete(_payload.get("repo_id") or model, remote, str(_tport or ""), _payload.get("local_dir") or "")
                 )
             )
-            if is_alive or (local_win_task and full_snapshot):
+            if is_alive or (local_detached_task and full_snapshot):
                 lower = full_snapshot.lower()
                 exit_match = re.search(r"=== process exited with code\s+(-?\d+)", full_snapshot, re.I)
                 has_exit = exit_match is not None
