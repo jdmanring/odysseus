@@ -230,8 +230,15 @@ def stop_server():
 
 
 def _signal_handler(sig, frame):
+    # SIGTERM/SIGINT (e.g. a relaunch killing the old instance). Stop the server,
+    # then HARD-EXIT rather than sys.exit: letting the interpreter unwind runs
+    # Qt's QWebEngineView teardown, which intermittently null-derefs in
+    # setVisible on CrBrowserMain (Qt 6.11) and logs a spurious crash. Nothing
+    # meaningful is lost — the persistent profile flushes as it changes.
     stop_server()
-    sys.exit(0)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
 
 
 def _cdp_ws_call(ws_url, method, params=None):
@@ -1273,13 +1280,25 @@ if __name__ == "__main__":
 
     def _teardown():
         # Single teardown path for every real quit (⌘Q, application-menu Quit,
-        # app.quit()): persist window state, detach the page so the renderer
-        # stops, and stop the embedded server. SIGTERM/SIGINT bypass the Qt
-        # event loop, so _signal_handler stops the server directly instead.
+        # app.quit()): persist window state and stop the embedded server, then
+        # HARD-EXIT before Qt destroys the QWebEngineView.
+        #
+        # Why hard-exit: QtWebEngine 6.11 intermittently null-derefs in
+        # QWebEnginePage::setVisible on the CrBrowserMain thread while Qt tears
+        # the web view down at shutdown (the view's hideEvent calls setVisible on
+        # a browser process that is already partly gone) — SIGSEGV
+        # KERN_INVALID_ADDRESS at 0x10, surfaced as "Odysseus quit unexpectedly".
+        # It happens AFTER all meaningful cleanup, so it is functionally harmless
+        # but alarming. We've saved geometry and stopped the server here, and the
+        # persistent profile flushes cookies/localStorage as they change, so
+        # os._exit skips Qt's racy WebEngine teardown and the app quits cleanly.
+        # aboutToQuit runs before widget destruction, so this pre-empts the crash.
         print('[LIFECYCLE] aboutToQuit teardown running', flush=True)
         win._save_window_state()
-        win.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), win.browser))
         stop_server()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
     app.aboutToQuit.connect(_teardown)
 
     # _QuitFilter must be installed on the app AFTER the window exists: it arms
