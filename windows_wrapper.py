@@ -140,7 +140,7 @@ import urllib.request as _cdp_req
 import subprocess
 import threading as _threading
 import time
-from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
+from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog, QSystemTrayIcon, QMenu
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
@@ -785,6 +785,13 @@ class OdysseusWindow(QMainWindow):
     def __init__(self, profile: QWebEngineProfile):
         super().__init__()
         self.setWindowTitle(WINDOW_TITLE)
+        # Tray lifecycle flags (see closeEvent / request_quit / the tray in
+        # __main__): _quitting distinguishes a real Quit from a close-to-tray;
+        # _tray holds the QSystemTrayIcon when the platform has one; _tray_notified
+        # gates the one-time "still running in the tray" balloon.
+        self._quitting = False
+        self._tray = None
+        self._tray_notified = False
         self.browser = QWebEngineView()
         page = OdysseusPage(profile, self.browser)
         self._page = page  # held for lifecycle management in changeEvent
@@ -1149,6 +1156,13 @@ class OdysseusWindow(QMainWindow):
             self._gc_focus_timer.stop()
         super().changeEvent(event)
 
+    def request_quit(self):
+        # Deterministic real quit (tray "Quit Odysseus"): set _quitting so
+        # closeEvent accepts instead of hiding, then exit the event loop. Teardown
+        # runs on app.aboutToQuit.
+        self._quitting = True
+        QApplication.instance().quit()
+
     def closeEvent(self, event):
         s = QSettings("odysseus", "odysseus")
         s.setValue("windowMaximized", self.isMaximized())
@@ -1159,9 +1173,26 @@ class OdysseusWindow(QMainWindow):
         if not self.isMaximized():
             s.setValue("windowGeometry", self.saveGeometry())
         s.sync()
-        self.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), self.browser))
-        stop_server()
-        event.accept()
+        # Windows has no Dock: with "Close to tray" on (default), the close (X)
+        # button hides to the notification-area tray and keeps the embedded
+        # server — and any detached model server or download it manages — alive,
+        # so the local API stays reachable (the Ollama/LM Studio pattern).
+        # Teardown happens only via the tray's Quit (request_quit), when the user
+        # turns the toggle off, or when there is no tray to hide into. Server
+        # shutdown runs once on app.aboutToQuit, not here.
+        _close_to_tray = s.value("closeToTray", True, type=bool)
+        if self._quitting or self._tray is None or not _close_to_tray:
+            event.accept()
+            QApplication.instance().quit()
+            return
+        self.hide()
+        event.ignore()
+        if not self._tray_notified:
+            self._tray.showMessage(
+                "Odysseus",
+                "Still running in the notification area. Right-click the tray icon to quit.",
+                QSystemTrayIcon.MessageIcon.Information, 4000)
+            self._tray_notified = True
 
 
 if __name__ == "__main__":
@@ -1253,5 +1284,62 @@ if __name__ == "__main__":
         _geom = _s.value("windowGeometry")
         if _geom:
             win.restoreGeometry(_geom)
+
+    # Keep the process alive when the window is hidden to the tray — a hidden last
+    # window would otherwise quit the app.
+    app.setQuitOnLastWindowClosed(False)
+
+    def _show_from_tray():
+        if win.isMinimized():
+            win.showNormal()
+        win.show()
+        win.raise_()
+        win.activateWindow()
+
+    # System tray (notification area): X hides here and keeps the server alive;
+    # "Quit Odysseus" tears down. Guarded on availability so a session with no
+    # tray host still gets a normal quit-on-close instead of a trapped window.
+    if QSystemTrayIcon.isSystemTrayAvailable():
+        _tray_icon = QIcon(_icon_path) if os.path.isfile(_icon_path) else app.windowIcon()
+        _tray = QSystemTrayIcon(_tray_icon, app)
+        _tray.setToolTip("Odysseus")
+        _tray_menu = QMenu()
+        _tray_menu.addAction("Open Odysseus").triggered.connect(_show_from_tray)
+        _tray_menu.addSeparator()
+        # Checkable "Close to tray" — when off, the X button quits instead of
+        # hiding. Persisted in QSettings so the choice survives restarts.
+        _ctt_act = _tray_menu.addAction("Close to tray")
+        _ctt_act.setCheckable(True)
+        _ctt_act.setChecked(QSettings("odysseus", "odysseus").value("closeToTray", True, type=bool))
+
+        def _toggle_close_to_tray(checked):
+            _qs = QSettings("odysseus", "odysseus")
+            _qs.setValue("closeToTray", checked)
+            _qs.sync()
+        _ctt_act.toggled.connect(_toggle_close_to_tray)
+        _tray_menu.addSeparator()
+        _tray_menu.addAction("Quit Odysseus").triggered.connect(win.request_quit)
+        _tray.setContextMenu(_tray_menu)
+
+        def _on_tray_activated(reason):
+            if reason in (QSystemTrayIcon.ActivationReason.Trigger,
+                          QSystemTrayIcon.ActivationReason.DoubleClick):
+                _show_from_tray()
+        _tray.activated.connect(_on_tray_activated)
+        _tray.show()
+        win._tray = _tray
+
+    def _teardown():
+        # Single teardown for every real quit (tray Quit, SIGTERM/SIGINT): release
+        # the web page before Qt destroys it, then stop the embedded server.
+        # Detached model servers/downloads are independent and intentionally
+        # survive.
+        print('[LIFECYCLE] aboutToQuit teardown running', flush=True)
+        try:
+            win.browser.setPage(QWebEnginePage(QWebEngineProfile.defaultProfile(), win.browser))
+        except Exception:
+            pass
+        stop_server()
+    app.aboutToQuit.connect(_teardown)
 
     sys.exit(app.exec())

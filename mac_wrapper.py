@@ -122,7 +122,7 @@ import base64 as _cdp_b64
 import urllib.request as _cdp_req
 import threading as _threading
 import time
-from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
+from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog, QSystemTrayIcon, QMenu
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
@@ -1489,6 +1489,34 @@ if __name__ == "__main__":
             print('[LIFECYCLE] reopen: app activated with hidden window -> show', flush=True)
             _show_and_raise()
     app.applicationStateChanged.connect(_on_app_state_changed)
+
+    # Menu-bar status item (macOS hosts QSystemTrayIcon as an NSStatusItem). The
+    # red button already hides to the Dock and keeps the server alive, so this is
+    # purely additive: quick Open / Quit from the menu bar. No "close to tray"
+    # toggle here — hiding on close is the native macOS convention, and the Dock
+    # is the system tray equivalent.
+    if QSystemTrayIcon.isSystemTrayAvailable():
+        _tray_icon = None
+        for _n in ("icon-512.png", "icon-macos-1024.png"):
+            _p = os.path.join(INSTALL_DIR, "static", "icons", _n)
+            if os.path.isfile(_p):
+                _tray_icon = QIcon(_p)
+                break
+        _tray = QSystemTrayIcon(_tray_icon or app.windowIcon(), app)
+        _tray.setToolTip("Odysseus")
+        _tray_menu = QMenu()
+        _tray_menu.addAction("Open Odysseus").triggered.connect(_show_and_raise)
+        _tray_menu.addSeparator()
+        _tray_menu.addAction("Quit Odysseus").triggered.connect(win.request_quit)
+        _tray.setContextMenu(_tray_menu)
+
+        def _on_tray_activated(reason):
+            if reason in (QSystemTrayIcon.ActivationReason.Trigger,
+                          QSystemTrayIcon.ActivationReason.DoubleClick):
+                _show_and_raise()
+        _tray.activated.connect(_on_tray_activated)
+        _tray.show()
+        win._tray = _tray
 
     def _teardown():
         # Single teardown path for every real quit (⌘Q, application-menu Quit,
