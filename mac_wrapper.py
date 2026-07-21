@@ -71,6 +71,7 @@ print(f'[LOG] wrapper_system.log opened at {_time.strftime("%Y-%m-%dT%H:%M:%S")}
 # no-Metal-device signal. Fail-safe: any probe error reads as "has GPU" so a
 # glitch never degrades a real machine.
 import subprocess
+import tempfile
 
 
 def _macos_software_render() -> bool:
@@ -128,7 +129,7 @@ from PyQt6.QtWebEngineCore import (
     QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings,
 )
 from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal
+from PyQt6.QtCore import Qt, QUrl, QObject, QFile, QIODevice, QTimer, QSettings, QEvent, pyqtSlot, pyqtSignal, QSocketNotifier
 from PyQt6.QtGui import QDesktopServices, QColor, QIcon, QAction, QKeySequence
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
@@ -1490,6 +1491,65 @@ if __name__ == "__main__":
             _show_and_raise()
     app.applicationStateChanged.connect(_on_app_state_changed)
 
+    # Menu-bar status item via a SEPARATE native helper process (mac_tray_helper,
+    # built on rumps). An NSStatusItem created inside THIS Qt process does not
+    # render on macOS 26 (Tahoe) — the item is serviced by Qt's event dispatcher,
+    # not an AppKit run loop. A standalone helper with its own run loop renders
+    # reliably. The red button still hides to the Dock as before; this is additive.
+    #
+    # IPC is an AF_UNIX socket serviced by a QSocketNotifier (event-driven, no
+    # polling): the helper connects and sends "open"/"quit"; this side accepts on
+    # the Qt event loop and drives the window.
+    _tray_sock_path = os.path.join(tempfile.gettempdir(), "odysseus_tray.sock")
+    _tray_icon_path = ""
+    for _n in ("icon-512.png", "icon-macos-1024.png"):
+        _p = os.path.join(INSTALL_DIR, "static", "icons", _n)
+        if os.path.isfile(_p):
+            _tray_icon_path = _p
+            break
+    win._tray_helper_proc = None
+    win._tray_srv = None
+    try:
+        # Kill any stray helper (e.g. a prior run) so we never stack two icons.
+        subprocess.run(["pkill", "-f", "mac_tray_helper.py"],
+                       capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+    def _on_tray_conn():
+        try:
+            conn, _ = win._tray_srv.accept()
+            data = conn.recv(64).decode("utf-8", "ignore").strip()
+            conn.close()
+            if data == "open":
+                _show_and_raise()
+            elif data == "quit":
+                win.request_quit()
+        except Exception:
+            pass
+
+    try:
+        if os.path.exists(_tray_sock_path):
+            os.remove(_tray_sock_path)
+        win._tray_srv = _cdp_sock.socket(_cdp_sock.AF_UNIX, _cdp_sock.SOCK_STREAM)
+        win._tray_srv.bind(_tray_sock_path)
+        win._tray_srv.listen(8)
+        win._tray_srv.setblocking(False)
+        win._tray_notifier = QSocketNotifier(
+            win._tray_srv.fileno(), QSocketNotifier.Type.Read)
+        win._tray_notifier.activated.connect(_on_tray_conn)
+    except Exception as e:
+        print('[LIFECYCLE] tray IPC socket failed: %r' % (e,), flush=True)
+
+    try:
+        win._tray_helper_proc = subprocess.Popen(
+            [sys.executable, os.path.join(INSTALL_DIR, "mac_tray_helper.py"),
+             _tray_sock_path, _tray_icon_path])
+        print('[LIFECYCLE] menu-bar tray helper launched (pid %s)'
+              % win._tray_helper_proc.pid, flush=True)
+    except Exception as e:
+        print('[LIFECYCLE] menu-bar tray helper failed to launch: %r' % (e,), flush=True)
+
     def _teardown():
         # Single teardown path for every real quit (⌘Q, application-menu Quit,
         # app.quit()): persist window state and stop the embedded server, then
@@ -1507,6 +1567,20 @@ if __name__ == "__main__":
         # aboutToQuit runs before widget destruction, so this pre-empts the crash.
         print('[LIFECYCLE] aboutToQuit teardown running', flush=True)
         win._save_window_state()
+        # Tear down the menu-bar helper and its IPC socket so no orphan icon or
+        # stale socket survives the app.
+        try:
+            if getattr(win, '_tray_helper_proc', None) is not None:
+                win._tray_helper_proc.terminate()
+        except Exception:
+            pass
+        try:
+            if getattr(win, '_tray_srv', None) is not None:
+                win._tray_srv.close()
+            if os.path.exists(_tray_sock_path):
+                os.remove(_tray_sock_path)
+        except Exception:
+            pass
         stop_server()
         sys.stdout.flush()
         sys.stderr.flush()
