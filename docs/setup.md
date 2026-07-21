@@ -49,9 +49,11 @@ python -m uvicorn app:app --host 127.0.0.1 --port 7000
 Requirements: Python 3.11+. Cookbook runs background model downloads/serves in
 `tmux` on Linux; on **macOS and Windows** (where tmux is not part of the base
 system) it uses a detached process with a log file instead, so **tmux is not
-required on those hosts**. Downloads use aria2c when available (a system
-`aria2c`, e.g. `brew install aria2` on macOS) and otherwise fall back
-automatically to the built-in Python (`huggingface_hub`) downloader. The app
+required on those hosts**. Downloads use aria2c when a system `aria2c` is on `PATH` (on macOS install it
+with `brew install aria2`, or without Homebrew via conda-forge:
+`micromamba create -p ~/aria2env -c conda-forge aria2` then put
+`~/aria2env/bin` on `PATH`) and otherwise fall back automatically to the
+built-in Python (`huggingface_hub`) downloader. The app
 itself is lightweight; local model serving is the heavy part and depends on the
 model, runtime, GPU, and VRAM, so small hosts can connect to API or remote
 model servers instead. Use `--host 0.0.0.0` only when you intentionally want LAN/reverse-proxy access.
