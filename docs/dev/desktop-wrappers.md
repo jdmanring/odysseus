@@ -213,11 +213,41 @@ after that the remembered size wins.
   lifecycle** section below for the fix, which is the current design (an earlier
   `os._exit`-on-quit change addressed a *different*, mis-scoped teardown path and
   did NOT fix this; it remains only as quit-path hygiene).
+- **macOS bench: display and input freeze while SSH stays alive (a hang, not a
+  crash).** Distinct from the crash above: the app stays healthy (steady `[MEM]`
+  telemetry, CDP `responsive:true` on `:9222`) but the guest's mouse, keyboard,
+  and screen freeze. This is the **software WindowServer wedging** on the
+  GPU-less VM under sustained load — not the app. A hang writes **no** crash
+  report (only a `shutdownStall` if you then reboot), so a clean crash count
+  proves nothing about it. It does not reproduce on real Mac hardware with Metal.
+  Recover from the host over SSH without a full reboot via
+  `sudo killall WindowServer` (drops to loginwindow, restores input in seconds),
+  or `sudo reboot` for a clean restart. The reparent-crash class above is a
+  separate, fixed issue — confirm which you have by checking for a *new*
+  `python3.12-*.ips` (crash) vs none (hang).
 - **macOS crash reports** live in `~/Library/Logs/DiagnosticReports/*.ips`
   (per-user) and `/Library/Logs/DiagnosticReports/` (system). Each is JSON after
   the first line; read the faulting thread's frames to find the cause. For an
   intermittent crash, count reports before/after a triggered action to attribute
   it, and confirm the *current* build still produces a *new* one.
+- **Stale JS/CSS after a redeploy (e.g. an old download card, stuck spinner).**
+  The app is a PWA with a service worker (`static/sw.js`). A persisted worker and
+  its Cache Storage survive app restarts, so a redeployed unversioned module
+  (ES-module imports carry no `?v=` buster) could be served stale indefinitely —
+  closing and reopening the app did not help. Fixed: `static/index.html`
+  registers the worker with a forced `reg.update()` on every load and reloads
+  once when a new worker activates over an existing controller, so a bumped
+  `CACHE_NAME` propagates on the next load. QtWebEngine's HTTP cache is also
+  in-memory (`MemoryHttpCache`) so it never persists a stale disk copy. To force
+  a refresh manually over the debug port: unregister the worker + delete caches
+  via CDP `Runtime.evaluate`, then `Page.reload {ignoreCache:true}`.
+- **Windows bench: SSH default shell is PowerShell.** The OpenSSH server on the
+  Windows bench is configured (`HKLM\SOFTWARE\OpenSSH`: `DefaultShell` =
+  `…\WindowsPowerShell\v1.0\powershell.exe`, `DefaultShellCommandOption` =
+  `-Command`) so `ssh win11 '<cmd>'` runs PowerShell, matching the platform's
+  intended shell. Pass real Python via a `.ps1`/`.py` script file rather than
+  inline `python -c` — quoting code through any remote shell is fragile
+  regardless of which shell it is.
 
 ## Tests
 
