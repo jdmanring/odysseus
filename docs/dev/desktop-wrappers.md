@@ -44,6 +44,33 @@ This is the key design split and it drives the PyQt6 sourcing.
 - pip-into-venv PyQt6 on macOS/Windows is optimal there: no system Qt exists,
   one interpreter, no root needed.
 
+### BSD platform hardening (qt_wrapper.py on FreeBSD/OpenBSD)
+
+FreeBSD and OpenBSD reuse the Linux `qt_wrapper.py` as their display layer, so
+its Linux-only assumptions must degrade *safely* off Linux. Three are
+load-bearing — a miss on any produces a broken window, not a graceful fallback:
+
+- **Force software rendering on non-Linux.** `_linux_software_render()` reads
+  `/dev/dri` + `/sys/class/drm`; `/sys` is absent on BSD, so a bare `/dev/dri`
+  node would wrongly report hardware and enable `--enable-gpu-rasterization`,
+  which BSD's GPU-less Chromium can't honor (a **black window**). The function
+  returns software-raster for any non-Linux platform.
+- **Guard the QtDBus import.** The Freedesktop-portal colour picker imports
+  `PyQt6.QtDBus`; a minimal BSD PyQt6 build without it must not crash the wrapper
+  at import — the import is guarded (`_HAS_QTDBUS`) and falls back to the in-page
+  eyedropper.
+- **Disable the renderer memory purge when `/proc` RSS is unreadable.** The
+  reclaim monitor reads RSS from `/proc`; on BSD that reads 0, which slips past
+  the purge ceiling guard (`0` is falsy) and fires
+  `Memory.forciblyPurgeJavaScriptMemory` every idle tick — and that CDP call
+  **segfaults QtWebEngine's renderer** (exit 139) into a crash loop, i.e. a
+  **white window**. `_PROC_RSS_OK` gates all forcible purges off on BSD; the
+  reclaim sawtooth is a constrained-Linux optimization the platform runs
+  correctly without. (PSI, `/proc/pressure`, is likewise disabled when absent.)
+
+The rule: any `/proc`-, `/sys`-, or DBus-dependent path in the shared wrapper
+must **no-op, not error**, when the interface is absent.
+
 ## Installing
 
 There is a single **from-scratch** entry point per OS (provision the Python
@@ -67,6 +94,24 @@ Start-Menu/Desktop shortcuts on Windows. On macOS, `--build-only` produces
 package (Python or PyQt6) is missing it prints the exact
 `sudo pacman -S …` / `sudo apt install …` / `doas pkg_add …` command and stops,
 so the one privileged step is yours.
+
+### Semantic-memory prerequisites (fastembed / onnxruntime)
+
+`requirements.txt` pulls in `chromadb-client` + `fastembed`, which power semantic
+memory, RAG, and personal-doc retrieval. `fastembed` loads `onnxruntime`, whose
+**native** runtime has platform prerequisites pip cannot provide — and a silent
+failure demotes memory to keyword search unnoticed. The installers run
+`tooling/verify_memory_stack.py` after `pip install`, which imports both and
+prints a platform-specific fix on failure:
+
+| Platform | Native prerequisite | Handled by |
+|----------|---------------------|------------|
+| Linux / macOS | prebuilt PyPI wheels — nothing extra | (works out of the box) |
+| Windows | Microsoft Visual C++ Redistributable (onnxruntime's DLL links against it) | `setup.ps1` auto-installs it |
+| FreeBSD | **not currently working** — `py-rust-stemmers` needs the Rust toolchain, and a numpy version pin forces a source build; memory runs **keyword-only** | documented in `build-freebsd-app.sh`; verifier flags it |
+
+Run the check standalone any time: `venv/bin/python tooling/verify_memory_stack.py`
+(exit 0 = healthy, 1 = degraded with remediation).
 
 ### What gets installed, per OS
 
