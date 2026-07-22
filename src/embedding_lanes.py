@@ -114,9 +114,23 @@ def _load_custom_endpoint() -> Dict[str, str]:
 def _build_fastembed_client():
     from src.embeddings import FastEmbedClient
 
-    client = FastEmbedClient()
-    client.get_sentence_embedding_dimension()
-    return client
+    try:
+        client = FastEmbedClient()
+        client.get_sentence_embedding_dimension()
+        return client
+    except Exception as e:
+        # fastembed's runtime is onnxruntime, which has no FreeBSD Python binding
+        # (the pkg ships only the C++ lib). Fall back to the llama.cpp GGUF backend
+        # running the SAME model (nomic) → compatible vectors, no onnxruntime.
+        logger.warning(
+            "fastembed backend unavailable (%s); falling back to the llama.cpp GGUF "
+            "embedding backend", e,
+        )
+        from src.embeddings import LlamaCppEmbedClient
+
+        client = LlamaCppEmbedClient()
+        client.get_sentence_embedding_dimension()
+        return client
 
 
 def _build_custom_client():
