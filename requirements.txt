@@ -14,12 +14,11 @@ numpy
 # Vector store + local embeddings for RAG, semantic memory, and tool
 # selection. Used on core agent paths, so installed by default — the app
 # still degrades to keyword fallback if they're ever missing.
-# Vector-store clients. Migrating from ChromaDB to Qdrant (#161): qdrant-client
-# is the target (Qdrant is a single Rust binary the app starts/stops); chromadb-
-# client stays until the VectorStore refactor removes the last chroma call site.
-# fastembed runs local ONNX embeddings; on FreeBSD llama.cpp is the fallback.
+# Vector store + local embeddings. Qdrant is a single Rust binary the app
+# starts/stops; qdrant-client is the thin pure-Python client. fastembed runs
+# local ONNX embeddings; on FreeBSD, where onnxruntime has no Python binding,
+# the app falls back to a llama.cpp GGUF backend running the same nomic model.
 qdrant-client
-chromadb-client
 fastembed
 youtube-transcript-api
 # Markdown rendering for research reports (src/visual_report.py).

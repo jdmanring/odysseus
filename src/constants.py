@@ -29,6 +29,12 @@ INTEGRATIONS_FILE = os.path.join(DATA_DIR, "integrations.json")
 CONTACTS_FILE = os.path.join(DATA_DIR, "contacts.json")
 APP_KEY_FILE = os.path.join(DATA_DIR, ".app_key")
 EMBEDDING_ENDPOINT_FILE = os.path.join(DATA_DIR, "embedding_endpoint.json")
+# Records each vector-store collection's embedding fingerprint so a model/url
+# change is detected across restarts and the collection is rebuilt. Qdrant has no
+# free-form collection metadata, so the fingerprint lives here instead.
+VECTOR_FINGERPRINTS_FILE = os.path.join(DATA_DIR, "vector_fingerprints.json")
+# On-disk storage for the app-managed Qdrant instance.
+QDRANT_STORAGE_DIR = os.path.join(DATA_DIR, "qdrant")
 COOKBOOK_STATE_FILE = os.path.join(DATA_DIR, "cookbook_state.json")
 BG_JOBS_FILE = os.path.join(DATA_DIR, "bg_jobs.json")
 VAULT_FILE = os.path.join(DATA_DIR, "vault.json")
