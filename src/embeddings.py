@@ -226,6 +226,81 @@ class FastEmbedClient:
         return vecs
 
 
+class LlamaCppEmbedClient:
+    """Local embedding client using llama.cpp (GGUF) — the onnxruntime-free path
+    for platforms fastembed can't run on (notably FreeBSD, which has no
+    onnxruntime Python binding). Runs the SAME model as the fastembed default
+    (nomic-embed-text-v1.5) as a GGUF, with mean pooling + L2 normalization and
+    the same document prefix fastembed applies, so its vectors match the fleet's
+    fastembed vectors. Same encode() interface as FastEmbedClient.
+
+    Config (env): LLAMACPP_EMBED_REPO / LLAMACPP_EMBED_FILE select the GGUF (HF
+    repo + filename glob); LLAMACPP_EMBED_DOC_PREFIX matches fastembed's nomic
+    document prefix (empirically verified against the fastembed output)."""
+
+    def __init__(self, model: Optional[str] = None):
+        try:
+            from llama_cpp import Llama, LLAMA_POOLING_TYPE_MEAN
+        except ImportError as e:
+            raise RuntimeError(
+                "llama-cpp-python is not installed (the onnxruntime-free embedding "
+                "backend). Install it (e.g. `pkg install py312-llama-cpp-python`)."
+            ) from e
+
+        self.model = model or os.getenv("FASTEMBED_MODEL", _DEFAULT_FASTEMBED_MODEL)
+        repo = os.getenv("LLAMACPP_EMBED_REPO", "nomic-ai/nomic-embed-text-v1.5-GGUF")
+        filename = os.getenv("LLAMACPP_EMBED_FILE", "*Q8_0.gguf")
+        # No task prefix by default: verified empirically that fastembed's
+        # nomic-embed-text-v1.5-Q output matches the raw (no-prefix) llama.cpp
+        # embedding best (~0.96 cosine vs ~0.88 with "search_document:"), so
+        # fastembed does not apply the prefix and neither should this, to keep the
+        # FreeBSD llama.cpp vectors aligned with the fleet's fastembed vectors.
+        self._doc_prefix = os.getenv("LLAMACPP_EMBED_DOC_PREFIX", "")
+        os.makedirs(FASTEMBED_CACHE_DIR, exist_ok=True)
+
+        _load_start = time.monotonic()
+        self._llm = Llama.from_pretrained(
+            repo_id=repo,
+            filename=filename,
+            embedding=True,
+            pooling_type=LLAMA_POOLING_TYPE_MEAN,
+            n_ctx=8192,
+            n_batch=512,
+            verbose=False,
+            cache_dir=FASTEMBED_CACHE_DIR,
+        )
+        _load_ms = (time.monotonic() - _load_start) * 1000
+        self._dim: Optional[int] = None
+        self.url = "local://llamacpp"
+        logger.info("llamacpp_embed_loaded", model=repo, file=filename,
+                    load_ms=round(_load_ms, 1))
+
+    def get_sentence_embedding_dimension(self) -> int:
+        if self._dim is not None:
+            return self._dim
+        self._dim = self.encode(["hello"]).shape[1]
+        logger.info(f"Embedding dimension: {self._dim} (llama.cpp {self.model})")
+        return self._dim
+
+    def encode(
+        self, texts: List[str], normalize_embeddings: bool = True
+    ) -> np.ndarray:
+        if not texts:
+            return np.array([], dtype="float32")
+        prefixed = [self._doc_prefix + t for t in texts]
+        out = self._llm.embed(prefixed)
+        vecs = np.array(out, dtype="float32")
+        if vecs.ndim == 1:
+            vecs = vecs.reshape(1, -1)
+        if normalize_embeddings and vecs.size > 0:
+            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+            norms = np.where(norms == 0, 1, norms)
+            vecs = vecs / norms
+        if self._dim is None and vecs.size > 0:
+            self._dim = vecs.shape[1]
+        return vecs
+
+
 def _load_persisted_endpoint() -> dict:
     """Load the custom embedding endpoint saved from the admin panel."""
     try:
