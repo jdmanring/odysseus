@@ -61,44 +61,43 @@ current design doesn't do.
 
 ### Why the change
 
-ChromaDB was the reason the memory system only worked on macOS. Two problems
-compounded:
+The migration started from a concrete need: a vector store that runs on FreeBSD.
+ChromaDB does not. Its server is a Python package whose default embedder is
+onnxruntime-based, and onnxruntime has no FreeBSD Python binding — the same wall
+fastembed hits. There is no native FreeBSD deployment path for it.
 
-1. Chroma's server is a Python package whose default embedder is onnxruntime-based,
-   so it hit the same FreeBSD wall as fastembed.
-2. The "start and stop the database with the app" lifecycle was only ever written
-   into `start-macos.sh`. Deployment otherwise assumed Docker (`docker-compose.yml`,
-   which FreeBSD has no equivalent for) or a full native `chromadb` install driven
-   by `chroma run`. On Linux, Windows, and FreeBSD nothing started a vector store at
-   all, so the app silently fell back to keyword search. Semantic memory was, in
-   practice, dead everywhere but macOS.
+Investigating the FreeBSD requirement surfaced the answer from prior work rather
+than a fresh search: the local-embedding + Qdrant stack from the private Qwen Code
+fork (`megalonyx-monorepo`) fits Odysseus just as well. Qdrant is a single Rust
+binary — no Python server, no onnxruntime, no Docker — and FreeBSD packages it
+directly (`qdrant` server plus `py312-qdrant-client`), so it runs natively where
+Chroma cannot. `qdrant-client` is a thin pure-Python client, and fastembed is
+Qdrant's own embedding library, so the embed-and-store pairing is vendor-matched.
 
-Qdrant removes both problems. It's a single Rust binary: no Python server, no
-onnxruntime, no Docker. FreeBSD packages it directly (`qdrant` server plus
-`py312-qdrant-client`), so it runs natively where Chroma couldn't. And because it's
-one binary, the same start-and-reap lifecycle works identically on every platform,
-which is what ends the macOS-only asymmetry. `qdrant-client` is a thin pure-Python
-client, and fastembed being Qdrant's own library makes the embed-and-store pairing
-the vendor's supported path.
+Recognizing those components pointed to a fleet-wide upgrade rather than a
+FreeBSD-only patch: adopt the same store everywhere, including the pattern of
+starting and stopping the store binary alongside the app on every platform. That
+start/stop lifecycle is carried over from the Qwen fork, where it was already
+built; it is not inherited from this repo's `start-macos.sh`.
 
 ### Prior art
 
-This isn't a first attempt at the pattern. The private Qwen Code fork
-(`megalonyx-monorepo`) already runs Qdrant as its memory store: local and cloud
-tiers, cosine search, a write-ahead log with replay-on-startup recovery, all against
-a local Qdrant instance driven by `QdrantClient`. That project validated the
-single-binary local-Qdrant approach in real use before it was chosen here, and the
-FreeBSD investigation is what surfaced it as the fix for Odysseus's Chroma problem
-rather than a preference. The one deliberate difference: megalonyx used all-MiniLM
-locally (384-dim) and a remote Gemini model for its cloud tier; Odysseus is
-local-only and standardizes on nomic, since remote embedding is off the table here.
+The Qwen Code fork (`megalonyx-monorepo`) already runs this stack: Qdrant as the
+memory store with local and cloud tiers, cosine search, and a write-ahead log with
+replay-on-startup recovery, all against a local Qdrant instance driven by
+`QdrantClient`, plus the start/stop-with-the-app lifecycle. That project is where
+the single-binary local-Qdrant approach — and its lifecycle mechanics — were proven
+in use, which is why the FreeBSD investigation landed on it directly. The one
+deliberate difference: megalonyx used all-MiniLM locally (384-dim) with a remote
+Gemini model for its cloud tier; Odysseus is local-only and standardizes on nomic,
+since remote embedding is off the table here.
 
 ### Lifecycle
 
 The app connects over `qdrant-client` (default `:6333`), overridable with
 `QDRANT_HOST` / `QDRANT_PORT`. The intended deployment launches the Qdrant binary
 as a background process and reaps it on exit, the same way on every platform —
-that uniform lifecycle is the fix for the old macOS-only asymmetry. It is the one
+the fleet-wide start/stop pattern carried over from the Qwen fork. It is the one
 piece still pending (see Status); the store code itself is done and connects to a
 running instance today.
 
