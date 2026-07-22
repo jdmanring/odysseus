@@ -30,6 +30,21 @@ Last updated: 2026-06-10
 All files under `docs/fork/`, `docs/project/`, `docs/dev/`, `docs/user/`, `docs/audit/` —
 documentation system for managing fork state and enabling AI collaboration.
 
+### Memory / Vector Store (#161, branch `feat/memory-qdrant-nomic`)
+- `src/vector_client.py` — Qdrant-backed vector store, shaped to the ChromaDB
+  collection API the codebase already speaks. Converts Qdrant's cosine similarity
+  back to a Chroma distance (`1 − score`), maps arbitrary string IDs to UUIDv5, and
+  translates `where=` equality filters. Replaces the deleted `src/chroma_client.py`.
+- `docs/dev/memory-architecture.md` — the locked-in architecture and rationale.
+
+(`tooling/verify_memory_stack.py` is #160's file; #161 modifies it to check
+qdrant-client instead of chromadb-client.)
+
+Modified alongside (existed upstream): `src/embeddings.py` (nomic default,
+llama.cpp `LlamaCppEmbedClient`, 256-dim Matryoshka + query/doc prefixes),
+`src/embedding_lanes.py` (fastembed→llama.cpp fallback, Qdrant client, fingerprint
+sidecar), `src/memory_vector.py`, `src/rag_vector.py` (Qdrant + 2048-char chunks).
+
 ---
 
 ## Modified Files (significant changes from upstream baseline)
@@ -94,4 +109,5 @@ Fork has 17 built-in themes vs upstream's 16. Added `catppuccin` using Catppucci
 | `tooling/aria2_rpc.py` | Ghost file — JSON-RPC client for old architecture. Same. |
 | `tooling/provisioner.py` | Ghost file — coordinator for the above two. Same. |
 | `HANDOFF_TO_CLAUDE.md` | Stale AI conversation handoff doc — obsolete with proper memory/CLAUDE.md system. |
+| `src/chroma_client.py` | ChromaDB HTTP client — removed in the Qdrant migration (#161). Replaced by `src/vector_client.py`. |
 
