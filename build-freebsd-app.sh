@@ -7,17 +7,47 @@
 # Primary target: KDE Plasma on FreeBSD. Also works on GhostBSD/MATE and
 # other FreeBSD desktops (XFCE, LXQt, etc.).
 #
-# Prerequisites:
-#   - venv built with server dependencies (uvicorn, fastapi, etc.)
-#   - System PyQt6 with WebEngine installed via pkg:
-#       pkg install py311-qt6-webengine py311-qt6-webchannel py311-dbus-python
-#     or into venv via pip (downloads ~250 MB Chromium binary):
-#       venv/bin/pip install PyQt6 PyQt6-WebEngine
-#   - qt_wrapper.py present in repo root (from feat/qt-native-linux-app)
+# Prerequisites (verified on FreeBSD 15.1, KDE Plasma):
 #
-# The display layer (qt_wrapper.py) can use either the system python3 (if
-# system PyQt6 is installed) or the venv python. This script uses the venv
-# python and falls back to system python3 if PyQt6 is not in the venv.
+#   1. System packages — prebuilt binaries, so no Rust/C source builds. PyQt6 on
+#      FreeBSD is packaged for python3.12, so use that interpreter throughout.
+#      These are the CORE deps that carry native code (everything else in
+#      requirements.txt is pure Python and pip installs it fine):
+#
+#        doas pkg install \
+#          py312-qt6-pyqt py312-qt6-webengine \       # PyQt6 + QtWebEngine bindings
+#          py312-sqlite3 \                            # sqlite3 ext (NOT bundled in FreeBSD's python)
+#          py312-pydantic2 py312-cryptography py312-bcrypt py312-nh3 \   # Rust/C deps as binaries
+#          py312-numpy py312-lxml py312-pillow \      # numpy; lxml (caldav); pillow (qrcode 2FA)
+#          aria2                                      # HF downloader backend (tooling/aria2c_download.py)
+#
+#   2. A venv that can SEE those system packages, then the pure-Python remainder:
+#
+#        python3.12 -m venv --system-site-packages venv
+#        venv/bin/pip install -r requirements.txt
+#
+#      --system-site-packages lets the venv use the pkg-installed PyQt6 and the
+#      binary Rust/C deps above, so pip only builds pure-Python wheels (no
+#      compiler needed).
+#
+#   3. qt_wrapper.py present in repo root (shared with the Linux app).
+#
+# Semantic search / memory embeddings (fastembed): NOT yet working on FreeBSD.
+# The app degrades to keyword search without it (memory, RAG, and personal-doc
+# retrieval still function, just with worse recall). chromadb-client installs
+# fine; fastembed does not — its dependency chain has multiple layers that lack
+# FreeBSD binaries and conflict when built from source (verified 2026-07-22):
+#   - numpy: a fastembed dep pins a numpy version other than the packaged
+#     py312-numpy, so pip tries to build numpy from source (needs meson/BLAS);
+#   - py-rust-stemmers: no FreeBSD binary, needs the Rust toolchain;
+#   - mmh3: builds from source unless py312-mmh3 is pkg-installed first.
+# Getting it working is an open porting task (resolve the numpy pin, pkg the
+# buildable deps, build py-rust-stemmers with rust). Until then FreeBSD runs
+# keyword-only memory, which tooling/verify_memory_stack.py reports at build time.
+#
+# The display layer (qt_wrapper.py) uses the venv python (which sees the pkg
+# PyQt6 via --system-site-packages); it falls back to system python3.12 if PyQt6
+# is not reachable from the venv.
 # ==============================================================================
 
 set -e
@@ -26,7 +56,10 @@ APP_NAME="odysseus"
 INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_PATH="$INSTALL_DIR/venv"
 VENV_PYTHON="$VENV_PATH/bin/python"
-SYSTEM_PYTHON="/usr/local/bin/python3"
+# PyQt6 on FreeBSD is packaged for python3.12 (py312-qt6-pyqt), so the system
+# fallback interpreter must be 3.12 — a bare python3 may resolve to 3.11, which
+# has no PyQt6.
+SYSTEM_PYTHON="/usr/local/bin/python3.12"
 BIN_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
 ICON_DIR_SCALABLE="$HOME/.local/share/icons/hicolor/scalable/apps"
@@ -53,15 +86,22 @@ elif "$SYSTEM_PYTHON" -c "import PyQt6.QtWebEngineWidgets" 2>/dev/null; then
     WRAPPER_PYTHON="$SYSTEM_PYTHON"
     echo "Using system PyQt6."
 else
-    echo "ERROR: PyQt6 with WebEngine not found in venv or system python3." >&2
-    echo "       Option 1 (system, recommended on FreeBSD):" >&2
-    echo "         pkg install py311-qt6-webengine py311-qt6-webchannel py311-dbus-python" >&2
-    echo "       Option 2 (venv, downloads ~250 MB Chromium binary):" >&2
-    echo "         $VENV_PYTHON -m pip install PyQt6 PyQt6-WebEngine" >&2
+    echo "ERROR: PyQt6 with WebEngine not found in venv or system python3.12." >&2
+    echo "       Install the FreeBSD packages, then a system-site-packages venv:" >&2
+    echo "         doas pkg install py312-qt6-pyqt py312-qt6-webengine py312-sqlite3 aria2" >&2
+    echo "         python3.12 -m venv --system-site-packages venv" >&2
+    echo "         venv/bin/pip install -r requirements.txt" >&2
+    echo "       See the header of this script for the full dependency list." >&2
     exit 1
 fi
 
 echo "PyQt6 WebEngine: OK"
+
+# Verify the memory / RAG stack (chromadb + fastembed) loads. On FreeBSD fastembed
+# needs a build-time Rust toolchain (see the header); a silent failure demotes
+# semantic memory to keyword search, so surface it (non-fatal — the app still runs).
+"$VENV_PYTHON" "$INSTALL_DIR/tooling/verify_memory_stack.py" || \
+    echo "   (build continues; memory runs keyword-only until fixed)" >&2
 
 # --- Directories ---
 mkdir -p "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR_SCALABLE"
@@ -77,16 +117,16 @@ echo "Installed launcher: $LAUNCHER_BIN"
 
 # --- Icon ---
 ICON_PATH="$ICON_DIR_SCALABLE/$APP_NAME.svg"
-if [ -f "$INSTALL_DIR/assets/$APP_NAME.svg" ]; then
-    cp "$INSTALL_DIR/assets/$APP_NAME.svg" "$ICON_PATH"
+if [ -f "$INSTALL_DIR/static/icons/$APP_NAME.svg" ]; then
+    cp "$INSTALL_DIR/static/icons/$APP_NAME.svg" "$ICON_PATH"
     echo "Installed SVG icon: $ICON_PATH"
-elif [ -f "$INSTALL_DIR/assets/$APP_NAME.png" ]; then
+elif [ -f "$INSTALL_DIR/static/icons/icon-512.png" ]; then
     ICON_DIR_256="$HOME/.local/share/icons/hicolor/256x256/apps"
     mkdir -p "$ICON_DIR_256"
-    cp "$INSTALL_DIR/assets/$APP_NAME.png" "$ICON_DIR_256/$APP_NAME.png"
+    cp "$INSTALL_DIR/static/icons/icon-512.png" "$ICON_DIR_256/$APP_NAME.png"
     echo "Installed PNG icon: $ICON_DIR_256/$APP_NAME.png"
 else
-    echo "WARNING: No icon found in assets/ ($APP_NAME.svg/.png). Skipping." >&2
+    echo "WARNING: No icon found in static/icons/. Skipping." >&2
 fi
 
 # --- .desktop file ---
