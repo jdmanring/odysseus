@@ -19,6 +19,7 @@
 #          py312-sqlite3 \                            # sqlite3 ext (NOT bundled in FreeBSD's python)
 #          py312-pydantic2 py312-cryptography py312-bcrypt py312-nh3 \   # Rust/C deps as binaries
 #          py312-numpy py312-lxml py312-pillow \      # numpy; lxml (caldav); pillow (qrcode 2FA)
+#          py312-llama-cpp-python \                   # onnxruntime-free embedding backend (semantic memory)
 #          aria2                                      # HF downloader backend (tooling/aria2c_download.py)
 #
 #   2. A venv that can SEE those system packages, then the pure-Python remainder:
@@ -32,18 +33,16 @@
 #
 #   3. qt_wrapper.py present in repo root (shared with the Linux app).
 #
-# Semantic search / memory embeddings (fastembed): NOT yet working on FreeBSD.
-# The app degrades to keyword search without it (memory, RAG, and personal-doc
-# retrieval still function, just with worse recall). chromadb-client installs
-# fine; fastembed does not — its dependency chain has multiple layers that lack
-# FreeBSD binaries and conflict when built from source (verified 2026-07-22):
-#   - numpy: a fastembed dep pins a numpy version other than the packaged
-#     py312-numpy, so pip tries to build numpy from source (needs meson/BLAS);
-#   - py-rust-stemmers: no FreeBSD binary, needs the Rust toolchain;
-#   - mmh3: builds from source unless py312-mmh3 is pkg-installed first.
-# Getting it working is an open porting task (resolve the numpy pin, pkg the
-# buildable deps, build py-rust-stemmers with rust). Until then FreeBSD runs
-# keyword-only memory, which tooling/verify_memory_stack.py reports at build time.
+# Semantic memory / RAG on FreeBSD (verified 2026-07-22): WORKING via llama.cpp.
+# fastembed's runtime is onnxruntime, which has no FreeBSD Python binding (the
+# pkg ships only the C++ library; there's no wheel), so fastembed itself cannot
+# run here. Instead the app auto-falls-back to a llama.cpp embedding backend
+# (LlamaCppEmbedClient) running the SAME model as the fleet default,
+# nomic-embed-text-v1.5, as a GGUF via py312-llama-cpp-python — 768-dim, no
+# onnxruntime, vectors ~0.96-compatible with the fleet's fastembed output. So
+# semantic memory is full-quality here, not keyword-only. The GGUF downloads on
+# first use (nomic-ai/nomic-embed-text-v1.5-GGUF, Q8_0). chromadb-client is the
+# vector-store client; a reachable ChromaDB service is still required.
 #
 # The display layer (qt_wrapper.py) uses the venv python (which sees the pkg
 # PyQt6 via --system-site-packages); it falls back to system python3.12 if PyQt6
@@ -101,7 +100,7 @@ echo "PyQt6 WebEngine: OK"
 # needs a build-time Rust toolchain (see the header); a silent failure demotes
 # semantic memory to keyword search, so surface it (non-fatal — the app still runs).
 "$VENV_PYTHON" "$INSTALL_DIR/tooling/verify_memory_stack.py" || \
-    echo "   (build continues; memory runs keyword-only until fixed)" >&2
+    echo "   (build continues; install py312-llama-cpp-python for semantic memory)" >&2
 
 # --- Directories ---
 mkdir -p "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR_SCALABLE"

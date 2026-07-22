@@ -53,15 +53,27 @@ def main() -> int:
     if err is not None:
         problems.append(("chromadb-client", err, "pip install chromadb-client"))
 
-    # Importing fastembed exercises onnxruntime's native load — the real test.
-    err = _import_error("fastembed")
-    if err is None:
-        err = _import_error("onnxruntime")  # belt-and-suspenders
-    if err is not None:
-        problems.append(("fastembed", err, _fastembed_fix(err)))
+    # Embedding backend: fastembed (onnxruntime) is the default; where it can't
+    # run (FreeBSD has no onnxruntime Python binding) the app falls back to the
+    # llama.cpp backend, which is equally valid. So the stack is healthy if
+    # EITHER loads. Importing fastembed exercises onnxruntime's native load.
+    backend = None
+    fe_err = _import_error("fastembed") or _import_error("onnxruntime")
+    if fe_err is None:
+        backend = "fastembed"
+    else:
+        lc_err = _import_error("llama_cpp")
+        if lc_err is None:
+            backend = "llama.cpp"
+        else:
+            problems.append((
+                "embedding backend", fe_err,
+                _fastembed_fix(fe_err) + "  OR install the llama.cpp fallback "
+                "(FreeBSD: pkg install py312-llama-cpp-python).",
+            ))
 
     if not problems:
-        print("ok  Memory stack healthy - chromadb + fastembed load.")
+        print(f"ok  Memory stack healthy - chromadb + {backend} embedding backend load.")
         return 0
 
     print("WARNING: the memory / RAG stack is DEGRADED. Semantic memory, RAG, and")
