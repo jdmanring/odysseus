@@ -36,8 +36,12 @@ from src.runtime_paths import get_app_root
 
 logger = structlog.get_logger(__name__)
 
-_DEFAULT_MODEL = "all-minilm:l6-v2"
-_DEFAULT_FASTEMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# nomic-embed-text-v1.5-Q: nomic's official INT8-quantized ONNX (130 MB, near-
+# lossless), 768-dim, 8K context — a quality + long-context upgrade over
+# all-MiniLM at a comparable footprint. "-Q" is the fastembed-supported quant;
+# the HTTP-endpoint default uses the Ollama tag for the same model.
+_DEFAULT_MODEL = "nomic-embed-text"
+_DEFAULT_FASTEMBED_MODEL = "nomic-ai/nomic-embed-text-v1.5-Q"
 
 
 class EmbeddingClient:
