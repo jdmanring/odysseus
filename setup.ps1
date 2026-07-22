@@ -46,14 +46,46 @@ if (-not $py) {
 }
 Write-Host "   ok Python: $py"
 
+# 1b. Microsoft Visual C++ Redistributable. onnxruntime (used by fastembed for
+#     local embeddings — semantic memory, RAG, personal-doc retrieval) links
+#     against the MSVC runtime; without it its native DLL fails to load and the
+#     memory system silently degrades to keyword search. Ensure it is present.
+function Ensure-VCRedist {
+    $dll = Join-Path $env:SystemRoot "System32\vcruntime140_1.dll"
+    if (Test-Path $dll) { Write-Host "   ok Visual C++ runtime present"; return }
+    Write-Host "==> Installing Microsoft Visual C++ Redistributable (required by onnxruntime)..."
+    $exe = Join-Path $env:TEMP "vc_redist.x64.exe"
+    try {
+        Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" `
+            -OutFile $exe -UseBasicParsing
+        Start-Process -FilePath $exe -ArgumentList "/install", "/quiet", "/norestart" `
+            -Verb RunAs -Wait
+        Remove-Item -Force $exe -ErrorAction SilentlyContinue
+        if (Test-Path $dll) { Write-Host "   ok Visual C++ runtime installed" }
+        else { Write-Warning "VC++ redistributable did not register; semantic memory may be degraded." }
+    } catch {
+        Write-Warning "Could not install the VC++ redistributable automatically: $_"
+        Write-Host "     Install it manually, then re-run setup:"
+        Write-Host "       https://aka.ms/vs/17/release/vc_redist.x64.exe"
+    }
+}
+Ensure-VCRedist
+
 # 2 + 3. Build the venv, install requirements + PyQt6, create shortcuts. This is
 #        exactly what a normal install does, so we reuse it rather than duplicate.
 Write-Host "==> Building the app (venv, requirements, PyQt6, shortcuts)..."
 & "$RepoDir\install.bat"
 if ($LASTEXITCODE -ne 0) { Write-Error "install.bat failed (exit $LASTEXITCODE)"; exit 1 }
 
-# 4. First-run setup (data dirs + initial admin password; idempotent).
+# 3b. Verify the memory / RAG stack (chromadb + fastembed) actually loads. pip
+#     installs them, but a broken onnxruntime native load silently demotes
+#     semantic memory to keyword search — check it and print a fix if degraded.
 $venvPy = Join-Path $RepoDir "venv\Scripts\python.exe"
+if (Test-Path $venvPy) {
+    & $venvPy "$RepoDir\tooling\verify_memory_stack.py"
+}
+
+# 4. First-run setup (data dirs + initial admin password; idempotent).
 if (Test-Path $venvPy) {
     Write-Host "==> Preparing Odysseus..."
     $env:ODYSSEUS_SKIP_RUN_HINT = "1"
