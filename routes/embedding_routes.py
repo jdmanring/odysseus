@@ -322,9 +322,9 @@ def setup_embedding_routes():
         except Exception:
             pass
 
-        # Reset ChromaDB client (collections will be recreated with new embeddings)
+        # Reset the vector-store client (collections recreated with new embeddings)
         try:
-            from src.chroma_client import reset_client
+            from src.vector_client import reset_client
             reset_client()
         except Exception:
             pass
@@ -363,9 +363,9 @@ def setup_embedding_routes():
         except Exception:
             pass
 
-        # Reset ChromaDB client
+        # Reset the vector-store client
         try:
-            from src.chroma_client import reset_client
+            from src.vector_client import reset_client
             reset_client()
         except Exception:
             pass

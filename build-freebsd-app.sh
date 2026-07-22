@@ -41,7 +41,7 @@
 # nomic-embed-text-v1.5, as a GGUF via py312-llama-cpp-python — 768-dim, no
 # onnxruntime, vectors ~0.96-compatible with the fleet's fastembed output. So
 # semantic memory is full-quality here, not keyword-only. The GGUF downloads on
-# first use (nomic-ai/nomic-embed-text-v1.5-GGUF, Q8_0). chromadb-client is the
+# first use (nomic-ai/nomic-embed-text-v1.5-GGUF, Q8_0). qdrant-client is the
 # vector-store client; a reachable ChromaDB service is still required.
 #
 # The display layer (qt_wrapper.py) uses the venv python (which sees the pkg
@@ -96,7 +96,7 @@ fi
 
 echo "PyQt6 WebEngine: OK"
 
-# Verify the memory / RAG stack (chromadb + fastembed) loads. On FreeBSD fastembed
+# Verify the memory / RAG stack (qdrant-client + fastembed) loads. On FreeBSD fastembed
 # needs a build-time Rust toolchain (see the header); a silent failure demotes
 # semantic memory to keyword search, so surface it (non-fatal — the app still runs).
 "$VENV_PYTHON" "$INSTALL_DIR/tooling/verify_memory_stack.py" || \
