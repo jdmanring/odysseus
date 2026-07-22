@@ -61,7 +61,7 @@ def main() -> int:
         problems.append(("fastembed", err, _fastembed_fix(err)))
 
     if not problems:
-        print("ok  Memory stack healthy — chromadb + fastembed load.")
+        print("ok  Memory stack healthy - chromadb + fastembed load.")
         return 0
 
     print("WARNING: the memory / RAG stack is DEGRADED. Semantic memory, RAG, and")
