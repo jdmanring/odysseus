@@ -35,8 +35,8 @@ class EmbeddingLane:
     def healthy(self) -> bool:
         return self.collection is not None and self.client is not None
 
-    def encode(self, texts: Sequence[str]) -> List[List[float]]:
-        vecs = self.client.encode(list(texts), normalize_embeddings=True)
+    def encode(self, texts: Sequence[str], is_query: bool = False) -> List[List[float]]:
+        vecs = self.client.encode(list(texts), normalize_embeddings=True, is_query=is_query)
         return vecs.tolist() if hasattr(vecs, "tolist") else [list(v) for v in vecs]
 
     def count(self) -> int:
@@ -389,7 +389,7 @@ def query_lanes(
             if n <= 0:
                 continue
             results = lane.collection.query(
-                query_embeddings=lane.encode([query]),
+                query_embeddings=lane.encode([query], is_query=True),
                 n_results=n,
                 where=where,
                 include=list(include),

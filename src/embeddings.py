@@ -43,6 +43,34 @@ logger = structlog.get_logger(__name__)
 _DEFAULT_MODEL = "nomic-embed-text"
 _DEFAULT_FASTEMBED_MODEL = "nomic-ai/nomic-embed-text-v1.5-Q"
 
+# Optimized-nomic knobs (see docs/dev/memory-architecture.md). Matryoshka:
+# nomic-v1.5's leading dims carry the most signal, so we truncate 768 -> 256 and
+# re-normalize (3x smaller/faster, ~1-2% quality). Prefixes: nomic is trained with
+# asymmetric search_query:/search_document: — applied explicitly so both the
+# fastembed and llama.cpp backends produce aligned vectors.
+_TRUNCATE_DIM = int(os.getenv("EMBEDDING_TRUNCATE_DIM", "256"))
+_NOMIC_QUERY_PREFIX = "search_query: "
+_NOMIC_DOC_PREFIX = "search_document: "
+
+
+def _prefix_texts(texts, is_query: bool, model: str):
+    """Prepend nomic's task prefix. No-op for non-nomic models."""
+    if "nomic" not in (model or "").lower():
+        return list(texts)
+    p = _NOMIC_QUERY_PREFIX if is_query else _NOMIC_DOC_PREFIX
+    return [p + t for t in texts]
+
+
+def _truncate_and_normalize(vecs, normalize: bool):
+    """Matryoshka-truncate to _TRUNCATE_DIM, then (optionally) L2-normalize."""
+    if _TRUNCATE_DIM and vecs.ndim == 2 and vecs.shape[1] > _TRUNCATE_DIM:
+        vecs = vecs[:, :_TRUNCATE_DIM]
+    if normalize and vecs.size > 0:
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1, norms)
+        vecs = vecs / norms
+    return vecs
+
 
 class EmbeddingClient:
     """Drop-in replacement for SentenceTransformer.encode() using an HTTP API."""
@@ -74,9 +102,12 @@ class EmbeddingClient:
         return self._dim
 
     def encode(
-        self, texts: List[str], normalize_embeddings: bool = True
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
     ) -> np.ndarray:
-        """Encode texts via the API. Returns (N, dim) float32 array."""
+        """Encode texts via the API. Returns (N, dim) float32 array. is_query is
+        accepted for interface parity; a custom endpoint owns its own model, so no
+        nomic prefix/truncation is applied here."""
         if not texts:
             return np.array([], dtype="float32")
 
@@ -207,18 +238,17 @@ class FastEmbedClient:
         return self._dim
 
     def encode(
-        self, texts: List[str], normalize_embeddings: bool = True
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
     ) -> np.ndarray:
-        """Encode texts locally. Returns (N, dim) float32 array."""
+        """Encode texts locally. Returns (N, dim) float32 array. Applies nomic's
+        task prefix (query vs document) and Matryoshka truncation to _TRUNCATE_DIM."""
         if not texts:
             return np.array([], dtype="float32")
 
-        vecs = np.array(list(self._embedding.embed(texts)), dtype="float32")
-
-        if normalize_embeddings and vecs.size > 0:
-            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
-            norms = np.where(norms == 0, 1, norms)
-            vecs = vecs / norms
+        prefixed = _prefix_texts(texts, is_query, self.model)
+        vecs = np.array(list(self._embedding.embed(prefixed)), dtype="float32")
+        vecs = _truncate_and_normalize(vecs, normalize_embeddings)
 
         if self._dim is None and vecs.size > 0:
             self._dim = vecs.shape[1]
@@ -250,12 +280,9 @@ class LlamaCppEmbedClient:
         self.model = model or os.getenv("FASTEMBED_MODEL", _DEFAULT_FASTEMBED_MODEL)
         repo = os.getenv("LLAMACPP_EMBED_REPO", "nomic-ai/nomic-embed-text-v1.5-GGUF")
         filename = os.getenv("LLAMACPP_EMBED_FILE", "*Q8_0.gguf")
-        # No task prefix by default: verified empirically that fastembed's
-        # nomic-embed-text-v1.5-Q output matches the raw (no-prefix) llama.cpp
-        # embedding best (~0.96 cosine vs ~0.88 with "search_document:"), so
-        # fastembed does not apply the prefix and neither should this, to keep the
-        # FreeBSD llama.cpp vectors aligned with the fleet's fastembed vectors.
-        self._doc_prefix = os.getenv("LLAMACPP_EMBED_DOC_PREFIX", "")
+        # Task prefix + Matryoshka truncation are applied in encode() via the
+        # shared helpers, identically to the fastembed backend, so the FreeBSD
+        # vectors stay aligned with the fleet's.
         os.makedirs(FASTEMBED_CACHE_DIR, exist_ok=True)
 
         _load_start = time.monotonic()
@@ -283,19 +310,17 @@ class LlamaCppEmbedClient:
         return self._dim
 
     def encode(
-        self, texts: List[str], normalize_embeddings: bool = True
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
     ) -> np.ndarray:
         if not texts:
             return np.array([], dtype="float32")
-        prefixed = [self._doc_prefix + t for t in texts]
+        prefixed = _prefix_texts(texts, is_query, self.model)
         out = self._llm.embed(prefixed)
         vecs = np.array(out, dtype="float32")
         if vecs.ndim == 1:
             vecs = vecs.reshape(1, -1)
-        if normalize_embeddings and vecs.size > 0:
-            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
-            norms = np.where(norms == 0, 1, norms)
-            vecs = vecs / norms
+        vecs = _truncate_and_normalize(vecs, normalize_embeddings)
         if self._dim is None and vecs.size > 0:
             self._dim = vecs.shape[1]
         return vecs
