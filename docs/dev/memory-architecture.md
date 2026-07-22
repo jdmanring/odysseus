@@ -95,9 +95,17 @@ local-only and standardizes on nomic, since remote embedding is off the table he
 
 ### Lifecycle
 
-The app launches the Qdrant binary as a background process and reaps it on exit,
-the same way on Linux, Windows, macOS, and FreeBSD. It connects over
-`qdrant-client` (default `:6333`), overridable with `QDRANT_HOST` / `QDRANT_PORT`.
+The app connects over `qdrant-client` (default `:6333`), overridable with
+`QDRANT_HOST` / `QDRANT_PORT`. The intended deployment launches the Qdrant binary
+as a background process and reaps it on exit, the same way on every platform —
+that uniform lifecycle is the fix for the old macOS-only asymmetry. It is the one
+piece still pending (see Status); the store code itself is done and connects to a
+running instance today.
+
+Qdrant has no free-form collection metadata, so the per-lane embedding
+*fingerprint* (which detects a model/dimension/endpoint change and triggers a
+collection rebuild) is tracked in a local sidecar, `vector_fingerprints.json`
+under the data dir, rather than on the collection.
 
 ## Optimized-nomic configuration
 
@@ -136,15 +144,18 @@ Done and validated:
   on the host: 256-dim output, prefixes active (query vs document cosine 0.827), and
   sharper retrieval (best match 0.931 against the earlier 0.52).
 - `qdrant-client` added as a dependency (`77f4e6a5`).
+- The Chroma-to-Qdrant store swap (`810332c0`). `src/vector_client.py` is a
+  Chroma-shaped adapter over `QdrantClient`; the six Chroma call sites moved onto
+  it and ChromaDB was removed outright (no data to migrate — nothing persisted).
+  The adapter converts Qdrant's similarity score back to a Chroma-style cosine
+  distance, maps arbitrary string IDs to UUIDs, and translates `where=` equality
+  filters. Validated against a live Qdrant 1.18.3 with real nomic (256-dim):
+  MemoryVectorStore (semantic recall ranks correctly; add/remove/rebuild) and
+  VectorRAG (owner-filter isolation, hybrid ranking, delete-by-source).
 
-In progress, the Chroma-to-Qdrant swap:
+Still pending:
 
-- Scope is a bounded backend change. About five files own the Chroma coupling
-  (`src/chroma_client.py`, `embedding_lanes.py`, `memory_vector.py`,
-  `rag_vector.py`, plus a few call sites) behind a small collection API: create,
-  upsert, search, get, count, delete.
-- No data migration is needed, since memory was never actually persisting.
-- Plan: a thin `VectorStore` abstraction with a Qdrant implementation, plus the
-  uniform binary lifecycle. Chroma is being removed outright rather than kept behind
-  the interface, since nothing depends on the stored data.
+- The app-managed Qdrant binary lifecycle (download + pin the binary, start/stop
+  it with the app on every platform) and the installer/verifier wiring. Until then
+  the store connects to a Qdrant instance that must be running already.
 - Upstream-candidate. Tracked under its own issue and branch (#161).
