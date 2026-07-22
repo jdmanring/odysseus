@@ -10384,11 +10384,14 @@ import { bindMenuDismiss, dismissOrRemove } from './escMenuStack.js';
     }
     const textarea = document.getElementById('doc-editor-textarea');
     const codeEl   = document.getElementById('doc-editor-code');
-    if (textarea && codeEl) {
-      const finalContent = docs.get(oldId)?.content || '';
-      textarea.value = finalContent;
-      codeEl.textContent = finalContent + '\n';
-    }
+    // Finalize each element independently. A combined `textarea && codeEl` guard
+    // skips the whole write when only one is present — which happens while
+    // switching document modes or rebuilding the panel — leaving the surviving
+    // element showing stale/empty text at the end of a stream. The streaming
+    // deltas already update each element on its own; finalize must match.
+    const finalContent = docs.get(oldId)?.content || '';
+    if (textarea) textarea.value = finalContent;
+    if (codeEl) codeEl.textContent = finalContent + '\n';
     // Hide streaming indicator + cursor
     const indicator = document.getElementById('doc-stream-indicator');
     if (indicator) indicator.style.display = 'none';
