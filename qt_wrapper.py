@@ -237,6 +237,28 @@ def _server_running():
     return _server_proc is not None and _server_proc.poll() is None
 
 
+def _proc_rss_available():
+    """True when the host can read a process's RSS from /proc — a Linux-only
+    interface. The renderer memory monitor and its forcible-purge machinery are
+    built on it, so on BSD (no /proc, or procfs not mounted) it reports False and
+    those are disabled: without a measurable RSS the purge ceiling is bypassed
+    (0 reads as below-ceiling) and Memory.forciblyPurgeJavaScriptMemory fires
+    every idle tick, which segfaults QtWebEngine's renderer (exit 139) into a
+    crash loop — a white window. The reclaim sawtooth is a constrained-Linux
+    optimization; BSD is correct to run without it."""
+    try:
+        with open('/proc/self/status') as f:
+            for line in f:
+                if line.startswith('VmRSS'):
+                    return True
+    except OSError:
+        pass
+    return False
+
+
+_PROC_RSS_OK = _proc_rss_available()
+
+
 def kill_zombies():
     result = subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
     if result.returncode == 0:
@@ -818,18 +840,19 @@ class OdysseusWindow(QMainWindow):
             # the renderer-pid reading above. We track it here to answer the open
             # question of whether that footprint is a fixed baseline or climbs with
             # use (issue #112). The per-sample delta makes growth visible directly.
-            try:
-                with open('/proc/self/status') as f:
-                    for line in f:
-                        if line.startswith('VmRSS'):
-                            host_rss = int(line.split()[1])
-                            delta = host_rss - _last_host_rss[0] if _last_host_rss[0] else 0
-                            _last_host_rss[0] = host_rss
-                            print(f'[MEM] host pid={os.getpid()} VmRSS: '
-                                  f'{host_rss} kB (delta={delta:+d} kB)', flush=True)
-                            break
-            except OSError as e:
-                print(f'[MEM] host error: {e}', flush=True)
+            if _PROC_RSS_OK:
+                try:
+                    with open('/proc/self/status') as f:
+                        for line in f:
+                            if line.startswith('VmRSS'):
+                                host_rss = int(line.split()[1])
+                                delta = host_rss - _last_host_rss[0] if _last_host_rss[0] else 0
+                                _last_host_rss[0] = host_rss
+                                print(f'[MEM] host pid={os.getpid()} VmRSS: '
+                                      f'{host_rss} kB (delta={delta:+d} kB)', flush=True)
+                                break
+                except OSError as e:
+                    print(f'[MEM] host error: {e}', flush=True)
             counts = _cdp_call('Memory.getDOMCounters')
             if counts:
                 nodes = counts.get('nodes', 0)
@@ -1051,6 +1074,12 @@ class OdysseusWindow(QMainWindow):
         callers ignore the return.
         """
         import time
+        if not _PROC_RSS_OK:
+            # No /proc RSS (BSD): the ceiling guard can't work (0 reads as
+            # below-ceiling) and the purge segfaults QtWebEngine's renderer here.
+            # Disable forcible purges entirely — the reclaim sawtooth is a
+            # Linux-only optimization.
+            return 'skipped_no_rss'
         rss = self._renderer_rss_kb()
         if rss and rss < _PURGE_RSS_CEILING_KB:
             return 'skipped_ceiling'  # below ceiling, not worth the stutter
