@@ -607,7 +607,7 @@ class VectorRAG:
     # ------------------------------------------------------------------
 
     def _split_into_chunks(
-        self, text: str, chunk_size: int = 1000, overlap: int = 200
+        self, text: str, chunk_size: int = 2048, overlap: int = 300
     ) -> List[str]:
         if not text:
             return []
