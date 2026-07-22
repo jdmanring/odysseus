@@ -1,7 +1,7 @@
 """
 rag_vector.py
 
-Vector-based RAG using ChromaDB for storage and API-based embeddings.
+Vector-based RAG using Qdrant for storage and local/API-based embeddings.
 Features: persistent storage, hybrid search (vector + keyword), sentence-aware chunking,
 configurable embedding endpoint via EMBEDDING_URL env var.
 """
@@ -68,7 +68,7 @@ def _rewrite_owner_path(value: str, path_map: Dict[str, str], path_prefixes: Lis
 
 
 class VectorRAG:
-    """RAG system using ChromaDB vector storage with hybrid search."""
+    """RAG system using Qdrant vector storage with hybrid search."""
 
     def __init__(self, persist_directory: str = CHROMA_DIR):
         self.persist_directory = persist_directory
@@ -125,7 +125,7 @@ class VectorRAG:
 
     @property
     def collection(self):
-        """Expose the ChromaDB collection for direct access by personal_routes etc."""
+        """Expose the vector-store collection for direct access by personal_routes etc."""
         return self._collection
 
     def _active_collections(self):
@@ -153,9 +153,9 @@ class VectorRAG:
 
         if getattr(self, "_lanes", None):
             try:
-                from src.chroma_client import get_chroma_client
+                from src.vector_client import get_vector_client
 
-                client = get_chroma_client()
+                client = get_vector_client()
                 try:
                     add("legacy", client.get_collection(COLLECTION_NAME))
                 except Exception:
@@ -439,8 +439,8 @@ class VectorRAG:
 
     def rebuild_index(self) -> bool:
         try:
-            from src.chroma_client import get_chroma_client
-            client = get_chroma_client()
+            from src.vector_client import get_vector_client
+            client = get_vector_client()
             try:
                 client.delete_collection(COLLECTION_NAME)
             except Exception:

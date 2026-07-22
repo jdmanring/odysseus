@@ -3,7 +3,7 @@
 When MemoryVectorStore._initialize() fails (ChromaDB unavailable / embeddings not
 installed) it swallows the exception and leaves `.healthy == False` — the object
 exists but is unhealthy. app_initializer.initialize_managers() previously reset that
-object to ``None`` in the ``else`` branch, so service_health.chromadb_health() saw
+object to ``None`` in the ``else`` branch, so service_health.vector_store_health() saw
 ``memory_vector is None`` and reported the vector memory as DISABLED ("not
 configured") instead of DEGRADED/DOWN ("initialization failed") — losing the
 diagnostic distinction the /api/diagnostics/services probe is built to surface.
@@ -59,13 +59,13 @@ def test_failed_memory_vector_init_is_kept_not_discarded(monkeypatch, tmp_path):
     assert mv.healthy is False
 
 
-def test_chromadb_health_reports_down_for_unhealthy_vector_store():
+def test_vector_store_health_reports_down_for_unhealthy_vector_store():
     # Pins the downstream taxonomy the fix feeds: a present-but-unhealthy vector
     # store (rag absent) is DOWN, not DISABLED; with a healthy rag it is DEGRADED;
     # only when both are absent is it DISABLED.
     store = _UnhealthyVectorStore()
     healthy_rag = MagicMock(healthy=True)
 
-    assert sh.chromadb_health(None, None)["status"] == sh.DISABLED
-    assert sh.chromadb_health(None, store)["status"] == sh.DOWN
-    assert sh.chromadb_health(healthy_rag, store)["status"] == sh.DEGRADED
+    assert sh.vector_store_health(None, None)["status"] == sh.DISABLED
+    assert sh.vector_store_health(None, store)["status"] == sh.DOWN
+    assert sh.vector_store_health(healthy_rag, store)["status"] == sh.DEGRADED

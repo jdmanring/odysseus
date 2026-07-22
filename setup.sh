@@ -114,7 +114,7 @@ else
     echo "   ok Python packages up to date"
 fi
 
-# 3b. Verify the memory / RAG stack (chromadb + fastembed) actually loads. pip
+# 3b. Verify the memory / RAG stack (qdrant-client + fastembed) actually loads. pip
 #     installs them, but fastembed's onnxruntime has native prerequisites pip
 #     can't provide, and a silent failure demotes semantic memory to keyword
 #     search. Warn (don't abort — the app still runs degraded) with a fix.

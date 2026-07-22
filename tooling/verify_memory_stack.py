@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the memory / RAG stack (chromadb + fastembed) actually loads.
+"""Verify the memory / RAG stack (qdrant-client + fastembed) actually loads.
 
 Run after installing requirements.txt. `fastembed` powers semantic memory, RAG,
 and personal-doc retrieval; it pulls in `onnxruntime`, whose NATIVE runtime has
@@ -49,9 +49,9 @@ def _fastembed_fix(err) -> str:
 def main() -> int:
     problems = []
 
-    err = _import_error("chromadb")
+    err = _import_error("qdrant_client")
     if err is not None:
-        problems.append(("chromadb-client", err, "pip install chromadb-client"))
+        problems.append(("qdrant-client", err, "pip install qdrant-client"))
 
     # Embedding backend: fastembed (onnxruntime) is the default; where it can't
     # run (FreeBSD has no onnxruntime Python binding) the app falls back to the
@@ -73,7 +73,7 @@ def main() -> int:
             ))
 
     if not problems:
-        print(f"ok  Memory stack healthy - chromadb + {backend} embedding backend load.")
+        print(f"ok  Memory stack healthy - qdrant-client + {backend} embedding backend load.")
         return 0
 
     print("WARNING: the memory / RAG stack is DEGRADED. Semantic memory, RAG, and")

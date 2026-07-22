@@ -77,7 +77,7 @@ Write-Host "==> Building the app (venv, requirements, PyQt6, shortcuts)..."
 & "$RepoDir\install.bat"
 if ($LASTEXITCODE -ne 0) { Write-Error "install.bat failed (exit $LASTEXITCODE)"; exit 1 }
 
-# 3b. Verify the memory / RAG stack (chromadb + fastembed) actually loads. pip
+# 3b. Verify the memory / RAG stack (qdrant-client + fastembed) actually loads. pip
 #     installs them, but a broken onnxruntime native load silently demotes
 #     semantic memory to keyword search — check it and print a fix if degraded.
 $venvPy = Join-Path $RepoDir "venv\Scripts\python.exe"
