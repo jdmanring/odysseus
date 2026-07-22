@@ -1,9 +1,14 @@
 > **⚠️ NOT FILE-READY.** The maintainer's own history pager (commit `45ee5a71`) owns
-> the history render + scroll path; the alternative offering is the eviction graft on
-> `fix/chat-history-dom-eviction` (with the route fix in
-> `docs/fork/upstream/pr-drafts/fix-history-route-shadowing.md`). This draft's body
-> needs a full rewrite at file time (plan Part 5). Provenance: plan Part 1.2 is the
-> only framing to use.
+> the history render + scroll path; this PR offers the `MessageWindow` as the fuller
+> alternative, with the prerequisite route-shadow fix staged separately as
+> `fix/history-route-shadow` (#125, draft `fix-history-route-shadowing.md`). The earlier
+> eviction-graft branch `fix/chat-history-dom-eviction` was dropped 2026-07-22 — its graft
+> was superseded by this PR's own eviction. This draft's body needs a full rewrite at file
+> time (plan Part 5). Provenance: plan Part 1.2 is the only framing to use.
+>
+> **Branch hygiene before filing:** drop commit `b328e905` (a settings-keybind fix, byte-
+> identical to `fix/settings-shortcut-resurrection` / #143) — it is unrelated scope creep
+> that belongs to #143, not here.
 
 # PR Draft — fix/dom-oom-virtualization
 
@@ -170,6 +175,29 @@ relationship is precise, and stated honestly:
   150-node cap, removal from the top, and a "load older" bar backed by server pagination.
   This adds bidirectional windowing so a user can scroll back up and reload evicted
   messages in place.
+
+**Where the extra lines go, and why they earn their keep.** The two approaches differ less
+in *what* they fix than in *where* they place the complexity. #4661 keeps the diff small
+(~142 lines) by trimming the live DOM in place and debouncing the thinking renderer; this PR
+spends its lines on a message-index model (`MessageWindow`) that only ever renders a bounded
+slice of the message array. That trade is real, and it buys structural guarantees rather than
+runtime bookkeeping: a windowed slice *cannot* delete a live agent thread or tool timeline —
+only the rendered range is ever in the DOM, so there is nothing to mis-trim — and it *cannot*
+be defeated by streaming nodes slipping past a node count, because the bound is on messages,
+not nodes. A compact in-place trimmer has to re-establish those same guarantees by hand, at
+runtime, which is genuinely hard: #4661's public review history shows several rounds of
+change-requests for exactly these edges — trimming that reached live timeline nodes, thinking
+text lost across terminal transitions, and a multi-round cap that overshot its target. Those
+are honest bugs in a hard problem, and they are noted here as evidence for the design choice,
+not as a mark against the author's work. They are the reason the additional structure pays for
+itself.
+
+Scope, stated honestly: this PR carries the DOM-window half. The streaming-side vectors #4661
+also addresses (thinking-block O(n²), background-stream payload release, StreamRenderer
+teardown) are handled in the companion `fix/dom-oom-streaming-throttle`. Two narrower items
+#4661 includes — an independent document-finalize guard and a running-stream admission cap —
+are outside both branches' current scope; they are called out here rather than silently
+claimed as covered.
 
 Trade-off, stated plainly: #4661 is smaller and lower review cost; this is larger, with an
 independent architecture, a fuller teardown, and bidirectional scroll-up. A maintainer may
