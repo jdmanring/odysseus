@@ -135,15 +135,15 @@ sweet spot between capturing enough context and keeping each vector about one id
 
 Done and validated:
 
-- nomic is the default embedder (`0f14f238`).
-- fastembed to llama.cpp auto-fallback works on host and FreeBSD (`c1101bcd`).
-- The install-time verifier recognizes both backends (`c22a0408`).
+- nomic is the default embedder.
+- fastembed to llama.cpp auto-fallback works on host and FreeBSD.
+- The install-time verifier recognizes both backends.
 - Optimized nomic: 256-dim Matryoshka truncation, query/document prefixes, and the
-  2048-char chunk size, applied identically by both backends (`f1bbda86`). Validated
+  2048-char chunk size, applied identically by both backends. Validated
   on the host: 256-dim output, prefixes active (query vs document cosine 0.827), and
   sharper retrieval (best match 0.931 against the earlier 0.52).
-- `qdrant-client` added as a dependency (`77f4e6a5`).
-- The Chroma-to-Qdrant store swap (`810332c0`). `src/vector_client.py` is a
+- `qdrant-client` added as a dependency.
+- The Chroma-to-Qdrant store swap. `src/vector_client.py` is a
   Chroma-shaped adapter over `QdrantClient`; the six Chroma call sites moved onto
   it and ChromaDB was removed outright (no data to migrate — nothing persisted).
   The adapter converts Qdrant's similarity score back to a Chroma-style cosine
