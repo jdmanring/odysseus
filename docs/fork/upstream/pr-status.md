@@ -108,7 +108,7 @@ entries above by design — these are the coverage backfill. See FLAGS note afte
 | `fix/api-hosts-provider-gaps` | [#62](https://github.com/jdmanring/odysseus/issues/62) | Bug | OPEN — Expand _API_HOSTS for provider secondary domains/proxies. |
 | `fix/brain-panel-oom` | [#108](https://github.com/jdmanring/odysseus/issues/108) | Bug | OPEN — Brain synapse-sweep made hover-triggered, not perpetual. |
 | `fix/chat-stick-to-bottom` | [#145](https://github.com/jdmanring/odysseus/issues/145) | Bug | OPEN — Direction-based stick-to-bottom; release on one wheel notch. |
-| `fix/chat-stream-web-intent-nameerror` | [#135](https://github.com/jdmanring/odysseus/issues/135) | Bug | OPEN — **Name says #134 but commit fixes #135** (hf_gguf_files undefined 'repo'). See FLAGS: #134 has no dedicated branch. |
+| `fix/cookbook-hf-gguf-repo-nameerror` | [#135](https://github.com/jdmanring/odysseus/issues/135) | Bug | OPEN — NameError in `hf_gguf_files` error path (undefined `repo`). Renamed 2026-07-22 from the misleading `fix/chat-stream-web-intent-nameerror` (that name belonged to #134, which is a different, now-closed bug). |
 | `fix/continue-btn-weakref` | [#78](https://github.com/jdmanring/odysseus/issues/78) | Bug | OPEN — WeakRef for continue-button holder captures. Reopened 2026-07-22 — was prematurely closed (COMPLETED); awaiting upstream PR. |
 | `fix/css-contain-paint-transparent-rendering` | [#93](https://github.com/jdmanring/odysseus/issues/93) | Bug | OPEN — contain:layout on sidebar and chat-history. |
 | `fix/declare-magic-docx-test-deps` | [#136](https://github.com/jdmanring/odysseus/issues/136) | Bug | OPEN — Declare python-magic (optional) + python-docx (test-only). |
@@ -160,8 +160,9 @@ work) are filed and decided. (The contaminated `test/pr-4366` / `test/pr-4661` w
 are separate debris — delete outright.)
 
 **FLAGS from the verification pass (2026-07-22):**
-- **#134 CLOSED 2026-07-22 — superseded upstream, verified.** `fix/chat-stream-web-intent-nameerror`
-  is *named* for #134 but its commit actually fixes #135 (`hf_gguf_files` undefined `repo`). #134's
+- **#134 CLOSED 2026-07-22 — superseded upstream, verified.** The branch formerly named
+  `fix/chat-stream-web-intent-nameerror` (now `fix/cookbook-hf-gguf-repo-nameerror`)
+  was *named* for #134 but its commit actually fixes #135 (`hf_gguf_files` undefined `repo`). #134's
   NameError was already fixed by upstream #5290 (`54353492`, restores the `_explicit_web_intent`
   definition), confirmed present in `upstream-mirror`'s `routes/chat_routes.py` (def line 882, sole
   read line 885; the dangling reads are gone). No fork branch needed; issue closed with evidence.
