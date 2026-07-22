@@ -195,9 +195,12 @@ itself.
 Scope, stated honestly: this PR carries the DOM-window half. The streaming-side vectors #4661
 also addresses (thinking-block O(n²), background-stream payload release, StreamRenderer
 teardown) are handled in the companion `fix/dom-oom-streaming-throttle`. Two narrower items
-#4661 includes — an independent document-finalize guard and a running-stream admission cap —
-are outside both branches' current scope; they are called out here rather than silently
-claimed as covered.
+#4661 includes are deliberately not mirrored here, for concrete reasons: its running-stream
+*admission cap* is unnecessary in this codebase — our `_purgeStaleBackgroundStreams` frees only
+terminal (completed/error) entries and never aborts running work, so there is no destructive
+cap that would need admission control to be made safe; and its independent *document-finalize
+guard* addresses a real but unrelated doc-streaming robustness gap that is tracked as its own
+fix rather than bundled into an OOM change.
 
 Trade-off, stated plainly: #4661 is smaller and lower review cost; this is larger, with an
 independent architecture, a fuller teardown, and bidirectional scroll-up. A maintainer may
