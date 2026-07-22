@@ -114,6 +114,14 @@ else
     echo "   ok Python packages up to date"
 fi
 
+# 3b. Verify the memory / RAG stack (chromadb + fastembed) actually loads. pip
+#     installs them, but fastembed's onnxruntime has native prerequisites pip
+#     can't provide, and a silent failure demotes semantic memory to keyword
+#     search. Warn (don't abort — the app still runs degraded) with a fix.
+if ! venv/bin/python tooling/verify_memory_stack.py; then
+    echo "   (install continues; the app runs with keyword-only memory until fixed)" >&2
+fi
+
 # 4. First-run setup (data dirs + initial admin password; idempotent).
 echo "==> Preparing Odysseus…"
 ODYSSEUS_SKIP_RUN_HINT=1 venv/bin/python setup.py
