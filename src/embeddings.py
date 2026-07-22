@@ -257,16 +257,16 @@ class FastEmbedClient:
 
 
 class LlamaCppEmbedClient:
-    """Local embedding client using llama.cpp (GGUF) — the onnxruntime-free path
+    """Local embedding client using llama.cpp (GGUF), the onnxruntime-free path
     for platforms fastembed can't run on (notably FreeBSD, which has no
     onnxruntime Python binding). Runs the SAME model as the fastembed default
-    (nomic-embed-text-v1.5) as a GGUF, with mean pooling + L2 normalization and
-    the same document prefix fastembed applies, so its vectors match the fleet's
-    fastembed vectors. Same encode() interface as FastEmbedClient.
+    (nomic-embed-text-v1.5) as a GGUF, with mean pooling + L2 normalization. The
+    nomic task prefixes and Matryoshka truncation are applied in encode() via the
+    shared helpers, identically to the fastembed backend, so vectors stay aligned
+    across the fleet. Same encode() interface as FastEmbedClient.
 
     Config (env): LLAMACPP_EMBED_REPO / LLAMACPP_EMBED_FILE select the GGUF (HF
-    repo + filename glob); LLAMACPP_EMBED_DOC_PREFIX matches fastembed's nomic
-    document prefix (empirically verified against the fastembed output)."""
+    repo + filename glob)."""
 
     def __init__(self, model: Optional[str] = None):
         try:
