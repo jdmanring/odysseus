@@ -181,18 +181,18 @@ def _bounded_map(items: List[Any], worker: Callable[[int, Any], Dict[str, Any]],
     return out
 
 
-# ── ChromaDB (vector RAG + vector memory) ──
+# ── Qdrant (vector RAG + vector memory) ──
 
-def chromadb_health(rag_manager: Any, memory_vector: Any) -> Dict[str, Any]:
-    """Report on the two ChromaDB-backed stores via their `.healthy` flags.
+def vector_store_health(rag_manager: Any, memory_vector: Any) -> Dict[str, Any]:
+    """Report on the two Qdrant-backed stores via their `.healthy` flags.
 
-    Both absent  → disabled (Chroma/embeddings not installed or off).
+    Both absent  → disabled (Qdrant/embeddings not installed or off).
     Both healthy → ok. One down → degraded. Both present but unhealthy → down.
     """
     rag_present = rag_manager is not None
     mem_present = memory_vector is not None
     if not rag_present and not mem_present:
-        return _svc("chromadb", DISABLED,
+        return _svc("qdrant", DISABLED,
                     "Vector RAG and vector memory are not initialized.",
                     rag=None, memory=None)
 
@@ -204,11 +204,11 @@ def chromadb_health(rag_manager: Any, memory_vector: Any) -> Dict[str, Any]:
     healthy = [ok for ok in (rag_ok if rag_present else None,
                              mem_ok if mem_present else None) if ok is not None]
     if healthy and all(healthy):
-        return _svc("chromadb", OK, "Vector stores healthy.", **meta)
+        return _svc("qdrant", OK, "Vector stores healthy.", **meta)
     if any(healthy):
-        return _svc("chromadb", DEGRADED,
+        return _svc("qdrant", DEGRADED,
                     "One vector store is unavailable.", **meta)
-    return _svc("chromadb", DOWN, "Vector stores are unavailable.", **meta)
+    return _svc("qdrant", DOWN, "Vector stores are unavailable.", **meta)
 
 
 # ── SearXNG ──
@@ -479,7 +479,7 @@ async def collect_service_health(rag_manager: Any = None,
     settings = inputs["settings"]
 
     # ChromaDB is in-process and synchronous (just reads flags).
-    chroma = chromadb_health(rag_manager, memory_vector)
+    chroma = vector_store_health(rag_manager, memory_vector)
 
     names = ["searxng", "ntfy", "email", "providers"]
     coros = [

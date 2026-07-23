@@ -13,6 +13,7 @@ Set EMBEDDING_URL in .env, e.g.:
 """
 
 import os
+import time
 
 from src.constants import FASTEMBED_CACHE_DIR, EMBEDDING_ENDPOINT_FILE
 
@@ -26,17 +27,49 @@ if os.name == "nt":
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
-import logging
+import structlog
 import numpy as np
 import httpx
 from typing import List, Optional
 
 from src.runtime_paths import get_app_root
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
-_DEFAULT_MODEL = "all-minilm:l6-v2"
-_DEFAULT_FASTEMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# nomic-embed-text-v1.5-Q: nomic's official INT8-quantized ONNX (130 MB, near-
+# lossless), 768-dim, 8K context — a quality + long-context upgrade over
+# all-MiniLM at a comparable footprint. "-Q" is the fastembed-supported quant;
+# the HTTP-endpoint default uses the Ollama tag for the same model.
+_DEFAULT_MODEL = "nomic-embed-text"
+_DEFAULT_FASTEMBED_MODEL = "nomic-ai/nomic-embed-text-v1.5-Q"
+
+# Optimized-nomic knobs (see docs/dev/memory-architecture.md). Matryoshka:
+# nomic-v1.5's leading dims carry the most signal, so we truncate 768 -> 256 and
+# re-normalize (3x smaller/faster, ~1-2% quality). Prefixes: nomic is trained with
+# asymmetric search_query:/search_document: — applied explicitly so both the
+# fastembed and llama.cpp backends produce aligned vectors.
+_TRUNCATE_DIM = int(os.getenv("EMBEDDING_TRUNCATE_DIM", "256"))
+_NOMIC_QUERY_PREFIX = "search_query: "
+_NOMIC_DOC_PREFIX = "search_document: "
+
+
+def _prefix_texts(texts, is_query: bool, model: str):
+    """Prepend nomic's task prefix. No-op for non-nomic models."""
+    if "nomic" not in (model or "").lower():
+        return list(texts)
+    p = _NOMIC_QUERY_PREFIX if is_query else _NOMIC_DOC_PREFIX
+    return [p + t for t in texts]
+
+
+def _truncate_and_normalize(vecs, normalize: bool):
+    """Matryoshka-truncate to _TRUNCATE_DIM, then (optionally) L2-normalize."""
+    if _TRUNCATE_DIM and vecs.ndim == 2 and vecs.shape[1] > _TRUNCATE_DIM:
+        vecs = vecs[:, :_TRUNCATE_DIM]
+    if normalize and vecs.size > 0:
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1, norms)
+        vecs = vecs / norms
+    return vecs
 
 
 class EmbeddingClient:
@@ -69,16 +102,22 @@ class EmbeddingClient:
         return self._dim
 
     def encode(
-        self, texts: List[str], normalize_embeddings: bool = True
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
     ) -> np.ndarray:
-        """Encode texts via the API. Returns (N, dim) float32 array."""
+        """Encode texts via the API. Returns (N, dim) float32 array. is_query is
+        accepted for interface parity; a custom endpoint owns its own model, so no
+        nomic prefix/truncation is applied here."""
         if not texts:
             return np.array([], dtype="float32")
 
+        _enc_start = time.monotonic()
         all_vecs = []
+        n_batches = 0
         for i in range(0, len(texts), self._batch_size):
             batch = texts[i : i + self._batch_size]
             all_vecs.extend(self._embed_batch(batch))
+            n_batches += 1
 
         vecs = np.array(all_vecs, dtype="float32")
 
@@ -89,6 +128,11 @@ class EmbeddingClient:
 
         if self._dim is None and vecs.size > 0:
             self._dim = vecs.shape[1]
+
+        _enc_ms = (time.monotonic() - _enc_start) * 1000
+        if _enc_ms > 500 or len(texts) > 128:
+            logger.info("embedding_encode", texts=len(texts), batches=n_batches,
+                        duration_ms=round(_enc_ms, 1), model=self.model)
 
         return vecs
 
@@ -178,10 +222,12 @@ class FastEmbedClient:
             except Exception as _e:
                 logger.debug("embedding cache symlink-heal skipped: %s", _e)
         kwargs = {"model_name": self.model, "cache_dir": cache_dir}
+        _load_start = time.monotonic()
         self._embedding = TextEmbedding(**kwargs)
+        _load_ms = (time.monotonic() - _load_start) * 1000
         self._dim: Optional[int] = None
         self.url = "local://fastembed"
-        logger.info(f"FastEmbed loaded model={self.model}")
+        logger.info("fastembed_loaded", model=self.model, load_ms=round(_load_ms, 1))
 
     def get_sentence_embedding_dimension(self) -> int:
         if self._dim is not None:
@@ -192,22 +238,91 @@ class FastEmbedClient:
         return self._dim
 
     def encode(
-        self, texts: List[str], normalize_embeddings: bool = True
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
     ) -> np.ndarray:
-        """Encode texts locally. Returns (N, dim) float32 array."""
+        """Encode texts locally. Returns (N, dim) float32 array. Applies nomic's
+        task prefix (query vs document) and Matryoshka truncation to _TRUNCATE_DIM."""
         if not texts:
             return np.array([], dtype="float32")
 
-        vecs = np.array(list(self._embedding.embed(texts)), dtype="float32")
-
-        if normalize_embeddings and vecs.size > 0:
-            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
-            norms = np.where(norms == 0, 1, norms)
-            vecs = vecs / norms
+        prefixed = _prefix_texts(texts, is_query, self.model)
+        vecs = np.array(list(self._embedding.embed(prefixed)), dtype="float32")
+        vecs = _truncate_and_normalize(vecs, normalize_embeddings)
 
         if self._dim is None and vecs.size > 0:
             self._dim = vecs.shape[1]
 
+        return vecs
+
+
+class LlamaCppEmbedClient:
+    """Local embedding client using llama.cpp (GGUF), the onnxruntime-free path
+    for platforms fastembed can't run on (notably FreeBSD, which has no
+    onnxruntime Python binding). Runs the SAME model as the fastembed default
+    (nomic-embed-text-v1.5) as a GGUF, with mean pooling + L2 normalization. The
+    nomic task prefixes and Matryoshka truncation are applied in encode() via the
+    shared helpers, identically to the fastembed backend, so vectors stay aligned
+    across the fleet. Same encode() interface as FastEmbedClient.
+
+    Config (env): LLAMACPP_EMBED_REPO / LLAMACPP_EMBED_FILE select the GGUF (HF
+    repo + filename glob)."""
+
+    def __init__(self, model: Optional[str] = None):
+        try:
+            from llama_cpp import Llama, LLAMA_POOLING_TYPE_MEAN
+        except ImportError as e:
+            raise RuntimeError(
+                "llama-cpp-python is not installed (the onnxruntime-free embedding "
+                "backend). Install it (e.g. `pkg install py312-llama-cpp-python`)."
+            ) from e
+
+        self.model = model or os.getenv("FASTEMBED_MODEL", _DEFAULT_FASTEMBED_MODEL)
+        repo = os.getenv("LLAMACPP_EMBED_REPO", "nomic-ai/nomic-embed-text-v1.5-GGUF")
+        filename = os.getenv("LLAMACPP_EMBED_FILE", "*Q8_0.gguf")
+        # Task prefix + Matryoshka truncation are applied in encode() via the
+        # shared helpers, identically to the fastembed backend, so the FreeBSD
+        # vectors stay aligned with the fleet's.
+        os.makedirs(FASTEMBED_CACHE_DIR, exist_ok=True)
+
+        _load_start = time.monotonic()
+        self._llm = Llama.from_pretrained(
+            repo_id=repo,
+            filename=filename,
+            embedding=True,
+            pooling_type=LLAMA_POOLING_TYPE_MEAN,
+            n_ctx=8192,
+            n_batch=512,
+            verbose=False,
+            cache_dir=FASTEMBED_CACHE_DIR,
+        )
+        _load_ms = (time.monotonic() - _load_start) * 1000
+        self._dim: Optional[int] = None
+        self.url = "local://llamacpp"
+        logger.info("llamacpp_embed_loaded", model=repo, file=filename,
+                    load_ms=round(_load_ms, 1))
+
+    def get_sentence_embedding_dimension(self) -> int:
+        if self._dim is not None:
+            return self._dim
+        self._dim = self.encode(["hello"]).shape[1]
+        logger.info(f"Embedding dimension: {self._dim} (llama.cpp {self.model})")
+        return self._dim
+
+    def encode(
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
+    ) -> np.ndarray:
+        if not texts:
+            return np.array([], dtype="float32")
+        prefixed = _prefix_texts(texts, is_query, self.model)
+        out = self._llm.embed(prefixed)
+        vecs = np.array(out, dtype="float32")
+        if vecs.ndim == 1:
+            vecs = vecs.reshape(1, -1)
+        vecs = _truncate_and_normalize(vecs, normalize_embeddings)
+        if self._dim is None and vecs.size > 0:
+            self._dim = vecs.shape[1]
         return vecs
 
 
@@ -242,6 +357,8 @@ def get_embedding_client():
     """Factory: try HTTP API first, fall back to local fastembed."""
     global _http_embed_down
 
+    _factory_start = time.monotonic()
+
     # Check for a persisted custom endpoint (saved from admin panel)
     persisted = _load_persisted_endpoint()
     if persisted.get("url"):
@@ -261,7 +378,9 @@ def get_embedding_client():
         try:
             client = EmbeddingClient()
             client.get_sentence_embedding_dimension()  # health check
-            logger.info(f"Using HTTP embedding API: {client.url} model={client.model}")
+            logger.info("embedding_client_selected", backend="http",
+                        url=client.url, model=client.model,
+                        factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
             return client
         except Exception as e:
             _http_embed_down = True
@@ -271,7 +390,9 @@ def get_embedding_client():
     try:
         client = FastEmbedClient()
         client.get_sentence_embedding_dimension()
-        logger.info(f"Using local FastEmbed: model={client.model}")
+        logger.info("embedding_client_selected", backend="fastembed",
+                    model=client.model,
+                    factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
         return client
     except ImportError:
         logger.error("fastembed not installed — run: pip install fastembed")

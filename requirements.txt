@@ -11,12 +11,17 @@ pypdf
 beautifulsoup4
 charset-normalizer
 numpy
+# Structured logging for the embedding layer (src/embeddings.py emits
+# structlog events: fastembed_loaded, embedding_client_selected, etc.).
+structlog
 # Vector store + local embeddings for RAG, semantic memory, and tool
 # selection. Used on core agent paths, so installed by default — the app
 # still degrades to keyword fallback if they're ever missing.
-# chromadb-client is the lightweight HTTP client (talks to a standalone
-# ChromaDB service); fastembed runs local ONNX embeddings.
-chromadb-client
+# Qdrant is a single Rust binary the app starts/stops; qdrant-client is the
+# thin pure-Python client. fastembed runs local ONNX embeddings; on FreeBSD,
+# where onnxruntime has no Python binding, the app falls back to a llama.cpp
+# GGUF backend running the same nomic model.
+qdrant-client
 fastembed
 youtube-transcript-api
 # Markdown rendering for research reports (src/visual_report.py).
