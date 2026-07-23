@@ -72,6 +72,28 @@ competing load (e.g. a VM compiling in the background) inflates per-item latency
 - One backend means one provisioning story (no onnxruntime wheel-hunting) and no
   cross-backend vector drift.
 
+**Native build beats the wheel — and fastembed — on the hot path.** The prebuilt
+wheels target a generic AVX2 baseline; building from source enables
+`GGML_NATIVE` (`-march=native`), which on an AVX-512 host measured (idle,
+2026-07-23): per-item p50 **3.6–4.9 ms vs 4.7–5.6 wheel vs 5.8 fastembed**, bulk
+**197–231 docs/s vs 152–173 wheel** (fastembed still leads bulk at 240–329).
+Accuracy is identical (top-1 0.917 / top-3 1.000). The BSDs get this for free —
+no BSD wheels exist, so their installs are always native source builds (part of
+why FreeBSD posts 6.7 ms in a VM). On Linux/Windows the wheel stays the install
+default (no toolchain requirement); upgrade a capable host with:
+
+```sh
+venv/bin/pip install --no-cache-dir --no-binary llama-cpp-python \
+    --force-reinstall --no-deps "llama-cpp-python==<pinned version>"
+```
+
+Batching note (measured, and enforced by an abort in llama.cpp): encoder models
+require the whole batch to fit one `n_ubatch`, and raising `n_batch`/`n_ubatch`
+above 512 *reduces* bulk throughput — 512/512 is the optimum; there is no knob
+to close the bulk gap. For a genuinely large one-off reindex where bulk rate
+matters, `EMBEDDING_LOCAL_BACKEND=fastembed` remains available where
+onnxruntime exists.
+
 **Intel-mac ceiling (x86_64 macOS).** Three upstream llama-cpp-python packaging
 facts cap this platform, none of them ours to fix in config:
 

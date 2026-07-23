@@ -21,9 +21,12 @@ numpy
 # everywhere, including the BSDs where fastembed's onnxruntime has no build. The
 # --extra-index-url pulls prebuilt CPU wheels of llama-cpp-python so a fresh
 # install doesn't compile from source; pip falls back to a source build only if no
-# matching wheel exists. fastembed is an opt-in alternative in
+# matching wheel exists. Performance note: a source build (GGML_NATIVE) measurably
+# beats the generic wheel on per-item latency — reinstall with
+# --no-binary llama-cpp-python on a host with a toolchain; see the native-build
+# section of docs/dev/memory-architecture.md. fastembed is an opt-in alternative in
 # requirements-optional.txt (EMBEDDING_LOCAL_BACKEND=fastembed). The nomic GGUF is
-# fetched at first run. See docs/dev/memory-architecture.md.
+# fetched at first run.
 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 qdrant-client
 llama-cpp-python
