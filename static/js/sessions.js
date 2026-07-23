@@ -2181,6 +2181,10 @@ export function createDirectChat(url, modelId, endpointId, opts = {}) {
 
   // Clear chat area and show welcome
   const box = document.getElementById('chat-history');
+  // reset() before the wipe (the window layer's API contract): without it the
+  // previous session's window state and message total survive onto the welcome
+  // screen — the header then shows a stale "· N msgs" on the fresh New Chat.
+  if (window.chatHistory) window.chatHistory.reset();
   if (box) box.innerHTML = '';
   if (window.chatModule && window.chatModule.showWelcomeScreen) {
     window.chatModule.showWelcomeScreen();
@@ -2857,6 +2861,10 @@ async function _arcPeekOpen(sid) {
 
     // Render the chat history
     const chatBox = document.getElementById('chat-history');
+    // reset() before the wipe (the window layer's API contract): release the
+    // prior session's window state/observers so the archived preview renders
+    // with a correct header count and no stale eviction tracking.
+    if (window.chatHistory) window.chatHistory.reset();
     if (chatBox) chatBox.innerHTML = '';
     if (window.chatModule && window.chatModule.hideWelcomeScreen) window.chatModule.hideWelcomeScreen();
 
