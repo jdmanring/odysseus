@@ -48,10 +48,13 @@ def _fastembed_fix(err) -> str:
 
 def main() -> int:
     problems = []
+    is_bsd = platform.system() in ("FreeBSD", "OpenBSD")
+    bsd_fix = "run  sh tooling/provision_bsd_memory.sh  (installs the BSD memory stack)"
 
     err = _import_error("qdrant_client")
     if err is not None:
-        problems.append(("qdrant-client", err, "pip install qdrant-client"))
+        problems.append(("qdrant-client", err,
+                         bsd_fix if is_bsd else "pip install qdrant-client"))
 
     # Embedding backend: fastembed (onnxruntime) is the default; where it can't
     # run (FreeBSD has no onnxruntime Python binding) the app falls back to the
@@ -66,11 +69,11 @@ def main() -> int:
         if lc_err is None:
             backend = "llama.cpp"
         else:
-            problems.append((
-                "embedding backend", fe_err,
-                _fastembed_fix(fe_err) + "  OR install the llama.cpp fallback "
-                "(FreeBSD: pkg install py312-llama-cpp-python).",
-            ))
+            fix = bsd_fix if is_bsd else (
+                _fastembed_fix(fe_err)
+                + "  OR install the llama.cpp GGUF fallback (pip install llama-cpp-python)."
+            )
+            problems.append(("embedding backend", fe_err, fix))
 
     if not problems:
         print(f"ok  Memory stack healthy - qdrant-client + {backend} embedding backend load.")

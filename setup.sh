@@ -61,8 +61,11 @@ elif [ "$OS" = "FreeBSD" ] && command -v pkg >/dev/null 2>&1; then
     QT_HINT="doas pkg install py311-qt6-webengine py311-qt6-webchannel py311-dbus-python"
     PY_HINT="doas pkg install python311"
 elif [ "$OS" = "OpenBSD" ] && command -v pkg_add >/dev/null 2>&1; then
-    QT_HINT="doas pkg_add qt6-qtwebengine py3-pyqt6-webengine"
-    PY_HINT="doas pkg_add python%3.11"
+    # py3-qt6webengine pulls py3-qt6 + qt6-qtwebengine; there is no
+    # py3-pyqt6-webengine on OpenBSD. Create the venv --system-site-packages so
+    # the system PyQt6 is visible.
+    QT_HINT="doas pkg_add py3-qt6webengine"
+    PY_HINT="doas pkg_add python%3.13"
 fi
 
 # 1. Python 3.11+ for the backend venv.
@@ -114,9 +117,20 @@ else
     echo "   ok Python packages up to date"
 fi
 
-# 3b. Verify the memory / RAG stack (qdrant-client + fastembed) actually loads. pip
-#     installs them, but fastembed's onnxruntime has native prerequisites pip
-#     can't provide, and a silent failure demotes semantic memory to keyword
+# 3a-bsd. On FreeBSD/OpenBSD the default embedding/vector-store deps aren't on
+#     PyPI for the platform: fastembed's onnxruntime has no BSD build, and grpcio
+#     (a qdrant-client import) won't compile on OpenBSD. Provision the equivalent
+#     local stack instead — the llama.cpp GGUF embedder (same nomic model) and a
+#     grpc import stub for qdrant-client's local mode. Idempotent.
+case "$OS" in
+    FreeBSD | OpenBSD)
+        sh tooling/provision_bsd_memory.sh \
+            || echo "   (BSD memory provisioning incomplete; app runs keyword-only until fixed)" >&2 ;;
+esac
+
+# 3b. Verify the memory / RAG stack (qdrant-client + an embedding backend) loads.
+#     pip installs the deps, but fastembed's onnxruntime has native prerequisites
+#     pip can't provide, and a silent failure demotes semantic memory to keyword
 #     search. Warn (don't abort — the app still runs degraded) with a fix.
 if ! venv/bin/python tooling/verify_memory_stack.py; then
     echo "   (install continues; the app runs with keyword-only memory until fixed)" >&2
