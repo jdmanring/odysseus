@@ -59,9 +59,9 @@ bought nothing and cost maintenance:
   batched). But bulk only happens on a one-off full reindex, where even the slower
   backend finishes a few thousand memories in seconds — the memory workload
   otherwise embeds one item at a time.
-- **Retrieval accuracy is quant- and backend-independent** on this task: fastembed
-  INT8 and llama.cpp Q8 both scored top-1 1.000 and retrieved the *same* document on
-  4/4 queries.
+- **Retrieval accuracy is quant- and backend-independent** on this task: on a
+  30-doc / 12-query paraphrase set, fastembed INT8 and llama.cpp Q8 scored the
+  *identical* top-1 0.917 / top-3 1.000 and agreed on 10/12 queries.
 
 All three figures are reproducible on demand — run
 `tooling/benchmark_embedding_backends.py` (it builds a topic-labelled corpus and
@@ -304,9 +304,9 @@ Done and validated:
   fastembed is opt-in via `EMBEDDING_LOCAL_BACKEND=fastembed`.
 - Per-item latency reproduced on an idle host (`tooling/benchmark_embedding_backends.py`):
   ~6 ms fastembed / ~7 ms llama.cpp Q8 — a wash, both imperceptible, which is what
-  justifies dropping the fastembed split. Accuracy 1.000 on both, 4/4 same-document
-  agreement. (Benchmark under load and the CPU-bound OpenMP path inflates llama.cpp
-  ~100×; always measure idle.)
+  justifies dropping the fastembed split. Identical accuracy (top-1 0.917 / top-3
+  1.000, 10/12 agreement). (Benchmark under load and the CPU-bound OpenMP path
+  inflates llama.cpp ~100×; the tool now refuses to run at load >2 unless forced.)
 - The install-time verifier recognizes both backends.
 - **Embedded local Qdrant is the default** (see Lifecycle); the app process comes
   up healthy, verified end-to-end on the Linux host, FreeBSD, and OpenBSD. macOS
