@@ -343,7 +343,9 @@ Done and validated:
   the embedded store — fixed by pinning the snapshots path (and the gRPC port)
   in `src/qdrant_server.py`. Embedding numbers per platform, idle, via
   `tooling/benchmark_embedding_backends.py`: Linux host ~7 ms / 136 docs/s,
-  OpenBSD VM 9.2 ms / 116 docs/s, FreeBSD VM (4 vCPU) 11.9 ms / 87 docs/s,
+  OpenBSD VM 9.2 ms / 116 docs/s, FreeBSD VM 6.7 ms / 153 docs/s (at 12 vCPU;
+  the same VM at its original 4 vCPU read 11.9 ms / 87 — vCPU allocation, not
+  the stack, dominated that number),
   macOS x86_64 VM 8.7 ms / 100 docs/s (no-SIMD build — see the Intel-mac
   ceiling above; fastembed on the same VM: 7.3 ms / 169 docs/s, same accuracy,
   so the per-item wash reproduces there too), all at identical accuracy
