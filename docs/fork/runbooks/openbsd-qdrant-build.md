@@ -55,7 +55,7 @@ preserving); build-environment fixes are in `tooling/bsd/build_qdrant_openbsd.sh
 | 2 | jemalloc (`tikv-jemalloc-sys`) won't build | vendored `configure` aborts | `patch_jemalloc` — gate OpenBSD out of the jemalloc `Cargo.toml` target section + the 4 code sites; widen the msvc `None`-fallback stubs to cover OpenBSD so `collect()`/`resident_bytes()` stay defined. Falls back to the system allocator. |
 | 3 | `mincore(2)` removed from OpenBSD | `ld: undefined symbol: mincore` at final link | `patch_mincore` — gate the one residency call; report `Ok(0)` (no residency info) on OpenBSD |
 | 4 | rustc OOM on heavy crates | `SIGABRT`, "memory allocation failed" compiling `segment`/`qdrant` | Raise the datasize soft limit: `ulimit -d 6291456`. OpenBSD staff class caps it at 1536M by default but the hard cap is far higher, so no `login.conf` edit is needed here. |
-| 5 | Fat LTO on the final binary | `SIGABRT` linking `qdrant` (exceeds RAM+swap) | `CARGO_PROFILE_RELEASE_LTO=off` — modest runtime-perf tradeoff for a linkable binary |
+| 5 | Fat LTO on the final binary | `SIGABRT` linking `qdrant` (exceeds RAM+swap) | `CARGO_PROFILE_RELEASE_LTO=off` — modest runtime-perf tradeoff for a linkable binary. **With adequate RAM this is unnecessary:** on a 16 GB VM (+ raised datasize) fat LTO links fine and yields a tighter binary (81 MB vs 87 MB), so drop the override there. The script keeps LTO off as the safe default for small hosts. |
 | 6 | Small partition | `No space left on device` (~2-3 GB `target/` needed) | Point `CARGO_TARGET_DIR` at a roomy filesystem (see disk enlargement below) |
 
 A linker reports **all** undefined symbols at once, so after fixing `mincore` (the only

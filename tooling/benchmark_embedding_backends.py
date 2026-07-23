@@ -24,27 +24,56 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 
-# Topic-labelled corpus: 4 topics x 3 documents, plus one query per topic whose
-# correct answer is any document sharing its topic.
+# Topic-labelled corpus: 6 topics x 5 documents. Queries are paraphrases (no term
+# overlap with the target doc) so retrieval must be semantic, not lexical; several
+# topics are deliberately adjacent (astronomy/physics, medicine/biology) so a weak
+# model confuses them and accuracy does NOT saturate at 1.000 — that's what makes
+# the set able to tell a better model from an equal one.
 CORPUS = [
     ("astronomy", "A red giant is a dying star in a late phase of stellar evolution."),
     ("astronomy", "The event horizon marks the boundary of a black hole in spacetime."),
     ("astronomy", "Nebulae are clouds of interstellar gas where new stars are born."),
+    ("astronomy", "A supernova is the explosive death of a massive star."),
+    ("astronomy", "Exoplanets orbit stars beyond our own solar system."),
+    ("physics", "Entropy measures the disorder of a thermodynamic system."),
+    ("physics", "Superconductors carry current with zero electrical resistance."),
+    ("physics", "The uncertainty principle bounds simultaneous knowledge of position and momentum."),
+    ("physics", "Refraction bends light as it passes between media of different density."),
+    ("physics", "A pendulum's period depends on its length and local gravity."),
     ("cooking", "Searing meat at high heat develops flavour through the Maillard reaction."),
     ("cooking", "Proofing dough lets yeast ferment and the bread rise before baking."),
     ("cooking", "Emulsifying egg yolk and oil slowly is how you make mayonnaise."),
+    ("cooking", "Deglazing a pan with wine lifts the fond into a sauce."),
+    ("cooking", "Blanching vegetables briefly sets their colour and halts enzymes."),
     ("finance", "A bond's yield moves inversely to its price on the secondary market."),
     ("finance", "Diversifying a portfolio spreads risk across uncorrelated assets."),
     ("finance", "Compound interest grows principal faster as returns are reinvested."),
+    ("finance", "Inflation erodes the purchasing power of held currency over time."),
+    ("finance", "A short seller profits when the borrowed asset falls in price."),
     ("medicine", "Antibiotics treat bacterial infections but do nothing against viruses."),
     ("medicine", "The immune system produces antibodies in response to an antigen."),
     ("medicine", "Insulin regulates blood glucose by signalling cells to absorb sugar."),
+    ("medicine", "Vaccines prime immunity by presenting a harmless piece of a pathogen."),
+    ("medicine", "Anaesthesia suppresses pain signalling during surgery."),
+    ("biology", "Photosynthesis converts sunlight into chemical energy in plants."),
+    ("biology", "Mitosis divides one cell into two genetically identical daughters."),
+    ("biology", "Natural selection favours traits that improve reproductive success."),
+    ("biology", "Enzymes catalyse reactions by lowering activation energy."),
+    ("biology", "DNA encodes heredity in sequences of four nucleotide bases."),
 ]
 QUERIES = [
     ("astronomy", "what happens to a star at the end of its life"),
+    ("astronomy", "worlds circling distant suns"),
+    ("physics", "why does a straw look bent in a glass of water"),
+    ("physics", "materials that conduct electricity without any loss"),
     ("cooking", "why does browning make food taste better"),
+    ("cooking", "turning pan drippings into gravy"),
     ("finance", "how does reinvesting returns build wealth over time"),
+    ("finance", "why is cash worth less each year"),
     ("medicine", "how does the body defend against an infection"),
+    ("medicine", "how do shots prevent disease"),
+    ("biology", "how do green leaves make food from light"),
+    ("biology", "how one cell becomes two identical cells"),
 ]
 
 
@@ -72,27 +101,48 @@ def evaluate(client, name):
     bulk_s = time.monotonic() - t
     bulk_rate = len(bulk_docs) / bulk_s
 
-    correct = 0
+    correct = correct3 = 0
     top1_docs = []
     for topic, q in QUERIES:
         qv = np.asarray(client.encode([q], is_query=True), dtype="float32")[0]
         order = _rank(doc_vecs, qv)
-        top1 = order[0]
-        top1_docs.append(int(top1))
-        if labels[top1] == topic:
+        top1_docs.append(int(order[0]))
+        if labels[order[0]] == topic:
             correct += 1
+        if any(labels[i] == topic for i in order[:3]):
+            correct3 += 1
     acc = correct / len(QUERIES)
-    print(f"  {name:16s} top-1 topic accuracy: {acc:.3f} "
-          f"({correct}/{len(QUERIES)})   per-item p50: {lat[10]:.1f} ms   "
-          f"bulk: {bulk_rate:.0f} docs/s")
+    acc3 = correct3 / len(QUERIES)
+    print(f"  {name:16s} top-1 {acc:.3f}  top-3 {acc3:.3f}  "
+          f"per-item p50 {lat[10]:.1f} ms  bulk {bulk_rate:.0f} docs/s")
     return acc, top1_docs
 
 
+def _guard_idle_host():
+    """Refuse to benchmark under load. These backends are CPU-bound with OpenMP
+    threads, so a competing load (e.g. a VM compiling in the background) inflates
+    per-item latency ~100x and makes the numbers meaningless — the failure that
+    once nearly reversed an architecture decision. Set BENCH_FORCE=1 to override."""
+    try:
+        load1 = os.getloadavg()[0]
+    except (OSError, AttributeError):
+        return  # not available on this platform; skip the guard
+    if load1 <= 2.0 or os.environ.get("BENCH_FORCE") == "1":
+        if load1 > 2.0:
+            print(f"WARNING: host load {load1:.1f} is high; latency numbers may be "
+                  f"unreliable (BENCH_FORCE set, continuing).\n")
+        return
+    raise SystemExit(
+        f"Refusing to benchmark: host 1-min load average is {load1:.1f} (>2.0).\n"
+        f"Latency here is CPU/contention-sensitive; measure on an idle host.\n"
+        f"Set BENCH_FORCE=1 to override.")
+
+
 def main():
+    _guard_idle_host()
     print("Embedding backend comparison (retrieval accuracy + per-item latency)\n")
     results = {}
     # Force local backends (no HTTP endpoint) for a clean comparison.
-    import os
     os.environ.pop("EMBEDDING_URL", None)
     from src.embeddings import LlamaCppEmbedClient
     try:
