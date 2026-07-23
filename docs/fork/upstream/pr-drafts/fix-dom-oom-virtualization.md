@@ -83,6 +83,10 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
   scroll-down windowing, the scroll-to-bottom drain/snap transition, and teardown
   (timers cleared + `hljsDeferForgetNode` called when pruning removes nodes)
 - `tests/test_chat_history_a11y_js.py`: 8 accessibility contract tests
+- `tests/test_chat_history_reset_before_wipe_js.py`: source-assertion guard that
+  `chatHistory.reset()` precedes the `innerHTML=''` wipe in every chat-history
+  clear path (New Chat, `/clear`, archived-view, group-chat start) — prevents the
+  stale-counter regression from recurring
 - `tests/test_chat_history_render_paging_playwright.py`: 5 end-to-end tests that boot the
   real app (uvicorn + seeded 300/2000-message sessions) and drive rendering, markdown
   mapping, server paging, the full deep-back walk, and DOM bounding against the live
@@ -108,10 +112,16 @@ The simpler approach (evict + notice + reload via session switch) is sufficient 
 - `static/app.js` — header "· N msgs" counter reads `chatHistory.messageCount()` (server
   total + live messages) instead of counting DOM nodes, which undercounts once the DOM
   is windowed; the fallback DOM count excludes `.msg-continuation` rounds
-- `static/js/keyboard-shortcuts.js` — the delete-session shortcut calls
-  `chatHistory.reset()` before wiping `#chat-history` (the window layer's API
-  contract), so a deleted session's state and message total don't survive onto
-  the welcome screen
+- `static/js/keyboard-shortcuts.js` / `static/js/sessions.js` /
+  `static/js/slashCommands.js` / `static/js/group.js` — every path that wipes
+  `#chat-history` calls `chatHistory.reset()` first (the window layer's API
+  contract), so a prior session's window state and message total don't survive
+  onto the next screen. A repo-wide sweep of every `getElementById('chat-history')`
+  acquisition confirmed all wipe sites are covered: session-select/load,
+  delete-session, `createDirectChat` (New Chat), `_cmdSessionClear` (`/clear`),
+  the archived-session view, and the group-chat start handler. Without it the
+  header counter re-reads the stale `messageCount()` on the wipe and shows
+  "New Chat · N msgs" on a fresh chat
 - `static/index.html` — load `chatHistory.js`; scroll-to-bottom button delegates to
   `chatHistory.scrollToBottom()`
 - `static/style.css` — `overflow-anchor:none` on the window's sentinels/spacer
