@@ -343,9 +343,13 @@ Done and validated:
   the embedded store — fixed by pinning the snapshots path (and the gRPC port)
   in `src/qdrant_server.py`. Embedding numbers per platform, idle, via
   `tooling/benchmark_embedding_backends.py`: Linux host ~7 ms / 136 docs/s,
-  OpenBSD VM 9.2 ms / 116 docs/s, FreeBSD VM (4 vCPU) 11.9 ms / 87 docs/s, all
-  at identical accuracy (top-1 0.917, top-3 1.000). macOS and Windows use the
-  same path but were not booted to prove it.
+  OpenBSD VM 9.2 ms / 116 docs/s, FreeBSD VM (4 vCPU) 11.9 ms / 87 docs/s,
+  macOS x86_64 VM 8.7 ms / 100 docs/s (no-SIMD build — see the Intel-mac
+  ceiling above; fastembed on the same VM: 7.3 ms / 169 docs/s, same accuracy,
+  so the per-item wash reproduces there too), all at identical accuracy
+  (top-1 0.917, top-3 1.000). macOS integration verified 2026-07-23 (all four
+  phases, llama.cpp asserted). Windows uses the same path but is not yet
+  verified.
 - Optimized nomic: 256-dim Matryoshka truncation, query/document prefixes, and the
   2048-char chunk size, applied identically by both backends. Validated
   on the host: 256-dim output, prefixes active (query vs document cosine 0.827), and
