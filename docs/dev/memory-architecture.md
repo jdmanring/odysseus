@@ -239,17 +239,18 @@ since remote embedding is off the table here.
 ### Lifecycle
 
 The default is an **app-managed Qdrant server** (`src/qdrant_server.py`, launched
-lazily by `get_vector_client()` in `src/vector_client.py`): the app resolves a
-`qdrant` binary (PATH first — FreeBSD pkg / OpenBSD source build — then
-`BinManager` on Linux/macOS/Windows), starts it on `127.0.0.1:6333` with storage
-under `DATA_DIR/qdrant`, and waits on `/readyz`. `ensure_running()` is idempotent
-across processes — if something already answers on the port, it just connects —
-so the memory MCP subprocess attaches to the server the app started instead of
-launching a rival, and only the process that spawned the child stops it.
+lazily by `get_vector_client()` in `src/vector_client.py`). The app resolves a
+`qdrant` binary (PATH first, which covers the FreeBSD pkg and the OpenBSD source
+build; then `BinManager` on Linux/macOS/Windows), starts it on `127.0.0.1:6333`
+with storage under `DATA_DIR/qdrant`, and waits on `/readyz`. `ensure_running()`
+is idempotent across processes: if something already answers on the port, it just
+connects. The memory MCP subprocess therefore attaches to the server the app
+started instead of launching a rival, and only the process that spawned the child
+stops it.
 
 Setting `QDRANT_HOST` (with optional `QDRANT_PORT`, default 6333) skips the
-managed launch and connects to an external Qdrant — the path for a shared/remote
-instance. `QDRANT_EMBEDDED=1` forces the embedded store for deliberate
+managed launch and connects to an external Qdrant, the path for a shared or
+remote instance. `QDRANT_EMBEDDED=1` forces the embedded store for deliberate
 single-process deployments and tests.
 
 **Fallback — embedded local mode.** Where no server binary resolves (e.g. OpenBSD
@@ -260,11 +261,10 @@ and the memory MCP subprocess both build a `MemoryVectorStore`, and under the
 embedded store the lock's loser silently degrades to keyword memory
 (`MemoryVectorStore.healthy`), leaving one of {UI memory routes, LLM memory tools}
 without vector search, nondeterministically. Under server mode both processes
-share the one server — proven directly by phase C of
-`tooling/verify_memory_integration.py` (a second OS process writing and searching
-the same collection with the first client open). On a crash the embedded lock is
-released with the process (verified: a SIGKILLed holder does not block the next
-start).
+share the one server. Phase C of `tooling/verify_memory_integration.py` proves
+this directly: a second OS process writes and searches the same collection while
+the first client is open. On a crash the embedded lock is released with the
+process (verified: a SIGKILLed holder does not block the next start).
 
 Qdrant has no free-form collection metadata, so the per-lane embedding
 *fingerprint* (which detects a model/dimension/endpoint change and triggers a
