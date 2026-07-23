@@ -259,16 +259,56 @@ def _proc_rss_available():
 _PROC_RSS_OK = _proc_rss_available()
 
 
+def _port_is_free(host, port):
+    """True if host:port can be bound right now (no live listener holds it).
+    SO_REUSEADDR matches uvicorn, so a lingering TIME_WAIT socket from a
+    just-stopped server does not read as still-held."""
+    s = _cdp_sock.socket(_cdp_sock.AF_INET, _cdp_sock.SOCK_STREAM)
+    s.setsockopt(_cdp_sock.SOL_SOCKET, _cdp_sock.SO_REUSEADDR, 1)
+    try:
+        s.bind((host, int(port)))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+
+def _ensure_port_free(host):
+    """Guarantee the server port is bindable before we start uvicorn on it.
+
+    A wrapper that crashed or was SIGKILLed leaves its uvicorn child orphaned:
+    start_server() spawns it with start_new_session=True, so it outlives the
+    wrapper and keeps holding the port. Our next uvicorn would then exit with
+    'address already in use' and the window would load nothing — a silent
+    'won't start'. Kill the orphan by pattern, escalate to SIGKILL if it
+    lingers, and verify the port actually released rather than blindly sleeping."""
+    if _port_is_free(host, PORT):
+        return True
+    subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
+    print("Freeing stale server port...", flush=True)
+    for i in range(24):            # up to ~6 s
+        time.sleep(0.25)
+        if _port_is_free(host, PORT):
+            print("Stale server port released.", flush=True)
+            return True
+        if i == 8:                 # ~2 s and still held: escalate to SIGKILL
+            subprocess.run(["pkill", "-9", "-f", _UVICORN_PATTERN], check=False)
+    print(f"WARNING: port {PORT} still held after cleanup; the server may fail to "
+          "start. Look for a stray 'uvicorn app:app' process.", flush=True)
+    return False
+
+
 def kill_zombies():
-    result = subprocess.run(["pkill", "-f", _UVICORN_PATTERN], check=False)
-    if result.returncode == 0:
-        print("Killed stale uvicorn process(es), waiting for port to release...")
-        time.sleep(1)
+    _ensure_port_free(_desired_host())
 
 
 def start_server():
     global _server_proc, _bind_host
     _bind_host = _desired_host()
+    # Free the port first: this covers the restart path too (restart_server ->
+    # start_server), not only the cold-start kill_zombies() call.
+    _ensure_port_free(_bind_host)
     print(f"Starting Odysseus server on {_bind_host}:{PORT}...")
     # --no-access-log: uvicorn's access log defaults to ON, emitting one log line
     # per HTTP request. For this embedded, localhost, single-user deployment the
@@ -290,6 +330,13 @@ def start_server():
         start_new_session=True,
     )
     for _ in range(30):
+        # Fail fast if uvicorn exited (e.g. it still lost the bind race): don't
+        # burn 15s polling a process that's already gone — surface why instead.
+        if _server_proc.poll() is not None:
+            print(f"Server process exited during startup (code "
+                  f"{_server_proc.returncode}); port {PORT} may still be in use "
+                  "— see server_access.log.", flush=True)
+            return False
         try:
             import urllib.request
             urllib.request.urlopen(f"http://localhost:{PORT}", timeout=1)
@@ -1300,9 +1347,12 @@ if __name__ == "__main__":
         _tray.setToolTip("Odysseus")
         _tray_menu = QMenu()
 
-        # ── Status line (disabled; refreshed each time the menu opens) ──
+        # ── Status line (refreshed each time the menu opens) ──
+        # Kept ENABLED, not disabled: KDE's StatusNotifier menu (DBusMenu) greys
+        # out a disabled item's icon, which would wash out the coloured status
+        # dot. Enabled keeps the dot vivid; clicking it just raises the window.
         _status_act = _tray_menu.addAction("Odysseus")
-        _status_act.setEnabled(False)
+        _status_act.triggered.connect(_show_from_tray)
         _tray_menu.addSeparator()
 
         # ── Open / web access ──

@@ -3,10 +3,11 @@
 Qt-only, shared by qt_wrapper.py and windows_wrapper.py (macOS colours its dot
 with an emoji in the rumps menu title instead — see mac_tray_helper.py).
 
-The tray status line is a *disabled* menu action so it reads as a label, not a
-button. Qt would desaturate an icon set on a disabled action, so each icon
-carries the SAME coloured pixmap for the Disabled mode explicitly — that keeps
-the dot vivid green/red instead of a washed-out grey. Green = server running,
+The tray status line action is kept ENABLED by the wrappers: a disabled item's
+icon is greyed by KDE's StatusNotifier/DBusMenu renderer, which washes the dot
+out entirely (verified live on the KDE tray). Each icon also pins the same
+coloured pixmap for the Disabled mode as belt-and-suspenders, so the dot stays
+vivid even if a caller ever leaves the action disabled. Green = server running,
 red = stopped, amber = a transitional/degraded state (restarting, not
 responding).
 """
