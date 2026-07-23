@@ -10,12 +10,12 @@ class FakeEmbedder:
     def get_sentence_embedding_dimension(self):
         return self.dim
 
-    def encode(self, texts, normalize_embeddings=True):
+    def encode(self, texts, normalize_embeddings=True, is_query=False):
         return [[float(i + 1)] * self.dim for i, _ in enumerate(texts)]
 
 
 class FailingEmbedder(FakeEmbedder):
-    def encode(self, texts, normalize_embeddings=True):
+    def encode(self, texts, normalize_embeddings=True, is_query=False):
         raise RuntimeError("embedding endpoint rate limited")
 
 
@@ -86,7 +86,7 @@ class FakeCollection:
             raise RuntimeError(f"Collection expecting embedding with dimension of {self.dim}, got {dim}")
 
 
-class FakeChroma:
+class FakeVectorStore:
     def __init__(self):
         self.collections = {}
         self.deleted = []
@@ -101,7 +101,7 @@ class FakeChroma:
                 def fail_once(*args, **kwargs):
                     self.fail_next_add_for[name] -= 1
                     self.collections[name].add = original_add
-                    raise RuntimeError("chroma write failed")
+                    raise RuntimeError("vector store write failed")
 
                 self.collections[name].add = fail_once
         elif metadata is not None:
@@ -118,7 +118,12 @@ class FakeChroma:
         self.collections.pop(name, None)
 
 
-def patch_chroma(monkeypatch, fake):
-    import src.chroma_client as chroma_client
+def patch_vector_store(monkeypatch, fake):
+    import src.vector_client as vector_client
 
-    monkeypatch.setattr(chroma_client, "get_chroma_client", lambda: fake)
+    monkeypatch.setattr(vector_client, "get_vector_client", lambda: fake)
+
+
+# Back-compat aliases for tests written against the pre-Qdrant helper names.
+FakeChroma = FakeVectorStore
+patch_chroma = patch_vector_store
