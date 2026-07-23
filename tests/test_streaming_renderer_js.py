@@ -1,4 +1,4 @@
-# Source-text contract tests for streamingRenderer.js (_tailNodes lifecycle, hljs defer, _rtCalls counter).
+# Source-text contract tests for streamingRenderer.js (_tailNodes lifecycle, hljs defer).
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parent.parent
@@ -127,43 +127,3 @@ def test_full_render_keeps_immediate_highlight():
     body  = _SRC[start:end]
     assert "highlightElement" in body
 
-
-# ---------------------------------------------------------------------------
-# renderTail call counter (_rtCalls)
-# ---------------------------------------------------------------------------
-
-def test_rendertail_counter_declared():
-    assert "let _rtCalls = 0" in _SRC
-
-
-def test_rendertail_counter_incremented():
-    body = _render_tail_body()
-    assert "_rtCalls++" in body
-
-
-def test_rendertail_counter_incremented_before_early_returns():
-    # The increment must appear before the appendOpenFence early-return so every
-    # call (including fence-streaming calls) is counted.
-    body = _render_tail_body()
-    incr_pos  = body.index("_rtCalls++")
-    fence_pos = body.index("appendOpenFence")
-    assert incr_pos < fence_pos, "_rtCalls++ must precede appendOpenFence early-return"
-
-
-def test_rendertail_counter_logged_in_finalize():
-    body = _finalize_body()
-    assert "'[streamRenderer] renderTail calls=' + _rtCalls" in body
-
-
-def test_rendertail_counter_log_guarded_by_nonzero():
-    # Avoid a spurious '[streamRenderer] renderTail calls=0' for responses that
-    # never stream (e.g. instant errors).
-    body = _finalize_body()
-    assert "_rtCalls > 0" in body
-
-
-def test_rendertail_counter_reset_after_log():
-    body = _finalize_body()
-    log_pos   = body.index("[streamRenderer]")
-    reset_pos = body.index("_rtCalls = 0", log_pos)
-    assert reset_pos > log_pos, "_rtCalls must be reset after the log, not before"

@@ -125,7 +125,7 @@ def _check_bg_block() -> str:
 
 def test_check_background_stream_purges_stale():
     """checkBackgroundStream must purge stale Map entries on every session switch."""
-    assert "_purgeStaleBackgroundStreams()" in _check_bg_block()
+    assert "_purgeStaleBackgroundStreams(sessionId)" in _check_bg_block()
 
 
 # ---------------------------------------------------------------------------
