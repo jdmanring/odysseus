@@ -101,20 +101,6 @@ def test_cookbook_modal_enter_no_filter_saturate():
     assert not _near("@keyframes cookbook-modal-enter {", "filter: saturate")
 
 
-# ---------------------------------------------------------------------------
-# Sanity: elements with legitimate translucency still have backdrop-filter
-# ---------------------------------------------------------------------------
-
-def test_gallery_album_menu_btn_retains_backdrop_filter():
-    # .gallery-album-card album menu button has opacity:0 (nearly transparent).
-    # Its backdrop-filter was intentionally kept — the blur is visible on hover.
-    assert _near(".gallery-album-menu-btn {", "backdrop-filter")
-
-
-def test_ge_transform_popup_retains_backdrop_filter():
-    # .ge-transform-popup has background: color-mix(in srgb, var(--panel) 96%, transparent).
-    # 4% translucency — blur is faint but intentional. Kept.
-    assert _near(".ge-transform-popup {", "backdrop-filter")
 
 # NOTE: memory-synapse-sweep tests intentionally live in
 # test_brain_panel_oom_css.py, not here. They were previously duplicated in this

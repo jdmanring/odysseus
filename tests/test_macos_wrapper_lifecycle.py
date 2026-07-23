@@ -38,10 +38,10 @@ def test_close_event_hides_unless_quitting():
     assert "if self._quitting:" in ce
     assert "event.accept()" in ce
     # Red-button path: hide + ignore (veto the close, keep the app alive).
-    assert "self.hide()" in ce
+    assert "self._hide_to_dock()" in ce
     assert "event.ignore()" in ce
     # The accept must be gated by _quitting, before the hide branch.
-    assert ce.index("event.accept()") < ce.index("self.hide()")
+    assert ce.index("event.accept()") < ce.index("self._hide_to_dock()")
 
 
 def test_explicit_quit_action_binds_deterministically():
