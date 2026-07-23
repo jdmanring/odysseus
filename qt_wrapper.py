@@ -821,7 +821,10 @@ class OdysseusWindow(QMainWindow):
         def _log_renderer_memory():
             rss_before = 0
             pid = page.renderProcessPid()
-            if pid:
+            # Guard the renderer /proc read the same way the host-RSS read below
+            # is guarded: on BSD (no /proc) it would otherwise error every tick
+            # and spam the log with [MEM] error lines (issue found on FreeBSD).
+            if pid and _PROC_RSS_OK:
                 try:
                     with open(f'/proc/{pid}/status') as f:
                         for line in f:
@@ -1048,7 +1051,7 @@ class OdysseusWindow(QMainWindow):
     def _renderer_rss_kb(self) -> int:
         page = getattr(self, '_page', None)
         pid = page.renderProcessPid() if page else None
-        if not pid:
+        if not pid or not _PROC_RSS_OK:  # no /proc on BSD -> no measurable RSS
             return 0
         try:
             with open(f'/proc/{pid}/status') as f:

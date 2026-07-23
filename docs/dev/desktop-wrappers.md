@@ -67,9 +67,32 @@ load-bearing — a miss on any produces a broken window, not a graceful fallback
   **white window**. `_PROC_RSS_OK` gates all forcible purges off on BSD; the
   reclaim sawtooth is a constrained-Linux optimization the platform runs
   correctly without. (PSI, `/proc/pressure`, is likewise disabled when absent.)
+- **Guard the renderer-RSS *logging* read too, not only the purge.** The 60 s
+  renderer-memory snapshot also reads `/proc/<pid>/status`; unguarded it errored
+  every tick on BSD and spammed the log with `[MEM] error` lines (found on the
+  FreeBSD bench, 2026-07-23). Both the snapshot and `_renderer_rss_kb()` now sit
+  behind `_PROC_RSS_OK`, matching the host-RSS read.
 
 The rule: any `/proc`-, `/sys`-, or DBus-dependent path in the shared wrapper
 must **no-op, not error**, when the interface is absent.
+
+### Native theming (About dialog, menus) follows the desktop where it can
+
+Native Qt surfaces — the About dialog above all — follow the OS light/dark
+scheme via `QStyleHints.colorScheme()` (the shared `qt_about.py`). Two caveats
+on BSD, both verified on the FreeBSD bench:
+
+- Qt only reports a scheme when a platform-theme plugin is active. Under a full
+  KDE session (`XDG_CURRENT_DESKTOP=KDE`) Qt auto-loads `KDEPlasmaPlatformTheme`
+  and `colorScheme()` returns Dark/Light correctly, so the About dialog matches
+  the desktop. Launched from a **stripped environment** (e.g. an SSH shell that
+  forwards only `DISPLAY`), `XDG_CURRENT_DESKTOP` is absent, no plugin loads,
+  `colorScheme()` is `Unknown`, and the Qt palette defaults to light — so native
+  chrome renders light regardless of the desktop's setting. A `.desktop`
+  menu-launch always carries the full session env and themes correctly.
+- When the scheme is `Unknown`, `qt_about` falls back to the window-palette
+  lightness and, either way, paints a **soft** surface — never a harsh pure
+  white (the original FreeBSD complaint).
 
 ## Installing
 
@@ -257,7 +280,7 @@ controllable from the tray, not merely opened and quit:
 | View Logs | open the `logs/` directory |
 | Restart Server | stop + start the uvicorn process off the GUI thread (`_ServerRestartThread`), then reload the webview |
 | Close to tray | checkable, `QSettings` `closeToTray` (default on); Windows/Linux only |
-| README / About Odysseus | open the README; show the native About dialog (icon, version from `src/constants.py`, copyright, AGPL notice, links) |
+| README / About Odysseus | open the README; show the native About dialog — theme-aware (light/dark) via the shared `qt_about.py`: icon, version from `src/constants.py`, copyright, AGPL notice, links |
 | Quit Odysseus | real teardown |
 
 - **`settingsModule` is not a window global.** It is an ES-module export, so the
@@ -374,5 +397,15 @@ controllable from the tray, not merely opened and quit:
 
 macOS lifecycle, downloads (both backends), serve launch, stop/kill, and the
 Dock icon were additionally verified end-to-end on a macOS bench, and the Linux
-installer + setup path on an Arch machine. FreeBSD/OpenBSD/Windows `setup.*` are
-written but not yet bench-verified.
+installer + setup path on an Arch machine.
+
+**FreeBSD — bench-verified end-to-end (2026-07-23), FreeBSD 15.1 / KDE Plasma 6 /
+Qt 6.11.1** (`docs/fork/screenshots/Screenshot_freebsd15_2026-07-23_*-odysseus.png`):
+`build-freebsd-app.sh` installs cleanly; the main window renders with **no
+white-screen / renderer crash-loop** (the `_PROC_RSS_OK` guard holds — zero
+`RENDERER Crashed` over a sustained idle run); tray icon + full tray menu +
+Quit work; single-instance rejects a second launch (`[SINGLETON] already
+running`); close-to-tray works; and the About dialog renders theme-matched.
+Verified both by machine checks (logs, port, singleton) and by eye.
+
+OpenBSD/Windows `setup.*` are written but not yet bench-verified.
