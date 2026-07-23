@@ -66,9 +66,13 @@ def test_list_sessions_excludes_other_users_sessions(monkeypatch):
     sm = MagicMock()
     sm.get_sessions_for_user.return_value = {alice_id: alice_session}
     router = sr.setup_session_routes(sm, {})
-    endpoint = next(r.endpoint for r in router.routes
-                    if getattr(r, "path", "") == "/api/sessions"
-                    and "GET" in getattr(r, "methods", set()))
+    # `router` is a module-global APIRouter that accumulates routes across every
+    # setup_session_routes() call in the suite, so `next(...)` (first match) can
+    # return an earlier test's endpoint bound to a different session_manager.
+    # Take the last-registered match — the one this call just appended.
+    endpoint = [r.endpoint for r in router.routes
+                if getattr(r, "path", "") == "/api/sessions"
+                and "GET" in getattr(r, "methods", set())][-1]
 
     result = endpoint(request=MagicMock())
     returned_ids = {s["id"] for s in result}
@@ -119,9 +123,11 @@ def test_auto_sort_skip_llm_cleans_owner_stamped_sessions_when_auth_disabled(mon
     sm = MagicMock()
     sm.get_sessions_for_user.return_value = {sid: session}
     router = sr.setup_session_routes(sm, {})
-    endpoint = next(r.endpoint for r in router.routes
-                    if getattr(r, "path", "") == "/api/sessions/auto-sort"
-                    and "POST" in getattr(r, "methods", set()))
+    # Last-registered match — the shared module-global router accumulates routes
+    # across the suite (see the note in the sibling test above).
+    endpoint = [r.endpoint for r in router.routes
+                if getattr(r, "path", "") == "/api/sessions/auto-sort"
+                and "POST" in getattr(r, "methods", set())][-1]
 
     result = endpoint(request=MagicMock(), skip_llm=True)
 
