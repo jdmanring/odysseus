@@ -105,9 +105,22 @@ against an external Qdrant instead — the opt-in path for a shared instance.
 This **supersedes** the originally-planned "start/stop the Qdrant binary alongside
 the app" lifecycle (carried over from the Qwen fork): that launcher was never
 built, and embedded mode makes it unnecessary — nothing to download, pin, or reap,
-and it works on every platform, **including OpenBSD, which has no Qdrant server
-binary at all**. On a crash the local store's lock is released with the process
-(verified: a SIGKILLed holder does not block the next start).
+and it needs no per-platform server binary, **including OpenBSD, which has none at
+all**. On a crash the local store's lock is released with the process (verified: a
+SIGKILLed holder does not block the next start).
+
+**Known limitation — single-writer.** Local mode takes an *exclusive,
+cross-process* lock on the store directory: only one process can open it (a second
+raises `RuntimeError: already accessed by another instance ... use Qdrant server
+instead`). This app runs a memory MCP server as a **subprocess** (`memory` is in
+`builtin_mcp._EAGER_SERVERS`) that also builds a `MemoryVectorStore`, so the app
+process and the MCP subprocess contend for the lock — the loser degrades to keyword
+memory (silently, via `MemoryVectorStore.healthy`). Net effect under local mode:
+one of {UI memory routes, LLM memory tools} gets vector search and the other keyword,
+nondeterministically, and memories added on the keyword side are not vector-indexed.
+Server mode (`QDRANT_HOST`) avoids this — both processes share one server. The
+correct fix is a single vector-store owner with the other side proxying to it
+(tracked; see Status). Verified reproducible, not yet fixed.
 
 Qdrant has no free-form collection metadata, so the per-lane embedding
 *fingerprint* (which detects a model/dimension/endpoint change and triggers a
@@ -146,8 +159,10 @@ Done and validated:
 - nomic is the default embedder.
 - fastembed to llama.cpp auto-fallback works on host, FreeBSD, and OpenBSD.
 - The install-time verifier recognizes both backends.
-- **Embedded local Qdrant is the default** (see Lifecycle); memory comes up
-  healthy when the app runs, verified end-to-end on the Linux host and OpenBSD.
+- **Embedded local Qdrant is the default** (see Lifecycle); the app process comes
+  up healthy, verified end-to-end on the Linux host, FreeBSD, and OpenBSD. macOS
+  and Windows use the same local-mode + fastembed path but were not booted to prove
+  it.
 - Optimized nomic: 256-dim Matryoshka truncation, query/document prefixes, and the
   2048-char chunk size, applied identically by both backends. Validated
   on the host: 256-dim output, prefixes active (query vs document cosine 0.827), and
@@ -186,4 +201,10 @@ path and need explicit provisioning (`tooling/provision_bsd_memory.sh`, called b
 
 Still pending:
 
+- **Single-writer under local mode (see the Lifecycle "Known limitation").** The
+  memory MCP subprocess and the app process both open the local store and contend
+  for its exclusive lock; the loser silently degrades to keyword. Fix: a single
+  vector-store owner with the other side proxying (e.g. the MCP server routing its
+  vector ops through the app's memory API), so both share one store on every
+  platform without a server binary. Reproduced and understood; not yet fixed.
 - Upstream-candidate. Tracked under its own issue and branch (#161).

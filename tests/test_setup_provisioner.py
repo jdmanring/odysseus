@@ -36,7 +36,7 @@ def test_setup_sh_does_not_pip_install_pyqt_on_linux_bsd():
 def test_setup_sh_guides_the_privileged_qt_step_per_pm():
     # No-sudo: print the exact package-manager command, don't run it.
     for hint in ("pacman -S python-pyqt6", "apt install python3-pyqt6",
-                 "pkg install py311-qt6-webengine", "pkg_add qt6-qtwebengine"):
+                 "pkg install py311-qt6-webengine", "pkg_add py3-qt6webengine"):
         assert hint in SETUP_SH
 
 
