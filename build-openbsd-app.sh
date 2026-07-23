@@ -11,7 +11,7 @@
 #   - qt_wrapper.py present in repo root (from feat/qt-native-linux-app)
 #
 # Install Qt WebEngine from ports (run as root or via doas):
-#   doas pkg_add qt6-qtwebengine py3-pyqt6-webengine
+#   doas pkg_add py3-qt6webengine        # pulls py3-qt6 + qt6-qtwebengine
 #
 # Or install into venv via pip (downloads ~250 MB Chromium binary):
 #   venv/bin/pip install PyQt6 PyQt6-WebEngine
@@ -44,7 +44,9 @@ fi
 if ! "$VENV_PY" -c "import PyQt6.QtWebEngineWidgets" 2>/dev/null; then
     echo "ERROR: PyQt6 WebEngine not found." >&2
     echo "       Option 1 (system, recommended — amd64/aarch64 only):" >&2
-    echo "         doas pkg_add qt6-qtwebengine py3-pyqt6-webengine" >&2
+    echo "         doas pkg_add py3-qt6webengine   # pulls py3-qt6 + qt6-qtwebengine" >&2
+    echo "         (the venv must then be created with --system-site-packages so" >&2
+    echo "          the system PyQt6 is visible: python3 -m venv --system-site-packages venv)" >&2
     echo "       Option 2 (venv, downloads ~250 MB Chromium binary):" >&2
     echo "         $VENV_PY -m pip install PyQt6 PyQt6-WebEngine" >&2
     exit 1

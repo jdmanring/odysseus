@@ -314,7 +314,12 @@ controllable from the tray, not merely opened and quit:
   - Debian/Ubuntu: `sudo apt install python3-pyqt6 python3-pyqt6.qtwebengine`
   - Fedora: `sudo dnf install python3-pyqt6 python3-pyqt6-webengine`
   - FreeBSD: `doas pkg install py311-qt6-webengine py311-qt6-webchannel py311-dbus-python`
-  - OpenBSD: `doas pkg_add qt6-qtwebengine py3-pyqt6-webengine`
+  - OpenBSD: `doas pkg_add py3-qt6webengine` (pulls `py3-qt6` + `qt6-qtwebengine`;
+    the bindings package is **`py3-qt6webengine`**, not `py3-pyqt6-webengine`).
+    The venv must be created `--system-site-packages` to see the system PyQt6.
+    Server deps: `pkg_add py3-python-multipart` (**not** `py3-multipart`, a
+    different project FastAPI won't accept) and `py3-dateutil`; a few pure-python
+    deps (`aiofiles`, `pydantic-settings`) are unpackaged and need pip.
 - **macOS: "incompatible architecture" on Apple Silicon.** The venv was built
   with an x86/universal Python; the `.app` needs an **arm64** interpreter. Use
   `./start-macos.sh` (it requires Homebrew's arm64 Python) or rebuild the venv
@@ -408,4 +413,16 @@ Quit work; single-instance rejects a second launch (`[SINGLETON] already
 running`); close-to-tray works; and the About dialog renders theme-matched.
 Verified both by machine checks (logs, port, singleton) and by eye.
 
-OpenBSD/Windows `setup.*` are written but not yet bench-verified.
+**OpenBSD — bench-verified (2026-07-23), OpenBSD 7.9 / KDE Plasma 6 / Qt 6.10.2:**
+after provisioning (`py3-qt6webengine`, `--system-site-packages` venv, the server
+deps above), `build-openbsd-app.sh` installs cleanly, the backend serves, the main
+window renders the app UI (dark, software render, **no white-screen/crash-loop** —
+0 `RENDERER Crashed`, no `[MEM] error`), single-instance rejects a second launch
+(`[SINGLETON] already running`), and the About dialog renders theme-matched
+(`colorScheme` Dark via `KDEPlasmaPlatformTheme6`). Verified by launching onto the
+running `:0` X server. **Tray + close-to-tray were NOT verified here** — the bare
+`:0` had no StatusNotifier host, so the wrapper took its documented fallback
+(`system tray unavailable; X will quit`); confirming them needs a full Plasma
+session (as was done on the FreeBSD bench).
+
+Windows `setup.*` is written but not yet bench-verified.
