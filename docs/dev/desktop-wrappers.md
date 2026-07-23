@@ -400,8 +400,8 @@ Dock icon were additionally verified end-to-end on a macOS bench, and the Linux
 installer + setup path on an Arch machine.
 
 **FreeBSD — bench-verified end-to-end (2026-07-23), FreeBSD 15.1 / KDE Plasma 6 /
-Qt 6.11.1** (`docs/fork/screenshots/Screenshot_freebsd15_2026-07-23_*-odysseus.png`):
-`build-freebsd-app.sh` installs cleanly; the main window renders with **no
+Qt 6.11.1** (proof screenshot kept locally under the gitignored
+`docs/fork/screenshots/`): `build-freebsd-app.sh` installs cleanly; the main window renders with **no
 white-screen / renderer crash-loop** (the `_PROC_RSS_OK` guard holds — zero
 `RENDERER Crashed` over a sustained idle run); tray icon + full tray menu +
 Quit work; single-instance rejects a second launch (`[SINGLETON] already
