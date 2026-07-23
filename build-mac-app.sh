@@ -14,8 +14,9 @@
 # write the XDG .desktop entry, Windows creates its shortcuts, all in one run),
 # so `./install.sh` behaves the same everywhere. --install is still accepted.
 #
-# This is the Qt native wrapper installer. See build-macos-app.sh for the
-# Chrome --app mode alternative (no Qt dependency, browser-based UI).
+# This is the Qt native wrapper installer — the sole macOS app path. (The
+# inherited Chrome --app browser launcher, build-macos-app.sh, was retired; the
+# Qt wrapper supersedes it with a real native window + Dock/tray lifecycle.)
 #
 # The Dock tile is a macOS-style icon (dark rounded-rect on Apple's 824/1024
 # grid) built from static/icons/icon-macos-1024.png. --install rebuilds the Dock
@@ -174,7 +175,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 
 # Launcher — exec's into mac_wrapper.py which owns the full server + window lifecycle.
-# Using a template so REPO_DIR is baked in at build time (same approach as build-macos-app.sh).
+# Using a template so REPO_DIR is baked in at build time.
 cat > "$APP/Contents/MacOS/$APP_NAME.tmpl" <<'LAUNCHER'
 #!/bin/bash
 REPO_DIR="__REPO_DIR__"

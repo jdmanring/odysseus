@@ -99,11 +99,8 @@ The script also reads `.env` at startup, so `APP_BIND=0.0.0.0` and `APP_PORT`
 set there are picked up automatically without a command-line override each run.
 
 Keep `AUTH_ENABLED=true` (the default) before binding outside loopback. Do not
-expose this port directly to the public internet. To build a clickable app wrapper:
-
-```bash
-./build-macos-app.sh
-```
+expose this port directly to the public internet. To build a clickable app,
+use the Qt native wrapper below (`build-mac-app.sh`).
 
 ### macOS native app (Qt wrapper, Dock icon)
 
