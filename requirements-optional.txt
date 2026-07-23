@@ -1,8 +1,16 @@
 # Optional dependencies — install only if you use the corresponding feature.
 # The app handles their absence gracefully (clear error message on first use).
 #
-# Note: chromadb-client + fastembed moved to requirements.txt — RAG, semantic
-# memory, and tool selection are core paths, so they ship by default now.
+# Note: the default embedding backend is llama.cpp (nomic GGUF), installed by
+# requirements.txt on every platform. fastembed below is an opt-in alternative.
+
+# fastembed (ONNX nomic embeddings) — the pre-unification default, now opt-in.
+# Set EMBEDDING_LOCAL_BACKEND=fastembed to prefer it where onnxruntime runs
+# (Linux/Windows/macOS; not the BSDs). Its only edge over the llama.cpp default is
+# bulk-embedding throughput, which the one-at-a-time memory workload never hits;
+# per-item latency and retrieval accuracy are equivalent. See
+# docs/dev/memory-architecture.md.
+fastembed
 
 # Local speech-to-text (microphone -> text) via faster-whisper, for the
 # "local" STT provider. Runs on CPU out of the box (CTranslate2 backend, no

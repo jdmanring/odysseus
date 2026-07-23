@@ -5,10 +5,10 @@ fleet. Locked in 2026-07-22.
 
 ## The stack
 
-| Layer | Linux / Windows / macOS | FreeBSD |
-|-------|-------------------------|---------|
-| Embeddings | fastembed (nomic) | llama.cpp (nomic GGUF) |
-| Vector store | Qdrant | Qdrant (native package) |
+| Layer | All platforms (Linux / Windows / macOS / FreeBSD / OpenBSD) |
+|-------|-------------------------------------------------------------|
+| Embeddings | llama.cpp (nomic GGUF Q8_0) — fastembed opt-in via `EMBEDDING_LOCAL_BACKEND=fastembed` |
+| Vector store | Qdrant (native package on the BSDs) |
 
 Embeddings and the vector store are separate concerns. The embedding backend turns
 text into vectors; Qdrant stores and searches them. The backend can differ per
@@ -17,9 +17,19 @@ while everything downstream stays identical.
 
 ## Embedding layer
 
-### Model: nomic-embed-text-v1.5 (the `-Q` INT8 quant on fastembed)
+### Model: nomic-embed-text-v1.5 (Q8_0 GGUF on llama.cpp)
 
-768-dim, 8K-token context, roughly 130 MB at INT8, Apache-2.0.
+768-dim (truncated to 256, see below), roughly 130 MB at Q8_0, Apache-2.0.
+
+Context note: nomic-v1.5 advertises an 8K context, but that relies on **Dynamic
+NTK-Aware RoPE**, which llama.cpp doesn't implement — so every GGUF (nomic's own
+included) reports `n_ctx_train=2048`, and there is no "properly converted" 8K GGUF to
+find, from any quantizer. 8K is reachable only as a **load-time YaRN substitute**
+(`n_ctx=8192`, `rope_scaling_type=yarn`, `rope_freq_scale=0.75` — nomic's documented
+recipe). We default to 2048 (`LLAMACPP_EMBED_CTX`) because memory entries and RAG
+chunks are far shorter; the naive `n_ctx=8192` without YaRN doesn't extend context,
+it just runs inputs past the trained range and degrades them. Raise it with YaRN only
+if RAG needs to embed genuinely long documents in one vector.
 
 It replaces `all-MiniLM-L6-v2`, which had been the default. all-MiniLM is a 2021
 model with a 384-dim output and a 256-token context; nomic gives meaningfully better
@@ -33,21 +43,146 @@ single-user English workspace.
 
 ### Backend selection
 
-`src/embedding_lanes.py::_build_fastembed_client()` tries fastembed first and falls
-back to llama.cpp when fastembed can't load.
+**llama.cpp (GGUF Q8_0) is the local default on every platform.** A configured HTTP
+endpoint (`EMBEDDING_URL`) still wins when present; absent that,
+`src/embeddings.py::build_local_embed_client()` builds `LlamaCppEmbedClient`, and
+`src/embedding_lanes.py::_build_local_lane_client()` does the same for the lane.
 
-fastembed (ONNX) is the default wherever it runs: Linux, Windows, macOS. It's
-Qdrant's own embedding library, so it pairs cleanly with the store.
+The fleet used to split — fastembed (ONNX) on Linux/Windows/macOS, llama.cpp only on
+the BSDs (onnxruntime has no BSD binding). We unified on llama.cpp because the split
+bought nothing and cost maintenance:
 
-llama.cpp (GGUF) is the fallback for platforms with no onnxruntime. fastembed's
-runtime is onnxruntime, and onnxruntime has no FreeBSD Python binding: the port
-ships the C++ library only, there is no wheel, and the source tree is a large build
-FreeBSD doesn't target. `LlamaCppEmbedClient` runs the same nomic weights as a GGUF
-through `py312-llama-cpp-python`, with mean pooling and L2 normalization. Both
-backends apply the same nomic prefixes and Matryoshka truncation in `encode()` via
-shared helpers, so the vectors line up regardless of which backend produced them.
+- fastembed's *only* measured advantage is bulk throughput (tuned batch, 24 cores:
+  ~62 vs ~37 docs/s). The memory workload embeds **one item at a time**; bulk only
+  happens on a one-off full reindex, where even the slowest backend finishes in
+  minutes. Per-item latency — the actual hot path — is a few ms on llama.cpp Q8
+  (measured p50 ~9.5 ms), imperceptible.
+- Retrieval accuracy is quant- and backend-independent on this task (identical
+  topic-accuracy across every quant tried), so fastembed's INT8 and llama.cpp's Q8
+  retrieve equally well.
+- One backend means one provisioning story (no onnxruntime wheel-hunting) and no
+  cross-backend vector drift.
 
-Both expose the same `encode(texts, normalize_embeddings) -> (N, dim)` signature.
+**Odysseus is already a llama.cpp/GGUF-native app; embeddings were the lone
+exception.** Local LLM inference already runs through `llama-server` as a first-class
+backend — the codebase carries dedicated integration for its slot-affinity hints
+(issue #2927), its `/props` discovery endpoint, its `timings` block, and its
+`--jinja` handling. GGUF is a format the project already ships and reasons about.
+fastembed was the *one* feature dragging in a whole **second** native ML stack —
+onnxruntime, the ONNX model format, and their own tokenizer/stemmer dependencies —
+purely to embed. Unifying on llama.cpp means one local-ML engine and one model format
+end to end. (The binding added here, `llama-cpp-python`, is a distinct pip artifact
+from the `llama-server` binary the app talks to over HTTP: same engine, same GGUF
+format, same platform knowledge, different interface. Serving embeddings from a
+`llama-server` `/v1/embeddings` endpoint via the existing `EMBEDDING_URL` path is the
+even-tighter option for anyone who'd rather run a server than load the model
+in-process.)
+
+**The onnxruntime baggage that evaporates.** Everything below existed *only* to keep
+fastembed/onnxruntime working, and is now dead weight the fork sheds — grep-verified,
+14 workaround sites across the tree:
+
+- The Windows **MSVC Redistributable** requirement — onnxruntime's `.pyd` links the
+  MSVC runtime; without it the DLL load fails (`setup.ps1` installs it; the verifier
+  special-cases the error).
+- **~30 lines of broken-symlink cache-healing** in `FastEmbedClient` — the HF-hub
+  cache stores the model as symlinks that Windows on a UNC/network share refuses to
+  follow (`WinError 1463`), silently degrading semantic memory; the code detects the
+  dead link and forces a re-download.
+- The module-top **`HF_HUB_DISABLE_SYMLINKS`** env hack, set before any import so
+  onnxruntime can load the model at all on Windows.
+- On the BSDs, fastembed's **`py-rust-stemmers`** dependency has no wheel and needs
+  the Rust toolchain to compile; onnxruntime has no BSD build at all.
+- **Arch-mismatch onnxruntime wheels** (`setup.py` guards against pip pulling the
+  wrong-CPU binary).
+- The **fastembed→llama.cpp fallback branching** itself — a two-backend selection
+  path in `embedding_lanes.py` and the verifier, now a single default with an opt-in.
+
+**What it opens up (the future the fork gains).** fastembed can only run models in its
+**curated ONNX registry**; llama.cpp runs **any GGUF**, so the whole community
+embedding-model ecosystem becomes reachable by changing an env var:
+
+- **Model upgrades are one line.** The multilingual path documented below
+  (`nomic-embed-text-v2-moe`, `bge-m3`, `arctic-embed-v2`) is `LLAMACPP_EMBED_REPO` /
+  `LLAMACPP_EMBED_FILE`, no code change — impossible on fastembed unless they happen
+  to have ONNX-converted that model.
+- **Quant is a choice, not a given.** f16 / Q8 / Q6 / Q4 per the RAM-vs-quality
+  tradeoff, instead of whatever single quant fastembed shipped.
+- **The community quantizer ecosystem is in reach** (bartowski, mradermacher, …) —
+  the same library the fork's GGUF-discovery work already taps for LLMs now applies
+  to embedders too.
+- **True 8K context** via the load-time YaRN path (see the model note above) — a
+  llama.cpp runtime lever fastembed doesn't expose.
+
+`LlamaCppEmbedClient` runs nomic-embed-text-v1.5 as a Q8_0 GGUF via
+`llama-cpp-python`, mean pooling + L2 normalization, with two thread configs:
+`n_threads` (default min(4, cores)) drives the per-item hot path — single-item
+latency is flat past ~4 threads — while `n_threads_batch` (default all cores) drives
+the rare bulk reindex. fastembed stays reachable for a one-off via
+`EMBEDDING_LOCAL_BACKEND=fastembed`. Both expose the same
+`encode(texts, normalize_embeddings) -> (N, dim)` signature and apply the same nomic
+prefixes + Matryoshka truncation, so vectors line up regardless of backend.
+
+### Why in-process, not an app-managed llama-server (decided, don't re-litigate)
+
+The default local backend loads the GGUF **in-process** via `llama-cpp-python`, rather
+than the app spawning and lifecycle-managing a `llama-server` to embed against over
+HTTP. The decision rule is *does centralizing solve a correctness or heavy-resource
+problem worth a server lifecycle?* — and embeddings trigger neither:
+
+- **Qdrant is a server** because it holds shared *mutable state* behind a single-writer
+  lock (the app and the memory MCP subprocess collide on the embedded store) — a
+  correctness requirement.
+- **The LLM is a server** because the generation model is a *heavy shared resource*
+  (large, often GPU-resident, loaded once and shared).
+- **Embeddings are neither** — a stateless pure function (text→vector, no lock, each
+  process can hold its own copy) over a small CPU model (~130 MB). Centralizing buys
+  nothing you'd pay lifecycle cost for, and an always-on embedding server would
+  re-introduce exactly the port/orphan/shutdown handling `qdrant_server.py` already
+  carries, plus a localhost round-trip per ~9.5 ms embed.
+
+Anyone who *does* want to serve embeddings (out-of-process isolation, a shared
+llama-server on a multi-client host) already can: set `EMBEDDING_URL` to any
+OpenAI-compatible endpoint — including their own `llama-server` `/v1/embeddings` — and
+it takes precedence over the in-process backend. So both options exist; only the simple
+one is maintained.
+
+### If multilingual retrieval is ever needed: upgrade the model
+
+The whole analysis above assumes an **English (or English-dominant) workspace**,
+where nomic-embed-text-v1.5 is the right call — small, fast, and retrieval quality
+that a bigger model won't measurably beat on English memory/RAG. That assumption is
+the hinge. If memories or RAG documents are stored and searched in **other
+languages**, v1.5 is the wrong tool (it's English-centric) and the fix is a *model*
+upgrade, not a quant or context tweak.
+
+Recommended multilingual upgrade: **`nomic-ai/nomic-embed-text-v2-moe`**. It is the
+best *fit* for this architecture, not just a leaderboard name:
+
+- SOTA multilingual retrieval (~100 languages) at its size class — competitive with
+  models 2× larger — which is exactly the axis v1.5 is weak on.
+- Same nomic family: same `search_query:` / `search_document:` prefixes and Matryoshka
+  768→256, so it slots into the existing prefix + 256-dim pipeline with **no lane or
+  code change** — only the `LLAMACPP_EMBED_REPO` / `LLAMACPP_EMBED_FILE` env vars
+  (point them at `nomic-ai/nomic-embed-text-v2-moe-GGUF`).
+- Merged llama.cpp support ([ggml-org/llama.cpp#12466](https://github.com/ggml-org/llama.cpp/pull/12466)),
+  official GGUF, HF-parity to ~6e-7 MSE — so it runs in the same unified llama.cpp
+  path on every platform.
+
+Cost of the upgrade, to weigh consciously: ~305M MoE params vs v1.5's ~137M — higher
+RAM (MoE keeps all experts resident) and somewhat slower per-item embeds. Switching
+backend/model changes the lane fingerprint, triggering a one-time reindex from the
+canonical memory store (automatic; see Lifecycle). **Only take this on if
+multilingual is a real requirement** — on English it's a lateral move at higher cost.
+
+Alternative if maximum multilingual quality matters more than fit: `BAAI/bge-m3`
+(strong multilingual, native 8192 context) — but it's larger, fixed 1024-dim (a lane
+dimension change, not a drop-in), and uses different prefixing. Prefer v2-moe unless
+a benchmark on your actual multilingual data justifies the heavier switch.
+
+Whichever is chosen, decide it with a retrieval benchmark on **multilingual** pairs
+(where the gain actually shows), not English — on English our own benchmark is flat
+across models and would hide the difference.
 
 ### Cross-platform vector compatibility
 
@@ -147,7 +282,7 @@ aligned across platforms.
 **Chunk size tuned to nomic, not maxed to its context.** The old `CHUNK_SIZE = 1000`
 chars (about 250 tokens, in `src/personal_docs.py` and `src/rag_vector.py`) was a
 leftover from all-MiniLM's 256-token limit. It's now 2048 chars, roughly 512 tokens,
-with 300 chars of overlap. The point is deliberately *not* to fill nomic's 8K
+with 300 chars of overlap. The point is deliberately *not* to fill the model's
 context per chunk: a large chunk averages many sentences into one vector and dilutes
 what the vector points at, so retrieval gets worse, not better. ~512 tokens is the
 sweet spot between capturing enough context and keeping each vector about one idea.
@@ -156,12 +291,14 @@ sweet spot between capturing enough context and keeping each vector about one id
 
 Done and validated:
 
-- nomic is the default embedder.
-- fastembed to llama.cpp auto-fallback works on host, FreeBSD, and OpenBSD.
+- nomic (Q8_0 GGUF on llama.cpp) is the default embedder on every platform;
+  fastembed is opt-in via `EMBEDDING_LOCAL_BACKEND=fastembed`.
+- Per-item Q8 latency measured on the host: p50 ~9.5 ms — the hot path is
+  imperceptible, which is what justifies dropping the fastembed split.
 - The install-time verifier recognizes both backends.
 - **Embedded local Qdrant is the default** (see Lifecycle); the app process comes
   up healthy, verified end-to-end on the Linux host, FreeBSD, and OpenBSD. macOS
-  and Windows use the same local-mode + fastembed path but were not booted to prove
+  and Windows use the same local-mode + llama.cpp path but were not booted to prove
   it.
 - Optimized nomic: 256-dim Matryoshka truncation, query/document prefixes, and the
   2048-char chunk size, applied identically by both backends. Validated

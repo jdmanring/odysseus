@@ -2,12 +2,14 @@
 # provision_bsd_memory.sh — make the local, self-contained memory stack build on
 # FreeBSD and OpenBSD, where the default Linux/macOS/Windows path does not.
 #
-# The default stack is `fastembed` (ONNX embeddings via onnxruntime) + a
-# `qdrant-client` talking to Qdrant. On the BSDs two things are missing from PyPI:
+# The default stack is a llama.cpp GGUF embedder (nomic, the same model and backend
+# used on every platform) + a `qdrant-client` talking to Qdrant. On the BSDs two
+# pieces install differently than the PyPI-wheel path elsewhere:
 #
-#   * onnxruntime has no BSD wheel and no BSD support at all → fastembed can't run.
-#     The app already falls back to a llama.cpp GGUF backend running the SAME nomic
-#     model; llama.cpp is small and portable and compiles from source here.
+#   * llama-cpp-python has no BSD wheel, but it compiles cleanly from source here
+#     (it's small and portable) — so we build it rather than pip-install a wheel.
+#     (onnxruntime, the fastembed backend, has no BSD support at all; llama.cpp is
+#     exactly why the fleet standardized on it — one backend that runs everywhere.)
 #   * grpcio (a hard import of qdrant-client) has no OpenBSD wheel and its bundled
 #     upb fails to compile. The app uses qdrant-client's LOCAL, in-process store,
 #     which never speaks gRPC — so a tiny import stub satisfies it (see

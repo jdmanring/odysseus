@@ -117,21 +117,22 @@ else
     echo "   ok Python packages up to date"
 fi
 
-# 3a-bsd. On FreeBSD/OpenBSD the default embedding/vector-store deps aren't on
-#     PyPI for the platform: fastembed's onnxruntime has no BSD build, and grpcio
-#     (a qdrant-client import) won't compile on OpenBSD. Provision the equivalent
-#     local stack instead — the llama.cpp GGUF embedder (same nomic model) and a
-#     grpc import stub for qdrant-client's local mode. Idempotent.
+# 3a-bsd. The embedding backend (llama.cpp GGUF) is the same on every platform,
+#     but on FreeBSD/OpenBSD its Python wheel and qdrant-client's grpcio import
+#     aren't on PyPI for the platform, so pip can't install them the usual way.
+#     Provision the BSD equivalents instead — build llama-cpp-python from source
+#     and drop a grpc import stub for qdrant-client's local mode. Idempotent.
 case "$OS" in
     FreeBSD | OpenBSD)
         sh tooling/provision_bsd_memory.sh \
             || echo "   (BSD memory provisioning incomplete; app runs keyword-only until fixed)" >&2 ;;
 esac
 
-# 3b. Verify the memory / RAG stack (qdrant-client + an embedding backend) loads.
-#     pip installs the deps, but fastembed's onnxruntime has native prerequisites
-#     pip can't provide, and a silent failure demotes semantic memory to keyword
-#     search. Warn (don't abort — the app still runs degraded) with a fix.
+# 3b. Verify the memory / RAG stack (qdrant-client + the embedding backend) loads.
+#     A native backend can fail to import for reasons pip can't foresee (a missing
+#     platform wheel falling back to a source build, an absent compiler), and a
+#     silent failure demotes semantic memory to keyword search. Warn (don't abort —
+#     the app still runs degraded) with a fix.
 if ! venv/bin/python tooling/verify_memory_stack.py; then
     echo "   (install continues; the app runs with keyword-only memory until fixed)" >&2
 fi

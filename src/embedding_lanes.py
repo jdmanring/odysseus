@@ -111,26 +111,19 @@ def _load_custom_endpoint() -> Dict[str, str]:
     return {"url": url, "model": model, "api_key": api_key}
 
 
-def _build_fastembed_client():
-    from src.embeddings import FastEmbedClient
+def _build_local_lane_client():
+    """Build the local embedding lane's client — llama.cpp (GGUF Q8_0) by default
+    on every platform, fastembed only when explicitly opted in
+    (EMBEDDING_LOCAL_BACKEND=fastembed). Unifying on llama.cpp removes the
+    fastembed/onnxruntime provisioning split; both run the same nomic model so
+    lane vectors stay aligned. (Lane name stays LANE_FASTEMBED for continuity; the
+    url in the fingerprint flips local://fastembed -> local://llamacpp, which
+    triggers a one-time reindex from the canonical memory store.)"""
+    from src.embeddings import build_local_embed_client
 
-    try:
-        client = FastEmbedClient()
-        client.get_sentence_embedding_dimension()
-        return client
-    except Exception as e:
-        # fastembed's runtime is onnxruntime, which has no FreeBSD Python binding
-        # (the pkg ships only the C++ lib). Fall back to the llama.cpp GGUF backend
-        # running the SAME model (nomic) → compatible vectors, no onnxruntime.
-        logger.warning(
-            "fastembed backend unavailable (%s); falling back to the llama.cpp GGUF "
-            "embedding backend", e,
-        )
-        from src.embeddings import LlamaCppEmbedClient
-
-        client = LlamaCppEmbedClient()
-        client.get_sentence_embedding_dimension()
-        return client
+    client = build_local_embed_client()
+    client.get_sentence_embedding_dimension()
+    return client
 
 
 def _build_custom_client():
@@ -223,10 +216,10 @@ def build_embedding_lanes(base_name: str) -> List[EmbeddingLane]:
         logger.warning("Custom embedding lane unavailable for %s: %s", base_name, e)
 
     try:
-        fastembed = _build_fastembed_client()
-        lanes.append(_create_lane(store_client, base_name, LANE_FASTEMBED, fastembed))
+        local = _build_local_lane_client()
+        lanes.append(_create_lane(store_client, base_name, LANE_FASTEMBED, local))
     except Exception as e:
-        logger.warning("FastEmbed lane unavailable for %s: %s", base_name, e)
+        logger.warning("Local embedding lane unavailable for %s: %s", base_name, e)
 
     return lanes
 

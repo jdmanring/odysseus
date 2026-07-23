@@ -5,7 +5,10 @@ Embedding clients for RAG and memory vector search.
 
 Priority order:
   1. HTTP API (Ollama / vLLM / llama.cpp) — set EMBEDDING_URL in .env
-  2. Local fastembed (ONNX, ~50MB) — zero config fallback
+  2. Local llama.cpp (GGUF Q8_0) — zero-config fallback, runs the nomic model on
+     every platform. Set EMBEDDING_LOCAL_BACKEND=fastembed to use fastembed (ONNX)
+     instead where it's available; fastembed only wins bulk throughput, which the
+     one-at-a-time memory workload never exercises.
 
 Set EMBEDDING_URL in .env, e.g.:
   EMBEDDING_URL=http://localhost:11434/v1/embeddings   (ollama)
@@ -270,7 +273,9 @@ class LlamaCppEmbedClient:
 
     def __init__(self, model: Optional[str] = None):
         try:
-            from llama_cpp import Llama, LLAMA_POOLING_TYPE_MEAN
+            from llama_cpp import (
+                Llama, LLAMA_POOLING_TYPE_MEAN, LLAMA_ROPE_SCALING_TYPE_YARN,
+            )
         except ImportError as e:
             raise RuntimeError(
                 "llama-cpp-python is not installed (the onnxruntime-free embedding "
@@ -281,9 +286,34 @@ class LlamaCppEmbedClient:
         repo = os.getenv("LLAMACPP_EMBED_REPO", "nomic-ai/nomic-embed-text-v1.5-GGUF")
         filename = os.getenv("LLAMACPP_EMBED_FILE", "*Q8_0.gguf")
         # Task prefix + Matryoshka truncation are applied in encode() via the
-        # shared helpers, identically to the fastembed backend, so the FreeBSD
-        # vectors stay aligned with the fleet's.
+        # shared helpers, identically to the fastembed backend, so vectors stay
+        # aligned across the fleet.
         os.makedirs(FASTEMBED_CACHE_DIR, exist_ok=True)
+
+        # Two thread configs for the two workloads (measured: single-item latency
+        # is flat past ~4 threads — a short encode can't feed more — while bulk
+        # reindex scales with cores). n_threads drives per-item (the hot path);
+        # n_threads_batch drives the rare full reindex. Defaults auto-size to the
+        # box but stay overridable.
+        _cpu = os.cpu_count() or 4
+        n_threads = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS", str(min(4, _cpu)))))
+        n_threads_batch = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS_BATCH", str(_cpu))))
+        # nomic-v1.5's GGUF trains at 2048 tokens; memory/RAG snippets are far
+        # shorter, so 2048 is ample and avoids llama.cpp's n_ctx>n_ctx_train
+        # overflow warning that 8192 triggers for no benefit.
+        n_ctx = max(512, int(os.getenv("LLAMACPP_EMBED_CTX", "2048")))
+
+        # nomic-v1.5's 8K context needs Dynamic-NTK RoPE, which llama.cpp lacks;
+        # its documented substitute is YaRN. So whenever n_ctx exceeds the GGUF's
+        # 2048 train range, engage YaRN (rope_freq_scale 0.75 per nomic's recipe)
+        # instead of letting inputs run past the trained range and degrade. At the
+        # default 2048 no scaling is applied (rope stays native).
+        rope_kwargs = {}
+        if n_ctx > 2048:
+            rope_kwargs = {
+                "rope_scaling_type": LLAMA_ROPE_SCALING_TYPE_YARN,
+                "rope_freq_scale": float(os.getenv("LLAMACPP_EMBED_ROPE_FREQ_SCALE", "0.75")),
+            }
 
         _load_start = time.monotonic()
         self._llm = Llama.from_pretrained(
@@ -291,10 +321,13 @@ class LlamaCppEmbedClient:
             filename=filename,
             embedding=True,
             pooling_type=LLAMA_POOLING_TYPE_MEAN,
-            n_ctx=8192,
+            n_ctx=n_ctx,
             n_batch=512,
+            n_threads=n_threads,
+            n_threads_batch=n_threads_batch,
             verbose=False,
             cache_dir=FASTEMBED_CACHE_DIR,
+            **rope_kwargs,
         )
         _load_ms = (time.monotonic() - _load_start) * 1000
         self._dim: Optional[int] = None
@@ -338,6 +371,33 @@ def _load_persisted_endpoint() -> dict:
     except Exception:
         pass
     return {}
+
+
+def build_local_embed_client():
+    """Build the local (no-HTTP) embedding client.
+
+    llama.cpp (GGUF Q8_0) is the default on every platform: it runs the same
+    nomic model everywhere including the BSDs (fastembed's onnxruntime has no BSD
+    binding), per-item latency is a few ms, and unifying on one backend removes
+    the fastembed/onnxruntime provisioning split. fastembed wins only bulk
+    throughput, which the memory workload (one item at a time) never exercises.
+
+    The preferred backend is tried first, the other as a fallback, so a machine
+    with only one of the two installed still gets working embeddings — this keeps
+    existing installs (fastembed present, llama.cpp not yet) healthy through the
+    transition. EMBEDDING_LOCAL_BACKEND=fastembed flips the preference."""
+    prefer_fastembed = os.getenv("EMBEDDING_LOCAL_BACKEND", "").lower() == "fastembed"
+    order = ([FastEmbedClient, LlamaCppEmbedClient] if prefer_fastembed
+             else [LlamaCppEmbedClient, FastEmbedClient])
+    last_err = None
+    for ctor in order:
+        try:
+            return ctor()
+        except Exception as e:  # ImportError (not installed) or load failure
+            last_err = e
+            logger.warning("local embedding backend %s unavailable: %s",
+                           ctor.__name__, e)
+    raise RuntimeError(f"no local embedding backend available: {last_err}")
 
 
 _http_embed_down = False  # process-level latch: skip re-probing a dead endpoint
@@ -386,17 +446,18 @@ def get_embedding_client():
             _http_embed_down = True
             logger.warning(f"HTTP embedding API unavailable ({e}); using local FastEmbed for the rest of this process")
 
-    # Fall back to local fastembed
+    # Fall back to the local backend (llama.cpp GGUF by default; fastembed via
+    # EMBEDDING_LOCAL_BACKEND=fastembed).
     try:
-        client = FastEmbedClient()
+        client = build_local_embed_client()
         client.get_sentence_embedding_dimension()
-        logger.info("embedding_client_selected", backend="fastembed",
+        logger.info("embedding_client_selected", backend=client.url,
                     model=client.model,
                     factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
         return client
     except ImportError:
-        logger.error("fastembed not installed — run: pip install fastembed")
+        logger.error("local embedding backend not installed — run: pip install llama-cpp-python")
     except Exception as e:
-        logger.error(f"FastEmbed init failed: {e}")
+        logger.error(f"Local embedding backend init failed: {e}")
 
     return None
