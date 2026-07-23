@@ -419,10 +419,10 @@ deps above), `build-openbsd-app.sh` installs cleanly, the backend serves, the ma
 window renders the app UI (dark, software render, **no white-screen/crash-loop** —
 0 `RENDERER Crashed`, no `[MEM] error`), single-instance rejects a second launch
 (`[SINGLETON] already running`), and the About dialog renders theme-matched
-(`colorScheme` Dark via `KDEPlasmaPlatformTheme6`). Verified by launching onto the
-running `:0` X server. **Tray + close-to-tray were NOT verified here** — the bare
-`:0` had no StatusNotifier host, so the wrapper took its documented fallback
-(`system tray unavailable; X will quit`); confirming them needs a full Plasma
-session (as was done on the FreeBSD bench).
+(`colorScheme` Dark via `KDEPlasmaPlatformTheme6`). Render/About/single-instance were
+checked by launching onto a bare `:0`; **tray icon + full tray menu + close-to-tray +
+Quit were then verified by eye in a full Plasma session** (a bare X server has no
+StatusNotifier host, so there the wrapper correctly takes its `system tray
+unavailable; X will quit` fallback).
 
 Windows `setup.*` is written but not yet bench-verified.
