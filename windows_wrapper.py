@@ -679,6 +679,7 @@ except ValueError:
 # imported here: PSI is a Linux kernel interface; the Windows pressure signal
 # is CreateMemoryResourceNotification below.)
 import qt_watchdog
+import qt_about
 
 # Log the selected profile once (diagnosable; notes when an env var overrode it).
 _profile_overridden = bool(
@@ -1300,84 +1301,6 @@ class OdysseusWindow(QMainWindow):
             self._tray_notified = True
 
 
-# Canonical project details for the About dialog (from the upstream README).
-_ABOUT_GITHUB = "https://github.com/odysseus-dev/odysseus"
-_ABOUT_LICENSE = "https://github.com/odysseus-dev/odysseus/blob/main/LICENSE"
-_ABOUT_ISSUES = "https://github.com/odysseus-dev/odysseus/issues"
-
-
-def _app_version():
-    """Read APP_VERSION from src/constants.py by text scan. Importing the module
-    would pull in runtime path deps the wrapper deliberately avoids; a regex over
-    one line is enough and never fails the dialog. Returns '' if unavailable."""
-    try:
-        with open(os.path.join(INSTALL_DIR, "src", "constants.py"), encoding="utf-8") as fh:
-            for line in fh:
-                m = _re.match(r"""\s*APP_VERSION\s*=\s*["']([^"']+)["']""", line)
-                if m:
-                    return m.group(1)
-    except Exception:
-        pass
-    return ""
-
-
-def _about_html():
-    ver = _app_version()
-    subtitle = f"Version {ver}" if ver else "Desktop app"
-    # AGPL-3.0 §5 requires an interactive UI to show a copyright notice and the
-    # no-warranty statement; the About box is where those live.
-    return (
-        '<div style="min-width:380px">'
-        '<h2 style="margin:0 0 2px">Odysseus</h2>'
-        f'<p style="margin:0 0 12px;color:#888">{subtitle}</p>'
-        '<p style="margin:0 0 12px">A self-hosted AI workspace for chat, agents, '
-        'research, documents, email, notes, calendar, and local model workflows.</p>'
-        '<p style="margin:0 0 8px">&#169; The Odysseus authors &#183; '
-        f'<a href="{_ABOUT_LICENSE}">AGPL-3.0-or-later</a></p>'
-        '<p style="margin:0 0 12px;font-size:small;color:#888">This program comes '
-        'with ABSOLUTELY NO WARRANTY. It is free software, and you are welcome to '
-        'redistribute it under the terms of the GNU AGPL, version 3 or later.</p>'
-        f'<p style="margin:0"><a href="{_ABOUT_GITHUB}">Website</a> &#183; '
-        f'<a href="{_ABOUT_ISSUES}">Report an issue</a></p>'
-        '</div>')
-
-
-def _show_about_dialog(parent):
-    """Native About dialog: icon, name, version, description, copyright, license,
-    the AGPL no-warranty notice, and Website / Report-an-issue links."""
-    dlg = QDialog(parent)
-    dlg.setWindowTitle("About Odysseus")
-    layout = QVBoxLayout(dlg)
-    layout.setContentsMargins(24, 20, 24, 16)
-    layout.setSpacing(10)
-
-    icon_path = os.path.join(INSTALL_DIR, "static", "icons", "icon-192.png")
-    pm = QPixmap(icon_path) if os.path.isfile(icon_path) else QPixmap()
-    if not pm.isNull():
-        ic = QLabel()
-        ic.setPixmap(pm.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio,
-                               Qt.TransformationMode.SmoothTransformation))
-        ic.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        layout.addWidget(ic)
-
-    label = QLabel(_about_html())
-    label.setOpenExternalLinks(True)   # links open in the default browser
-    label.setWordWrap(True)
-    label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-    layout.addWidget(label)
-
-    close_btn = QPushButton("Close")
-    close_btn.setDefault(True)
-    close_btn.clicked.connect(dlg.accept)
-    row = QHBoxLayout()
-    row.addStretch(1)
-    row.addWidget(close_btn)
-    row.addStretch(1)
-    layout.addLayout(row)
-
-    dlg.exec()
-
-
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
@@ -1597,7 +1520,7 @@ if __name__ == "__main__":
             lambda: QDesktopServices.openUrl(
                 QUrl("https://github.com/odysseus-dev/odysseus#readme")))
         _tray_menu.addAction("About Odysseus").triggered.connect(
-            lambda: _show_about_dialog(win))
+            lambda: qt_about.show_about_dialog(win, INSTALL_DIR))
         _tray_menu.addSeparator()
         _tray_menu.addAction("Quit Odysseus").triggered.connect(win.request_quit)
 
