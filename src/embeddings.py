@@ -5,7 +5,10 @@ Embedding clients for RAG and memory vector search.
 
 Priority order:
   1. HTTP API (Ollama / vLLM / llama.cpp) — set EMBEDDING_URL in .env
-  2. Local fastembed (ONNX, ~50MB) — zero config fallback
+  2. Local llama.cpp (GGUF Q8_0) — zero-config fallback, runs the nomic model on
+     every platform. Set EMBEDDING_LOCAL_BACKEND=fastembed to use fastembed (ONNX)
+     instead where it's available; fastembed only wins bulk throughput, which the
+     one-at-a-time memory workload never exercises.
 
 Set EMBEDDING_URL in .env, e.g.:
   EMBEDDING_URL=http://localhost:11434/v1/embeddings   (ollama)
@@ -13,6 +16,7 @@ Set EMBEDDING_URL in .env, e.g.:
 """
 
 import os
+import time
 
 from src.constants import FASTEMBED_CACHE_DIR, EMBEDDING_ENDPOINT_FILE
 
@@ -26,17 +30,49 @@ if os.name == "nt":
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
-import logging
+import structlog
 import numpy as np
 import httpx
 from typing import List, Optional
 
 from src.runtime_paths import get_app_root
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
-_DEFAULT_MODEL = "all-minilm:l6-v2"
-_DEFAULT_FASTEMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# nomic-embed-text-v1.5-Q: nomic's official INT8-quantized ONNX (130 MB, near-
+# lossless), 768-dim, 8K context — a quality + long-context upgrade over
+# all-MiniLM at a comparable footprint. "-Q" is the fastembed-supported quant;
+# the HTTP-endpoint default uses the Ollama tag for the same model.
+_DEFAULT_MODEL = "nomic-embed-text"
+_DEFAULT_FASTEMBED_MODEL = "nomic-ai/nomic-embed-text-v1.5-Q"
+
+# Optimized-nomic knobs (see docs/dev/memory-architecture.md). Matryoshka:
+# nomic-v1.5's leading dims carry the most signal, so we truncate 768 -> 256 and
+# re-normalize (3x smaller/faster, ~1-2% quality). Prefixes: nomic is trained with
+# asymmetric search_query:/search_document: — applied explicitly so both the
+# fastembed and llama.cpp backends produce aligned vectors.
+_TRUNCATE_DIM = int(os.getenv("EMBEDDING_TRUNCATE_DIM", "256"))
+_NOMIC_QUERY_PREFIX = "search_query: "
+_NOMIC_DOC_PREFIX = "search_document: "
+
+
+def _prefix_texts(texts, is_query: bool, model: str):
+    """Prepend nomic's task prefix. No-op for non-nomic models."""
+    if "nomic" not in (model or "").lower():
+        return list(texts)
+    p = _NOMIC_QUERY_PREFIX if is_query else _NOMIC_DOC_PREFIX
+    return [p + t for t in texts]
+
+
+def _truncate_and_normalize(vecs, normalize: bool):
+    """Matryoshka-truncate to _TRUNCATE_DIM, then (optionally) L2-normalize."""
+    if _TRUNCATE_DIM and vecs.ndim == 2 and vecs.shape[1] > _TRUNCATE_DIM:
+        vecs = vecs[:, :_TRUNCATE_DIM]
+    if normalize and vecs.size > 0:
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1, norms)
+        vecs = vecs / norms
+    return vecs
 
 
 class EmbeddingClient:
@@ -69,16 +105,22 @@ class EmbeddingClient:
         return self._dim
 
     def encode(
-        self, texts: List[str], normalize_embeddings: bool = True
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
     ) -> np.ndarray:
-        """Encode texts via the API. Returns (N, dim) float32 array."""
+        """Encode texts via the API. Returns (N, dim) float32 array. is_query is
+        accepted for interface parity; a custom endpoint owns its own model, so no
+        nomic prefix/truncation is applied here."""
         if not texts:
             return np.array([], dtype="float32")
 
+        _enc_start = time.monotonic()
         all_vecs = []
+        n_batches = 0
         for i in range(0, len(texts), self._batch_size):
             batch = texts[i : i + self._batch_size]
             all_vecs.extend(self._embed_batch(batch))
+            n_batches += 1
 
         vecs = np.array(all_vecs, dtype="float32")
 
@@ -89,6 +131,11 @@ class EmbeddingClient:
 
         if self._dim is None and vecs.size > 0:
             self._dim = vecs.shape[1]
+
+        _enc_ms = (time.monotonic() - _enc_start) * 1000
+        if _enc_ms > 500 or len(texts) > 128:
+            logger.info("embedding_encode", texts=len(texts), batches=n_batches,
+                        duration_ms=round(_enc_ms, 1), model=self.model)
 
         return vecs
 
@@ -178,10 +225,12 @@ class FastEmbedClient:
             except Exception as _e:
                 logger.debug("embedding cache symlink-heal skipped: %s", _e)
         kwargs = {"model_name": self.model, "cache_dir": cache_dir}
+        _load_start = time.monotonic()
         self._embedding = TextEmbedding(**kwargs)
+        _load_ms = (time.monotonic() - _load_start) * 1000
         self._dim: Optional[int] = None
         self.url = "local://fastembed"
-        logger.info(f"FastEmbed loaded model={self.model}")
+        logger.info("fastembed_loaded", model=self.model, load_ms=round(_load_ms, 1))
 
     def get_sentence_embedding_dimension(self) -> int:
         if self._dim is not None:
@@ -192,22 +241,140 @@ class FastEmbedClient:
         return self._dim
 
     def encode(
-        self, texts: List[str], normalize_embeddings: bool = True
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
     ) -> np.ndarray:
-        """Encode texts locally. Returns (N, dim) float32 array."""
+        """Encode texts locally. Returns (N, dim) float32 array. Applies nomic's
+        task prefix (query vs document) and Matryoshka truncation to _TRUNCATE_DIM."""
         if not texts:
             return np.array([], dtype="float32")
 
-        vecs = np.array(list(self._embedding.embed(texts)), dtype="float32")
-
-        if normalize_embeddings and vecs.size > 0:
-            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
-            norms = np.where(norms == 0, 1, norms)
-            vecs = vecs / norms
+        prefixed = _prefix_texts(texts, is_query, self.model)
+        vecs = np.array(list(self._embedding.embed(prefixed)), dtype="float32")
+        vecs = _truncate_and_normalize(vecs, normalize_embeddings)
 
         if self._dim is None and vecs.size > 0:
             self._dim = vecs.shape[1]
 
+        return vecs
+
+
+class LlamaCppEmbedClient:
+    """Local embedding client using llama.cpp (GGUF), the onnxruntime-free path
+    for platforms fastembed can't run on (notably FreeBSD, which has no
+    onnxruntime Python binding). Runs the SAME model as the fastembed default
+    (nomic-embed-text-v1.5) as a GGUF, with mean pooling + L2 normalization. The
+    nomic task prefixes and Matryoshka truncation are applied in encode() via the
+    shared helpers, identically to the fastembed backend, so vectors stay aligned
+    across the fleet. Same encode() interface as FastEmbedClient.
+
+    Config (env): LLAMACPP_EMBED_REPO / LLAMACPP_EMBED_FILE select the GGUF (HF
+    repo + filename glob)."""
+
+    def __init__(self, model: Optional[str] = None):
+        try:
+            from llama_cpp import (
+                Llama, LLAMA_POOLING_TYPE_MEAN, LLAMA_ROPE_SCALING_TYPE_YARN,
+            )
+        except ImportError as e:
+            raise RuntimeError(
+                "llama-cpp-python is not installed (the onnxruntime-free embedding "
+                "backend). Install it (e.g. `pkg install py312-llama-cpp-python`)."
+            ) from e
+
+        self.model = model or os.getenv("FASTEMBED_MODEL", _DEFAULT_FASTEMBED_MODEL)
+        repo = os.getenv("LLAMACPP_EMBED_REPO", "nomic-ai/nomic-embed-text-v1.5-GGUF")
+        filename = os.getenv("LLAMACPP_EMBED_FILE", "*Q8_0.gguf")
+        # Task prefix + Matryoshka truncation are applied in encode() via the
+        # shared helpers, identically to the fastembed backend, so vectors stay
+        # aligned across the fleet.
+        os.makedirs(FASTEMBED_CACHE_DIR, exist_ok=True)
+
+        # Two thread configs for the two workloads (measured: single-item latency
+        # is flat past ~4 threads — a short encode can't feed more — while bulk
+        # reindex scales with cores). n_threads drives per-item (the hot path);
+        # n_threads_batch drives the rare full reindex. Defaults auto-size to the
+        # box but stay overridable.
+        #
+        # n_threads_batch is capped at 8, not cpu_count: llama.cpp picks the
+        # batch pool for any multi-TOKEN call, so every query embed uses it,
+        # and an all-cores spinning OpenMP team per process collapses under
+        # multi-process traffic (app + memory MCP: 2 procs on a 24-core host
+        # measured 4.9 ms -> 1.3 s per embed with the uncapped pool; capped at
+        # 8 the bare embed degrades to ~7-10 ms at 4 procs, a full memory
+        # search to ~20-30 ms p50). Solo cost of the cap: none
+        # single-item, ~15% bulk — raise LLAMACPP_EMBED_THREADS_BATCH for a
+        # one-off reindex if that ever matters.
+        #
+        # OpenBSD is capped harder (4): its build has no OpenMP, and ggml's own
+        # spin threadpool livelocks the scheduler when two processes' pools
+        # exceed the CPU count — measured on a 12-vCPU guest: 2x8 threads gave
+        # deterministic ~35 s stalls per embed; 2x4 runs at 13 ms. The cap
+        # costs ~4 ms solo (7.5 -> 11.7 ms) and buys a working two-process
+        # topology, which is not optional.
+        import sys as _sys
+        _cpu = os.cpu_count() or 4
+        _batch_cap = 4 if _sys.platform.startswith("openbsd") else 8
+        n_threads = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS", str(min(4, _cpu)))))
+        n_threads_batch = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS_BATCH", str(min(_batch_cap, _cpu)))))
+        # nomic-v1.5's GGUF trains at 2048 tokens; memory/RAG snippets are far
+        # shorter, so 2048 is ample and avoids llama.cpp's n_ctx>n_ctx_train
+        # overflow warning that 8192 triggers for no benefit.
+        n_ctx = max(512, int(os.getenv("LLAMACPP_EMBED_CTX", "2048")))
+
+        # nomic-v1.5's 8K context needs Dynamic-NTK RoPE, which llama.cpp lacks;
+        # its documented substitute is YaRN. So whenever n_ctx exceeds the GGUF's
+        # 2048 train range, engage YaRN (rope_freq_scale 0.75 per nomic's recipe)
+        # instead of letting inputs run past the trained range and degrade. At the
+        # default 2048 no scaling is applied (rope stays native).
+        rope_kwargs = {}
+        if n_ctx > 2048:
+            rope_kwargs = {
+                "rope_scaling_type": LLAMA_ROPE_SCALING_TYPE_YARN,
+                "rope_freq_scale": float(os.getenv("LLAMACPP_EMBED_ROPE_FREQ_SCALE", "0.75")),
+            }
+
+        _load_start = time.monotonic()
+        self._llm = Llama.from_pretrained(
+            repo_id=repo,
+            filename=filename,
+            embedding=True,
+            pooling_type=LLAMA_POOLING_TYPE_MEAN,
+            n_ctx=n_ctx,
+            n_batch=512,
+            n_threads=n_threads,
+            n_threads_batch=n_threads_batch,
+            verbose=False,
+            cache_dir=FASTEMBED_CACHE_DIR,
+            **rope_kwargs,
+        )
+        _load_ms = (time.monotonic() - _load_start) * 1000
+        self._dim: Optional[int] = None
+        self.url = "local://llamacpp"
+        logger.info("llamacpp_embed_loaded", model=repo, file=filename,
+                    load_ms=round(_load_ms, 1))
+
+    def get_sentence_embedding_dimension(self) -> int:
+        if self._dim is not None:
+            return self._dim
+        self._dim = self.encode(["hello"]).shape[1]
+        logger.info(f"Embedding dimension: {self._dim} (llama.cpp {self.model})")
+        return self._dim
+
+    def encode(
+        self, texts: List[str], normalize_embeddings: bool = True,
+        is_query: bool = False,
+    ) -> np.ndarray:
+        if not texts:
+            return np.array([], dtype="float32")
+        prefixed = _prefix_texts(texts, is_query, self.model)
+        out = self._llm.embed(prefixed)
+        vecs = np.array(out, dtype="float32")
+        if vecs.ndim == 1:
+            vecs = vecs.reshape(1, -1)
+        vecs = _truncate_and_normalize(vecs, normalize_embeddings)
+        if self._dim is None and vecs.size > 0:
+            self._dim = vecs.shape[1]
         return vecs
 
 
@@ -225,6 +392,33 @@ def _load_persisted_endpoint() -> dict:
     return {}
 
 
+def build_local_embed_client():
+    """Build the local (no-HTTP) embedding client.
+
+    llama.cpp (GGUF Q8_0) is the default on every platform: it runs the same
+    nomic model everywhere including the BSDs (fastembed's onnxruntime has no BSD
+    binding), per-item latency is a few ms, and unifying on one backend removes
+    the fastembed/onnxruntime provisioning split. fastembed wins only bulk
+    throughput, which the memory workload (one item at a time) never exercises.
+
+    The preferred backend is tried first, the other as a fallback, so a machine
+    with only one of the two installed still gets working embeddings — this keeps
+    existing installs (fastembed present, llama.cpp not yet) healthy through the
+    transition. EMBEDDING_LOCAL_BACKEND=fastembed flips the preference."""
+    prefer_fastembed = os.getenv("EMBEDDING_LOCAL_BACKEND", "").lower() == "fastembed"
+    order = ([FastEmbedClient, LlamaCppEmbedClient] if prefer_fastembed
+             else [LlamaCppEmbedClient, FastEmbedClient])
+    last_err = None
+    for ctor in order:
+        try:
+            return ctor()
+        except Exception as e:  # ImportError (not installed) or load failure
+            last_err = e
+            logger.warning("local embedding backend %s unavailable: %s",
+                           ctor.__name__, e)
+    raise RuntimeError(f"no local embedding backend available: {last_err}")
+
+
 _http_embed_down = False  # process-level latch: skip re-probing a dead endpoint
 
 
@@ -239,8 +433,11 @@ def reset_http_embed_state():
 
 
 def get_embedding_client():
-    """Factory: try HTTP API first, fall back to local fastembed."""
+    """Factory: try HTTP API first, fall back to the local backend
+    (llama.cpp by default; fastembed when opted in)."""
     global _http_embed_down
+
+    _factory_start = time.monotonic()
 
     # Check for a persisted custom endpoint (saved from admin panel)
     persisted = _load_persisted_endpoint()
@@ -261,21 +458,26 @@ def get_embedding_client():
         try:
             client = EmbeddingClient()
             client.get_sentence_embedding_dimension()  # health check
-            logger.info(f"Using HTTP embedding API: {client.url} model={client.model}")
+            logger.info("embedding_client_selected", backend="http",
+                        url=client.url, model=client.model,
+                        factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
             return client
         except Exception as e:
             _http_embed_down = True
-            logger.warning(f"HTTP embedding API unavailable ({e}); using local FastEmbed for the rest of this process")
+            logger.warning(f"HTTP embedding API unavailable ({e}); using the local embedding backend for the rest of this process")
 
-    # Fall back to local fastembed
+    # Fall back to the local backend (llama.cpp GGUF by default; fastembed via
+    # EMBEDDING_LOCAL_BACKEND=fastembed).
     try:
-        client = FastEmbedClient()
+        client = build_local_embed_client()
         client.get_sentence_embedding_dimension()
-        logger.info(f"Using local FastEmbed: model={client.model}")
+        logger.info("embedding_client_selected", backend=client.url,
+                    model=client.model,
+                    factory_ms=round((time.monotonic() - _factory_start) * 1000, 1))
         return client
     except ImportError:
-        logger.error("fastembed not installed — run: pip install fastembed")
+        logger.error("local embedding backend not installed — run: pip install llama-cpp-python")
     except Exception as e:
-        logger.error(f"FastEmbed init failed: {e}")
+        logger.error(f"Local embedding backend init failed: {e}")
 
     return None

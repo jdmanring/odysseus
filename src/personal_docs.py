@@ -41,8 +41,12 @@ def extract_office_text(file_path: str) -> str:
 @dataclass
 class PersonalDocsConfig:
     """Configuration for personal documents management."""
-    CHUNK_SIZE: int = 1000
-    CHUNK_OVERLAP: int = 200
+    # ~512 tokens / ~15% overlap — the retrieval sweet spot for nomic-embed-text
+    # (768/256-dim). The prior 1000/200 was tuned for all-MiniLM's 256-token limit;
+    # maxing nomic's 8K context instead would dilute each embedding, so this is a
+    # deliberate middle. Tunable via CHUNK_SIZE / CHUNK_OVERLAP env if overridden.
+    CHUNK_SIZE: int = 2048
+    CHUNK_OVERLAP: int = 300
     DEFAULT_EXTENSIONS: Tuple[str, ...] = (
         ".txt", ".md", ".json", ".pdf", ".docx", ".pptx", ".xlsx", ".xls", ".epub",
     )

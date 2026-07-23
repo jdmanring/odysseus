@@ -20,7 +20,7 @@ _downloading: dict = {}
 
 # Curated recommendations — good coverage of size/quality tiers
 RECOMMENDED_MODELS = {
-    "sentence-transformers/all-MiniLM-L6-v2",     # 384d, 90MB  — fast & tiny, good default
+    "sentence-transformers/all-MiniLM-L6-v2",     # 384d, 90MB  — fast & tiny, minimal footprint
     "BAAI/bge-small-en-v1.5",                      # 384d, 67MB  — smallest, solid quality
     "nomic-ai/nomic-embed-text-v1.5-Q",            # 768d, 130MB — quantized, great bang/buck
     "BAAI/bge-base-en-v1.5",                       # 768d, 210MB — balanced mid-range
@@ -77,7 +77,7 @@ def _is_downloaded(hf_source: str) -> bool:
 
 def _active_model() -> str:
     """Get the currently configured fastembed model name."""
-    return os.environ.get("FASTEMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    return os.environ.get("FASTEMBED_MODEL", "nomic-ai/nomic-embed-text-v1.5-Q")
 
 
 def _dir_size_mb(path: str) -> float:
@@ -322,9 +322,9 @@ def setup_embedding_routes():
         except Exception:
             pass
 
-        # Reset ChromaDB client (collections will be recreated with new embeddings)
+        # Reset the vector-store client (collections recreated with new embeddings)
         try:
-            from src.chroma_client import reset_client
+            from src.vector_client import reset_client
             reset_client()
         except Exception:
             pass
@@ -363,9 +363,9 @@ def setup_embedding_routes():
         except Exception:
             pass
 
-        # Reset ChromaDB client
+        # Reset the vector-store client
         try:
-            from src.chroma_client import reset_client
+            from src.vector_client import reset_client
             reset_client()
         except Exception:
             pass
