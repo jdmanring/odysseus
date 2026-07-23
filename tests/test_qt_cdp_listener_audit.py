@@ -176,7 +176,10 @@ def test_pgrep_not_in_log_renderer_memory():
 
 def test_render_pid_zero_guard():
     block = _log_renderer_memory_block()
-    assert "if pid:" in block
+    # pid must be guarded before reading /proc/<pid>/status (a 0/None pid would
+    # read the wrong path). It is now ANDed with _PROC_RSS_OK so BSD — which has
+    # no /proc — skips the read entirely instead of erroring every tick.
+    assert "if pid and _PROC_RSS_OK:" in block
 
 
 # --- Change B: ThreadPoolExecutor ---
