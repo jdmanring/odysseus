@@ -79,8 +79,16 @@ wheels target a generic AVX2 baseline; building from source enables
 **197–231 docs/s vs 152–173 wheel** (fastembed still leads bulk at 240–329).
 Accuracy is identical (top-1 0.917 / top-3 1.000). The BSDs get this for free —
 no BSD wheels exist, so their installs are always native source builds (part of
-why FreeBSD posts 6.7 ms in a VM). On Linux/Windows the wheel stays the install
-default (no toolchain requirement); upgrade a capable host with:
+why FreeBSD posts 6.7 ms in a VM). **The native-build win is GCC/Clang-only — on Windows/MSVC it is a measured
+loss.** Verified on the Windows bench (2026-07-23, idle-gated): `GGML_NATIVE`
+is a no-op under MSVC (no `-march=native`; plain source build ≈ wheel: 6.8 ms /
+120 docs/s vs 7.3 / 137–143), and explicitly enabling AVX-512
+(`GGML_AVX512[_VNNI/_VBMI]`) *regressed* to 9.9–10.3 ms / 91–94 docs/s across
+three runs — MSVC's AVX-512 codegen for these kernels is a pessimization, which
+is consistent with upstream shipping AVX2-baseline wheels. (`GGML_AVX512_BF16`
+doesn't even compile under MSVC: `error C2440` in llamafile sgemm.) **Windows
+stays on the wheel.** On Linux the wheel remains the install
+default (no toolchain requirement); upgrade a capable GCC/Clang host with:
 
 ```sh
 venv/bin/pip install --no-cache-dir --no-binary llama-cpp-python \
