@@ -162,6 +162,10 @@ function _initGroupTab() {
     if (window._syncGroupIndicator) window._syncGroupIndicator(true);
     if (window.sessionModule) window.sessionModule.setCurrentSessionId(null);
     const box = document.getElementById('chat-history');
+    // reset() before the wipe (the window layer's API contract): release the
+    // prior session's window state so a group chat doesn't inherit its message
+    // total or leave the window observer tracking a stale DOM.
+    if (window.chatHistory) window.chatHistory.reset();
     if (box) box.innerHTML = '';
 
     await startGroup(picked, 'group-' + Date.now());
