@@ -680,6 +680,9 @@ except ValueError:
 # is CreateMemoryResourceNotification below.)
 import qt_watchdog
 import qt_about
+# Coloured tray status-dot icons (green running / red stopped / amber busy),
+# shared with qt_wrapper.py.
+import qt_status_dot
 
 # Log the selected profile once (diagnosable; notes when an env var overrode it).
 _profile_overridden = bool(
@@ -1491,7 +1494,8 @@ if __name__ == "__main__":
             th = getattr(win, "_restart_thread", None)
             if th is not None and th.isRunning():
                 return
-            _status_act.setText("○ Restarting…")
+            _status_act.setText("Restarting…")
+            _status_act.setIcon(qt_status_dot.status_dot("busy"))
             th = _ServerRestartThread()
             win._restart_thread = th
 
@@ -1526,9 +1530,12 @@ if __name__ == "__main__":
 
         # Refresh live state whenever the menu is about to open.
         def _refresh_tray_menu():
-            _status_act.setText(
-                f"● Running — {_reachable_host()}:{PORT}" if _server_running()
-                else "○ Stopped")
+            if _server_running():
+                _status_act.setText(f"Running — {_reachable_host()}:{PORT}")
+                _status_act.setIcon(qt_status_dot.status_dot("running"))
+            else:
+                _status_act.setText("Stopped")
+                _status_act.setIcon(qt_status_dot.status_dot("stopped"))
             _expose_act.blockSignals(True)
             _expose_act.setChecked(_desired_host() == "0.0.0.0")
             _expose_act.blockSignals(False)
