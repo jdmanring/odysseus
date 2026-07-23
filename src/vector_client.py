@@ -79,22 +79,40 @@ def get_vector_client():
         from qdrant_client import QdrantClient
 
         host = os.environ.get("QDRANT_HOST")
+        port = int(os.environ.get("QDRANT_PORT", "6333"))
         if host:
-            # Explicit server mode: connect to an external Qdrant.
-            port = int(os.environ.get("QDRANT_PORT", "6333"))
+            # Explicit external server.
             if not _port_open(host, port):
                 raise RuntimeError(
                     f"Qdrant is not reachable at {host}:{port} (QDRANT_HOST is set, "
                     f"so server mode is expected). Unset QDRANT_HOST to use the "
-                    f"built-in embedded store instead."
+                    f"app-managed local server / embedded store instead."
                 )
             client = QdrantClient(host=host, port=port)
         else:
-            # Embedded local mode — no server, no port, no orphan to leak.
+            # Default: an app-managed local Qdrant SERVER, so the app process and
+            # the memory MCP subprocess (and networked clients) share one
+            # concurrent store. Falls back to the embedded single-writer store
+            # only where no server binary exists (e.g. OpenBSD without the source
+            # build).
             from src.constants import QDRANT_STORAGE_DIR
-            os.makedirs(QDRANT_STORAGE_DIR, exist_ok=True)
-            client = QdrantClient(path=QDRANT_STORAGE_DIR)
-            logger.info("Qdrant: embedded local store at %s", QDRANT_STORAGE_DIR)
+            started = False
+            # QDRANT_EMBEDDED forces the single-writer embedded store (skip the
+            # server) — for a deliberate single-process deployment or tests.
+            if not os.environ.get("QDRANT_EMBEDDED"):
+                try:
+                    from src import qdrant_server
+                    started = qdrant_server.ensure_running("127.0.0.1", port, QDRANT_STORAGE_DIR)
+                except Exception as e:
+                    logger.warning("Qdrant server unavailable (%s); using embedded store", e)
+            if started:
+                client = QdrantClient(host="127.0.0.1", port=port)
+                logger.info("Qdrant: app-managed server at 127.0.0.1:%s", port)
+            else:
+                os.makedirs(QDRANT_STORAGE_DIR, exist_ok=True)
+                client = QdrantClient(path=QDRANT_STORAGE_DIR)
+                logger.info("Qdrant: embedded local store at %s (no server binary; "
+                            "single-writer)", QDRANT_STORAGE_DIR)
 
         _client = _ClientAdapter(client)
         return _client
