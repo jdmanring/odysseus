@@ -1419,8 +1419,11 @@ if __name__ == "__main__":
         _tray_menu = QMenu()
 
         # ── Status line (disabled; refreshed each time the menu opens) ──
+        # Enabled, not disabled: a disabled item's icon is greyed by the menu
+        # style, washing out the coloured status dot. Clicking it raises the
+        # window (harmless). See qt_wrapper.py for the KDE-tray rationale.
         _status_act = _tray_menu.addAction("Odysseus")
-        _status_act.setEnabled(False)
+        _status_act.triggered.connect(_show_from_tray)
         _tray_menu.addSeparator()
 
         # ── Open / web access ──

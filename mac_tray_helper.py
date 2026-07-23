@@ -99,7 +99,10 @@ class OdysseusTray(rumps.App):
         # browser/copy actions so they never guess an address.
         self._hostport = "localhost:7000"
 
-        self._status = rumps.MenuItem("Odysseus")   # disabled (no callback)
+        # Give the status line a callback so it is enabled: a disabled menu item
+        # greys its icon, washing out the coloured status dot. Clicking it just
+        # raises the app (same as Open Odysseus).
+        self._status = rumps.MenuItem("Odysseus", callback=self._open)
         self._expose = rumps.MenuItem("Expose to Network", callback=self._toggle_expose)
         self.menu = [
             self._status,

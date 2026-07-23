@@ -270,7 +270,7 @@ controllable from the tray, not merely opened and quit:
 
 | Item | Behaviour |
 |------|-----------|
-| Status line (disabled) | a coloured dot + `Running — host:port` / `Stopped` / `Restarting…`, refreshed each time the menu opens (`QMenu.aboutToShow`; a 3 s poll on macOS). Green running / red stopped / amber transitional. The Qt wrappers paint the dot via the shared `qt_status_dot.py` (colour pinned for the disabled action's Disabled icon mode so it isn't greyed); macOS draws a native `NSImage` dot with an emoji fallback. |
+| Status line | a coloured dot + `Running — host:port` / `Stopped` / `Restarting…`, refreshed each time the menu opens (`QMenu.aboutToShow`; a 3 s poll on macOS). Green running / red stopped / amber transitional. The Qt wrappers paint the dot via the shared `qt_status_dot.py`; macOS draws a native `NSImage` dot with an emoji fallback. The item is kept **enabled** (clicking it just raises the window): a disabled menu item's icon is greyed by KDE's StatusNotifier/DBusMenu renderer, which washed the dot out entirely — verified live on the KDE tray. |
 | Open Odysseus | show / raise the window |
 | Open in Browser | open `http://host:port` in the default browser |
 | Copy Server URL | copy that URL to the clipboard |
