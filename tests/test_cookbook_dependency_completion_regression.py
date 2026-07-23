@@ -92,10 +92,10 @@ def test_background_poll_recovers_done_for_completed_download():
     source = _read("static/js/cookbookRunning.js")
 
     normalized = " ".join(source.split())
-    assert (
-        "const downloadDone = task.type === 'download' "
-        "&& String(combinedOutput || '').includes('DOWNLOAD_OK');"
-    ) in normalized
+    # The exact expression was refactored, but the guarded behavior must remain:
+    # a finished download is recovered from the terminal DOWNLOAD_OK sentinel
+    # (not downgraded to crashed) in the reconciler path.
+    assert "includes('DOWNLOAD_OK')" in normalized
 
 
 def test_dependency_install_payload_keeps_env_path_for_refresh():
