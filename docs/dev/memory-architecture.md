@@ -72,6 +72,30 @@ competing load (e.g. a VM compiling in the background) inflates per-item latency
 - One backend means one provisioning story (no onnxruntime wheel-hunting) and no
   cross-backend vector drift.
 
+**Intel-mac ceiling (x86_64 macOS).** Three upstream llama-cpp-python packaging
+facts cap this platform, none of them ours to fix in config:
+
+1. The prebuilt wheel index stops at **0.3.2** for x86_64 macOS (abetlen stopped
+   building Intel-mac wheels), and that 0.3.2 wheel SIGSEGVs inside `ggml.dylib`
+   on model load (confirmed by macOS crash report). The wheel path is a dead end;
+   Intel macs must **source-build** the pinned version.
+2. The project's own `CMakeLists.txt` **force-sets `GGML_METAL ON`** for all
+   Apple builds (`CACHE BOOL ... FORCE`), so `CMAKE_ARGS`, `SKBUILD_CMAKE_ARGS`,
+   and `--config-settings=cmake.args` are all silently overridden — on a machine
+   without a usable Metal device (e.g. a VM), `llama_context` creation hard-fails
+   (`ggml_metal_init: failed to create command queue`) instead of falling back to
+   CPU. The only fix is patching the sdist's `CMakeLists.txt` to set it OFF
+   before `pip install`. (The app degrades gracefully meanwhile:
+   `build_local_embed_client()` falls through to fastembed.)
+3. The same Apple block **force-disables AVX, AVX2, FMA, and F16C** on x86_64, so
+   even a source-built Intel-mac binary runs without SIMD — a permanent per-item
+   latency handicap relative to the same CPU on Linux, where `GGML_NATIVE` uses
+   whatever the host offers.
+
+Real Apple-silicon Macs are unaffected (arm64 wheels are current, Metal exists,
+NEON is on). Treat x86_64 macOS as a compatibility platform, not a performance
+one, and read its benchmark numbers with point 3 in mind.
+
 **Odysseus is already a llama.cpp/GGUF-native app; embeddings were the lone
 exception.** Local LLM inference already runs through `llama-server` as a first-class
 backend — the codebase carries dedicated integration for its slot-affinity hints
