@@ -26,6 +26,16 @@ _HISTORY_INLINE_MEDIA_THRESHOLD = 200_000
 _DATA_IMAGE_RE = re.compile(r"data:image/[^;,\"]+;base64,[A-Za-z0-9+/=\s]+")
 
 
+def _message_db_id(m: Any) -> Any:
+    """The `_db_id` a message carries, whether it's a ChatMessage or a raw dict.
+
+    This is the id `.msg` elements round-trip as `dataset.dbId`; edit/regenerate/
+    fork/delete all address messages by it (see #169)."""
+    meta = m.metadata if isinstance(m, ChatMessage) else (
+        m.get('metadata') if isinstance(m, dict) else None)
+    return meta.get('_db_id') if isinstance(meta, dict) else None
+
+
 def _history_display_content(content: Any) -> Any:
     """Return a lightweight browser-display copy of stored message content.
 
@@ -320,10 +330,7 @@ def setup_history_routes(session_manager, upload_handler=None) -> APIRouter:
                             deleted += 1
 
                     # Remove from in-memory history by matching _db_id
-                    def _get_db_id(m):
-                        meta = m.metadata if isinstance(m, ChatMessage) else (m.get('metadata') if isinstance(m, dict) else None)
-                        return meta.get('_db_id') if isinstance(meta, dict) else None
-                    session.history = [m for m in session.history if _get_db_id(m) not in msg_ids]
+                    session.history = [m for m in session.history if _message_db_id(m) not in msg_ids]
                 elif indices:
                     # Legacy index-based delete
                     indices = sorted(indices, reverse=True)
@@ -626,12 +633,8 @@ def setup_history_routes(session_manager, upload_handler=None) -> APIRouter:
             # Resolve the position within source.history (the list actually
             # sliced below) so no cross-store index assumption is made.
             if through_msg_id:
-                def _dbid(m):
-                    meta = m.metadata if isinstance(m, ChatMessage) else (
-                        m.get('metadata') if isinstance(m, dict) else None)
-                    return meta.get('_db_id') if isinstance(meta, dict) else None
                 pos = next((i for i, m in enumerate(source.history)
-                            if _dbid(m) == through_msg_id), None)
+                            if _message_db_id(m) == through_msg_id), None)
                 if pos is None:
                     raise HTTPException(404, "Message not found")
                 keep_count = pos + 1
