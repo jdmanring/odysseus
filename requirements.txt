@@ -11,13 +11,27 @@ pypdf
 beautifulsoup4
 charset-normalizer
 numpy
-# Vector store + local embeddings for RAG, semantic memory, and tool
-# selection. Used on core agent paths, so installed by default — the app
-# still degrades to keyword fallback if they're ever missing.
-# chromadb-client is the lightweight HTTP client (talks to a standalone
-# ChromaDB service); fastembed runs local ONNX embeddings.
-chromadb-client
-fastembed
+# Structured logging for the embedding layer (src/embeddings.py emits
+# structlog events: fastembed_loaded, embedding_client_selected, etc.).
+structlog
+# Vector store + local embeddings for RAG, semantic memory, and tool selection.
+# Used on core agent paths, so installed by default — the app still degrades to
+# keyword fallback if they're ever missing. Qdrant is a single Rust binary the
+# app starts/stops; qdrant-client is the thin pure-Python client.
+#
+# Embeddings run on llama.cpp (nomic GGUF Q8_0) on every platform — one backend
+# everywhere, including the BSDs where fastembed's onnxruntime has no build. The
+# --extra-index-url pulls prebuilt CPU wheels of llama-cpp-python so a fresh
+# install doesn't compile from source; pip falls back to a source build only if no
+# matching wheel exists. Performance note: a source build (GGML_NATIVE) measurably
+# beats the generic wheel on per-item latency — reinstall with
+# --no-binary llama-cpp-python on a host with a toolchain; see the native-build
+# section of docs/dev/memory-architecture.md. fastembed is an opt-in alternative in
+# requirements-optional.txt (EMBEDDING_LOCAL_BACKEND=fastembed). The nomic GGUF is
+# fetched at first run.
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+qdrant-client
+llama-cpp-python
 youtube-transcript-api
 # Markdown rendering for research reports (src/visual_report.py).
 # Imported at module-top so it's a hard core dep, not optional.
