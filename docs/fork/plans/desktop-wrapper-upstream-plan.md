@@ -32,6 +32,15 @@ has **nothing** and there is no competing code to bikeshed:
 
 Each PR is its own branch off `upstream-mirror`, cherry-picked to develop.
 
+**Deletion is a second track, filed only after acceptance.** The PRs above are
+strictly *additive* — they add our Qt wrapper *alongside* upstream's launcher,
+never delete it. Deleting a maintainer's merged feature (#976) in the same PR
+reads as hostile and auto-rejects. So: force acceptance of ours through the
+comparison matrix first; *then*, once ours is merged and proven, file a
+*separate* PR proposing removal of the browser launcher, argued on its own
+merits. On our own fork the fallbacks are already retired (2026-07-23); this
+two-track split is purely for how the change reaches upstream.
+
 ## Phases
 
 - **Phase 0 — cleanup (DONE):** aria2c staged-branch convergence + stale-test corrections;

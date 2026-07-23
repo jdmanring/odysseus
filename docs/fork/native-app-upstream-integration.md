@@ -1,5 +1,18 @@
 # Native desktop app ↔ upstream "native installers" — integration map
 
+> **SUPERSEDED (2026-07-23):** the "keep both / additive only" verdict below is
+> reversed on the fork. All inherited browser fallbacks — `launcher.py`,
+> `Odysseus.spec`, `build-windows-portable.ps1`, `build-macos-app.sh` — are
+> **retired** on develop; the Qt wrapper is the sole desktop path on every OS.
+> Rationale: upstream's fallbacks hijack a full **browser** (Chromium `--app` /
+> `webbrowser.open`) — there is nothing lightweight about them, so the "no-Qt
+> fallback has value" argument does not hold. **Upstream strategy is two-track:**
+> first an *additive* PR that adds our Qt wrapper alongside theirs and wins on a
+> comparison matrix (force acceptance through excellence); then, *after* it's
+> accepted, a *separate* PR to delete theirs. See
+> `docs/fork/plans/desktop-wrapper-upstream-plan.md`. The map below is retained
+> as historical analysis of how the two systems relate.
+
 **Status:** analysis, 2026-07-21. Written after upstream (renamed to
 `odysseus-dev/odysseus`, see below) began advertising "native installers" in its
 README, raising the question of whether our native desktop app was superseded.
