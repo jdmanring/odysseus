@@ -216,6 +216,39 @@ class _Collection:
     # overwrites by point ID either way, so one implementation covers both.
     upsert = add
 
+    def update(
+        self,
+        ids: Sequence[str],
+        documents: Optional[Sequence[str]] = None,
+        metadatas: Optional[Sequence[Dict[str, Any]]] = None,
+        embeddings: Optional[Sequence[Sequence[float]]] = None,
+    ) -> None:
+        # Chroma's update() edits existing points in place without changing their
+        # IDs (used by VectorRAG.rename_owner to rewrite `owner` metadata). Qdrant's
+        # set_payload is a *merge*, so the reserved keys the adapter round-trips
+        # (_ID_KEY, _DOC_KEY) survive automatically — metadatas carry only user
+        # fields — while update_vectors handles the rare embedding change.
+        documents = list(documents or [])
+        metadatas = list(metadatas or [])
+        embeddings = [list(v) for v in (embeddings or [])]
+        for i, cid in enumerate(ids):
+            pid = _point_id(cid)
+            payload: Dict[str, Any] = (
+                dict(metadatas[i]) if i < len(metadatas) and metadatas[i] else {}
+            )
+            if i < len(documents):
+                payload[_DOC_KEY] = documents[i]
+            if payload:
+                self._q.set_payload(self.name, payload=payload, points=[pid], wait=True)
+            if i < len(embeddings) and embeddings[i]:
+                from qdrant_client import models
+
+                self._q.update_vectors(
+                    self.name,
+                    points=[models.PointVectors(id=pid, vector=embeddings[i])],
+                    wait=True,
+                )
+
     def delete(self, ids: Sequence[str]) -> None:
         self._q.delete(self.name, points_selector=[_point_id(c) for c in ids], wait=True)
 
