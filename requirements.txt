@@ -15,12 +15,18 @@ numpy
 # Used on core agent paths, so installed by default — the app still degrades to
 # keyword fallback if they're ever missing. qdrant-client runs Qdrant as an
 # embedded, in-process store (local mode, on disk under data/qdrant) by default;
-# set QDRANT_HOST to use an external server instead. fastembed runs local ONNX
-# embeddings; on the BSDs, where onnxruntime has no build, the app falls back to a
-# llama.cpp GGUF backend running the SAME nomic model — provisioned by
-# tooling/provision_bsd_memory.sh (see docs/dev/memory-architecture.md).
+# set QDRANT_HOST to use an external server instead.
+#
+# Embeddings run on llama.cpp (nomic GGUF Q8_0) on every platform — one backend
+# everywhere, including the BSDs where fastembed's onnxruntime has no build. The
+# --extra-index-url pulls prebuilt CPU wheels of llama-cpp-python so a fresh
+# install doesn't compile from source; pip falls back to a source build only if no
+# matching wheel exists. fastembed is an opt-in alternative in
+# requirements-optional.txt (EMBEDDING_LOCAL_BACKEND=fastembed). The nomic GGUF is
+# fetched at first run. See docs/dev/memory-architecture.md.
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 qdrant-client
-fastembed
+llama-cpp-python
 youtube-transcript-api
 # Markdown rendering for research reports (src/visual_report.py).
 # Imported at module-top so it's a hard core dep, not optional.

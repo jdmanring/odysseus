@@ -20,7 +20,7 @@ def test_legacy_collection_backfills_fastembed_lane(monkeypatch):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: None)
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.memory_vector import MemoryVectorStore
 
@@ -49,7 +49,7 @@ def test_legacy_collection_backfills_custom_only_lane(monkeypatch):
     def fail_fastembed():
         raise RuntimeError("fastembed missing")
 
-    monkeypatch.setattr(lanes, "_build_fastembed_client", fail_fastembed)
+    monkeypatch.setattr(lanes, "_build_local_lane_client", fail_fastembed)
 
     from src.memory_vector import MemoryVectorStore
 
@@ -75,7 +75,7 @@ def test_legacy_migration_continues_when_custom_backfill_fails(monkeypatch):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: FailingEmbedder(768, "nomic", "http://embeddings/v1"))
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.memory_vector import MemoryVectorStore
 
@@ -107,7 +107,7 @@ def test_legacy_migration_resumes_partial_lane_backfill(monkeypatch):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: None)
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.memory_vector import MemoryVectorStore
 

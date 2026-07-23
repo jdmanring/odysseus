@@ -25,7 +25,7 @@ def test_build_embedding_lanes_keeps_custom_and_fastembed_dimensions_separate(mo
     )
     monkeypatch.setattr(
         lanes,
-        "_build_fastembed_client",
+        "_build_local_lane_client",
         lambda: FakeEmbedder(384, "sentence-transformers/all-MiniLM-L6-v2", "local://fastembed"),
     )
 
@@ -61,7 +61,7 @@ def test_build_embedding_lanes_recreates_collection_on_fingerprint_change(monkey
     written = {}
     monkeypatch.setattr(lanes, "_write_fingerprint", lambda name, fp: written.__setitem__(name, fp))
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: FakeEmbedder(1024, "bge-large", "http://embeddings/v1"))
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     built = build_embedding_lanes("odysseus_rag")
 
@@ -93,7 +93,7 @@ def test_build_embedding_lanes_adopts_collection_when_fingerprint_matches(monkey
     def fail_fastembed():
         raise RuntimeError("fastembed missing")
 
-    monkeypatch.setattr(lanes, "_build_fastembed_client", fail_fastembed)
+    monkeypatch.setattr(lanes, "_build_local_lane_client", fail_fastembed)
 
     built = build_embedding_lanes("odysseus_rag")
 
@@ -112,7 +112,7 @@ def test_build_embedding_lanes_uses_fastembed_when_custom_unavailable(monkeypatc
         raise RuntimeError("down")
 
     monkeypatch.setattr(lanes, "_build_custom_client", fail_custom)
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     built = build_embedding_lanes("odysseus_tool_index")
 

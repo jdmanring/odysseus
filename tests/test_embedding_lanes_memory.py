@@ -19,7 +19,7 @@ def test_memory_vector_store_writes_both_lanes_and_prefers_custom(monkeypatch):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: FakeEmbedder(768, "nomic", "http://embeddings/v1"))
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.memory_vector import MemoryVectorStore
 
@@ -112,7 +112,7 @@ def test_memory_rebuild_does_not_reimport_legacy_collection(monkeypatch):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: None)
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.memory_vector import MemoryVectorStore
 
@@ -175,7 +175,7 @@ def test_memory_rebuild_continues_when_custom_lane_fails(monkeypatch):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: FailingEmbedder(768, "nomic", "http://embeddings/v1"))
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.memory_vector import MemoryVectorStore
 
