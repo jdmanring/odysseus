@@ -4283,11 +4283,15 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       if (!sessionId) return;
 
       const keepCount = msgIndex;
+      // Prefer addressing the cut point by DB id (robust to windowed/paginated
+      // history and multi-bubble rendering); the array index is only a fallback
+      // for a message that isn't persisted yet.
+      const _dbId = userMsgElement.dataset.dbId;
       try {
         await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keep_count: keepCount })
+          body: JSON.stringify(_dbId ? { from_msg_id: _dbId } : { keep_count: keepCount })
         });
 
         // Remove DOM elements from msgIndex onward
@@ -4374,10 +4378,11 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
         // Regenerate flows intentionally trim history to this point before
         // resubmitting. The plain "Resend message" action must not do this.
         const keepCount = msgIndex;
+        const _dbId = userMsgElement.dataset.dbId;
         await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keep_count: keepCount })
+          body: JSON.stringify(_dbId ? { from_msg_id: _dbId } : { keep_count: keepCount })
         });
 
         // Drop the AI replies after the user message but KEEP the user bubble
@@ -4488,12 +4493,13 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     }
 
     const keepCount = userIndex;
+    const _dbId = userMsgEl.dataset.dbId;
 
     try {
       await fetch(`${API_BASE}/api/session/${sessionId}/truncate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keep_count: keepCount })
+        body: JSON.stringify(_dbId ? { from_msg_id: _dbId } : { keep_count: keepCount })
       });
 
       for (let i = allMsgs.length - 1; i > aiIndex; i--) {
@@ -4664,12 +4670,14 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
     if (!sessionId) return;
 
     const keepCount = aiIndex + 1;
+    // Fork through this AI reply, addressed by DB id (index is a fallback).
+    const _dbId = aiMsgElement.dataset.dbId;
 
     try {
       const res = await fetch(`${API_BASE}/api/session/${sessionId}/fork`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keep_count: keepCount }),
+        body: JSON.stringify(_dbId ? { through_msg_id: _dbId } : { keep_count: keepCount }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();

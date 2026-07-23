@@ -329,6 +329,57 @@ class SessionManager:
         finally:
             db.close()
 
+    def truncate_from_message(self, session_id: str, msg_id: str) -> bool:
+        """Delete the message with `msg_id` and every message after it.
+
+        The cut point is resolved by DB id independently in the DB and the
+        in-memory history — no positional index is shared between the two
+        stores. This is correct regardless of pagination, dropped synthetic
+        turns, or one message rendering as several bubbles, unlike a caller-
+        supplied keep_count derived from DOM/array position.
+        """
+        session = self.get_session(session_id)
+        db = SessionLocal()
+        try:
+            db_messages = db.query(DbChatMessage).filter(
+                DbChatMessage.session_id == session_id
+            ).order_by(DbChatMessage.timestamp).all()
+
+            idx = next((i for i, m in enumerate(db_messages) if m.id == msg_id), None)
+            if idx is None:
+                return False
+
+            doomed = {m.id for m in db_messages[idx:]}
+            for m in db_messages[idx:]:
+                db.delete(m)
+
+            db_session = db.query(DbSession).filter(DbSession.id == session_id).first()
+            if db_session:
+                db_session.message_count = idx
+                db_session.updated_at = datetime.now(timezone.utc)
+
+            db.commit()
+
+            # Filter the in-memory history by the same id set (not by index).
+            def _dbid(mm):
+                meta = getattr(mm, "metadata", None)
+                return meta.get("_db_id") if isinstance(meta, dict) else None
+            session.history = [mm for mm in session.history if _dbid(mm) not in doomed]
+            session._history = session.history
+
+            logger.info(
+                f"Truncated session {session_id} from message {msg_id} "
+                f"({len(doomed)} removed)"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Error truncating session from message: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+
     def replace_messages(self, session_id: str, messages: list) -> bool:
         """Replace a session's persisted and in-memory history atomically."""
         session = self.get_session(session_id)
