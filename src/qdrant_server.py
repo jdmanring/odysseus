@@ -79,7 +79,15 @@ def ensure_running(host: str, port: int, storage_dir: str) -> bool:
     # Qdrant reads QDRANT__<SECTION>__<KEY> env overrides on top of its built-in
     # defaults, so no config file is needed.
     env["QDRANT__STORAGE__STORAGE_PATH"] = storage_dir
+    # Override the snapshots path too: the FreeBSD pkg bakes /var/db/qdrant into
+    # its default config, and qdrant panics (PermissionDenied) creating snapshot
+    # temp dirs there when run as an ordinary user. Keep everything under our
+    # storage dir on every platform.
+    env["QDRANT__STORAGE__SNAPSHOTS_PATH"] = os.path.join(storage_dir, "snapshots")
     env["QDRANT__SERVICE__HTTP_PORT"] = str(port)
+    # gRPC would otherwise bind its default 6334 no matter what HTTP port we
+    # chose, so two instances (e.g. the app's and a test's) would collide.
+    env["QDRANT__SERVICE__GRPC_PORT"] = str(port + 1)
     env["QDRANT__SERVICE__HOST"] = host
     env["QDRANT__TELEMETRY_DISABLED"] = "true"
     logger.info("Starting Qdrant server (%s) on %s:%s, storage=%s",
