@@ -1,9 +1,29 @@
 # Runbook: Building the Qdrant server from source on OpenBSD
 
-**Status:** VERIFIED WORKING. Built (qdrant 1.18.3) and installed on the OpenBSD 7.9
-workbench VM (`ssh openbsd`, x86_64). End-to-end API confirmed live: `/readyz` 200,
-create collection, upsert points, and vector search all succeed (search returned the
-expected point at score 1.0). Reproducible via `tooling/bsd/build_qdrant_openbsd.sh`.
+**Status:** VERIFIED WORKING, including full-stack integration. Built (qdrant 1.18.3)
+and installed on the OpenBSD 7.9 workbench VM (`ssh openbsd`, x86_64). End-to-end API
+confirmed live: `/readyz` 200, create collection, upsert points, and vector search all
+succeed. Reproducible via `tooling/bsd/build_qdrant_openbsd.sh`.
+
+**Integration verified (2026-07-23):** `tooling/verify_memory_integration.py` passed
+all four phases on the VM using the real app modules (`get_vector_client`,
+`MemoryVectorStore`, llama.cpp Q8_0 embeddings — no mocks):
+A) server mode asserted (`QdrantRemote`, not the embedded fallback);
+B) semantic write/search — paraphrase query with no term overlap retrieved the target
+memory (score 0.6903); C) a second OS process wrote and searched the same
+server+collection concurrently with the first client open — the exact app+MCP
+collision that embedded mode cannot survive; D) both processes' writes survived a
+full server stop/restart. Run it after any rebuild:
+
+```sh
+ssh openbsd 'cd ~/odysseus && venv/bin/python tooling/verify_memory_integration.py \
+    --data-dir /build/memtest --port 6355'
+```
+
+(Dedicated port 6355 and data dir keep it clear of the live app on 7000 and any
+qdrant on 6333; /build is real FFS, satisfying Qdrant's filesystem check. The
+verifier stops the server it launched and fails phase D if a leftover instance
+owns the port — kill it and rerun.)
 
 Note: point the server's storage at a real FFS partition, not `/tmp` (mfs) — Qdrant
 warns "Unrecognized filesystem - cannot guarantee data safety" on unknown FS types.
