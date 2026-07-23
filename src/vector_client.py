@@ -60,24 +60,43 @@ def _port_open(host: str, port: int, timeout: float = 0.5) -> bool:
 
 
 def get_vector_client():
-    """Process-wide Qdrant client adapter. Mirrors chroma_client.get_chroma_client:
-    reads QDRANT_HOST / QDRANT_PORT (default localhost:6333) and caches one client."""
+    """Process-wide Qdrant client adapter, cached.
+
+    Default is **embedded local mode**: an on-disk Qdrant store under
+    QDRANT_STORAGE_DIR that lives inside the app process — it comes up when the
+    app (uvicorn) starts and goes away when it stops, with no separate server
+    process, port, or binary to manage. Vector access in this app is
+    single-process, which is exactly what local mode requires.
+
+    Set QDRANT_HOST to connect to an external Qdrant server instead (server
+    mode), e.g. a shared instance; QDRANT_PORT defaults to 6333."""
     global _client
     if _client is not None:
         return _client
     with _lock:
         if _client is not None:
             return _client
-        host = os.environ.get("QDRANT_HOST", "localhost")
-        port = int(os.environ.get("QDRANT_PORT", "6333"))
-        if not _port_open(host, port):
-            raise RuntimeError(
-                f"Qdrant is not reachable at {host}:{port}. The app starts the "
-                f"bundled Qdrant binary; check it launched (see logs)."
-            )
         from qdrant_client import QdrantClient
 
-        _client = _ClientAdapter(QdrantClient(host=host, port=port))
+        host = os.environ.get("QDRANT_HOST")
+        if host:
+            # Explicit server mode: connect to an external Qdrant.
+            port = int(os.environ.get("QDRANT_PORT", "6333"))
+            if not _port_open(host, port):
+                raise RuntimeError(
+                    f"Qdrant is not reachable at {host}:{port} (QDRANT_HOST is set, "
+                    f"so server mode is expected). Unset QDRANT_HOST to use the "
+                    f"built-in embedded store instead."
+                )
+            client = QdrantClient(host=host, port=port)
+        else:
+            # Embedded local mode — no server, no port, no orphan to leak.
+            from src.constants import QDRANT_STORAGE_DIR
+            os.makedirs(QDRANT_STORAGE_DIR, exist_ok=True)
+            client = QdrantClient(path=QDRANT_STORAGE_DIR)
+            logger.info("Qdrant: embedded local store at %s", QDRANT_STORAGE_DIR)
+
+        _client = _ClientAdapter(client)
         return _client
 
 
