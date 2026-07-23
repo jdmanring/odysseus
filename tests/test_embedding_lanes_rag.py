@@ -18,7 +18,7 @@ def test_vector_rag_writes_both_lanes_and_falls_back_to_fastembed(monkeypatch):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: None)
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.rag_vector import VectorRAG
 
@@ -39,7 +39,7 @@ def test_vector_rag_batch_index_continues_when_custom_lane_fails(monkeypatch, tm
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: FailingEmbedder(768, "nomic", "http://embeddings/v1"))
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.rag_vector import VectorRAG
 
@@ -61,7 +61,7 @@ def test_vector_rag_batch_index_reports_failure_when_all_lanes_fail(monkeypatch,
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: FailingEmbedder(768, "nomic", "http://embeddings/v1"))
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FailingEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FailingEmbedder(384, "mini", "local://fastembed"))
 
     from src.rag_vector import VectorRAG
 
@@ -96,7 +96,7 @@ def test_rag_rebuild_does_not_reimport_legacy_collection(monkeypatch, tmp_path):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: None)
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.rag_vector import VectorRAG
 

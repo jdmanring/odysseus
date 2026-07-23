@@ -21,7 +21,7 @@ def test_tool_index_indexes_and_retrieves_from_available_lanes(monkeypatch):
     import src.embedding_lanes as lanes
 
     monkeypatch.setattr(lanes, "_build_custom_client", lambda: FakeEmbedder(768, "nomic", "http://embeddings/v1"))
-    monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+    monkeypatch.setattr(lanes, "_build_local_lane_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
 
     from src.tool_index import ToolIndex
 

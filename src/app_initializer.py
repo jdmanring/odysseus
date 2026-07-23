@@ -72,9 +72,9 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
             logger.info("MemoryVectorStore initialized")
         else:
             # Keep the unhealthy object (do NOT reset to None): consumers gate on
-            # `.healthy`, and service_health.chromadb_health() needs a present
+            # `.healthy`, and service_health.vector_store_health() needs a present
             # object to report DEGRADED/DOWN instead of DISABLED ("not configured").
-            logger.warning("MemoryVectorStore DEGRADED: ChromaDB vector memory unavailable")
+            logger.warning("MemoryVectorStore DEGRADED: Qdrant vector memory unavailable")
     except Exception as e:
         logger.warning(f"MemoryVectorStore DEGRADED: {e}")
         memory_vector = None
