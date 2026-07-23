@@ -270,7 +270,7 @@ controllable from the tray, not merely opened and quit:
 
 | Item | Behaviour |
 |------|-----------|
-| Status line (disabled) | `● Running — host:port` / `○ Stopped`, refreshed each time the menu opens (`QMenu.aboutToShow`; a 3 s poll on macOS) |
+| Status line (disabled) | a coloured dot + `Running — host:port` / `Stopped` / `Restarting…`, refreshed each time the menu opens (`QMenu.aboutToShow`; a 3 s poll on macOS). Green running / red stopped / amber transitional. The Qt wrappers paint the dot via the shared `qt_status_dot.py` (colour pinned for the disabled action's Disabled icon mode so it isn't greyed); macOS draws a native `NSImage` dot with an emoji fallback. |
 | Open Odysseus | show / raise the window |
 | Open in Browser | open `http://host:port` in the default browser |
 | Copy Server URL | copy that URL to the clipboard |

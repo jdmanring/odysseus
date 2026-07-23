@@ -27,6 +27,38 @@ import rumps
 
 README_URL = "https://github.com/odysseus-dev/odysseus#readme"
 
+# Status-dot colours, kept in sync with qt_status_dot.py (the Qt wrappers) so the
+# indicator looks identical across all five OSes: green running / red stopped /
+# amber degraded. Each maps to a native NSImage dot; an emoji is the fallback
+# glyph if drawing is unavailable.
+_DOT = {
+    "running": ("#3fb950", "\U0001F7E2"),
+    "stopped": ("#f85149", "\U0001F534"),
+    "busy": ("#d29922", "\U0001F7E1"),
+}
+
+
+def _dot_image(hex_color, px=11):
+    """A flat filled circle as an NSImage, drawn with AppKit (pyobjc, already a
+    rumps dependency). Returns None if AppKit drawing is unavailable so the
+    caller can fall back to an emoji glyph."""
+    try:
+        from AppKit import NSImage, NSColor, NSBezierPath
+        from Foundation import NSMakeRect
+        r = int(hex_color[1:3], 16) / 255.0
+        g = int(hex_color[3:5], 16) / 255.0
+        b = int(hex_color[5:7], 16) / 255.0
+        img = NSImage.alloc().initWithSize_((px, px))
+        img.lockFocus()
+        NSColor.colorWithSRGBRed_green_blue_alpha_(r, g, b, 1.0).set()
+        NSBezierPath.bezierPathWithOvalInRect_(
+            NSMakeRect(0.5, 0.5, px - 1, px - 1)).fill()
+        img.unlockFocus()
+        img.setTemplate_(False)   # keep the colour; a template image gets tinted
+        return img
+    except Exception:
+        return None
+
 SOCK_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/.odysseus_tray.sock")
 ICON = sys.argv[2] if len(sys.argv) > 2 and os.path.isfile(sys.argv[2]) else None
 LOG_DIR = sys.argv[3] if len(sys.argv) > 3 else ""
@@ -94,11 +126,23 @@ class OdysseusTray(rumps.App):
         self._timer.start()
         self._poll(None)
 
+    def _set_status(self, title, state):
+        """Set the status line's text plus a coloured dot. Prefer a native
+        NSImage dot; if drawing is unavailable, fall back to a coloured emoji
+        glyph in the title so the state is never colourless."""
+        hex_color, emoji = _DOT.get(state, _DOT["busy"])
+        img = _dot_image(hex_color)
+        try:
+            self._status._menuitem.setImage_(img)  # None clears any prior image
+        except Exception:
+            img = None
+        self._status.title = title if img is not None else f"{emoji} {title}"
+
     # ── live state ──
     def _poll(self, _):
         reply = _query("status")
         if not reply:
-            self._status.title = "○ Not responding"
+            self._set_status("Not responding", "busy")
             return
         parts = reply.split("|")
         running = parts[0] == "1"
@@ -106,7 +150,10 @@ class OdysseusTray(rumps.App):
         expose = len(parts) > 2 and parts[2] == "1"
         if hostport:
             self._hostport = hostport
-        self._status.title = f"● Running — {hostport}" if running else "○ Stopped"
+        if running:
+            self._set_status(f"Running — {hostport}", "running")
+        else:
+            self._set_status("Stopped", "stopped")
         self._expose.state = 1 if expose else 0
 
     def _url(self):
