@@ -26,6 +26,16 @@ _HISTORY_INLINE_MEDIA_THRESHOLD = 200_000
 _DATA_IMAGE_RE = re.compile(r"data:image/[^;,\"]+;base64,[A-Za-z0-9+/=\s]+")
 
 
+def _message_db_id(m: Any) -> Any:
+    """The `_db_id` a message carries, whether it's a ChatMessage or a raw dict.
+
+    This is the id `.msg` elements round-trip as `dataset.dbId`; edit/regenerate/
+    fork/delete all address messages by it (see #169)."""
+    meta = m.metadata if isinstance(m, ChatMessage) else (
+        m.get('metadata') if isinstance(m, dict) else None)
+    return meta.get('_db_id') if isinstance(meta, dict) else None
+
+
 def _history_display_content(content: Any) -> Any:
     """Return a lightweight browser-display copy of stored message content.
 
@@ -133,6 +143,13 @@ def setup_history_routes(session_manager, upload_handler=None) -> APIRouter:
                 meta = {}
         if m.timestamp and "timestamp" not in meta:
             meta["timestamp"] = m.timestamp.isoformat() + "Z"
+        # The row's id is stamped onto the in-memory message only after meta_data
+        # is serialized (_persist_message), so it never round-trips through the
+        # stored JSON. Add it here so paginated history carries _db_id: edit,
+        # regenerate, fork and delete all address messages by this id, and
+        # without it those operations silently fall back to fragile array
+        # positions on scrolled-back / windowed history.
+        meta["_db_id"] = m.id
         if meta:
             entry["metadata"] = meta
         return entry
@@ -297,6 +314,13 @@ def setup_history_routes(session_manager, upload_handler=None) -> APIRouter:
         _verify_session_owner(request, session_id)
         try:
             body = await request.json()
+            # Preferred: delete a specific message and everything after it, by DB
+            # id. Robust to pagination / synthetic turns / multi-bubble rendering.
+            from_msg_id = body.get("from_msg_id")
+            if from_msg_id:
+                result = session_manager.truncate_from_message(session_id, from_msg_id)
+                return {"status": "ok", "from_msg_id": from_msg_id, "truncated": result}
+            # Fallback: absolute keep_count (the AI-skills tool still uses this).
             keep_count = body.get("keep_count", 0)
             result = session_manager.truncate_messages(session_id, keep_count)
             return {"status": "ok", "kept": keep_count, "truncated": result}
@@ -349,10 +373,7 @@ def setup_history_routes(session_manager, upload_handler=None) -> APIRouter:
                             deleted += 1
 
                     # Remove from in-memory history by matching _db_id
-                    def _get_db_id(m):
-                        meta = m.metadata if isinstance(m, ChatMessage) else (m.get('metadata') if isinstance(m, dict) else None)
-                        return meta.get('_db_id') if isinstance(meta, dict) else None
-                    session.history = [m for m in session.history if _get_db_id(m) not in msg_ids]
+                    session.history = [m for m in session.history if _message_db_id(m) not in msg_ids]
                 elif indices:
                     # Legacy index-based delete
                     indices = sorted(indices, reverse=True)
@@ -644,11 +665,22 @@ def setup_history_routes(session_manager, upload_handler=None) -> APIRouter:
         try:
             body = await request.json()
             keep_count = body.get("keep_count", 0)
+            through_msg_id = body.get("through_msg_id")
 
             # Get the source session
             source = session_manager.sessions.get(session_id)
             if not source:
                 raise HTTPException(404, "Session not found")
+
+            # Preferred: fork up to and including a specific message, by DB id.
+            # Resolve the position within source.history (the list actually
+            # sliced below) so no cross-store index assumption is made.
+            if through_msg_id:
+                pos = next((i for i, m in enumerate(source.history)
+                            if _message_db_id(m) == through_msg_id), None)
+                if pos is None:
+                    raise HTTPException(404, "Message not found")
+                keep_count = pos + 1
 
             # Create new session
             new_id = str(uuid.uuid4())
