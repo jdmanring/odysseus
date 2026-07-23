@@ -75,6 +75,10 @@ Moving evicted live messages back into `_all[]` for Phase 1 reload was considere
 
 The simpler approach (evict + notice + reload via session switch) is sufficient for the OOM goal and avoids `_all[]` corruption.
 
+## Related: edit/regenerate/fork correctness (#169)
+
+Bounding the DOM makes visible a pre-existing bug this PR does **not** own and does **not** fix: edit/regenerate/fork derive the server `keep_count` from `indexOf('.msg')` (a DOM position), while the server treats it as an absolute DB index. That is wrong whenever the rendered set isn't the whole conversation from index 0 — which is true under this window layer, but was already true on upstream's own tail-page pager. This PR *reduces* the fresh-load blast radius (it renders up to `WINDOW_SIZE` messages, vs upstream's smaller page) but its eviction removes the "scroll to the very top and the indices line up" recovery path for very long plain conversations. The correct cure is orthogonal and shipped separately as an id-based truncate/fork (fork issue #169): it addresses messages by DB id, so it is independent of *how* the DOM is bounded. Keep the two PRs separate — #169 fixes an upstream bug and must land regardless of whether this window rewrite is adopted.
+
 ## Test plan
 
 - `tests/test_chat_history_js.py`: 129 static-analysis tests
