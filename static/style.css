@@ -1884,6 +1884,11 @@ body.bg-pattern-sparkles {
     /* Welcome screen — centered in available space above input bar */
     #welcome-screen {
       position:absolute;
+      /* Sit above #chat-history: that element carries `contain: layout` (a
+         stacking context) plus an opaque background and comes later in the DOM,
+         so without an explicit z-index the empty log paints over and hides this
+         splash on the New Chat / landing screen. */
+      z-index: 1;
       top:40%;
       left:50%;
       transform:translate(-50%,-50%);
