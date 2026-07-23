@@ -103,6 +103,14 @@ def get_vector_client():
 def reset_client() -> None:
     global _client
     with _lock:
+        if _client is not None:
+            # Close the underlying client so local mode releases its on-disk
+            # storage lock now, rather than whenever the object is GC'd — a
+            # re-init on the same path would otherwise fail against itself.
+            try:
+                _client._q.close()
+            except Exception:
+                pass
         _client = None
 
 
