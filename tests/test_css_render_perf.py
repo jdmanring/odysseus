@@ -102,19 +102,21 @@ def test_chat_history_has_explicit_bg():
 
 
 def test_welcome_active_uses_container_padding_not_input_bar_margin():
-    # The 30vh welcome gap is expressed as padding-bottom on
+    # The welcome gap is expressed as padding-bottom on
     # .chat-container.welcome-active rather than margin-bottom on
     # .chat-input-bar, so the spacing stays inside the container's own box
     # rather than the container-type:inline-size compositor layer of the input
     # bar. (Originally framed as a tile-eviction fix; kept because container
-    # padding is the cleaner place for the gap regardless.)
+    # padding is the cleaner place for the gap regardless.) The exact vh value
+    # is an aesthetic knob — what this guards is padding-on-container, never
+    # margin-on-input-bar.
     welcome_block = _block(".chat-container.welcome-active {")
     rule_end = welcome_block.index("}")
-    assert "padding-bottom: 30vh" in welcome_block[:rule_end]
-    # margin-bottom:30vh must not appear on the input bar override — that was
+    assert "padding-bottom: 20vh" in welcome_block[:rule_end]
+    # A vh margin-bottom must not appear on the input bar override — that was
     # the rule that created the problematic compositor layer extension.
-    assert "margin-bottom:30vh" not in _CSS
-    assert "margin-bottom: 30vh" not in _CSS
+    assert "margin-bottom:20vh" not in _CSS and "margin-bottom: 20vh" not in _CSS
+    assert "margin-bottom:30vh" not in _CSS and "margin-bottom: 30vh" not in _CSS
 
 
 def test_modal_content_has_contain_layout_style():
