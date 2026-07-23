@@ -17,6 +17,14 @@ all four phases on the VM. It drives the real app modules (`get_vector_client`,
   mode fails; against the server it just works.
 - D: both processes' writes survived a full server stop/restart.
 
+Embedding performance on the VM (idle, load 0.25, 12 vCPU / 16 GB, 2026-07-23),
+via `tooling/benchmark_embedding_backends.py`: llama.cpp Q8_0 per-item p50 9.2 ms,
+bulk 116 docs/s, top-1 0.917 / top-3 1.000 — the same accuracy as the Linux host
+and a modest virtualization tax on its ~7 ms. Latency is flat across
+`LLAMACPP_EMBED_THREADS` 2/4/8, so the defaults stand. fastembed is not comparable
+here: onnxruntime does not exist on OpenBSD, which is the reason the stack unified
+on llama.cpp.
+
 Run it after any rebuild:
 
 ```sh
