@@ -1,20 +1,20 @@
 """get_vector_client() backend-mode selection (src/vector_client.py).
 
-The default is embedded local mode — an on-disk Qdrant store inside the app
-process, no separate server. That is what makes semantic memory work the moment
-the app runs (there was never a launcher to start an external Qdrant). Setting
-QDRANT_HOST opts into server mode against an external instance.
+Modes: QDRANT_HOST -> external server; QDRANT_EMBEDDED -> the single-writer
+embedded on-disk store; default -> an app-managed local Qdrant server (with the
+embedded store as the fallback where no server binary exists, e.g. OpenBSD).
 
-Guards two things:
-  * default (no QDRANT_HOST) resolves a working client WITHOUT any server, and
+Guards:
+  * QDRANT_EMBEDDED resolves a working client with NO server, on disk, and
   * QDRANT_HOST set + unreachable RAISES rather than silently degrading.
 """
 import pytest
 
 
-def test_local_mode_is_default(monkeypatch, tmp_path):
+def test_embedded_mode_works_without_a_server(monkeypatch, tmp_path):
     monkeypatch.delenv("QDRANT_HOST", raising=False)
     monkeypatch.delenv("QDRANT_PORT", raising=False)
+    monkeypatch.setenv("QDRANT_EMBEDDED", "1")  # force the embedded store, no server
     import src.constants as C
     monkeypatch.setattr(C, "QDRANT_STORAGE_DIR", str(tmp_path / "qd"))
     from src import vector_client
