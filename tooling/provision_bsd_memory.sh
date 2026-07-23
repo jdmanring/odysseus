@@ -38,6 +38,23 @@ SP="$("$PY" -c 'import site; print(site.getsitepackages()[0])')"
 log() { echo "[bsd-memory] $*"; }
 have() { "$PY" -c "import $1" 2>/dev/null; }
 
+# --- 0. Qdrant SERVER binary ------------------------------------------------
+# The app defaults to a concurrent Qdrant *server* (src/qdrant_server.py), not the
+# single-writer embedded store. FreeBSD packages it; OpenBSD has no binary so we
+# build it from source (a long one-time compile — OpenBSD is a server OS where the
+# concurrent store is exactly what's needed). Skipped if qdrant is already on PATH.
+if ! command -v qdrant >/dev/null 2>&1; then
+    if [ "$OS" = "FreeBSD" ]; then
+        log "installing Qdrant server (pkg)"
+        doas pkg install -y qdrant 2>/dev/null \
+            || log "WARNING: 'pkg install qdrant' failed; app falls back to the embedded store"
+    elif [ "$OS" = "OpenBSD" ]; then
+        log "building Qdrant server from source (LONG one-time compile)…"
+        sh "$REPO/tooling/bsd/build_qdrant_openbsd.sh" \
+            || log "WARNING: Qdrant build failed; app falls back to the embedded store"
+    fi
+fi
+
 # --- 1. qdrant-client (vector store client), grpcio-free --------------------
 if ! have qdrant_client; then
     log "installing qdrant-client without grpcio (grpcio has no BSD path)"
