@@ -37,8 +37,13 @@ def test_use_aria2c_defaults_to_true():
 
 
 def test_preflight_check_present_in_routes():
-    """Pre-flight guard must exist before the download command is built."""
-    assert "get_aria2c() is None" in _ROUTES_SRC
+    """Pre-flight guard must exist before the download command is built.
+
+    The check probes aria2c availability and routes through
+    resolve_download_backend (reworded from the original `get_aria2c() is None`
+    form in the backend-pinning refactor 2538f11c — the guard still exists)."""
+    assert "get_aria2c() is not None" in _ROUTES_SRC
+    assert "resolve_download_backend(" in _ROUTES_SRC
 
 
 def test_preflight_logs_fallback():

@@ -1816,7 +1816,15 @@ export function _tmuxGracefulKill(task) {
   if (host) {
     return `ssh ${_sshPrefix(_getPort(task))}${host} '${_remoteTmuxPrefix()}tmux send-keys -t ${task.sessionId} C-c 2>/dev/null; sleep 2; tmux kill-session -t ${task.sessionId} 2>/dev/null'`;
   }
-  return `tmux send-keys -t ${task.sessionId} C-c 2>/dev/null; sleep 2; tmux kill-session -t ${task.sessionId} 2>/dev/null`;
+  // Local POSIX. A task launched WITHOUT tmux (macOS, or any host lacking tmux)
+  // has no session to signal — it is a detached process whose leader pid is in
+  // <session>.pid. Kill its whole process GROUP (the download/serve child is in
+  // the same group), then also run tmux kill-session so a tmux-launched local
+  // task still stops. Both are harmless when the other path doesn't apply, so
+  // the UI doesn't need to know which launcher was used. ${'$'}{TMPDIR:-/tmp}/odysseus-tmux
+  // matches the server's tempfile.gettempdir() log dir.
+  const sid = task.sessionId;
+  return `D="\${TMPDIR:-/tmp}/odysseus-tmux"; P=$(cat "$D/${sid}.pid" 2>/dev/null); if [ -n "$P" ]; then G=$(ps -o pgid= -p "$P" 2>/dev/null | tr -d ' '); [ -n "$G" ] && kill -TERM "-$G" 2>/dev/null; fi; tmux send-keys -t ${sid} C-c 2>/dev/null; sleep 1; tmux kill-session -t ${sid} 2>/dev/null`;
 }
 
 // Force-kill escalation: SIGKILL the tmux pane's owning PID and any children,
