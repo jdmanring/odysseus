@@ -1178,6 +1178,10 @@ Created: ${s.created_at || '?'}</pre>`);
 }
 
 async function _cmdSessionClear(args, ctx) {
+  // reset() before the wipe (the window layer's API contract): release the
+  // window's observers/state so the counter doesn't keep reporting the old
+  // total against a now-empty display.
+  if (window.chatHistory) window.chatHistory.reset();
   document.getElementById('chat-history').innerHTML = '';
   slashReply('Chat display cleared');
   return true;
