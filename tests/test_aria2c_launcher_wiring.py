@@ -346,6 +346,24 @@ def test_running_tab_renders_on_tab_switch():
     )
 
 
+def test_copy_log_clipboard_enabled_in_all_wrappers():
+    """The copy-log button silently no-ops in QtWebEngine unless the wrapper
+    enables JavascriptCanAccessClipboard: live probe 2026-07-20 showed
+    navigator.clipboard.writeText -> NotAllowedError and
+    document.execCommand('copy') -> false with the default settings. Every
+    wrapper must enable clipboard WRITES; none may enable JavascriptCanPaste
+    (that would let pages READ the system clipboard)."""
+    repo = Path(__file__).parent.parent
+    for wrapper in ("qt_wrapper.py", "windows_wrapper.py", "mac_wrapper.py"):
+        src = (repo / wrapper).read_text(encoding="utf-8")
+        assert "JavascriptCanAccessClipboard, True" in src, (
+            f"{wrapper}: JS clipboard writes disabled — copy buttons no-op"
+        )
+        assert "JavascriptCanPaste" not in src.replace(
+            "enabling JavascriptCanPaste", ""
+        ), f"{wrapper}: JavascriptCanPaste must stay off (clipboard reads)"
+
+
 def test_copy_log_button_docked_inside_log_wrap():
     """The download card's copy button must live INSIDE the
     .cookbook-output-wrap around the raw log — as a bare sibling it has no

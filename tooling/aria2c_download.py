@@ -184,8 +184,13 @@ def _main(args) -> None:
         print("[*] HF auth: authenticated")
 
     if not urls:
+        # The listing succeeded but nothing matched (empty repo, or an include
+        # pattern that matched no file). A download that fetches zero files is a
+        # failure, not a success — exit non-zero so the runner emits
+        # DOWNLOAD_FAILED and the UI surfaces the error instead of "complete".
+        # (A rate-limited/failed listing raises upstream and is caught above.)
         print("[!] No files matched — nothing to download.")
-        sys.exit(0)
+        sys.exit(1)
     print(f"[*] {len(urls)} file(s) to download.")
     total_bytes = sum(size for _, _, size in urls)
     if total_bytes > 0:
