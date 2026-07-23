@@ -36,7 +36,6 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
   let appendMode = null; // { codeText: Text, appendedLen } while an open fence streams
   let degraded = !ENABLED; // true once we fall back to full re-render
   let _tailNodes = []; // live tail DOM nodes currently in contentEl (after tailMarker)
-  let _rtCalls = 0, _rtFast = 0; // renderTail() call counter; fast-path hit counter
   let _lastTailText = null; // text from last successful renderTail(); null when tail is empty/unknown
 
   function start() {
@@ -67,7 +66,6 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
 
   // Re-render the live tail. An open trailing fence streams in append-mode.
   function renderTail(tailText) {
-    _rtCalls++;
     const fence = tailText ? describeOpenFence(tailText) : null;
     if (fence) {
       // Fence path bypasses text tracking — reset so the next prose token re-establishes.
@@ -86,7 +84,7 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
       const lastTail = _tailNodes.length > 0 ? _tailNodes[_tailNodes.length - 1] : null;
       if (
         suffix.length > 0 &&
-        !/[*_`#\[\]<>\n\\{]/.test(suffix) &&
+        !/[*_`#~\[\]<>\n\\{]/.test(suffix) &&
         lastTail &&
         lastTail.lastChild &&
         lastTail.lastChild.nodeType === Node.TEXT_NODE
@@ -94,7 +92,6 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
         lastTail.lastChild.appendData(suffix);
         tailShownLen += suffix.length;
         _lastTailText = tailText;
-        _rtFast++;
         return;
       }
     }
@@ -125,7 +122,6 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
         }
       }
       tailShownLen = holder.textContent.length;
-      _rtFast++;
       return;
     }
 
@@ -256,15 +252,6 @@ export function createStreamRenderer(contentEl, { render, hljs } = {}) {
       tailMarker.remove();
       tailMarker = null;
       committedLen = lastText.length;
-      // renderTail() fires once per SSE token and allocates a holder div each call.
-      // This count is the direct measure of that DOM allocation pressure; a successful
-      // rAF throttle will reduce it from ~token_rate/s to ~60/s.
-      if (_rtCalls > 0) {
-        console.log('[streamRenderer] renderTail calls=' + _rtCalls
-          + ' fast=' + _rtFast
-          + ' (' + ((_rtFast / _rtCalls) * 100).toFixed(0) + '%)');
-        _rtCalls = 0; _rtFast = 0;
-      }
     } catch (err) {
       degraded = true;
       console.error('streamingRenderer: falling back to full render', err);
