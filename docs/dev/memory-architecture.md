@@ -94,12 +94,20 @@ since remote embedding is off the table here.
 
 ### Lifecycle
 
-The app connects over `qdrant-client` (default `:6333`), overridable with
-`QDRANT_HOST` / `QDRANT_PORT`. The intended deployment launches the Qdrant binary
-as a background process and reaps it on exit, the same way on every platform —
-the fleet-wide start/stop pattern carried over from the Qwen fork. It is the one
-piece still pending (see Status); the store code itself is done and connects to a
-running instance today.
+`qdrant-client` runs Qdrant in **embedded local mode** by default —
+`QdrantClient(path=DATA_DIR/qdrant)` (`src/vector_client.py`), an in-process,
+on-disk store that comes up with the app (uvicorn) and is released when it exits.
+There is no separate server process, port, or binary to manage: vector access
+here is single-process, which is exactly what local mode requires. Setting
+`QDRANT_HOST` (with optional `QDRANT_PORT`, default 6333) switches to server mode
+against an external Qdrant instead — the opt-in path for a shared instance.
+
+This **supersedes** the originally-planned "start/stop the Qdrant binary alongside
+the app" lifecycle (carried over from the Qwen fork): that launcher was never
+built, and embedded mode makes it unnecessary — nothing to download, pin, or reap,
+and it works on every platform, **including OpenBSD, which has no Qdrant server
+binary at all**. On a crash the local store's lock is released with the process
+(verified: a SIGKILLed holder does not block the next start).
 
 Qdrant has no free-form collection metadata, so the per-lane embedding
 *fingerprint* (which detects a model/dimension/endpoint change and triggers a
@@ -136,8 +144,10 @@ sweet spot between capturing enough context and keeping each vector about one id
 Done and validated:
 
 - nomic is the default embedder.
-- fastembed to llama.cpp auto-fallback works on host and FreeBSD.
+- fastembed to llama.cpp auto-fallback works on host, FreeBSD, and OpenBSD.
 - The install-time verifier recognizes both backends.
+- **Embedded local Qdrant is the default** (see Lifecycle); memory comes up
+  healthy when the app runs, verified end-to-end on the Linux host and OpenBSD.
 - Optimized nomic: 256-dim Matryoshka truncation, query/document prefixes, and the
   2048-char chunk size, applied identically by both backends. Validated
   on the host: 256-dim output, prefixes active (query vs document cosine 0.827), and
@@ -152,9 +162,28 @@ Done and validated:
   MemoryVectorStore (semantic recall ranks correctly; add/remove/rebuild) and
   VectorRAG (owner-filter isolation, hybrid ranking, delete-by-source).
 
+### OpenBSD memory stack (self-contained, no onnxruntime, no grpcio)
+
+OpenBSD reaches the same local stack as FreeBSD, but two PyPI deps have no OpenBSD
+path and need explicit provisioning (`tooling/provision_bsd_memory.sh`, called by
+`setup.sh`; idempotent):
+
+- **Embedding — llama.cpp GGUF, built from source.** onnxruntime has no BSD build,
+  so fastembed can't run; `llama-cpp-python` compiles cleanly (`GGML_NATIVE=OFF`).
+  Two OpenBSD-only fix-ups after the build: its loader's platform allowlist names
+  linux/freebsd but not openbsd (openbsd loads `.so` the same way), and OpenBSD's
+  linker leaves the shared libs versioned (`libX.so.N`) without the unversioned
+  `libX.so` symlink the ctypes loader expects. The nomic GGUF is fetched from
+  HuggingFace on first run (`huggingface-hub`, installed without its Rust `hf-xet`
+  accelerator, which also won't build).
+- **Vector client — grpc import stub.** `qdrant-client` hard-imports `grpc`, and
+  grpcio has no OpenBSD wheel (its bundled `upb` fails to compile; a system-libs
+  build clears the LibreSSL wall but still dies on `upb`). Local mode never speaks
+  gRPC at runtime, so a vendored import-only stub (`tooling/bsd/grpc_stub`) is
+  installed only when real grpcio is absent. The llama.cpp OpenBSD loader fix is
+  also a legitimate upstream contribution to `llama-cpp-python` (it already
+  supports FreeBSD).
+
 Still pending:
 
-- The app-managed Qdrant binary lifecycle (download + pin the binary, start/stop
-  it with the app on every platform) and the installer/verifier wiring. Until then
-  the store connects to a Qdrant instance that must be running already.
 - Upstream-candidate. Tracked under its own issue and branch (#161).

@@ -1,12 +1,15 @@
 # Qdrant server lifecycle + OpenBSD vector memory — analysis & plan
 
-> **STATUS (2026-07-23): Option 2 IMPLEMENTED.** `src/vector_client.py` now
-> defaults to embedded local mode (`QdrantClient(path=QDRANT_STORAGE_DIR)`);
-> `QDRANT_HOST` still selects server mode. Verified end-to-end on the Linux host:
-> app startup logs `Qdrant: embedded local store …`, `VectorRAG ready`,
-> `MemoryVectorStore rebuilt with 32 entries` — healthy, no separate server. Works
-> wherever qdrant-client installs (Linux/macOS/Windows/FreeBSD). **OpenBSD remains
-> blocked** at grpcio (see below) — still to decide.
+> **STATUS (2026-07-23): RESOLVED — this doc is the historical analysis; the
+> canonical description now lives in [`docs/dev/memory-architecture.md`](../../dev/memory-architecture.md).**
+> Embedded local mode is the default (`src/vector_client.py`; `QDRANT_HOST` still
+> selects server mode), verified end-to-end on the Linux host and OpenBSD.
+> **OpenBSD is NOT blocked** — the "grpcio wall" below was cleared: a system-libs
+> grpcio build gets past LibreSSL but dies on grpcio's own `upb`, so instead a
+> vendored grpc *import* stub (local mode never uses gRPC) unblocks qdrant-client,
+> and the llama.cpp GGUF embedder is built from source. All reproducible via
+> `tooling/provision_bsd_memory.sh` (wired into `setup.sh`). The "blocked" notes
+> below are superseded.
 
 **Question (2026-07-23):** (A) what would it take to make Odysseus start Qdrant
 when it opens and stop it when it closes; (B) can Qdrant be sourced for OpenBSD so
