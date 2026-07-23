@@ -312,9 +312,16 @@ Done and validated:
   embedded single-writer store only as a fallback where no binary resolves.
   Full-stack integration is verified by `tooling/verify_memory_integration.py`
   (server-mode assertion, real llama.cpp write/search, concurrent second-process
-  access, restart persistence) — green on the Linux host and on OpenBSD
-  (2026-07-23; see `docs/fork/runbooks/openbsd-qdrant-build.md`). macOS and
-  Windows use the same path but were not booted to prove it.
+  access, restart persistence) — green on the Linux host, OpenBSD, and FreeBSD
+  (2026-07-23; see `docs/fork/runbooks/openbsd-qdrant-build.md`). The FreeBSD run
+  caught a real launch bug: the pkg's qdrant bakes /var/db/qdrant into its
+  snapshots path and panicked as an ordinary user, silently dropping the app to
+  the embedded store — fixed by pinning the snapshots path (and the gRPC port)
+  in `src/qdrant_server.py`. Embedding numbers per platform, idle, via
+  `tooling/benchmark_embedding_backends.py`: Linux host ~7 ms / 136 docs/s,
+  OpenBSD VM 9.2 ms / 116 docs/s, FreeBSD VM (4 vCPU) 11.9 ms / 87 docs/s, all
+  at identical accuracy (top-1 0.917, top-3 1.000). macOS and Windows use the
+  same path but were not booted to prove it.
 - Optimized nomic: 256-dim Matryoshka truncation, query/document prefixes, and the
   2048-char chunk size, applied identically by both backends. Validated
   on the host: 256-dim output, prefixes active (query vs document cosine 0.827), and
