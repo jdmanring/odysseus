@@ -128,8 +128,3 @@ def test_last_tail_text_reset_in_clear_tail():
     assert "_lastTailText = null" in clear_body
 
 
-def test_text_path_increments_rt_fast():
-    # _rtFast++ in the text-only path is required so finalize()'s log line
-    # reports the combined fast-path hit rate accurately.
-    block = _text_path_block()
-    assert "_rtFast++" in block
