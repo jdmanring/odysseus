@@ -62,14 +62,14 @@ def _port_open(host: str, port: int, timeout: float = 0.5) -> bool:
 def get_vector_client():
     """Process-wide Qdrant client adapter, cached.
 
-    Default is **embedded local mode**: an on-disk Qdrant store under
-    QDRANT_STORAGE_DIR that lives inside the app process — it comes up when the
-    app (uvicorn) starts and goes away when it stops, with no separate server
-    process, port, or binary to manage. Vector access in this app is
-    single-process, which is exactly what local mode requires.
+    Default is an **app-managed Qdrant server** (src/qdrant_server.py) so the
+    app and the memory MCP subprocess share one concurrent store. Falls back to
+    the embedded single-writer local store only when no server binary can be
+    resolved, or when QDRANT_EMBEDDED forces it (deliberate single-process
+    deployments and tests).
 
-    Set QDRANT_HOST to connect to an external Qdrant server instead (server
-    mode), e.g. a shared instance; QDRANT_PORT defaults to 6333."""
+    Set QDRANT_HOST to connect to an external Qdrant server instead,
+    e.g. a shared instance; QDRANT_PORT defaults to 6333."""
     global _client
     if _client is not None:
         return _client
