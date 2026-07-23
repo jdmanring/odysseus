@@ -44,8 +44,16 @@ def test_aria2c_has_linux_x86_64_entry():
     assert ("Linux", "x86_64") in BinManager.TOOL_MAP["aria2c"]
 
 
-def test_aria2c_has_darwin_arm64_entry():
-    assert ("Darwin", "arm64") in BinManager.TOOL_MAP["aria2c"]
+def test_aria2c_darwin_uses_which_fallback_not_a_bundled_binary():
+    # No maintained static aria2c build exists for Darwin, and a GitHub binary
+    # would be Gatekeeper-quarantined; macOS installs aria2c at setup time
+    # (brew/conda) and get_aria2c() resolves it via shutil.which. So BinManager
+    # deliberately has NO Darwin entry, forcing that resolution path.
+    assert ("Darwin", "arm64") not in BinManager.TOOL_MAP["aria2c"]
+    assert ("Darwin", "x86_64") not in BinManager.TOOL_MAP["aria2c"]
+    from pathlib import Path as _P
+    src = (_P(__file__).resolve().parents[2] / "tooling/aria2c_download.py").read_text()
+    assert 'shutil.which("aria2c")' in src
 
 
 def test_aria2c_entries_have_valid_structure():
