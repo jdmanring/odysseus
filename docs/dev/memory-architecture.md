@@ -347,9 +347,13 @@ Done and validated:
   macOS x86_64 VM 8.7 ms / 100 docs/s (no-SIMD build — see the Intel-mac
   ceiling above; fastembed on the same VM: 7.3 ms / 169 docs/s, same accuracy,
   so the per-item wash reproduces there too), all at identical accuracy
-  (top-1 0.917, top-3 1.000). macOS integration verified 2026-07-23 (all four
-  phases, llama.cpp asserted). Windows uses the same path but is not yet
-  verified.
+  (top-1 0.917, top-3 1.000). Windows VM (12 vCPU): llama.cpp 7.3 ms /
+  137 docs/s — Linux parity. **All five platforms passed the four-phase
+  integration verifier on 2026-07-23** (Linux, OpenBSD, FreeBSD, macOS x86_64,
+  Windows), llama.cpp asserted as the live backend on each. One measurement
+  note: benchmark latency on Windows requires `perf_counter` timing — the
+  tool's original `monotonic()` ticks at ~15.6 ms there and read sub-tick
+  embeds as 0.0 (fixed in the tool).
 - Optimized nomic: 256-dim Matryoshka truncation, query/document prefixes, and the
   2048-char chunk size, applied identically by both backends. Validated
   on the host: 256-dim output, prefixes active (query vs document cosine 0.827), and
