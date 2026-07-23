@@ -52,14 +52,23 @@ The fleet used to split — fastembed (ONNX) on Linux/Windows/macOS, llama.cpp o
 the BSDs (onnxruntime has no BSD binding). We unified on llama.cpp because the split
 bought nothing and cost maintenance:
 
-- fastembed's *only* measured advantage is bulk throughput (tuned batch, 24 cores:
-  ~62 vs ~37 docs/s). The memory workload embeds **one item at a time**; bulk only
-  happens on a one-off full reindex, where even the slowest backend finishes in
-  minutes. Per-item latency — the actual hot path — is a few ms on llama.cpp Q8
-  (measured p50 ~9.5 ms), imperceptible.
-- Retrieval accuracy is quant- and backend-independent on this task (identical
-  topic-accuracy across every quant tried), so fastembed's INT8 and llama.cpp's Q8
-  retrieve equally well.
+- **Per-item latency — the actual hot path (every RAG query, memory search, and
+  tool-selection embeds one item) — is a wash:** ~6 ms fastembed vs ~7 ms llama.cpp
+  Q8. Both imperceptible.
+- fastembed's *only* real advantage is **bulk throughput** (~240 vs ~136 docs/s
+  batched). But bulk only happens on a one-off full reindex, where even the slower
+  backend finishes a few thousand memories in seconds — the memory workload
+  otherwise embeds one item at a time.
+- **Retrieval accuracy is quant- and backend-independent** on this task: fastembed
+  INT8 and llama.cpp Q8 both scored top-1 1.000 and retrieved the *same* document on
+  4/4 queries.
+
+All three figures are reproducible on demand — run
+`tooling/benchmark_embedding_backends.py` (it builds a topic-labelled corpus and
+compares both backends on accuracy, per-item latency, and bulk throughput).
+**Measure on an idle host:** these are CPU-bound with OpenMP threads, so a
+competing load (e.g. a VM compiling in the background) inflates per-item latency by
+100× and makes the comparison meaningless — a lesson learned the hard way here.
 - One backend means one provisioning story (no onnxruntime wheel-hunting) and no
   cross-backend vector drift.
 
@@ -139,7 +148,7 @@ problem worth a server lifecycle?* — and embeddings trigger neither:
   process can hold its own copy) over a small CPU model (~130 MB). Centralizing buys
   nothing you'd pay lifecycle cost for, and an always-on embedding server would
   re-introduce exactly the port/orphan/shutdown handling `qdrant_server.py` already
-  carries, plus a localhost round-trip per ~9.5 ms embed.
+  carries, plus a localhost round-trip per ~7 ms embed.
 
 Anyone who *does* want to serve embeddings (out-of-process isolation, a shared
 llama-server on a multi-client host) already can: set `EMBEDDING_URL` to any
@@ -293,8 +302,11 @@ Done and validated:
 
 - nomic (Q8_0 GGUF on llama.cpp) is the default embedder on every platform;
   fastembed is opt-in via `EMBEDDING_LOCAL_BACKEND=fastembed`.
-- Per-item Q8 latency measured on the host: p50 ~9.5 ms — the hot path is
-  imperceptible, which is what justifies dropping the fastembed split.
+- Per-item latency reproduced on an idle host (`tooling/benchmark_embedding_backends.py`):
+  ~6 ms fastembed / ~7 ms llama.cpp Q8 — a wash, both imperceptible, which is what
+  justifies dropping the fastembed split. Accuracy 1.000 on both, 4/4 same-document
+  agreement. (Benchmark under load and the CPU-bound OpenMP path inflates llama.cpp
+  ~100×; always measure idle.)
 - The install-time verifier recognizes both backends.
 - **Embedded local Qdrant is the default** (see Lifecycle); the app process comes
   up healthy, verified end-to-end on the Linux host, FreeBSD, and OpenBSD. macOS
