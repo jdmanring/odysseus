@@ -315,8 +315,13 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
   }
 
   /** Remove completed/error background stream entries to free accumulated text. */
-  function _purgeStaleBackgroundStreams() {
+  function _purgeStaleBackgroundStreams(exceptSid) {
     _backgroundStreams.forEach(function (entry, sid) {
+      // Never purge the session the caller is about to handle: checkBackgroundStream
+      // relies on the current session's 'error'/'completed' entry surviving so its
+      // own branches can surface the error notice (or clean up) — purging it here
+      // early-returns past that logic and the failure is silently dropped.
+      if (sid === exceptSid) return;
       if (entry.status === 'completed' || entry.status === 'error') {
         if (entry.abortCtrl) entry.abortCtrl = null;
         entry.accumulated = '';
@@ -4129,7 +4134,9 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
    * Called after history loads on session switch.
    */
   export function checkBackgroundStream(sessionId) {
-    _purgeStaleBackgroundStreams();
+    // Purge OTHER sessions' finished entries, but keep this session's so the
+    // error/completed branches below can act on it (see #167).
+    _purgeStaleBackgroundStreams(sessionId);
     if (!sessionId || !_backgroundStreams.has(sessionId)) return;
     var entry = _backgroundStreams.get(sessionId);
 
