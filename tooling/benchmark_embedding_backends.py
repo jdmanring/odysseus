@@ -86,19 +86,21 @@ def evaluate(client, name):
     labels = [t for t, _ in CORPUS]
     docs = [d for _, d in CORPUS]
     doc_vecs = np.asarray(client.encode(docs, is_query=False), dtype="float32")
-    # single-item latency (the hot path): 20 reps of one short encode
+    # single-item latency (the hot path): 20 reps of one short encode.
+    # perf_counter, not monotonic: on Windows (< 3.13) monotonic ticks at
+    # ~15.6 ms, which quantizes every sub-tick embed to a meaningless 0.0.
     lat = []
     for _ in range(20):
-        t = time.monotonic()
+        t = time.perf_counter()
         client.encode([docs[0]], is_query=False)
-        lat.append((time.monotonic() - t) * 1000)
+        lat.append((time.perf_counter() - t) * 1000)
     lat.sort()
 
     # bulk throughput: embed all docs in one batched call (the reindex path)
     bulk_docs = docs * 8  # 96 documents
-    t = time.monotonic()
+    t = time.perf_counter()
     client.encode(bulk_docs, is_query=False)
-    bulk_s = time.monotonic() - t
+    bulk_s = time.perf_counter() - t
     bulk_rate = len(bulk_docs) / bulk_s
 
     correct = correct3 = 0
