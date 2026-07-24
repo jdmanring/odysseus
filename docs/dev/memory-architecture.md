@@ -112,11 +112,18 @@ pays a deliberate security tax on top of the VM tax — hardened malloc
 of choosing OpenBSD and is accepted, not tuned away.
 
 Reference points, same protocol: fastembed 5.8–6.1 ms / ~300–317 docs/s
-(Linux/Windows); the generic wheel on Windows 7.0 ms / 140–145 (same slot as
-its Clang rival). Accuracy is identical everywhere (top-1 0.917 / top-3 1.000).
-So per-item, native llama.cpp meets or beats fastembed on every platform
-except OpenBSD (see its note); bulk remains fastembed's win (~1.6×) and only
-matters on one-off reindexes.
+(Linux/Windows); on macOS x86 fastembed measures 3.9 ms / ~310 docs/s vs
+llama.cpp's 5.0 / ~140 (two passes, 2026-07-24) — fastembed **wins per-item
+there**; the generic wheel on Windows 7.0 ms / 140–145 (same slot as its
+Clang rival). Accuracy is identical everywhere (top-1 0.917 / top-3 1.000).
+So per-item, native llama.cpp meets or beats fastembed on Linux, Windows,
+and FreeBSD; loses ~1 ms on macOS x86 and ~1 ms+ on OpenBSD; on the BSDs
+fastembed is not an option at all (no onnxruntime builds — the reason this
+migration exists). The unified default stays llama.cpp everywhere: one
+provisioning story and aligned lane vectors are worth an imperceptible ~1 ms
+on the two platforms where fastembed is faster, and fastembed remains an
+opt-in (`EMBEDDING_LOCAL_BACKEND=fastembed`) where it runs. Bulk remains
+fastembed's win (~2×) and only matters on one-off reindexes.
 
 **End-to-end memory search (what a user actually feels).** The integration
 verifier times `MemoryVectorStore.search()` through the live server: query
@@ -136,6 +143,31 @@ exceeds the stored points, so the guards defended nothing and were removed;
 `count()` calls. The same change fixed `search()` embedding queries without
 the `search_query:` prefix nomic is trained on (the RAG path via
 `query_lanes()` already had it).
+
+**Server vs embedded, measured (`tooling/benchmark_memory_store.py`).** One
+process, n=100, host, two passes each: server mode search e2e p50 6.1/6.4 ms
+(embed 4.9 + HTTP query 1.0 + ~0.4 adapter), `add()` p50 9.4/9.6 ms;
+embedded mode e2e 5.3/5.4 ms (in-process query 0.1 ms). **The managed-server
+tax is ~0.9 ms per search and ~1–2 ms per add** — the price of multi-process
+concurrency, which the embedded store cannot provide at any price (exclusive
+storage lock, single writer, by design; there is no shared-file mode, and
+routing consumers through one owning process over IPC is just a worse
+hand-rolled server). Decision: managed server stays the default.
+
+**Multi-process contention was a real, hidden collapse — now fixed.** The
+benchmark's 4-process probe (workers barrier-synchronized past model load,
+so it measures steady state) initially showed search p50 of ~3.6 s. Isolated
+to pure embedding: llama.cpp selects `n_threads_batch` for any multi-*token*
+call — i.e. every query — and that pool defaulted to all cores, so each
+process span an all-cores OpenMP team (2 procs on the 24-core host: 4.9 ms →
+1.3 s per embed, a 260× collapse; app + memory MCP is exactly this 2-process
+topology). `n_threads_batch` now defaults to `min(8, cpu)`: single-item
+unchanged (5.0 vs 4.9 ms), bulk −15% (override
+`LLAMACPP_EMBED_THREADS_BATCH` for a one-off reindex), and 4-process
+contention degrades gracefully (search p50 19–29 ms, ~55–65 searches/s
+aggregate) instead of collapsing. Benchmark hygiene encoded in the tool: it
+refuses to run if the store already holds vectors (a leftover server on the
+port silently turns `add()` into duplicate-skips and fakes sub-ms writes).
 
 **OpenBSD's residual gap is a deliberate security tax, measured and accepted.**
 An A/B/B/A/B/A alternation showed default hardened malloc at 7.0–9.4 ms
