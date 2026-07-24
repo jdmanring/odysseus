@@ -189,6 +189,47 @@ def _guard_idle_host():
         f"Set BENCH_FORCE=1 to override.")
 
 
+def dim_sweep(client):
+    """Is 256-dim Matryoshka truncation the right operating point?
+
+    Embed the corpus ONCE at the full 768 dims, then truncate+renormalize in
+    numpy per candidate dim — mathematically identical to setting
+    EMBEDDING_TRUNCATE_DIM, without re-embedding. Reports accuracy plus the
+    mean top1-vs-top2 similarity margin (how decisively the right document
+    wins; degrades before accuracy does on a small query set)."""
+    import src.embeddings as _emb
+    saved = _emb._TRUNCATE_DIM
+    _emb._TRUNCATE_DIM = 0
+    try:
+        docs = [d for _, d in CORPUS]
+        doc_full = np.asarray(client.encode(docs, is_query=False), dtype="float32")
+        q_full = np.asarray(client.encode([q for _, q in QUERIES], is_query=True),
+                            dtype="float32")
+    finally:
+        _emb._TRUNCATE_DIM = saved
+    labels = [t for t, _ in CORPUS]
+    print("\n  Matryoshka dim sweep (same 768-dim embeddings, truncated + renormalized):")
+    for dim in (64, 128, 192, 256, 384, 512, 768):
+        def cut(m):
+            v = m[:, :dim]
+            n = np.linalg.norm(v, axis=1, keepdims=True)
+            return v / np.where(n == 0, 1, n)
+        dv, qv = cut(doc_full), cut(q_full)
+        correct = correct3 = 0
+        margins = []
+        for i, (topic, _q) in enumerate(QUERIES):
+            sims = dv @ qv[i]
+            order = np.argsort(-sims)
+            if labels[order[0]] == topic:
+                correct += 1
+            if any(labels[j] == topic for j in order[:3]):
+                correct3 += 1
+            margins.append(float(sims[order[0]] - sims[order[1]]))
+        print(f"    {dim:4d}-dim  top-1 {correct / len(QUERIES):.3f}  "
+              f"top-3 {correct3 / len(QUERIES):.3f}  "
+              f"mean top1-top2 margin {np.mean(margins):.4f}")
+
+
 def main():
     _guard_idle_host()
     print("Embedding backend comparison (retrieval accuracy + per-item latency)\n")
@@ -202,6 +243,22 @@ def main():
         results["fastembed"] = evaluate(fe, "fastembed INT8")
     except Exception as e:
         print(f"  fastembed: not available ({type(e).__name__}) — skipping")
+    # The model this stack replaced, at its NATIVE 384 dims: MiniLM is not
+    # Matryoshka-trained, so letting the module's 256-dim truncation chop it
+    # would sandbag the baseline and fake the comparison.
+    try:
+        from src.embeddings import FastEmbedClient
+        import src.embeddings as _emb
+        mini = FastEmbedClient(model="sentence-transformers/all-MiniLM-L6-v2")
+        saved = _emb._TRUNCATE_DIM
+        _emb._TRUNCATE_DIM = 0
+        try:
+            mini.get_sentence_embedding_dimension()  # probe at native dims too
+            results["minilm"] = evaluate(mini, "all-MiniLM (old)")
+        finally:
+            _emb._TRUNCATE_DIM = saved
+    except Exception as e:
+        print(f"  all-MiniLM: not available ({type(e).__name__}) — skipping")
     lc = LlamaCppEmbedClient(); lc.get_sentence_embedding_dimension()
     results["llamacpp"] = evaluate(lc, "llama.cpp Q8_0")
 
@@ -211,8 +268,11 @@ def main():
         agree = sum(1 for a, b in zip(fe_top1, lc_top1) if a == b)
         print(f"\n  cross-backend top-1 agreement: {agree}/{len(QUERIES)} "
               f"queries retrieve the same document")
-    print("\nInterpretation: equal accuracy across backends = retrieval is "
-          "backend/quant-independent on this workload.")
+    print("\nInterpretation: equal accuracy across nomic backends = retrieval is "
+          "backend/quant-independent; the all-MiniLM row is the replaced model "
+          "at native dims, i.e. the before/after comparison.")
+    if os.environ.get("BENCH_DIM_SWEEP") == "1":
+        dim_sweep(lc)
 
 
 if __name__ == "__main__":

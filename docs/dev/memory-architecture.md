@@ -111,6 +111,30 @@ pays a deliberate security tax on top of the VM tax — hardened malloc
 (measured: 0.5–2.5 ms, see below) plus kernel mitigations — which is the price
 of choosing OpenBSD and is accepted, not tuned away.
 
+**Old-model A/B and the honest limit of the corpus (2026-07-24, two passes).**
+The benchmark now runs the replaced model, `all-MiniLM-L6-v2`, at its native
+384 dims as a before/after row. Result: MiniLM scores top-1 1.000 on the
+12-query corpus vs nomic's 0.917 — nomic's single miss is a deliberately
+adjacent paraphrase ("green leaves make food from light" lands on a
+vegetable-blanching doc, correct doc at rank 2; top-3 stays 1.000). Read
+this for what it is: **the corpus is at ceiling for both models and cannot
+demonstrate model separation** — a one-query delta on n=12 is noise, not a
+verdict in either direction. The upgrade case for nomic does NOT rest on
+this corpus; it rests on prefix-trained asymmetric retrieval, the 8K-token
+context (MiniLM truncates anything past 256 tokens — our 2048-char chunks
+would be cut in half), Matryoshka truncation, and published MTEB retrieval
+scores. Do not cite the topic-corpus accuracy as proof nomic retrieves
+better; cite it as proof the backend/quant choices don't degrade retrieval.
+
+**Is 256-dim Matryoshka optimal? (dim sweep, `BENCH_DIM_SWEEP=1`.)** Same
+768-dim embeddings truncated + renormalized at 64→768: top-1 is flat at
+0.917 from 64 through 512 (768 recovers the one missed query — noise-level
+on n=12), while the mean top1-vs-top2 similarity margin peaks exactly at
+256 (0.0738 vs 0.060 at 128 and 0.068-0.072 at 384-768). So 256 sits at the
+decisiveness peak while cutting vector size and search cost 3×: a justified
+operating point, though "optimal" is measured at this corpus's resolution —
+the honest claim is "no measurable loss and the best separation margin."
+
 Reference points, same protocol: fastembed 5.8–6.1 ms / ~300–317 docs/s
 (Linux/Windows); on macOS x86 fastembed measures 3.9 ms / ~310 docs/s vs
 llama.cpp's 5.0 / ~140 (two passes, 2026-07-24) — fastembed **wins per-item
