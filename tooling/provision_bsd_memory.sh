@@ -73,7 +73,11 @@ fi
 # --- 2. llama.cpp GGUF embedding backend (fastembed/onnxruntime absent) -----
 if ! have llama_cpp; then
     log "building llama-cpp-python from source (this compiles llama.cpp; takes a while)"
-    CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_OPENMP=OFF" FORCE_CMAKE=1 \
+    # GGML_NATIVE stays ON (default): the native SIMD build measurably beats a
+    # baseline build, and OpenBSD's kernel handles AVX-512 state fine (verified
+    # by a real embed on the bench VM — no SIGILL). Only OpenMP is off: neither
+    # BSD ships libomp in base, and ggml's internal threadpool covers it.
+    CMAKE_ARGS="-DGGML_OPENMP=OFF" FORCE_CMAKE=1 \
         $PIP install --no-cache-dir --quiet llama-cpp-python
 fi
 # OpenBSD-only: the loader's platform allowlist names linux/freebsd but not

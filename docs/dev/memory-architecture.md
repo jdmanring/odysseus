@@ -373,7 +373,13 @@ Done and validated:
   the embedded store — fixed by pinning the snapshots path (and the gRPC port)
   in `src/qdrant_server.py`. Embedding numbers per platform, idle, via
   `tooling/benchmark_embedding_backends.py`: Linux host ~7 ms / 136 docs/s,
-  OpenBSD VM 9.2 ms / 126 docs/s (idle rerun reproduced 9.2 exactly; the residual gap vs FreeBSD at the same 12 vCPU is OpenBSD platform overhead — mitigations and hardened malloc — not stack config), FreeBSD VM 6.7 ms / 153 docs/s (at 12 vCPU;
+  OpenBSD VM 7.1 ms / 139 docs/s (a correction with a lesson: 9.2 ms was
+  measured first and wrongly attributed to OpenBSD platform overhead — the
+  real cause was our own provisioning script building with `GGML_NATIVE=OFF`,
+  a leftover make-it-compile conservatism; a native rebuild was proven safe by
+  a real embed — OpenBSD handles AVX-512 state fine, no SIGILL — and closed
+  most of the gap; the provisioning script now keeps NATIVE on and disables
+  only OpenMP, which the BSDs lack in base), FreeBSD VM 6.7 ms / 153 docs/s (at 12 vCPU;
   the same VM at its original 4 vCPU read 11.9 ms / 87 — vCPU allocation, not
   the stack, dominated that number),
   macOS x86_64 VM 8.7 ms / 100 docs/s (no-SIMD build — see the Intel-mac
