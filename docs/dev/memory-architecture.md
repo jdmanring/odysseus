@@ -120,22 +120,39 @@ the baseline) alongside both nomic backends, on two corpora:
   nomic 0.917 (single miss at rank 2, top-3 1.000). A one-query delta on
   n=12 is noise; this tier proves the backend/quant choices don't degrade
   retrieval, nothing more. Do not cite it for model superiority.
-- *Hard corpus (`HARD_TRAPS` + `HARD_LONG`)*: memory-shaped content built to
-  separate models — 15 polysemy traps (stored memories sharing surface
-  vocabulary with the wrong answer: python the pet vs Python the language,
-  SSH keys vs house keys) and 6 consolidated-note documents at realistic
-  personal-doc chunk size (~300+ words) with the queried fact in the final
-  quarter, past MiniLM's 256-token window. Results (deterministic per
-  backend): **nomic 15/15 traps, 5/6 long docs, 0.952 overall — on both
-  backends identically; MiniLM 13/15 traps, 1/6 long docs, 0.667 overall.**
-  The long-doc column is the structural argument made concrete: a 256-token
-  model cannot retrieve a fact it never embedded, and our production chunks
-  are ~512 tokens. The shared miss (both models fumble one "distance cap"
-  paraphrase) is a genuine hard item, kept as headroom.
+- *Hard corpus (v2)*: memory-shaped content built to separate models, scored
+  against one pooled 122-doc index (41 scored queries + 40 background filler
+  memories, so every stored memory is a ranking distractor — a lived-in
+  store, not a toy pool). Five sections: **trap** (15 polysemy pairs —
+  python the pet vs Python the language, SSH keys vs house keys), **stale**
+  (8 current-vs-outdated fact pairs), **numeric** (6 quantity-binding pairs),
+  **relation** (6 whose-attribute-is-it pairs), **long** (6 consolidated
+  notes at production chunk size with the fact past MiniLM's 256-token
+  window). Results (deterministic per backend, `BENCH_HARD_VERBOSE=1` prints
+  every miss):
 
-So the upgrade case is now measured, not just argued: parity on easy
-retrieval, decisive separation on polysemy and long-document recall, plus
-prefix training, 8K context, Matryoshka, and published MTEB scores.
+  | model | trap | stale | numeric | relation | long | overall |
+  |---|---|---|---|---|---|---|
+  | nomic / fastembed INT8 | 13/15 | 3/8 | 6/6 | 6/6 | 5/6 | **0.805** |
+  | nomic / llama.cpp Q8 | 11/15 | 3/8 | 6/6 | 6/6 | 5/6 | **0.756** |
+  | all-MiniLM (old) | 11/15 | 4/8 | 6/6 | 6/6 | **1/6** | 0.683 |
+
+  Three readings. (1) The long-doc column is the structural argument made
+  concrete: a 256-token model cannot retrieve a fact it never embedded, and
+  our production chunks are ~512 tokens. (2) The **stale section defeats
+  every model roughly equally** — embedding similarity cannot rank "switched
+  to green tea in June" above "drinks two cups of coffee every morning" for
+  a "now" query. That is a measured argument that staleness is the memory
+  layer's job (supersede/consolidate on write), not retrieval's. (3) The two
+  nomic quants diverge slightly at the hard margin (a 2-item delta on n=41 —
+  within small-n noise; both remain above MiniLM), so the precise claim is
+  "backend-equivalent within noise", not "backend-identical".
+
+So the upgrade case is measured, not just argued: parity on easy retrieval,
+separation on long-document recall and (with density) polysemy, plus prefix
+training, 8K context, Matryoshka, and published MTEB scores. Known limits,
+stated: single-author corpus, and section sizes (6-15 items) resolve large
+effects only.
 
 **Is 256-dim Matryoshka optimal? (dim sweep, `BENCH_DIM_SWEEP=1`.)** Same
 768-dim embeddings truncated + renormalized at 64→768: top-1 is flat at
