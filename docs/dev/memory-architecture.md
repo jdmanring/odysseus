@@ -111,20 +111,31 @@ pays a deliberate security tax on top of the VM tax — hardened malloc
 (measured: 0.5–2.5 ms, see below) plus kernel mitigations — which is the price
 of choosing OpenBSD and is accepted, not tuned away.
 
-**Old-model A/B and the honest limit of the corpus (2026-07-24, two passes).**
-The benchmark now runs the replaced model, `all-MiniLM-L6-v2`, at its native
-384 dims as a before/after row. Result: MiniLM scores top-1 1.000 on the
-12-query corpus vs nomic's 0.917 — nomic's single miss is a deliberately
-adjacent paraphrase ("green leaves make food from light" lands on a
-vegetable-blanching doc, correct doc at rank 2; top-3 stays 1.000). Read
-this for what it is: **the corpus is at ceiling for both models and cannot
-demonstrate model separation** — a one-query delta on n=12 is noise, not a
-verdict in either direction. The upgrade case for nomic does NOT rest on
-this corpus; it rests on prefix-trained asymmetric retrieval, the 8K-token
-context (MiniLM truncates anything past 256 tokens — our 2048-char chunks
-would be cut in half), Matryoshka truncation, and published MTEB retrieval
-scores. Do not cite the topic-corpus accuracy as proof nomic retrieves
-better; cite it as proof the backend/quant choices don't degrade retrieval.
+**Old-model A/B: two tiers, two jobs (2026-07-24).** The benchmark now runs
+the replaced model, `all-MiniLM-L6-v2`, at its native 384 dims (its own
+truncation bypassed — chopping a non-Matryoshka model to 256 would sandbag
+the baseline) alongside both nomic backends, on two corpora:
+
+- *Topic corpus (easy tier)*: both models at ceiling — MiniLM top-1 1.000,
+  nomic 0.917 (single miss at rank 2, top-3 1.000). A one-query delta on
+  n=12 is noise; this tier proves the backend/quant choices don't degrade
+  retrieval, nothing more. Do not cite it for model superiority.
+- *Hard corpus (`HARD_TRAPS` + `HARD_LONG`)*: memory-shaped content built to
+  separate models — 15 polysemy traps (stored memories sharing surface
+  vocabulary with the wrong answer: python the pet vs Python the language,
+  SSH keys vs house keys) and 6 consolidated-note documents at realistic
+  personal-doc chunk size (~300+ words) with the queried fact in the final
+  quarter, past MiniLM's 256-token window. Results (deterministic per
+  backend): **nomic 15/15 traps, 5/6 long docs, 0.952 overall — on both
+  backends identically; MiniLM 13/15 traps, 1/6 long docs, 0.667 overall.**
+  The long-doc column is the structural argument made concrete: a 256-token
+  model cannot retrieve a fact it never embedded, and our production chunks
+  are ~512 tokens. The shared miss (both models fumble one "distance cap"
+  paraphrase) is a genuine hard item, kept as headroom.
+
+So the upgrade case is now measured, not just argued: parity on easy
+retrieval, decisive separation on polysemy and long-document recall, plus
+prefix training, 8K context, Matryoshka, and published MTEB scores.
 
 **Is 256-dim Matryoshka optimal? (dim sweep, `BENCH_DIM_SWEEP=1`.)** Same
 768-dim embeddings truncated + renormalized at 64→768: top-1 is flat at
