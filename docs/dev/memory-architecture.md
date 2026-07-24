@@ -72,23 +72,48 @@ competing load (e.g. a VM compiling in the background) inflates per-item latency
 - One backend means one provisioning story (no onnxruntime wheel-hunting) and no
   cross-backend vector drift.
 
-**Native build beats the wheel — and fastembed — on the hot path.** The prebuilt
-wheels target a generic AVX2 baseline; building from source enables
-`GGML_NATIVE` (`-march=native`), which on an AVX-512 host measured (idle,
-2026-07-23): per-item p50 **3.6–4.9 ms vs 4.7–5.6 wheel vs 5.8 fastembed**, bulk
-**197–231 docs/s vs 152–173 wheel** (fastembed still leads bulk at 240–329).
-Accuracy is identical (top-1 0.917 / top-3 1.000). The BSDs get this for free —
-no BSD wheels exist, so their installs are always native source builds (part of
-why FreeBSD posts 6.7 ms in a VM). **The native-build win is GCC/Clang-only — on Windows/MSVC it is a measured
-loss.** Verified on the Windows bench (2026-07-23, idle-gated): `GGML_NATIVE`
-is a no-op under MSVC (no `-march=native`; plain source build ≈ wheel: 6.8 ms /
-120 docs/s vs 7.3 / 137–143), and explicitly enabling AVX-512
-(`GGML_AVX512[_VNNI/_VBMI]`) *regressed* to 9.9–10.3 ms / 91–94 docs/s across
-three runs — MSVC's AVX-512 codegen for these kernels is a pessimization, which
-is consistent with upstream shipping AVX2-baseline wheels. (`GGML_AVX512_BF16`
-doesn't even compile under MSVC: `error C2440` in llamafile sgemm.) **Windows
-stays on the wheel.** On Linux the wheel remains the install
-default (no toolchain requirement); upgrade a capable GCC/Clang host with:
+**Native build beats the wheel — and fastembed — on the hot path, and the win
+is compiler-scoped: GCC/Clang yes, MSVC no.** The prebuilt wheels target a
+generic AVX2 baseline; a native source build (`GGML_NATIVE`, `-march=native`)
+uses the host's full SIMD (AVX-512 VNNI drives the Q8_0 dot-products).
+Measurement protocol for every figure below (2026-07-23/24): **one VM running
+at a time, host and guest independently verified idle, two consistent passes**
+— numbers taken under any weaker discipline were discarded and re-measured.
+
+| Platform (12-vCPU VMs; Linux bare metal) | llama.cpp build | per-item p50 | bulk |
+|---|---|---|---|
+| Linux host (Zen 4) | native (GCC-class, AVX-512+VNNI+BF16) | 4.9 ms | ~207 docs/s |
+| FreeBSD | native clang (AVX-512+VNNI+BF16) | 5.3–5.7 ms | 179–187 docs/s |
+| Windows | **Clang+Ninja native** (AVX-512+VNNI+BF16) | 6.2–6.4 ms | 178 docs/s |
+| OpenBSD | native clang (AVX-512+VNNI+BF16) | 7.0 ms | ~142 docs/s |
+| macOS x86_64 | patched sdist, SIMD on, BLAS off | 8.1 ms | 130 docs/s |
+
+Reference points, same protocol: fastembed 5.8–6.1 ms / ~300–317 docs/s
+(Linux/Windows); the generic wheel on Windows 7.0 ms / 140–145 (same slot as
+its Clang rival). Accuracy is identical everywhere (top-1 0.917 / top-3 1.000).
+So per-item, native llama.cpp meets or beats fastembed on Linux, FreeBSD, and
+Windows; bulk remains fastembed's win (~1.6×) and only matters on one-off
+reindexes.
+
+Windows specifics — three builds, one winner:
+- **Clang+Ninja native: 6.2–6.4 ms / 178 docs/s — the deployed config.** LLVM 19
+  + `pip install ninja`, then `CC/CXX=clang(.exe)`, `RC=llvm-rc.exe`,
+  `--config-settings=cmake.args=-GNinja`. (Upstream's own build docs recommend
+  Clang on Windows.) MAX_PATH: the sdist needs `LongPathsEnabled=1` + a short
+  `TMP` to even extract.
+- MSVC: `GGML_NATIVE` is a no-op (no `-march=native`); plain build ≈ wheel, and
+  explicit `GGML_AVX512[_VNNI/_VBMI]` *regressed* to 9.9–10.3 ms — MSVC's
+  AVX-512 codegen pessimizes these kernels (`GGML_AVX512_BF16` doesn't compile
+  at all: `error C2440` in llamafile sgemm). Don't build with MSVC.
+- Generic wheel: fine fallback where installing LLVM isn't wanted.
+
+The BSDs are always source builds (no BSD wheels exist). Two provisioning traps
+fixed in `tooling/provision_bsd_memory.sh`: build with `--no-build-isolation`
+(pip's isolated build env pulls cmake/ninja from PyPI, which have no BSD wheels
+— use pkg cmake/ninja + venv scikit-build-core), and never pass
+`GGML_NATIVE=OFF` (the leftover that once cost OpenBSD 30%). On Linux the wheel
+remains the install default (no toolchain requirement); upgrade a capable
+GCC/Clang host with:
 
 ```sh
 venv/bin/pip install --no-cache-dir --no-binary llama-cpp-python \
@@ -117,14 +142,23 @@ facts cap this platform, none of them ours to fix in config:
    CPU. The only fix is patching the sdist's `CMakeLists.txt` to set it OFF
    before `pip install`. (The app degrades gracefully meanwhile:
    `build_local_embed_client()` falls through to fastembed.)
-3. The same Apple block **force-disables AVX, AVX2, FMA, and F16C** on x86_64, so
-   even a source-built Intel-mac binary runs without SIMD — a permanent per-item
-   latency handicap relative to the same CPU on Linux, where `GGML_NATIVE` uses
-   whatever the host offers.
+3. The same Apple block **force-disables AVX, AVX2, FMA, and F16C** on x86_64 —
+   but these are ordinary (non-FORCE-immune in the sdist patch sense) lines, so
+   the same sdist patch that fixes Metal also turns them back on. The deployed
+   Intel-mac build has SIMD enabled.
+4. **Disable Accelerate/BLAS too** (`-DGGML_ACCELERATE=OFF -DGGML_BLAS=OFF`).
+   ggml routes batched matmuls through BLAS by dequantizing Q8 to f32 first;
+   measured on the bench, the Accelerate build ran 8.5 ms / 100 docs/s vs
+   8.1 ms / 130 with BLAS off — Accelerate cost 30% of bulk throughput for a
+   quantized model.
 
-Real Apple-silicon Macs are unaffected (arm64 wheels are current, Metal exists,
-NEON is on). Treat x86_64 macOS as a compatibility platform, not a performance
-one, and read its benchmark numbers with point 3 in mind.
+Bench-VM caveat recorded for honesty: the macOS VM is **not** host-passthrough
+despite its libvirt `<cpu>` element claiming so — a `qemu:commandline` `-cpu
+Haswell-noTSX,...` override wins, so the guest runs a Haswell feature mask (no
+AVX-512). Its 8.1 ms is therefore not comparable to the Zen 4 numbers above.
+Real Apple-silicon Macs are unaffected by all of this (arm64 wheels are
+current, Metal exists, NEON is on). Treat x86_64 macOS as a compatibility
+platform, not a performance one.
 
 **Odysseus is already a llama.cpp/GGUF-native app; embeddings were the lone
 exception.** Local LLM inference already runs through `llama-server` as a first-class
@@ -371,27 +405,22 @@ Done and validated:
   caught a real launch bug: the pkg's qdrant bakes /var/db/qdrant into its
   snapshots path and panicked as an ordinary user, silently dropping the app to
   the embedded store — fixed by pinning the snapshots path (and the gRPC port)
-  in `src/qdrant_server.py`. Embedding numbers per platform, idle, via
-  `tooling/benchmark_embedding_backends.py`: Linux host ~7 ms / 136 docs/s,
-  OpenBSD VM 7.1 ms / 139 docs/s (a correction with a lesson: 9.2 ms was
-  measured first and wrongly attributed to OpenBSD platform overhead — the
-  real cause was our own provisioning script building with `GGML_NATIVE=OFF`,
-  a leftover make-it-compile conservatism; a native rebuild was proven safe by
-  a real embed — OpenBSD handles AVX-512 state fine, no SIGILL — and closed
-  most of the gap; the provisioning script now keeps NATIVE on and disables
-  only OpenMP, which the BSDs lack in base), FreeBSD VM 6.7 ms / 153 docs/s (at 12 vCPU;
-  the same VM at its original 4 vCPU read 11.9 ms / 87 — vCPU allocation, not
-  the stack, dominated that number),
-  macOS x86_64 VM 8.7 ms / 100 docs/s (no-SIMD build — see the Intel-mac
-  ceiling above; fastembed on the same VM: 7.3 ms / 169 docs/s, same accuracy,
-  so the per-item wash reproduces there too), all at identical accuracy
-  (top-1 0.917, top-3 1.000). Windows VM (12 vCPU): llama.cpp 7.3 ms /
-  137 docs/s — Linux parity. **All five platforms passed the four-phase
-  integration verifier on 2026-07-23** (Linux, OpenBSD, FreeBSD, macOS x86_64,
-  Windows), llama.cpp asserted as the live backend on each. One measurement
-  note: benchmark latency on Windows requires `perf_counter` timing — the
-  tool's original `monotonic()` ticks at ~15.6 ms there and read sub-tick
-  embeds as 0.0 (fixed in the tool).
+  in `src/qdrant_server.py`. Per-platform embedding numbers live in the
+  Backend-selection table above (final, solo-VM protocol). **All five platforms
+  passed the four-phase integration verifier** (Linux, OpenBSD, FreeBSD,
+  macOS x86_64, Windows — the Windows pass re-run on its deployed Clang
+  build), llama.cpp asserted as the live backend on each.
+  Measurement lessons paid for during this work, kept so they aren't re-bought:
+  Windows latency needs `perf_counter` (`monotonic()` ticks at ~15.6 ms there
+  and read sub-tick embeds as 0.0); benchmarks are valid only with ONE VM
+  running on the host and both host and guest verified idle (cross-VM qemu
+  load silently inflated several early figures); Windows post-install churn
+  (Defender + mscorsvw + SearchIndexer after a Build Tools install) fakes a
+  regression for ~10 minutes; a macOS guest burning ~1.7 cores decoding an
+  animated aerial wallpaper polluted every early macOS number (static
+  wallpaper now set); wrong-cause history: OpenBSD's early 9.2 ms was blamed
+  on platform hardening but was our provisioning script's `GGML_NATIVE=OFF`,
+  and FreeBSD's early 11.9 ms was its 4-vCPU allocation, since raised to 12.
 - Optimized nomic: 256-dim Matryoshka truncation, query/document prefixes, and the
   2048-char chunk size, applied identically by both backends. Validated
   on the host: 256-dim output, prefixes active (query vs document cosine 0.827), and
