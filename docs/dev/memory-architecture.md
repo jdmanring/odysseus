@@ -120,9 +120,14 @@ matters on one-off reindexes.
 
 **End-to-end memory search (what a user actually feels).** The integration
 verifier times `MemoryVectorStore.search()` through the live server: query
-embed + one Qdrant HTTP query + adapter conversion. On the Linux host this is
-p50 9.2–9.5 ms (two passes) against the 4.9 ms bare embed — the remainder is
-the single Qdrant round-trip. It used to be ~15 ms: `search()` carried an
+embed + one Qdrant HTTP query + adapter conversion. Fleet numbers, solo-VM
+protocol, two passes each (e2e p50): Linux 9.2/9.5, FreeBSD 6.3/5.8,
+macOS x86 7.3/7.2, Windows 9.7/10.5, OpenBSD 10.4/10.5 ms. Windows carries a
+fat tail (p95 26–35 ms vs ≤16 elsewhere) present in both passes — loopback
+TCP jitter plus Defender network inspection, tail-only. Decomposed on the
+Linux host (n=30): query embed p50 5.9 ms + Qdrant HTTP query 1.6 ms +
+~1 ms adapter ≈ the 8.7 ms search — so the store adds only ~2.5 ms and the
+platform spread in e2e tracks the embedder, not Qdrant. It used to be ~15 ms: `search()` carried an
 exact `count()` guard plus two `lane.count()` pre-checks per lane, each an
 HTTP round-trip in server mode (free under the old embedded store, which is
 how they went unnoticed). Qdrant returns fewer or zero hits when `limit`
