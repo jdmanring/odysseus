@@ -86,13 +86,15 @@ def evaluate(client, name):
     labels = [t for t, _ in CORPUS]
     docs = [d for _, d in CORPUS]
     doc_vecs = np.asarray(client.encode(docs, is_query=False), dtype="float32")
-    # single-item latency (the hot path): 20 reps of one short encode.
+    # single-item latency — THE hot path. Every live request embeds one QUERY
+    # (search_query: prefix), so that is what gets timed, and the tail matters
+    # as much as the median for perceived response time, so report p50/p95/max.
     # perf_counter, not monotonic: on Windows (< 3.13) monotonic ticks at
     # ~15.6 ms, which quantizes every sub-tick embed to a meaningless 0.0.
     lat = []
-    for _ in range(20):
+    for topic, q in (QUERIES * 2)[:24]:
         t = time.perf_counter()
-        client.encode([docs[0]], is_query=False)
+        client.encode([q], is_query=True)
         lat.append((time.perf_counter() - t) * 1000)
     lat.sort()
 
@@ -115,8 +117,10 @@ def evaluate(client, name):
             correct3 += 1
     acc = correct / len(QUERIES)
     acc3 = correct3 / len(QUERIES)
+    n = len(lat)
     print(f"  {name:16s} top-1 {acc:.3f}  top-3 {acc3:.3f}  "
-          f"per-item p50 {lat[10]:.1f} ms  bulk {bulk_rate:.0f} docs/s")
+          f"query p50 {lat[n // 2]:.1f} / p95 {lat[int(n * 0.95) - 1]:.1f} / "
+          f"max {lat[-1]:.1f} ms  bulk {bulk_rate:.0f} docs/s (reindex-only)")
     return acc, top1_docs
 
 
