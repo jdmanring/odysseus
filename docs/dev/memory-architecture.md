@@ -88,6 +88,19 @@ at a time, host and guest independently verified idle, two consistent passes**
 | macOS x86_64 | patched sdist, SIMD+AVX-512 on, BLAS off | 5.4–5.9 ms | 183–191 docs/s |
 | OpenBSD | native clang (AVX-512+VNNI+BF16) | 7.0 ms | ~142 docs/s |
 
+**Reading the spread — a stack of priced taxes, not mystery variance.** Linux
+leads solely because it is bare metal. Every VM pays a ~10–15% virtualization
+tax (FreeBSD and Windows, with identical builds and SIMD, land at 5.3–5.7 vs
+the host's 4.9 — that delta IS the tax). macOS additionally pays whatever its
+qemu CPU *feature mask* withholds — not instruction translation (execution is
+native under KVM) but instructions the masked model never advertises; widening
+the mask with AVX-512 flags was worth 2.5 ms. On real Apple hardware the tiers
+are: Apple Silicon best (native arm64/NEON/Metal), Xeon-W Intel Macs ≈ our
+bench, Core-family Intel Macs (the majority) at the ~8 ms AVX2 tier. OpenBSD
+pays a deliberate security tax on top of the VM tax — hardened malloc
+(measured: 0.5–2.5 ms, see below) plus kernel mitigations — which is the price
+of choosing OpenBSD and is accepted, not tuned away.
+
 Reference points, same protocol: fastembed 5.8–6.1 ms / ~300–317 docs/s
 (Linux/Windows); the generic wheel on Windows 7.0 ms / 140–145 (same slot as
 its Clang rival). Accuracy is identical everywhere (top-1 0.917 / top-3 1.000).
