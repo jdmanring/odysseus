@@ -137,18 +137,19 @@ class MemoryVectorStore:
         Qdrant's similarity score back to a Chroma-style distance).
         We convert back: similarity = 1.0 - distance.
         """
-        if not self._healthy or self.count() == 0:
+        if not self._healthy:
             return []
 
         out = []
         lane_priority = {LANE_CUSTOM: 0, LANE_FASTEMBED: 1}
         for lane in self._lanes:
             try:
-                if lane.count() == 0:
-                    continue
+                # No count() pre-checks: each one is an HTTP round-trip in
+                # server mode, and Qdrant simply returns fewer (or zero) hits
+                # when n_results exceeds the stored points.
                 results = lane.collection.query(
-                    query_embeddings=lane.encode([query]),
-                    n_results=min(k, lane.count()),
+                    query_embeddings=lane.encode([query], is_query=True),
+                    n_results=k,
                     include=["distances"],
                 )
                 for idx, mid in enumerate(results["ids"][0]):
@@ -165,13 +166,13 @@ class MemoryVectorStore:
 
     def find_similar(self, text: str, threshold: float = 0.92) -> Optional[str]:
         """Check if a near-duplicate exists. Returns memory_id if found, else None."""
-        if not self._healthy or self.count() == 0:
+        if not self._healthy:
             return None
 
         for lane in self._lanes:
             try:
-                if lane.count() == 0:
-                    continue
+                # Document-to-document comparison: no is_query prefix, and no
+                # count() guards — an empty collection just returns no hits.
                 results = lane.collection.query(
                     query_embeddings=lane.encode([text]),
                     n_results=1,
