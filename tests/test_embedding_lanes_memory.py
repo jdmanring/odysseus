@@ -168,6 +168,99 @@ def test_memory_remove_deletes_inactive_lane_collection(monkeypatch):
     assert fast_collection.count() == 0
 
 
+def _lane_over(collection, dim=384):
+    return EmbeddingLane(
+        name=LANE_FASTEMBED,
+        client=FakeEmbedder(dim, "mini", "local://fastembed"),
+        collection=collection,
+        collection_name=collection.name,
+        model="mini",
+        url="local://fastembed",
+        dimension=dim,
+        fingerprint="fast",
+    )
+
+
+def test_memory_search_makes_no_count_round_trips():
+    # count() is an HTTP round-trip per call in server mode; the pre-flight
+    # guards it once powered cost ~10 ms per search. Empty collections just
+    # return no hits, so search must never call count().
+    collection = FakeCollection("odysseus_memories_fastembed", metadata={"embedding_lane": "fastembed"})
+    collection.add(
+        ids=["mem-1"],
+        embeddings=[[0.0] * 384],
+        documents=["a memory"],
+        metadatas=[{"source": "memory"}],
+    )
+    count_calls = []
+    original_count = collection.count
+    collection.count = lambda: count_calls.append(1) or original_count()
+
+    from src.memory_vector import MemoryVectorStore
+
+    store = MemoryVectorStore.__new__(MemoryVectorStore)
+    store._lanes = [_lane_over(collection)]
+    store._healthy = True
+
+    results = store.search("anything", k=3)
+    assert results and results[0]["memory_id"] == "mem-1"
+    assert count_calls == []
+
+    assert store.find_similar("a memory", threshold=0.0) == "mem-1"
+    assert count_calls == []
+
+
+def test_memory_search_on_empty_store_returns_empty_without_error():
+    collection = FakeCollection("odysseus_memories_fastembed", metadata={"embedding_lane": "fastembed"})
+
+    from src.memory_vector import MemoryVectorStore
+
+    store = MemoryVectorStore.__new__(MemoryVectorStore)
+    store._lanes = [_lane_over(collection)]
+    store._healthy = True
+
+    assert store.search("anything", k=3) == []
+    assert store.find_similar("anything") is None
+
+
+def test_memory_search_embeds_query_with_query_prefix():
+    # nomic is prefix-trained: stored docs carry search_document:, so the
+    # search side must encode with is_query=True (search_query: prefix).
+    collection = FakeCollection("odysseus_memories_fastembed", metadata={"embedding_lane": "fastembed"})
+    collection.add(
+        ids=["mem-1"],
+        embeddings=[[0.0] * 384],
+        documents=["a memory"],
+        metadatas=[{"source": "memory"}],
+    )
+
+    class RecordingEmbedder(FakeEmbedder):
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.query_flags = []
+
+        def encode(self, texts, normalize_embeddings=True, is_query=False):
+            self.query_flags.append(is_query)
+            return super().encode(texts, normalize_embeddings, is_query)
+
+    embedder = RecordingEmbedder(384, "mini", "local://fastembed")
+    lane = _lane_over(collection)
+    lane.client = embedder
+
+    from src.memory_vector import MemoryVectorStore
+
+    store = MemoryVectorStore.__new__(MemoryVectorStore)
+    store._lanes = [lane]
+    store._healthy = True
+
+    store.search("anything", k=3)
+    assert embedder.query_flags == [True]
+
+    embedder.query_flags.clear()
+    store.find_similar("a memory")  # doc-to-doc: must NOT use the query prefix
+    assert embedder.query_flags == [False]
+
+
 def test_memory_rebuild_continues_when_custom_lane_fails(monkeypatch):
     fake = FakeChroma()
     patch_chroma(monkeypatch, fake)

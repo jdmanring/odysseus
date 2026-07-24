@@ -118,6 +118,20 @@ So per-item, native llama.cpp meets or beats fastembed on every platform
 except OpenBSD (see its note); bulk remains fastembed's win (~1.6×) and only
 matters on one-off reindexes.
 
+**End-to-end memory search (what a user actually feels).** The integration
+verifier times `MemoryVectorStore.search()` through the live server: query
+embed + one Qdrant HTTP query + adapter conversion. On the Linux host this is
+p50 9.2–9.5 ms (two passes) against the 4.9 ms bare embed — the remainder is
+the single Qdrant round-trip. It used to be ~15 ms: `search()` carried an
+exact `count()` guard plus two `lane.count()` pre-checks per lane, each an
+HTTP round-trip in server mode (free under the old embedded store, which is
+how they went unnoticed). Qdrant returns fewer or zero hits when `limit`
+exceeds the stored points, so the guards defended nothing and were removed;
+`tests/test_embedding_lanes_memory.py` now asserts search performs zero
+`count()` calls. The same change fixed `search()` embedding queries without
+the `search_query:` prefix nomic is trained on (the RAG path via
+`query_lanes()` already had it).
+
 **OpenBSD's residual gap is a deliberate security tax, measured and accepted.**
 An A/B/B/A/B/A alternation showed default hardened malloc at 7.0–9.4 ms
 (state-dependent) vs a rock-stable 6.9 ms with `MALLOC_OPTIONS=jfu` (junking,
