@@ -92,18 +92,24 @@ def evaluate(client, name):
     # perf_counter, not monotonic: on Windows (< 3.13) monotonic ticks at
     # ~15.6 ms, which quantizes every sub-tick embed to a meaningless 0.0.
     lat = []
-    for topic, q in (QUERIES * 2)[:24]:
+    for topic, q in (QUERIES * 9)[:100]:
         t = time.perf_counter()
         client.encode([q], is_query=True)
         lat.append((time.perf_counter() - t) * 1000)
     lat.sort()
 
-    # bulk throughput: embed all docs in one batched call (the reindex path)
+    # bulk throughput: embed all docs in one batched call (the reindex path).
+    # Repeated 5x — a single sample can't distinguish a real difference from
+    # one scheduler hiccup; report the median and the observed spread.
     bulk_docs = docs * 8  # 96 documents
-    t = time.perf_counter()
-    client.encode(bulk_docs, is_query=False)
-    bulk_s = time.perf_counter() - t
-    bulk_rate = len(bulk_docs) / bulk_s
+    rates = []
+    for _ in range(5):
+        t = time.perf_counter()
+        client.encode(bulk_docs, is_query=False)
+        rates.append(len(bulk_docs) / (time.perf_counter() - t))
+    rates.sort()
+    bulk_rate = rates[2]
+    bulk_spread = (rates[0], rates[-1])
 
     correct = correct3 = 0
     top1_docs = []
@@ -120,7 +126,9 @@ def evaluate(client, name):
     n = len(lat)
     print(f"  {name:16s} top-1 {acc:.3f}  top-3 {acc3:.3f}  "
           f"query p50 {lat[n // 2]:.1f} / p95 {lat[int(n * 0.95) - 1]:.1f} / "
-          f"max {lat[-1]:.1f} ms  bulk {bulk_rate:.0f} docs/s (reindex-only)")
+          f"p99 {lat[int(n * 0.99) - 1]:.1f} / max {lat[-1]:.1f} ms  "
+          f"bulk {bulk_rate:.0f} docs/s median of 5 "
+          f"[{bulk_spread[0]:.0f}-{bulk_spread[1]:.0f}] (reindex-only)")
     return acc, top1_docs
 
 
