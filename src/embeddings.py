@@ -295,9 +295,18 @@ class LlamaCppEmbedClient:
         # reindex scales with cores). n_threads drives per-item (the hot path);
         # n_threads_batch drives the rare full reindex. Defaults auto-size to the
         # box but stay overridable.
+        #
+        # n_threads_batch is capped at 8, not cpu_count: llama.cpp picks the
+        # batch pool for any multi-TOKEN call, so every query embed uses it,
+        # and an all-cores spinning OpenMP team per process collapses under
+        # multi-process traffic (app + memory MCP: 2 procs on a 24-core host
+        # measured 4.9 ms -> 1.3 s per embed with the uncapped pool; capped at
+        # 8 it degrades to ~7-10 ms at 4 procs). Solo cost of the cap: none
+        # single-item, ~15% bulk — raise LLAMACPP_EMBED_THREADS_BATCH for a
+        # one-off reindex if that ever matters.
         _cpu = os.cpu_count() or 4
         n_threads = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS", str(min(4, _cpu)))))
-        n_threads_batch = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS_BATCH", str(_cpu))))
+        n_threads_batch = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS_BATCH", str(min(8, _cpu)))))
         # nomic-v1.5's GGUF trains at 2048 tokens; memory/RAG snippets are far
         # shorter, so 2048 is ample and avoids llama.cpp's n_ctx>n_ctx_train
         # overflow warning that 8192 triggers for no benefit.
