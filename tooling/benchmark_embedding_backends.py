@@ -132,16 +132,53 @@ def evaluate(client, name):
     return acc, top1_docs
 
 
+def _windows_idle_fraction(sample_s: float = 1.0):
+    """CPU idle fraction over a short sample via GetSystemTimes (no psutil).
+    Returns None if the call is unavailable."""
+    import ctypes
+
+    class _FT(ctypes.Structure):
+        _fields_ = [("lo", ctypes.c_uint32), ("hi", ctypes.c_uint32)]
+
+    def snap():
+        idle, kern, user = _FT(), _FT(), _FT()
+        if not ctypes.windll.kernel32.GetSystemTimes(
+                ctypes.byref(idle), ctypes.byref(kern), ctypes.byref(user)):
+            raise OSError("GetSystemTimes failed")
+        as64 = lambda t: (t.hi << 32) | t.lo
+        # kernel time INCLUDES idle time; busy = (kern - idle) + user
+        return as64(idle), as64(kern) + as64(user)
+    try:
+        i0, t0 = snap()
+        time.sleep(sample_s)
+        i1, t1 = snap()
+        return (i1 - i0) / max(1, (t1 - t0))
+    except Exception:
+        return None
+
+
 def _guard_idle_host():
     """Refuse to benchmark under load. These backends are CPU-bound with OpenMP
     threads, so a competing load (e.g. a VM compiling in the background) inflates
     per-item latency ~100x and makes the numbers meaningless — the failure that
     once nearly reversed an architecture decision. Set BENCH_FORCE=1 to override."""
+    forced = os.environ.get("BENCH_FORCE") == "1"
     try:
         load1 = os.getloadavg()[0]
     except (OSError, AttributeError):
-        return  # not available on this platform; skip the guard
-    if load1 <= 2.0 or os.environ.get("BENCH_FORCE") == "1":
+        # No loadavg (Windows): sample CPU idle directly so the guard still
+        # has teeth there instead of silently waving everything through.
+        idle = _windows_idle_fraction() if os.name == "nt" else None
+        if idle is None or idle >= 0.80 or forced:
+            if idle is not None and idle < 0.80:
+                print(f"WARNING: host CPU only {idle * 100:.0f}% idle; latency "
+                      f"numbers may be unreliable (BENCH_FORCE set, continuing).\n")
+            return
+        raise SystemExit(
+            f"Refusing to benchmark: host CPU is only {idle * 100:.0f}% idle "
+            f"(<80%).\nLatency here is CPU/contention-sensitive; measure on an "
+            f"idle host.\nSet BENCH_FORCE=1 to override.")
+    if load1 <= 2.0 or forced:
         if load1 > 2.0:
             print(f"WARNING: host load {load1:.1f} is high; latency numbers may be "
                   f"unreliable (BENCH_FORCE set, continuing).\n")
