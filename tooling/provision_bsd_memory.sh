@@ -74,11 +74,26 @@ fi
 if ! have llama_cpp; then
     log "building llama-cpp-python from source (this compiles llama.cpp; takes a while)"
     # GGML_NATIVE stays ON (default): the native SIMD build measurably beats a
-    # baseline build, and OpenBSD's kernel handles AVX-512 state fine (verified
-    # by a real embed on the bench VM — no SIGILL). Only OpenMP is off: neither
-    # BSD ships libomp in base, and ggml's internal threadpool covers it.
-    CMAKE_ARGS="-DGGML_OPENMP=OFF" FORCE_CMAKE=1 \
-        $PIP install --no-cache-dir --quiet llama-cpp-python
+    # baseline build (OpenBSD paid 30% for a leftover NATIVE=OFF here), and both
+    # BSD kernels handle AVX-512 state fine (verified by real embeds — no SIGILL).
+    # OpenMP: FreeBSD's clang has it; OpenBSD's base lacks libomp, so disable
+    # there (ggml's internal threadpool covers it).
+    #
+    # --no-build-isolation is REQUIRED on the BSDs: pip's isolated build env
+    # pulls cmake/ninja from PyPI, which ship no BSD wheels, and the build dies
+    # "installing backend dependencies". Use the system cmake+ninja (pkg) and
+    # scikit-build-core in the venv instead.
+    have_cmd() { command -v "$1" >/dev/null 2>&1; }
+    if ! have_cmd cmake || ! have_cmd ninja; then
+        log "cmake/ninja missing — install them first (doas pkg_add cmake ninja"
+        log "on OpenBSD; doas pkg install cmake ninja on FreeBSD), then re-run."
+        exit 1
+    fi
+    $PIP install --quiet scikit-build-core
+    LCP_CMAKE_ARGS=""
+    [ "$OS" = "OpenBSD" ] && LCP_CMAKE_ARGS="-DGGML_OPENMP=OFF"
+    CMAKE_ARGS="$LCP_CMAKE_ARGS" FORCE_CMAKE=1 \
+        $PIP install --no-build-isolation --no-cache-dir --quiet llama-cpp-python
 fi
 # OpenBSD-only: the loader's platform allowlist names linux/freebsd but not
 # openbsd, even though openbsd loads .so exactly like them. Add it.
