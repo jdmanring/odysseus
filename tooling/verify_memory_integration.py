@@ -116,6 +116,17 @@ def phase_b_write_search(data_dir: str):
         _fail("B write/search", f"top hit is not the target memory: {top!r}")
     _ok("B write/search", f"llama.cpp embed + upsert + paraphrase retrieval "
         f"(top hit {top['memory_id']} score={top['score']})")
+    # End-to-end memory-search latency: query embed + Qdrant search + adapter,
+    # timed through the exact production call. This is the response-time number
+    # users feel; the embedding benchmark alone omits the store round-trip.
+    lat = []
+    for i in range(20):
+        t = time.perf_counter()
+        store.search(QUERY, k=3)
+        lat.append((time.perf_counter() - t) * 1000)
+    lat.sort()
+    print(f"INFO [B e2e-search] memory search end-to-end: "
+          f"p50 {lat[10]:.1f} / p95 {lat[18]:.1f} / max {lat[-1]:.1f} ms (n=20)")
     return store
 
 
