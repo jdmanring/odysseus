@@ -165,10 +165,17 @@ topology). `n_threads_batch` now defaults to `min(8, cpu)`: single-item
 unchanged (5.0 vs 4.9 ms), bulk −15% (override
 `LLAMACPP_EMBED_THREADS_BATCH` for a one-off reindex), and 4-process
 contention degrades gracefully (search p50 19–29 ms, ~55–65 searches/s
-aggregate) instead of collapsing. Cross-platform spot-check (FreeBSD VM,
-12 vCPU, solo protocol): solo embed 5.6 ms, two concurrent processes
-6.3/6.6 ms with the cap vs 17–25 ms uncapped — same mechanism, milder
-severity at the lower core count, same fix. Benchmark hygiene encoded in the tool: it
+aggregate) instead of collapsing. Cross-platform 2-proc spot-checks (12-vCPU
+VMs, solo protocol, capped vs uncapped): FreeBSD 6.3/6.6 vs 17–25 ms (libomp,
+milder at lower core count); Windows 9.7/10.6 vs 11.7/13.8 ms (LLVM libomp
+spins least — mildest case); OpenBSD is the pathological one — its build has
+no OpenMP, and ggml's own spin threadpool livelocks the scheduler when 2×8
+threads oversubscribe 12 vCPUs, giving deterministic ~35 s stalls per embed;
+at 2×4 it runs a clean 13 ms. OpenBSD therefore caps at `min(4, cpu)`
+(costs ~4 ms solo, 7.5 → 11.7 ms; verified live post-deploy at 13.0/13.1 ms
+2-proc). Windows re-measured post-cap: llama.cpp 4.9 ms / fastembed 4.6 —
+per-item parity within day-to-day noise there, superseding the earlier
+"llama.cpp ahead on Windows" reading. Benchmark hygiene encoded in the tool: it
 refuses to run if the store already holds vectors (a leftover server on the
 port silently turns `add()` into duplicate-skips and fakes sub-ms writes).
 
