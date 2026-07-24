@@ -301,7 +301,8 @@ class LlamaCppEmbedClient:
         # and an all-cores spinning OpenMP team per process collapses under
         # multi-process traffic (app + memory MCP: 2 procs on a 24-core host
         # measured 4.9 ms -> 1.3 s per embed with the uncapped pool; capped at
-        # 8 it degrades to ~7-10 ms at 4 procs). Solo cost of the cap: none
+        # 8 the bare embed degrades to ~7-10 ms at 4 procs, a full memory
+        # search to ~20-30 ms p50). Solo cost of the cap: none
         # single-item, ~15% bulk — raise LLAMACPP_EMBED_THREADS_BATCH for a
         # one-off reindex if that ever matters.
         _cpu = os.cpu_count() or 4
@@ -423,7 +424,8 @@ def reset_http_embed_state():
 
 
 def get_embedding_client():
-    """Factory: try HTTP API first, fall back to local fastembed."""
+    """Factory: try HTTP API first, fall back to the local backend
+    (llama.cpp by default; fastembed when opted in)."""
     global _http_embed_down
 
     _factory_start = time.monotonic()
@@ -453,7 +455,7 @@ def get_embedding_client():
             return client
         except Exception as e:
             _http_embed_down = True
-            logger.warning(f"HTTP embedding API unavailable ({e}); using local FastEmbed for the rest of this process")
+            logger.warning(f"HTTP embedding API unavailable ({e}); using the local embedding backend for the rest of this process")
 
     # Fall back to the local backend (llama.cpp GGUF by default; fastembed via
     # EMBEDDING_LOCAL_BACKEND=fastembed).

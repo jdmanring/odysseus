@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
-"""Verify the memory / RAG stack (qdrant-client + an embedding backend) loads.
+"""Verify the memory / RAG stack (qdrant-client + a local embedding backend) loads.
 
-Run after installing requirements.txt. The default embedding backend is llama.cpp
-(nomic GGUF Q8_0) on every platform; fastembed (ONNX) is an opt-in alternative.
-The stack is healthy if EITHER backend imports — that's what powers semantic
-memory, RAG, and personal-doc retrieval.
+Run after installing requirements.txt. The local embedding backend powers
+semantic memory, RAG, and personal-doc retrieval: llama.cpp (GGUF) by default,
+fastembed as the opt-in alternative. The opt-in fastembed path rides on
+`onnxruntime`, whose NATIVE runtime has platform prerequisites pip cannot
+provide:
 
-Each backend has native prerequisites pip alone can't always provide:
+  - Windows: the Microsoft Visual C++ Redistributable (onnxruntime's .pyd links
+    against the MSVC runtime; without it the DLL load fails).
+  - FreeBSD: fastembed's `py-rust-stemmers` dependency has no prebuilt binary and
+    must be compiled with the Rust toolchain.
 
-  - llama.cpp: installs from a prebuilt CPU wheel where one matches; otherwise pip
-    compiles from source, which needs a C/C++ compiler + cmake.
-  - fastembed: pulls in onnxruntime, whose native runtime needs the MSVC
-    Redistributable on Windows and has no FreeBSD/OpenBSD build at all.
-
-A silent failure here demotes semantic memory and RAG to keyword search, so the
-installers check it explicitly and print an actionable fix rather than letting it
-degrade unnoticed at runtime.
+A silent failure here demotes semantic memory and RAG to keyword search, so run
+this check after install — it prints an actionable fix rather than letting the
+stack degrade unnoticed at runtime.
 
 Exit 0 = memory stack healthy; exit 1 = degraded (with remediation printed).
 """
@@ -36,7 +35,7 @@ def _fastembed_fix(err) -> str:
     osname = platform.system()
     if osname == "Windows" and ("DLL load failed" in msg or "onnxruntime" in msg):
         return ("onnxruntime's native runtime needs the Microsoft Visual C++ "
-                "Redistributable. Install it (setup.ps1 does this automatically):\n"
+                "Redistributable. Install it:\n"
                 "      https://aka.ms/vs/17/release/vc_redist.x64.exe  "
                 "(run with /install /quiet /norestart)")
     if "py-rust-stemmers" in msg or "Rust not found" in msg or "cargo" in msg:
@@ -51,34 +50,29 @@ def _fastembed_fix(err) -> str:
 
 def main() -> int:
     problems = []
-    is_bsd = platform.system() in ("FreeBSD", "OpenBSD")
-    bsd_fix = "run  sh tooling/provision_bsd_memory.sh  (installs the BSD memory stack)"
 
     err = _import_error("qdrant_client")
     if err is not None:
-        problems.append(("qdrant-client", err,
-                         bsd_fix if is_bsd else "pip install qdrant-client"))
+        problems.append(("qdrant-client", err, "pip install qdrant-client"))
 
     # Embedding backend: llama.cpp (GGUF) is the default everywhere; fastembed
-    # (onnxruntime) is an opt-in alternative that runs only where onnxruntime does
-    # (not the BSDs). The stack is healthy if EITHER loads — check the default
-    # first, then fall back to recognizing fastembed.
+    # (onnxruntime) is the opt-in alternative and has no build at all on the
+    # BSDs. Either backend yields a working stack, so this check is healthy if
+    # EITHER loads. Importing fastembed exercises onnxruntime's native load.
     backend = None
-    lc_err = _import_error("llama_cpp")
-    if lc_err is None:
-        backend = "llama.cpp"
+    fe_err = _import_error("fastembed") or _import_error("onnxruntime")
+    if fe_err is None:
+        backend = "fastembed"
     else:
-        fe_err = _import_error("fastembed") or _import_error("onnxruntime")
-        if fe_err is None:
-            backend = "fastembed"
+        lc_err = _import_error("llama_cpp")
+        if lc_err is None:
+            backend = "llama.cpp"
         else:
-            fix = bsd_fix if is_bsd else (
-                "install the default backend:  pip install llama-cpp-python "
-                "(prebuilt wheel: --extra-index-url "
-                "https://abetlen.github.io/llama-cpp-python/whl/cpu).  OR opt into "
-                "fastembed: " + _fastembed_fix(fe_err)
-            )
-            problems.append(("embedding backend", lc_err, fix))
+            problems.append((
+                "embedding backend", fe_err,
+                _fastembed_fix(fe_err) + "  OR install the llama.cpp fallback "
+                "(FreeBSD: pkg install py312-llama-cpp-python).",
+            ))
 
     if not problems:
         print(f"ok  Memory stack healthy - qdrant-client + {backend} embedding backend load.")

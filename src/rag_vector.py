@@ -13,7 +13,7 @@ import logging
 import numpy as np
 from typing import List, Dict, Any, Optional, Set
 
-from src.constants import CHROMA_DIR
+from src.constants import QDRANT_STORAGE_DIR
 from pathlib import Path
 
 from src.embedding_lanes import (
@@ -70,7 +70,7 @@ def _rewrite_owner_path(value: str, path_map: Dict[str, str], path_prefixes: Lis
 class VectorRAG:
     """RAG system using Qdrant vector storage with hybrid search."""
 
-    def __init__(self, persist_directory: str = CHROMA_DIR):
+    def __init__(self, persist_directory: str = QDRANT_STORAGE_DIR):
         self.persist_directory = persist_directory
         self._collection = None
         self._model = None

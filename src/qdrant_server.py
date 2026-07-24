@@ -6,12 +6,16 @@ networked deployment — share one concurrent store. This is what the single-wri
 embedded/local mode cannot do.
 
 Binary resolution, in order:
-  1. `shutil.which("qdrant")` — FreeBSD (pkg) and OpenBSD (built from source) install
+  1. `QDRANT_BIN` — explicit path to a qdrant binary.
+  2. `shutil.which("qdrant")` — FreeBSD (pkg) and OpenBSD (built from source) install
      it on PATH; also honours a system/admin-provided binary anywhere.
-  2. `BinManager.ensure_binary("qdrant")` — downloads the pinned official static
-     release for Linux/macOS/Windows.
-  3. None → caller falls back to embedded local mode (e.g. OpenBSD if the build is
-     absent).
+  3. `tooling.bin_manager.BinManager.ensure_binary("qdrant")`, if that optional
+     helper exists in the tree (it is not part of this change; the import is
+     guarded and its absence is expected).
+  4. None → caller falls back to the embedded local store. That fallback is
+     single-process by design: a second process (e.g. the memory MCP server)
+     cannot open the same storage, so install the qdrant binary for full
+     multi-process operation.
 
 `ensure_running()` is idempotent and safe across processes: if something already
 answers on the port it just returns True (the MCP subprocess thus connects to the
@@ -39,6 +43,10 @@ def _binary():
     global _resolved_binary
     if _resolved_binary is not None:
         return _resolved_binary or None
+    env_bin = os.environ.get("QDRANT_BIN")
+    if env_bin and os.path.isfile(env_bin) and os.access(env_bin, os.X_OK):
+        _resolved_binary = env_bin
+        return env_bin
     found = shutil.which("qdrant")
     if not found:
         try:
