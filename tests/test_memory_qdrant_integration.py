@@ -69,7 +69,7 @@ def test_memory_store_add_search_remove_through_real_qdrant(real_qdrant, tmp_pat
     assert [l.dimension for l in mv._lanes] == [_DIM]
 
     mv.rebuild([
-        {"id": "m1", "text": "the s6 init system on artix linux"},
+        {"id": "m1", "text": "a minimal init system on a rolling-release distro"},
         {"id": "m2", "text": "aria2c replaced hf_transfer for downloads"},
         {"id": "m3", "text": "dinner reservation friday at seven"},
     ])
