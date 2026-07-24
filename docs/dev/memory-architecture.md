@@ -85,7 +85,17 @@ at a time, host and guest independently verified idle, two consistent passes**
 | Linux host (Zen 4) | native (GCC-class, AVX-512+VNNI+BF16) | 4.9 ms | ~207 docs/s |
 | Windows | **Clang+Ninja native + OpenMP** (AVX-512+VNNI+BF16) | 5.3–5.5 ms | 175–187 docs/s |
 | FreeBSD | native clang (AVX-512+VNNI+BF16) | 5.3–5.7 ms | 179–187 docs/s |
-| macOS x86_64 | patched sdist, SIMD+AVX-512 on, BLAS off | 5.4–5.9 ms | 183–191 docs/s |
+| macOS x86_64 | patched sdist, SIMD+AVX-512 on, BLAS off | 5.4–5.9 ms | 155–191 docs/s |
+
+macOS provisioning is automated: `start-macos.sh` runs
+`tooling/provision_macos_embeddings.py` — a no-op on Apple Silicon (current
+wheels are optimal), the patched SIMD build on Intel (idempotent, verified
+end-to-end on the bench: the script-produced build reproduces the hand-built
+numbers, 5.7–5.9 ms). Metal stays ON for real Macs; `ODYSSEUS_MAC_NO_METAL=1`
+covers Metal-less VMs. The Metal-ON path is untested on real hardware (no
+physical Mac in the fleet) — bounded by the fastembed fallback and the setup
+verifier. Real-hardware expectations: Apple Silicon top tier out of the box,
+Xeon-W Intel ≈ these numbers, Core-family Intel ≈ 8 ms (AVX2, no AVX-512).
 | OpenBSD | native clang (AVX-512+VNNI+BF16) | 7.0 ms | ~142 docs/s |
 
 **Reading the spread — a stack of priced taxes, not mystery variance.** Linux
@@ -445,7 +455,9 @@ Done and validated:
   running on the host and both host and guest verified idle (cross-VM qemu
   load silently inflated several early figures); Windows post-install churn
   (Defender + mscorsvw + SearchIndexer after a Build Tools install) fakes a
-  regression for ~10 minutes; a macOS guest burning ~1.7 cores decoding an
+  regression for ~10 minutes, and macOS does the same via XProtectRemediator +
+  trustd scanning freshly installed native binaries — gate on the scanner
+  process being gone, not just CPU%; a macOS guest burning ~1.7 cores decoding an
   animated aerial wallpaper polluted every early macOS number (static
   wallpaper now set); wrong-cause history: OpenBSD's early 9.2 ms was blamed
   on platform hardening but was our provisioning script's `GGML_NATIVE=OFF`,
