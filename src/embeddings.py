@@ -305,9 +305,18 @@ class LlamaCppEmbedClient:
         # search to ~20-30 ms p50). Solo cost of the cap: none
         # single-item, ~15% bulk — raise LLAMACPP_EMBED_THREADS_BATCH for a
         # one-off reindex if that ever matters.
+        #
+        # OpenBSD is capped harder (4): its build has no OpenMP, and ggml's own
+        # spin threadpool livelocks the scheduler when two processes' pools
+        # exceed the CPU count — measured on a 12-vCPU guest: 2x8 threads gave
+        # deterministic ~35 s stalls per embed; 2x4 runs at 13 ms. The cap
+        # costs ~4 ms solo (7.5 -> 11.7 ms) and buys a working two-process
+        # topology, which is not optional.
+        import sys as _sys
         _cpu = os.cpu_count() or 4
+        _batch_cap = 4 if _sys.platform.startswith("openbsd") else 8
         n_threads = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS", str(min(4, _cpu)))))
-        n_threads_batch = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS_BATCH", str(min(8, _cpu)))))
+        n_threads_batch = max(1, int(os.getenv("LLAMACPP_EMBED_THREADS_BATCH", str(min(_batch_cap, _cpu)))))
         # nomic-v1.5's GGUF trains at 2048 tokens; memory/RAG snippets are far
         # shorter, so 2048 is ample and avoids llama.cpp's n_ctx>n_ctx_train
         # overflow warning that 8192 triggers for no benefit.
