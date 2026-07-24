@@ -165,7 +165,10 @@ topology). `n_threads_batch` now defaults to `min(8, cpu)`: single-item
 unchanged (5.0 vs 4.9 ms), bulk −15% (override
 `LLAMACPP_EMBED_THREADS_BATCH` for a one-off reindex), and 4-process
 contention degrades gracefully (search p50 19–29 ms, ~55–65 searches/s
-aggregate) instead of collapsing. Benchmark hygiene encoded in the tool: it
+aggregate) instead of collapsing. Cross-platform spot-check (FreeBSD VM,
+12 vCPU, solo protocol): solo embed 5.6 ms, two concurrent processes
+6.3/6.6 ms with the cap vs 17–25 ms uncapped — same mechanism, milder
+severity at the lower core count, same fix. Benchmark hygiene encoded in the tool: it
 refuses to run if the store already holds vectors (a leftover server on the
 port silently turns `add()` into duplicate-skips and fakes sub-ms writes).
 
