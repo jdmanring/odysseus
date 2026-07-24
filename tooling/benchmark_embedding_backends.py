@@ -257,6 +257,131 @@ _LONG_F = (
     "Elena's place instead of the library annex, potluck rules as usual."
 )
 
+# Stale-vs-current: the most common real memory hazard — an updated fact
+# coexists with its outdated predecessor, and the query asks for the CURRENT
+# state. The target carries recency markers ("switched", "no longer", "as
+# of"); the decoy is the stale memory. A model that keys on topic words alone
+# retrieves the outdated fact.
+HARD_STALE = [
+    ("what does the user drink in the morning now",
+     "As of June the user switched to green tea in the mornings and cut out coffee.",
+     "The user drinks two cups of black coffee every morning."),
+    ("where does the user currently work",
+     "The user left the agency in May and now works at a small robotics startup.",
+     "The user works as a designer at a downtown advertising agency."),
+    ("does the user still run with the Tuesday group",
+     "The user stopped attending the Tuesday running group after the schedule changed.",
+     "The user runs with a group every Tuesday evening in the park."),
+    ("what phone does the user use these days",
+     "The user replaced the cracked handset with a mid-range Android in April.",
+     "The user carries an older iPhone with a badly cracked screen."),
+    ("is the user vegetarian at the moment",
+     "Since January the user eats fish again but otherwise keeps a vegetarian diet.",
+     "The user has been strictly vegetarian for three years."),
+    ("which streaming services does the user pay for now",
+     "The user cancelled two streaming subscriptions and kept only the documentary service.",
+     "The user subscribes to three streaming services for films and sports."),
+    ("does the user still own the motorcycle",
+     "The user sold the motorcycle last autumn after the second big repair bill.",
+     "The user rides a vintage motorcycle on dry weekends."),
+    ("what is the user's current apartment situation",
+     "The user moved to a two-bedroom flat near the station in March.",
+     "The user rents a studio apartment above the bakery."),
+]
+
+# Numeric/detail precision: memories that differ mainly in a number, unit, or
+# date attached to different contexts — retrieval must bind the quantity to
+# the right entity, not just match the digits or the domain.
+HARD_NUMERIC = [
+    ("what dose of vitamin D does the user take",
+     "The user takes 2000 IU of vitamin D daily through the winter.",
+     "The user takes 200 mg of magnesium before bed."),
+    ("when is the user's passport due for renewal",
+     "The user's passport expires in March 2027.",
+     "The user's driving licence was renewed in March 2023."),
+    ("how big is the user's offsite backup drive",
+     "The user's offsite backup drive holds 4 TB and rotates monthly.",
+     "The user's first computer had a 4 GB hard drive."),
+    ("what temperature does the user keep the house at overnight",
+     "The user sets the thermostat to 17 degrees overnight.",
+     "The user brews green tea at 70 degrees to avoid bitterness."),
+    ("how many people came to the user's birthday dinner",
+     "Nine friends came to the user's birthday dinner at the ramen place.",
+     "The user's team has nine engineers across two time zones."),
+    ("how long is the user's bicycle commute",
+     "The user's bicycle commute takes about twenty-five minutes each way.",
+     "The user's old train commute took forty minutes before the move."),
+]
+
+# Relational binding: the fact belongs to someone in the user's orbit, and a
+# same-domain memory about the USER is the trap. Retrieval must bind the
+# attribute to the right person, not just the right topic.
+HARD_RELATION = [
+    ("what breed is the user's sister's dog",
+     "The user's sister has a border collie named Juno.",
+     "The user's dog is a rescue beagle afraid of thunder."),
+    ("what instrument does the user's daughter play",
+     "The user's daughter practices cello on school nights.",
+     "The user plays bass guitar in a weekend cover band."),
+    ("which city does the user's brother live in",
+     "The user's brother moved to Rotterdam for a shipping job.",
+     "The user visited Rotterdam once for a weekend conference."),
+    ("what allergy does the user's partner have",
+     "The user's partner is allergic to peanuts, which are kept out of the house.",
+     "The user is allergic to shellfish but not to fish."),
+    ("what car does the user's father drive",
+     "The user's father drives an old diesel estate he refuses to replace.",
+     "The user drives a small hybrid hatchback for the commute."),
+    ("where does the user's roommate work",
+     "The user's roommate does night shifts at the hospital pharmacy.",
+     "The user picks up prescriptions at the corner pharmacy."),
+]
+
+# Background filler: plausible unrelated memories that pad the pool toward a
+# lived-in store's density. Never queried; every one is a ranking distractor.
+HARD_FILLER = [
+    "The user prefers window seats on long train rides.",
+    "The user's favourite season is autumn for the cool air.",
+    "The user keeps a paper notebook for daily task planning.",
+    "The user waters the houseplants on a Sunday schedule.",
+    "The user bakes sourdough most weekends.",
+    "The user studied geology before switching to software.",
+    "The user's desk faces a maple tree that turns red in October.",
+    "The user grinds spice blends for curries by hand.",
+    "The user swims laps at the community pool on Fridays.",
+    "The user restores old film cameras as a hobby.",
+    "The user reads science fiction before falling asleep.",
+    "The user learned to solder building amateur radio kits.",
+    "The user backs up photos to two separate external drives.",
+    "The user's first concert was an outdoor festival in the rain.",
+    "The user keeps the spice rack alphabetized and defends the practice.",
+    "The user donates blood every eight weeks at the clinic drive.",
+    "The user picks up fresh bread from the Saturday market.",
+    "The user's houseplant collection started with a single pothos.",
+    "The user prefers mechanical pencils for margin notes.",
+    "The user hikes the ridge trail when the weather cooperates.",
+    "The user keeps an emergency kit in the hall closet, checked yearly.",
+    "The user's favourite board game night is the first Friday of the month.",
+    "The user learned three chords on ukulele and stalled there.",
+    "The user salts pasta water generously and judges those who don't.",
+    "The user runs the dishwasher only after ten to save on the tariff.",
+    "The user keeps birthday reminders two weeks ahead of the date.",
+    "The user's umbrella lives permanently in the office, not at home.",
+    "The user labels leftovers with masking tape and a date.",
+    "The user takes the stairs below the fifth floor on principle.",
+    "The user's favourite mug is the chipped one from the old office.",
+    "The user listens to podcasts at normal speed, never sped up.",
+    "The user keeps receipts in a shoebox until tax season.",
+    "The user plants bulbs every November and forgets where by spring.",
+    "The user's go-to weeknight dinner is a frittata with whatever's left.",
+    "The user re-reads one favourite novel every December.",
+    "The user keeps the car's fuel above half in winter out of habit.",
+    "The user prefers texting to calls except with family.",
+    "The user's gym bag stays packed by the door on weekdays.",
+    "The user sharpens the kitchen knives on the first of the month.",
+    "The user saves fortune cookie slips in a desk drawer.",
+]
+
 HARD_LONG = [
     # (query, long_doc_with_late_fact, short_same_topic_decoy)
     ("how often does the guest network password change", _LONG_A,
@@ -274,18 +399,31 @@ HARD_LONG = [
 ]
 
 
+HARD_SECTIONS = [
+    ("trap", HARD_TRAPS),
+    ("stale", HARD_STALE),
+    ("numeric", HARD_NUMERIC),
+    ("relation", HARD_RELATION),
+    ("long", HARD_LONG),
+]
+
+
 def evaluate_hard(client, name):
-    """Score the hard set: one pooled index (like a real memory store), report
-    per-section top-1. Deterministic per backend — no repetition needed."""
+    """Score the hard set: ONE pooled index across every section plus the
+    background filler (like a lived-in memory store — every stored memory is
+    a ranking distractor for every query), report per-section top-1.
+    Deterministic per backend — no repetition needed."""
     pool, owners = [], []
-    for i, (_q, target, decoy) in enumerate(HARD_TRAPS):
-        pool += [target, decoy]; owners += [("trap", i, True), ("trap", i, False)]
-    for i, (_q, long_doc, decoy) in enumerate(HARD_LONG):
-        pool += [long_doc, decoy]; owners += [("long", i, True), ("long", i, False)]
+    for section, items in HARD_SECTIONS:
+        for i, (_q, target, decoy) in enumerate(items):
+            pool += [target, decoy]
+            owners += [(section, i, True), (section, i, False)]
+    pool += HARD_FILLER
+    owners += [("filler", i, False) for i in range(len(HARD_FILLER))]
     doc_vecs = np.asarray(client.encode(pool, is_query=False), dtype="float32")
-    scores = {"trap": [0, 0], "long": [0, 0]}
+    scores = {s: [0, 0] for s, _ in HARD_SECTIONS}
     misses = []
-    for section, items in (("trap", HARD_TRAPS), ("long", HARD_LONG)):
+    for section, items in HARD_SECTIONS:
         for i, item in enumerate(items):
             q = item[0]
             qv = np.asarray(client.encode([q], is_query=True), dtype="float32")[0]
@@ -295,9 +433,11 @@ def evaluate_hard(client, name):
                 scores[section][0] += 1
             else:
                 misses.append((section, q, pool[top][:60]))
-    t, l = scores["trap"], scores["long"]
-    print(f"  {name:16s} HARD traps {t[0]}/{t[1]}  long-docs {l[0]}/{l[1]}  "
-          f"overall {(t[0] + l[0]) / (t[1] + l[1]):.3f}")
+    total_hit = sum(v[0] for v in scores.values())
+    total_n = sum(v[1] for v in scores.values())
+    parts = "  ".join(f"{s} {v[0]}/{v[1]}" for s, v in scores.items())
+    print(f"  {name:16s} HARD [{len(pool)}-doc pool] {parts}  "
+          f"overall {total_hit / total_n:.3f}")
     if os.environ.get("BENCH_HARD_VERBOSE") == "1":
         for section, q, hit in misses:
             print(f"      miss [{section}] {q!r} -> {hit!r}...")
