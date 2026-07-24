@@ -48,11 +48,39 @@ class BinManager:
             # (The previous Darwin entries pointed at non-existent assets, 404'd.)
             # Windows x86_64
             ("Windows", "AMD64"): (
-                "https://github.com/abcfy2/aria2-static-build/releases/download/1.37.0/aria2-x86_64-w64-mingw32_static.zip", 
-                "zip", 
+                "https://github.com/abcfy2/aria2-static-build/releases/download/1.37.0/aria2-x86_64-w64-mingw32_static.zip",
+                "zip",
                 "aria2c.exe"
             ),
-        }
+        },
+        # Qdrant vector-store server. Official static releases cover
+        # Linux/macOS/Windows; FreeBSD ships it as a package and OpenBSD builds it
+        # from source, so those two resolve via shutil.which (get_platform returns
+        # "FreeBSD"/"OpenBSD", which is intentionally absent here). Pin the version
+        # to the qdrant-client the app depends on. Linux uses the musl static build
+        # so it runs regardless of the host glibc.
+        "qdrant": {
+            ("Linux", "x86_64"): (
+                "https://github.com/qdrant/qdrant/releases/download/v1.18.3/qdrant-x86_64-unknown-linux-musl.tar.gz",
+                "tar.gz", "qdrant",
+            ),
+            ("Linux", "aarch64"): (
+                "https://github.com/qdrant/qdrant/releases/download/v1.18.3/qdrant-aarch64-unknown-linux-musl.tar.gz",
+                "tar.gz", "qdrant",
+            ),
+            ("Darwin", "x86_64"): (
+                "https://github.com/qdrant/qdrant/releases/download/v1.18.3/qdrant-x86_64-apple-darwin.tar.gz",
+                "tar.gz", "qdrant",
+            ),
+            ("Darwin", "arm64"): (
+                "https://github.com/qdrant/qdrant/releases/download/v1.18.3/qdrant-aarch64-apple-darwin.tar.gz",
+                "tar.gz", "qdrant",
+            ),
+            ("Windows", "AMD64"): (
+                "https://github.com/qdrant/qdrant/releases/download/v1.18.3/qdrant-x86_64-pc-windows-msvc.zip",
+                "zip", "qdrant.exe",
+            ),
+        },
     }
 
     @classmethod
