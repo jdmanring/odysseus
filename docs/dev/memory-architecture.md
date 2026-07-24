@@ -83,24 +83,36 @@ at a time, host and guest independently verified idle, two consistent passes**
 | Platform (12-vCPU VMs; Linux bare metal) | llama.cpp build | per-item p50 | bulk |
 |---|---|---|---|
 | Linux host (Zen 4) | native (GCC-class, AVX-512+VNNI+BF16) | 4.9 ms | ~207 docs/s |
+| Windows | **Clang+Ninja native + OpenMP** (AVX-512+VNNI+BF16) | 5.3–5.5 ms | 175–187 docs/s |
 | FreeBSD | native clang (AVX-512+VNNI+BF16) | 5.3–5.7 ms | 179–187 docs/s |
-| Windows | **Clang+Ninja native** (AVX-512+VNNI+BF16) | 6.2–6.4 ms | 178 docs/s |
+| macOS x86_64 | patched sdist, SIMD+AVX-512 on, BLAS off | 5.4–5.9 ms | 183–191 docs/s |
 | OpenBSD | native clang (AVX-512+VNNI+BF16) | 7.0 ms | ~142 docs/s |
-| macOS x86_64 | patched sdist, SIMD on, BLAS off | 8.1 ms | 130 docs/s |
 
 Reference points, same protocol: fastembed 5.8–6.1 ms / ~300–317 docs/s
 (Linux/Windows); the generic wheel on Windows 7.0 ms / 140–145 (same slot as
 its Clang rival). Accuracy is identical everywhere (top-1 0.917 / top-3 1.000).
-So per-item, native llama.cpp meets or beats fastembed on Linux, FreeBSD, and
-Windows; bulk remains fastembed's win (~1.6×) and only matters on one-off
-reindexes.
+So per-item, native llama.cpp meets or beats fastembed on every platform
+except OpenBSD (see its note); bulk remains fastembed's win (~1.6×) and only
+matters on one-off reindexes.
 
-Windows specifics — three builds, one winner:
-- **Clang+Ninja native: 6.2–6.4 ms / 178 docs/s — the deployed config.** LLVM 19
-  + `pip install ninja`, then `CC/CXX=clang(.exe)`, `RC=llvm-rc.exe`,
-  `--config-settings=cmake.args=-GNinja`. (Upstream's own build docs recommend
-  Clang on Windows.) MAX_PATH: the sdist needs `LongPathsEnabled=1` + a short
-  `TMP` to even extract.
+**OpenBSD's residual gap is a deliberate security tax, measured and accepted.**
+An A/B/B/A/B/A alternation showed default hardened malloc at 7.0–9.4 ms
+(state-dependent) vs a rock-stable 6.9 ms with `MALLOC_OPTIONS=jfu` (junking,
+freecheck, and free-unmap disabled); bulk is unaffected. **We do not deploy
+the relaxation**: weakened malloc hardening is antithetical to running OpenBSD
+in the first place. The measurement stands as the explanation of the gap, not
+as an option. Kernel mitigations account for the remainder.
+
+Windows specifics — the deployed config and two dead ends:
+- **Clang+Ninja native with OpenMP: 5.3–5.5 ms / 175–187 docs/s.** LLVM 19 +
+  `pip install ninja`, then `CC/CXX=clang(.exe)`, `RC=llvm-rc.exe`,
+  `--config-settings=cmake.args=-GNinja;-DGGML_OPENMP=ON` plus explicit
+  `OpenMP_*` cache entries pointing at LLVM's libomp (find_package won't find
+  it alone), and **copy `libomp.dll` next to `llama.dll`** or the module fails
+  to load. OpenMP alone was worth ~1 ms (6.2–6.4 without it). (Upstream's own
+  build docs recommend Clang on Windows.) MAX_PATH: the sdist needs
+  `LongPathsEnabled=1` + a short `TMP` to even extract. Defender: exclude the
+  project dir on benches or every rebuild eats a 10-minute scan tax.
 - MSVC: `GGML_NATIVE` is a no-op (no `-march=native`); plain build ≈ wheel, and
   explicit `GGML_AVX512[_VNNI/_VBMI]` *regressed* to 9.9–10.3 ms — MSVC's
   AVX-512 codegen pessimizes these kernels (`GGML_AVX512_BF16` doesn't compile
@@ -152,13 +164,17 @@ facts cap this platform, none of them ours to fix in config:
    8.1 ms / 130 with BLAS off — Accelerate cost 30% of bulk throughput for a
    quantized model.
 
-Bench-VM caveat recorded for honesty: the macOS VM is **not** host-passthrough
-despite its libvirt `<cpu>` element claiming so — a `qemu:commandline` `-cpu
-Haswell-noTSX,...` override wins, so the guest runs a Haswell feature mask (no
-AVX-512). Its 8.1 ms is therefore not comparable to the Zen 4 numbers above.
-Real Apple-silicon Macs are unaffected by all of this (arm64 wheels are
-current, Metal exists, NEON is on). Treat x86_64 macOS as a compatibility
-platform, not a performance one.
+Bench-VM notes: the macOS VM is **not** host-passthrough despite its libvirt
+`<cpu>` element claiming so — a `qemu:commandline` `-cpu Haswell-noTSX,...`
+override wins. Appending `+avx512f,+avx512dq,+avx512bw,+avx512vl,+avx512vbmi,
++avx512vnni` to that line boots fine, macOS enables the AVX-512 XSAVE state
+(verified by a real embed — no SIGILL; macOS shipped AVX-512 Xeon-W hardware),
+and the resulting VNNI build took the bench from 8.1 ms / 130 to
+**5.4–5.9 ms / 183–191**. Caveat for real deployments: most Intel Macs are
+Core-family with no AVX-512 (only iMac Pro / Mac Pro Xeon-W have it), so
+expect the AVX2 tier (~8 ms) on typical Intel-Mac hardware. Apple-silicon
+Macs are unaffected by all of this (arm64 wheels are current, Metal exists,
+NEON is on).
 
 **Odysseus is already a llama.cpp/GGUF-native app; embeddings were the lone
 exception.** Local LLM inference already runs through `llama-server` as a first-class
