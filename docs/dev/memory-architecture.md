@@ -444,7 +444,9 @@ multi-GPU machines (CUDA builds use CUDA_VISIBLE_DEVICES instead). The
 default changes nothing anywhere: a CPU-only llama-cpp-python build
 ignores the flag entirely.
 
-Why this exists, measured (Biscuit placement study, 2026-07-25): on the
+Why this exists, measured (placement study in the author's Biscuit
+benchmark suite, 2026-07-25; the suite is separate from this repo and
+not yet published, so the figures that matter are reproduced here): on the
 smallest iGPU AMD ships (2 CUs), embedding throughput under a fully
 saturated CPU is 42-43 docs/s where CPU-only embedding collapses to
 0.6-1.5 - at least a 28x advantage (the verified-idle rerun measured
@@ -484,9 +486,10 @@ current design doesn't do.
 
 ### The stale-fact problem is architectural, not a model choice
 
-The memory retrieval benchmark's stale section (an updated fact coexists with
-its outdated predecessor; the query asks for the current state) fails for all
-18 embedding models tested: best 0.67, most below 0.55. No embedding model
+The stale section of the author's memory retrieval benchmark (an updated
+fact coexists with its outdated predecessor; the query asks for the
+current state) fails for all 18 embedding models tested: best 0.67, most
+below 0.55. No embedding model
 ranks "switched to green tea in June" above "drinks two cups of coffee every
 morning" reliably, because both are excellent semantic matches for the query.
 The fix has to happen at write time: when a fact is updated, its predecessor
@@ -496,8 +499,9 @@ must stop competing in search at all.
 
 Doc-doc cosine with the production embedder (nomic Q8_0, search_document
 prefix both sides) was measured on the benchmark's labeled pairs
-(2026-07-25; probe in the benchmark repo, distributions reproduced in
-`src/memory_supersede.py`):
+(2026-07-25; the probe lives in the benchmark suite, which is not yet
+published, so the distributions the thresholds rest on are reproduced in
+full in `src/memory_supersede.py` and below):
 
 | pair class | n | min | median | max |
 |---|---|---|---|---|
