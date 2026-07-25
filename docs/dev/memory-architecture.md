@@ -433,6 +433,34 @@ Whichever is chosen, decide it with a retrieval benchmark on **multilingual** pa
 (where the gain actually shows), not English — on English our own benchmark is flat
 across models and would hide the difference.
 
+### Optional GPU offload for the embedder (vendor-neutral)
+
+`ODYSSEUS_EMBED_GPU_LAYERS` (default 0) offloads the llama.cpp embedder to
+a GPU; `ODYSSEUS_EMBED_GPU_DEVICE` picks the Vulkan device index on
+multi-GPU machines (CUDA builds use CUDA_VISIBLE_DEVICES instead). The
+default changes nothing anywhere: a CPU-only llama-cpp-python build
+ignores the flag entirely.
+
+Why this exists, measured (Biscuit placement study, 2026-07-25): on the
+smallest iGPU AMD ships (2 CUs), embedding throughput under a fully
+saturated CPU is 42 docs/s where CPU-only embedding collapses to 1.5 -
+a 28x advantage, with paired-test score neutrality (1-0 discordant
+queries vs CPU kernels). The architecture point is resource negotiation:
+the LLM owns the discrete GPU, the app owns the CPU, and the iGPU is the
+one device nothing else contends for, over unified memory. On 780M-class
+APU mini-PCs the same path plausibly wins outright even solo.
+
+Vendor-neutral by construction: n_gpu_layers is honored by every
+llama.cpp GPU backend, and the Vulkan backend covers AMD (RADV), Intel
+(ANV/Arc), and NVIDIA without any vendor toolkit. Requires a
+llama-cpp-python built with GGML_VULKAN (or CUDA/Metal); who should turn
+it on: multi-GPU or APU machines where the CPU is busy - which is every
+machine actually running a local assistant.
+
+Verified live on the production client: gpu_layers=99, device 1 (RADV
+iGPU), 18.4 ms query p50 with correct 256-dim output, matching the
+study's independent measurement.
+
 ### Cross-platform vector compatibility
 
 fastembed (INT8 ONNX) and llama.cpp (Q8 GGUF) are different quantizations of the
