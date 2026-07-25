@@ -2,7 +2,7 @@
 RAG-based tool selection for agent mode.
 
 Instead of injecting all tool descriptions into the system prompt,
-embed them in a ChromaDB collection and retrieve only the top-K
+embed them in a Qdrant collection and retrieve only the top-K
 relevant ones per user message.
 """
 
@@ -140,7 +140,7 @@ BUILTIN_TOOL_DESCRIPTIONS: Dict[str, str] = {
 
 
 class ToolIndex:
-    """ChromaDB-backed tool index for RAG-based tool selection."""
+    """Qdrant-backed tool index for RAG-based tool selection."""
 
     def __init__(self):
         self._lanes = build_embedding_lanes(COLLECTION_NAME)

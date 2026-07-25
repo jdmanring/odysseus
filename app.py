@@ -1248,6 +1248,13 @@ async def _startup_event():
 
 async def _shutdown_event():
     logger.info("Application shutting down...")
+    # Stop the app-managed Qdrant server if this process launched it (no-op
+    # otherwise, e.g. in a subprocess that only connected).
+    try:
+        from src import qdrant_server
+        qdrant_server.stop()
+    except Exception:
+        pass
     if upload_cleanup_task:
         upload_cleanup_task.cancel()
         try:

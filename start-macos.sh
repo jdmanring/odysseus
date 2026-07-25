@@ -143,6 +143,11 @@ if [ ! -f "$REQ_HASH_FILE" ] || [ "$REQ_HASH" != "$(cat "$REQ_HASH_FILE" 2>/dev/
   "$VENV_PY" -m pip install --quiet --upgrade pip
   # Not --quiet: this is the slow step, so show progress (and any real errors).
   "$VENV_PY" -m pip install -r requirements.txt
+  # Intel Macs: the llama-cpp-python wheel index is broken/stale for x86_64
+  # macOS and the sdist disables SIMD there — provision the patched optimal
+  # build (no-op on Apple Silicon; see the script docstring).
+  "$VENV_PY" tooling/provision_macos_embeddings.py \
+      || echo "   (embedding build provisioning incomplete; semantic memory may run on fastembed)" >&2
   echo "$REQ_HASH" > "$REQ_HASH_FILE"
 else
   echo "▶ Python packages up to date — skipping install"
