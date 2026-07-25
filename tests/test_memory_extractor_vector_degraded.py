@@ -91,7 +91,8 @@ def test_healthy_vector_store_still_dedups_normally(monkeypatch):
     metadata, so a hit is only treated as a duplicate when the matched id
     resolves to this user's own (or legacy unowned) memory — otherwise the
     fact would be a cross-tenant false drop. Here the match is alice's own
-    memory, so the dedup must still fire."""
+    memory at ambiguous similarity (below the supersede AUTO threshold), so
+    the dedup must still fire."""
 
     async def _fake_llm(url, model, messages, **kwargs):
         return '[{"text": "Alice lives in Lisbon", "category": "fact"}]'
@@ -110,8 +111,10 @@ def test_healthy_vector_store_still_dedups_normally(monkeypatch):
         class _DedupVectorStore:
             healthy = True
 
-            def find_similar(self, text, threshold=0.72):
-                return seeded["id"]  # matches alice's own seeded memory
+            def similar(self, text, k=1, floor=0.0):
+                # 0.72-0.80 band: similarity alone cannot tell update from
+                # duplicate, so the extractor keeps the drop behavior here.
+                return [{"memory_id": seeded["id"], "similarity": 0.75}]
 
             def add(self, memory_id, text):  # pragma: no cover - should not run
                 raise AssertionError("add should not be called for a deduped fact")
@@ -123,3 +126,46 @@ def test_healthy_vector_store_still_dedups_normally(monkeypatch):
         # The new fact was deduped against alice's own memory, so only the
         # seeded entry remains (no duplicate added).
         assert [e["text"] for e in mgr.load(owner="alice")] == ["Alice's home city is Lisbon"]
+
+
+def test_high_similarity_own_match_supersedes_instead_of_dropping(monkeypatch):
+    """>= 0.80 (the measured zero-false-positive tier): the extracted fact is
+    a restatement/update of the user's own memory. It used to be DROPPED,
+    which is how a stale fact outlived the conversation that corrected it.
+    Now the new wording is stored and the old entry retires with history."""
+
+    async def _fake_llm(url, model, messages, **kwargs):
+        return '[{"text": "Alice lives in Lisbon", "category": "fact"}]'
+
+    monkeypatch.setattr(src.llm_core, "llm_call_async", _fake_llm)
+    monkeypatch.setattr(src.event_bus, "fire_event", lambda *a, **k: None)
+
+    with tempfile.TemporaryDirectory() as data_dir:
+        mgr = MemoryManager(data_dir)
+        seeded = mgr.add_entry("Alice's home city is Lisbon", source="auto",
+                               category="fact", owner="alice")
+        mgr.save([seeded])
+
+        class _RestateVectorStore:
+            healthy = True
+            removed = []
+
+            def similar(self, text, k=1, floor=0.0):
+                return [{"memory_id": seeded["id"], "similarity": 0.86}]
+
+            def add(self, memory_id, text):
+                pass
+
+            def remove(self, memory_id):
+                self.removed.append(memory_id)
+
+        vec = _RestateVectorStore()
+        _run(extract_and_store(
+            _FakeSession(), mgr, vec,
+            endpoint_url="http://x", model="m", headers=None,
+        ))
+        entries = {e["text"]: e for e in mgr.load(owner="alice")}
+        assert "Alice lives in Lisbon" in entries          # new fact stored
+        old = entries["Alice's home city is Lisbon"]        # history kept
+        assert old["superseded_by"] == entries["Alice lives in Lisbon"]["id"]
+        assert vec.removed == [seeded["id"]]                # stale left index

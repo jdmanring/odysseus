@@ -476,6 +476,84 @@ bit-identical. Each machine is self-consistent; the small drift only matters if
 memory is ever synced across two machines running different backends, which the
 current design doesn't do.
 
+## Write-time supersede and hybrid recall
+
+### The stale-fact problem is architectural, not a model choice
+
+The memory retrieval benchmark's stale section (an updated fact coexists with
+its outdated predecessor; the query asks for the current state) fails for all
+18 embedding models tested: best 0.67, most below 0.55. No embedding model
+ranks "switched to green tea in June" above "drinks two cups of coffee every
+morning" reliably, because both are excellent semantic matches for the query.
+The fix has to happen at write time: when a fact is updated, its predecessor
+must stop competing in search at all.
+
+### Why supersede is two-tier, not automatic (measured)
+
+Doc-doc cosine with the production embedder (nomic Q8_0, search_document
+prefix both sides) was measured on the benchmark's labeled pairs
+(2026-07-25; probe in the benchmark repo, distributions reproduced in
+`src/memory_supersede.py`):
+
+| pair class | n | min | median | max |
+|---|---|---|---|---|
+| true supersede (new fact vs its outdated predecessor) | 24 | 0.698 | 0.768 | 0.880 |
+| trap (similar wording, both facts must survive) | 30 | 0.583 | 0.690 | 0.754 |
+| cross (unrelated fact pairs) | 552 | 0.468 | 0.613 | 0.760 |
+
+| threshold | supersede recall | trap false-positive | cross false-positive |
+|---|---|---|---|
+| 0.70 | 0.96 | 0.400 | 0.049 |
+| 0.80 | 0.33 | 0.000 | 0.000 |
+
+The distributions overlap: no threshold gives both useful recall and a safe
+false-positive rate, and a false positive silently hides a real memory. So:
+
+* **AUTO tier (>= 0.80, zero measured FP):** applied silently on write.
+  Catches restatements and direct updates. The old entry keeps its JSON
+  record (`superseded_by`, `superseded_at` — history is never destroyed) but
+  leaves the vector index and every recall path.
+* **SUGGEST tier (0.70-0.80):** candidates are returned to the writer — the
+  agent tool result, the MCP response, the `/api/memory/add` response. The
+  writer is the one party that knows "user switched to green tea" replaces
+  the coffee fact; it confirms via the `supersede` action (tool/MCP) or
+  `POST /api/memory/{new_id}/supersede` (API).
+
+The auto-extraction pipeline got the same treatment, fixing a worse bug: it
+used to DROP any extracted fact >= 0.72 similar to an existing one as a
+"duplicate" — and true updates have median similarity 0.768, so roughly half
+of real corrections were discarded while the stale fact lived on. Now >= 0.80
+stores the new wording and retires the old entry; 0.72-0.80 still drops (by
+similarity alone, update vs duplicate is unknowable there — the marked
+upgrade path is an LLM arbitration step in the extraction pipeline).
+
+Thresholds are model-specific (env-tunable via
+`ODYSSEUS_MEMORY_SUPERSEDE_AUTO`/`_SUGGEST`; `ODYSSEUS_MEMORY_SUPERSEDE=0`
+disables): re-run the threshold probe if the embedding model changes.
+
+### Hybrid recall: one implementation for every path
+
+`src/memory_ranking.py` provides shared Okapi BM25 + dense fusion (weights
+0.55 dense / 0.40 lexical / 0.05 recency-tiebreak, the chat path's
+live-tested values). Before it, the chat path hand-rolled a binary-tf BM25
+while the agent recall tool, the MCP server, and the memory API used a
+keyword-category heuristic or vector-only ranking — three different answers
+for the same query. Now recall, MCP search, API search, and the manage_memory
+search action all rank through the shared fusion; the chat hot path keeps its
+own tokenizer and category boosts (live-tested) but shares the fusion shape
+and the superseded filter.
+
+Honest framing of the lexical term: the benchmark's dense+BM25 study
+measured the lift as directionally real but statistically unproven at n=140
+(4-1 discordant queries, p=0.375), landing exactly where dense similarity is
+weakest — stale/temporal wording. It costs nothing at memory-store scale
+(sub-millisecond at thousands of entries) and can only be re-scored, so it
+ships as infrastructure, not as a claimed accuracy win.
+
+Also fixed while wiring: the agent edit path re-embeds now
+(`MemoryVectorStore.update`) — `add()` skips already-indexed ids, so an
+edited memory used to keep ranking by its old text forever.
+
 ## Vector-store layer: Qdrant (replacing ChromaDB)
 
 ### Why the change

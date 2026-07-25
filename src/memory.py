@@ -292,6 +292,9 @@ class MemoryManager:
         """Get memories that are relevant to the query based on text similarity and semantic keyword matching."""
         if not memories or not query.strip():
             return []
+        # Superseded entries keep their JSON history but never surface in recall.
+        memories = [m for m in memories
+                    if not (isinstance(m, dict) and m.get("superseded_by"))]
             
         # Define keyword categories for semantic matching
         identity_words = ["name", "who", "i", "am", "called", "identity", "myself", "me", "my"]
