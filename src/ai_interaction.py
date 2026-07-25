@@ -347,6 +347,7 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
       edit                    — line 2: memory_id, line 3: new text
       delete                  — line 2: memory_id
       search                  — line 2: query
+      supersede               — line 2: new memory_id, line 3: outdated memory_id(s), comma-separated
     """
     if not _memory_manager:
         return {"error": "Memory manager not available"}
@@ -372,7 +373,8 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
             text = m.get("text", "")
             if len(text) > 150:
                 text = text[:150] + "..."
-            result_lines.append(f"- [{cat}] `{mid}` — {text}")
+            stale = " [superseded]" if m.get("superseded_by") else ""
+            result_lines.append(f"- [{cat}] `{mid}` — {text}{stale}")
         return {"results": "\n".join(result_lines)}
 
     elif action == "add":
@@ -389,9 +391,25 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         _memory_manager.save(memories)
 
         # Update vector index if available
+        supersede_note = ""
         if _memory_vector and hasattr(_memory_vector, 'healthy') and _memory_vector.healthy:
             try:
                 _memory_vector.add(entry["id"], text)
+                from src.memory_supersede import on_write
+                supersede = on_write(_memory_manager, _memory_vector, entry)
+                if supersede["superseded"]:
+                    ids = ", ".join(i[:8] for i in supersede["superseded"])
+                    supersede_note += f"\nSuperseded outdated near-duplicate(s): {ids}"
+                if supersede["candidates"]:
+                    cand = "; ".join(
+                        f"`{c['id'][:8]}` \"{c['text'][:80]}\" (sim {c['similarity']})"
+                        for c in supersede["candidates"]
+                    )
+                    supersede_note += (
+                        f"\nPossibly outdated predecessor(s): {cand}. If the new "
+                        f"memory replaces one, confirm with action 'supersede' "
+                        f"(line 2: {entry['id'][:8]}, line 3: old id)."
+                    )
             except Exception:
                 pass
         try:
@@ -401,7 +419,34 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
             logger.debug("memory_added event dispatch failed", exc_info=True)
 
         return {"action": "add", "memory_id": entry["id"],
-                "results": f"Memory added: [{category}] {text}"}
+                "results": f"Memory added: [{category}] {text}" + supersede_note}
+
+    elif action == "supersede":
+        # Explicit confirmation of the SUGGEST tier: the new memory replaces
+        # the listed old ones. line 2: new memory_id, line 3: old id(s),
+        # comma-separated. Prefix matching, ownership enforced.
+        if len(lines) < 3:
+            return {"error": "Supersede needs line 2: new memory_id, line 3: old memory_id(s)"}
+        memories = _memory_manager.load(owner=owner)
+        def _resolve(prefix):
+            prefix = prefix.strip()
+            return next((m["id"] for m in memories
+                         if prefix and m.get("id", "").startswith(prefix)), None)
+        new_full = _resolve(lines[1])
+        if not new_full:
+            return {"error": f"Memory '{lines[1].strip()}' not found"}
+        old_full = [i for i in (_resolve(p) for p in lines[2].split(",")) if i]
+        if not old_full:
+            return {"error": f"No old memories matched '{lines[2].strip()}'"}
+        from src.memory_supersede import apply as apply_supersede
+        applied = apply_supersede(_memory_manager, _memory_vector, new_full,
+                                  old_full, owner=owner)
+        if not applied:
+            return {"error": "Nothing superseded (already superseded, or not yours)"}
+        return {"action": "supersede",
+                "results": f"Superseded {len(applied)} outdated memor"
+                           f"{'y' if len(applied) == 1 else 'ies'}: "
+                           + ", ".join(i[:8] for i in applied)}
 
     elif action == "edit":
         if len(lines) < 3:
@@ -427,10 +472,11 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
             return {"error": f"Memory '{memory_id}' not found"}
         _memory_manager.save(memories)
 
-        # Update vector index
+        # Re-embed: add() skips already-indexed ids, so a plain add() here
+        # would leave the entry ranking by its OLD text forever.
         if _memory_vector and hasattr(_memory_vector, 'healthy') and _memory_vector.healthy:
             try:
-                _memory_vector.add(full_id, new_text)
+                _memory_vector.update(full_id, new_text)
             except Exception:
                 pass
 
@@ -473,11 +519,15 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         if len(lines) < 2:
             return {"error": "Search needs line 2: query"}
         query = lines[1].strip()
-        memories = _memory_manager.load(owner=owner)
+        memories = [m for m in _memory_manager.load(owner=owner)
+                    if not m.get("superseded_by")]
         query_lower = query.lower()
         exact_results = [m for m in memories if query_lower in (m.get("text", "").lower())]
 
-        if hasattr(_memory_manager, 'get_relevant_memories'):
+        if _memory_vector and hasattr(_memory_vector, 'healthy') and _memory_vector.healthy:
+            from src.memory_ranking import hybrid_search
+            vector_results = [m for _, m in hybrid_search(query, memories, _memory_vector, k=20)]
+        elif hasattr(_memory_manager, 'get_relevant_memories'):
             vector_results = _memory_manager.get_relevant_memories(query, memories, threshold=0.05, max_items=20)
         else:
             vector_results = []
@@ -503,7 +553,7 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         return {"results": "\n".join(result_lines)}
 
     else:
-        return {"error": f"Unknown action '{action}'. Use: list, add, edit, delete, search"}
+        return {"error": f"Unknown action '{action}'. Use: list, add, edit, delete, search, supersede"}
 
 
 # ---------------------------------------------------------------------------

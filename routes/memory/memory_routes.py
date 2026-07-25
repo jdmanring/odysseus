@@ -120,14 +120,22 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
         all_mem.append(new_entry)
         memory_manager.save(all_mem)
         # Sync vector index
+        supersede = None
         if memory_vector and memory_vector.healthy:
             memory_vector.add(new_entry["id"], text)
+            from src.memory_supersede import on_write
+            supersede = on_write(memory_manager, memory_vector, new_entry)
         try:
             from src.event_bus import fire_event
             fire_event("memory_added", user)
         except Exception:
             logger.debug("memory_added event dispatch failed", exc_info=True)
-        return {"ok": True, "count": len([m for m in all_mem if m.get("owner") == user])}
+        response = {"ok": True, "count": len([m for m in all_mem if m.get("owner") == user])}
+        if supersede and (supersede["superseded"] or supersede["candidates"]):
+            # candidates are SUGGEST-tier: the client confirms with
+            # POST /{new_id}/supersede {"old_ids": [...]}
+            response["supersede"] = supersede
+        return response
 
     @router.get("")
     def api_get_memory(request: Request):
@@ -147,7 +155,11 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
         if category:
             memories = [m for m in memories if category in m.get("categories", [m.get("category", "")])]
 
-        relevant = memory_manager.get_relevant_memories(query, memories, threshold=0.05, max_items=20)
+        if memory_vector and memory_vector.healthy:
+            from src.memory_ranking import hybrid_search
+            relevant = [m for _, m in hybrid_search(query, memories, memory_vector, k=20)]
+        else:
+            relevant = memory_manager.get_relevant_memories(query, memories, threshold=0.05, max_items=20)
 
         return {"memories": relevant, "total": len(relevant), "query": query}
 
@@ -529,6 +541,30 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
                 return {"ok": True, "message": "Memory updated successfully"}
 
         raise HTTPException(404, f"Memory item {memory_id} not found")
+
+    @router.post("/{memory_id}/supersede")
+    async def supersede_memory(request: Request, memory_id: str):
+        """Confirm SUGGEST-tier supersede: memory_id replaces the old_ids in
+        the JSON body. Old entries keep their record (superseded_by) but
+        leave the vector index and all recall paths."""
+        from src.auth_helpers import require_privilege
+        require_privilege(request, "can_manage_memory")
+        user = _owner(request)
+        body = await request.json()
+        old_ids = body.get("old_ids") or []
+        if not isinstance(old_ids, list) or not old_ids:
+            raise HTTPException(400, "old_ids must be a non-empty list")
+        new_entry = next((m for m in memory_manager.load_all()
+                          if m.get("id") == memory_id), None)
+        if new_entry is None:
+            raise HTTPException(404, "Memory not found")
+        _verify_memory_owner(new_entry, user)
+        from src.memory_supersede import apply as apply_supersede
+        applied = apply_supersede(memory_manager, memory_vector, memory_id,
+                                  old_ids, owner=user)
+        if not applied:
+            raise HTTPException(404, "Nothing superseded (unknown ids, already superseded, or not yours)")
+        return {"ok": True, "superseded": applied}
 
     @router.delete("/{memory_id}")
     def delete_memory(request: Request, memory_id: str):
