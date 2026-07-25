@@ -35,12 +35,12 @@ When 4 tool responses arrive in quick succession (common in multi-step agent ses
 
 **Impact:**
 
-Memory grows monotonically during agent sessions even though `gc()` fires after each batch. Reducing the lockout window alone doesn't solve this — responses can arrive faster than any lockout period short enough to be useful.
+Memory grows monotonically during agent sessions even though `gc()` fires after each batch. Reducing the lockout window alone doesn't solve this: responses can arrive faster than any lockout period short enough to be useful.
 
 **Proposed fix:**
 
 Add a `_gcMissed` catch-up flag. When a response arrives while `_gcPending` is true, set `_gcMissed = true`. When the primary cycle completes, if `_gcMissed` is set, immediately dispatch one catch-up GC cycle (with its own 3000ms lockout to prevent stacking). This guarantees that a burst of N rapid responses receives at most 2 GC cycles (primary + catch-up) rather than exactly 1, without creating a cascade.
 
-Separately, reduce the lockout from 5000ms to 3000ms. `gc({ type: 'major', execution: 'async' })` runs incremental slices during idle and does not block the renderer. A 3s window is sufficient for a full sweep over 50k–200k Oilpan nodes in a typical long-session heap.
+Separately, reduce the lockout from 5000ms to 3000ms. `gc({ type: 'major', execution: 'async' })` runs incremental slices during idle and does not block the renderer. A 3s window is sufficient for a full sweep over 50k-200k Oilpan nodes in a typical long-session heap.
 
-**Affected file:** `static/js/chat.js` — GC scheduling block in `finally`
+**Affected file:** `static/js/chat.js`, GC scheduling block in `finally`

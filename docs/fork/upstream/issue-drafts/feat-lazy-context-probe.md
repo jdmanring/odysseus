@@ -14,7 +14,7 @@ falls back to the `KNOWN_CONTEXT_WINDOWS` static table. The intent (upstream com
 endpoints at model-picker open time, where performance matters. This is a deliberate
 upstream architectural decision.
 
-The immediate consequence — models not in the table getting a 6K budget — is addressed
+The immediate consequence (models not in the table getting a 6K budget) is addressed
 by the table expansion in `feat/nvidia-nim-support`. The early-return itself is correct
 for model-picker use but creates a blind spot for the agent budget path: even for
 providers that do return `context_length` in their `/v1/models` response, we never see
@@ -23,8 +23,8 @@ it on api/proxy endpoints.
 ## The lazy probe idea
 
 Rather than running the probe at model-picker open time (expensive, affects UI
-responsiveness), run it only when the agent loop first needs to know the context budget
-— i.e., deferred to first actual use. This preserves the "don't slow down the model
+responsiveness), run it only when the agent loop first needs to know the context budget,
+i.e., deferred to first actual use. This preserves the "don't slow down the model
 picker" intent while giving the agent accurate context for providers that do report it.
 
 This is NOT a simple change. It requires:
@@ -39,7 +39,7 @@ This is NOT a simple change. It requires:
    there is no race condition under concurrent agent sessions with the same endpoint.
 
 3. **The manual refresh button.** There is already a "Refresh models" button in the
-   Settings → Endpoints panel that triggers a full `/v1/models` fetch and updates the
+   Settings -> Endpoints panel that triggers a full `/v1/models` fetch and updates the
    cached list. Investigate whether that button also updates the context-length cache or
    only the model ID list. If it already writes to `_context_cache`, users have a
    functional workaround for any endpoint whose context isn't in the table.
@@ -52,21 +52,21 @@ This is NOT a simple change. It requires:
    - Nested (`meta` / `model_extra`): `n_ctx`, `context_length`, `context_window`, `max_model_len`
    
    Known state as of 2026-06-19:
-   - **NVIDIA NIM**: Does NOT return any context field — table only.
+   - **NVIDIA NIM**: Does NOT return any context field, table only.
    - **Together.ai**: Returns `context_length` at top level (to verify).
    - **Fireworks.ai**: Returns `context_length` at top level (to verify).
    - **Groq**: Returns `context_window` (to verify field name matches our probe).
-   - **vLLM**: Returns `max_model_len` at top level — our probe covers this.
-   - **OpenAI**: Does NOT return context fields in `/v1/models` — table only.
-   - **LM Studio**: Returns `context_length` — our probe covers this (local, not affected by early-return).
+   - **vLLM**: Returns `max_model_len` at top level, our probe covers this.
+   - **OpenAI**: Does NOT return context fields in `/v1/models`: table only.
+   - **LM Studio**: Returns `context_length`: our probe covers this (local, not affected by early-return).
    
    Before building lazy probe infrastructure, verify which commercial api/proxy
    endpoints actually return usable data. If the answer is "very few," expanding the
    static table remains more valuable than the probe infrastructure.
 
 2. **Does the current probe cover all field names in use?** Run a manual test against
-   Together.ai and Fireworks.ai: `GET /v1/models` → check raw JSON for field names
-   → verify they match what the probe reads. Add any missing field names to the probe.
+   Together.ai and Fireworks.ai: `GET /v1/models` -> check raw JSON for field names
+   -> verify they match what the probe reads. Add any missing field names to the probe.
 
 3. **How does the manual refresh button interact with `_context_cache`?** Trace the
    refresh flow in `routes/model_routes.py`. If the refresh already populates the
@@ -83,5 +83,5 @@ Do not implement the lazy probe until:
 
 ## Files
 
-- `src/model_context.py` — `_query_context_length`, `_context_cache`, early-return block
-- `routes/model_routes.py` — model refresh flow, manual refresh button handler
+- `src/model_context.py`; `_query_context_length`, `_context_cache`, early-return block
+- `routes/model_routes.py`; model refresh flow, manual refresh button handler

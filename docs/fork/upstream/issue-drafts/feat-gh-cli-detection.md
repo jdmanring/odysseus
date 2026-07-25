@@ -26,7 +26,7 @@ the `bash` tool.
 
 Additionally, on Linux systems where `gh` authenticates via the system keyring,
 Odysseus's bash tool subprocesses run without a D-Bus session and cannot read the
-keyring — so even when `gh` is authenticated, running `gh` from within an agent
+keyring, so even when `gh` is authenticated, running `gh` from within an agent
 bash call fails with "requires authentication."
 
 **Fix:**
@@ -39,5 +39,5 @@ bash call fails with "requires authentication."
    set `GH_TOKEN` in the server process environment so that all subprocess calls
    (including the bash tool) inherit it without needing keyring access.
 
-Both functions are silent no-ops when `gh` is absent or unauthenticated — no behaviour
+Both functions are silent no-ops when `gh` is absent or unauthenticated: no behaviour
 change on hosts without `gh`.

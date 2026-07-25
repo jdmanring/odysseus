@@ -1,4 +1,4 @@
-# PR Draft: feat/aria2c-downloader → odysseus-dev/odysseus:dev
+# PR Draft: feat/aria2c-downloader -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/aria2c-downloader`
 **Issue:** [#12](https://github.com/jdmanring/odysseus/issues/12) + [#23](https://github.com/jdmanring/odysseus/issues/23) (fork tracking)
@@ -75,17 +75,17 @@ and caches it in `~/.odysseus/bin`. No system package manager required.
 - Sums the resolved file sizes and prints `[*] Total size: X bytes` so
   the UI has the exact model total before any files download
 - Writes an aria2c input file (tab-indented options, Bearer auth header)
-- Spawns aria2c with 4 parallel files × 3 connections per file (12 total
+- Spawns aria2c with 4 parallel files x 3 connections per file (12 total
   connections). aria2c defaults to 1 connection per server; the ceiling of
   16 is compiled in ([aria2/aria2 #580](https://github.com/aria2/aria2/issues/580)).
   A single TCP stream cannot saturate a high-bandwidth path
-  when the bandwidth-delay product (bandwidth × RTT) exceeds the TCP receive
+  when the bandwidth-delay product (bandwidth x RTT) exceeds the TCP receive
   window; the congestion window grows too slowly to fill available capacity on
   fast, high-latency links. Multiple parallel connections each maintain an
   independent congestion window, collectively utilizing available bandwidth
   and isolating per-connection stalls: a dropped connection does not stop the
   others. 12 saturates typical home and datacenter links without overloading
-  HF's CDN and stays within aria2c's hard-coded 16-connection ceiling —
+  HF's CDN and stays within aria2c's hard-coded 16-connection ceiling,
   empirically tuned to match what `hf_transfer` achieves in practice. Users
   on constrained networks can reduce
   `--max-concurrent-downloads` and `--max-connection-per-server` in the
@@ -218,7 +218,7 @@ This directly addresses two ROADMAP items:
 > likely to need work across different machines, GPUs, drivers, shells, and
 > Python environments.*
 
-aria2c is self-installed per-platform (linux/mac/windows × x86/arm) by
+aria2c is self-installed per-platform (linux/mac/windows x x86/arm) by
 `BinManager`: no system package manager, no `apt`, no `brew`. The binary is
 cached in `~/.odysseus/bin` and reused across downloads. `--continue=true`
 means a crashed or aborted download picks up where it left off on restart.
@@ -229,7 +229,7 @@ Both directly improve cross-machine reliability.
 > UI, with copyable logs and clear next steps instead of just "crashed".*
 
 The aria2c progress card in `cookbookRunning.js` shows each file's download
-progress (filename, bytes transferred, percentage, speed) live in the UI —
+progress (filename, bytes transferred, percentage, speed) live in the UI,
 not after-the-fact from a log file. `_parseDownloadState`
 captures aria2c's structured stdout, so if a file fails the failure is
 visible in the card, not buried in a tmux session.
@@ -239,8 +239,8 @@ visible in the card, not buried in a tmux session.
 On **local Windows**, Odysseus has no tmux; it spawns a detached process
 that writes stdout to a log file (`TMUX_LOG_DIR/{session_id}.log`). The
 backend reads that log file as `output_tail` on the same status-polling path
-used everywhere else, and the frontend passes it through `_parseDownloadState`
-— so the infrastructure for a working progress card is in place on Windows.
+used everywhere else, and the frontend passes it through `_parseDownloadState`,
+so the infrastructure for a working progress card is in place on Windows.
 
 aria2c's verbose Download Progress Summary (`[#gid XX/YY(%) CN:N DL:...]`
 lines, written at `--summary-interval`) is not TTY-gated; it is written
@@ -249,7 +249,7 @@ readout is TTY-only and suppressed in non-TTY mode, but `_parseDownloadState`
 does not rely on it.
 
 The known risk was output buffering: C stdio block-buffers writes to a pipe
-(~4–8 KB), so progress lines could sit unsent until the buffer filled. This
+(~4-8 KB), so progress lines could sit unsent until the buffer filled. This
 has been addressed in `aria2c_download.py`:
 
 - `sys.stdout.reconfigure(line_buffering=True)` at module load ensures
@@ -288,7 +288,7 @@ user explicitly resumes or stops.
 Qwen3-Coder-Next-AWQ-4bit (44.97 GiB, 25 files) mid-download; 4 files active
 in parallel, 3 connections each, HF token authenticated (`authed` badge):
 
-<!-- Attach screenshot by dragging and dropping `docs/fork/screenshots/aria2c.png` into the GitHub PR text box — do not rely on the fork's file path being visible upstream. -->
+<!-- Attach screenshot by dragging and dropping `docs/fork/screenshots/aria2c.png` into the GitHub PR text box, do not rely on the fork's file path being visible upstream. -->
 
 ## Checklist
 
@@ -310,7 +310,7 @@ in parallel, 3 connections each, HF token authenticated (`authed` badge):
 **Manual (verified during development):**
 
 - [x] Download a single-file GGUF model; progress card shows correct total
-  size throughout (not doubled); connection count shows split count, not 2×;
+  size throughout (not doubled); connection count shows split count, not 2x;
   downloaded-dot (●) appears on catalog row immediately on completion
 - [x] Download a multi-shard model (25 files, 44.97 GiB); per-file rows show
   correct filenames; overall percentage, total size, and ETA all reflect the

@@ -25,7 +25,7 @@ Three independent, low-impact allocation sources that each add a small amount of
 
 **A. `squashOutsideCode` allocates on every streaming token (~30 fps):**
 
-`squashOutsideCode` in `static/js/markdown.js` is called on every SSE token during streaming. For the common case — plain-text responses with no code blocks — it unconditionally executes:
+`squashOutsideCode` in `static/js/markdown.js` is called on every SSE token during streaming. For the common case (plain-text responses with no code blocks) it unconditionally executes:
 
 ```javascript
 const parts = str.split(/```/);  // allocates array
@@ -33,7 +33,7 @@ const parts = str.split(/```/);  // allocates array
 return parts.join('```');         // allocates string
 ```
 
-When no code fences are present, the split array has exactly one element and the join is a no-op copy. The allocation is pure waste. A `str.includes('```')` guard short-circuits the entire split/join path and applies the three normalization regexes directly to the full string instead — semantically equivalent because all characters are "outside code" when no fences exist.
+When no code fences are present, the split array has exactly one element and the join is a no-op copy. The allocation is pure waste. A `str.includes('```')` guard short-circuits the entire split/join path and applies the three normalization regexes directly to the full string instead: semantically equivalent because all characters are "outside code" when no fences exist.
 
 **B. Seven remaining direct `hljs.highlightElement` calls bypass `deferHighlightAll`:**
 
@@ -46,5 +46,5 @@ When no code fences are present, the split array has exactly one element and the
 **Each improvement is small but composes with the larger GC-reduction series** (streaming throttle, rendertail text path, in-place finalization). `squashOutsideCode` runs on every SSE token, so even a few words of savings per token adds up across a full session.
 
 **Affected files:**
-- `static/js/markdown.js` — `squashOutsideCode`
-- `static/js/chat.js` — 7 `highlightElement` sites; `checkBackgroundStream`
+- `static/js/markdown.js`: `squashOutsideCode`
+- `static/js/chat.js`: 7 `highlightElement` sites; `checkBackgroundStream`

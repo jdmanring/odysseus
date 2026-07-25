@@ -1,4 +1,4 @@
-# PR Draft: fix/basicsr-python314-compat → odysseus-dev/odysseus:dev
+# PR Draft: fix/basicsr-python314-compat -> odysseus-dev/odysseus:dev
 
 **Branch:** `jdmanring/odysseus:fix/basicsr-python314-compat`
 **Issue:** [#9](https://github.com/jdmanring/odysseus/issues/9) (fork tracking)
@@ -34,16 +34,16 @@ basicsr has not released a fix and the repository shows minimal maintenance acti
 The package is effectively uninstallable on any Python 3.13+ environment via a normal
 `pip install`.
 
-### Who is affected — and why "3.14" in the title understates it
+### Who is affected, and why "3.14" in the title understates it
 
 **Python 3.13 is the current stable release** (released October 2024). This is not a
-future-proofing concern — it is a present-day breakage affecting users right now.
+future-proofing concern; it is a present-day breakage affecting users right now.
 
 Modern Linux distributions ship Python 3.13 as the system interpreter by default:
-- Artix Linux / Arch Linux — Python 3.13 since late 2024
-- Fedora 41+ — Python 3.13 default
-- openSUSE Tumbleweed — Python 3.13
-- Ubuntu 25.04 — Python 3.13
+- Artix Linux / Arch Linux: Python 3.13 since late 2024
+- Fedora 41+: Python 3.13 default
+- openSUSE Tumbleweed: Python 3.13
+- Ubuntu 25.04: Python 3.13
 
 Users on these distributions who try to use Odysseus's image upscaling feature
 (ESRGAN / Real-ESRGAN) **have no working path** to install the required packages. A
@@ -52,13 +52,13 @@ separate Python 3.12 virtual environment, which is not documented anywhere and r
 knowing why the install failed in the first place.
 
 The `KeyError: '__version__'` error from basicsr's `setup.py` is also not immediately
-recognisable as a Python version compatibility issue — it looks like a packaging
+recognisable as a Python version compatibility issue: it looks like a packaging
 configuration error. Users typically assume they have corrupted files or a broken pip
 installation before discovering the root cause.
 
 ### Fix
 
-`install-basicsr.sh` — a helper script that installs basicsr with the patch
+`install-basicsr.sh` is a helper script that installs basicsr with the patch
 applied, then installs realesrgan:
 
 1. Downloads basicsr 1.4.2 source from PyPI.
@@ -93,8 +93,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Type of Change
 
-- [x] Bug fix (non-breaking — fixes a confirmed issue)
-- [ ] New feature (non-breaking — adds new behaviour)
+- [x] Bug fix (non-breaking; fixes a confirmed issue)
+- [ ] New feature (non-breaking; adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -102,29 +102,29 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above, no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
 
-1. On a Python 3.13 or 3.14 environment, attempt the standard install: `pip install basicsr realesrgan` — this should fail with a `KeyError: '__version__'` to confirm the original problem.
+1. On a Python 3.13 or 3.14 environment, attempt the standard install: `pip install basicsr realesrgan`. This should fail with a `KeyError: '__version__'` to confirm the original problem.
 2. Run the script: `bash install-basicsr.sh`
 3. Confirm `basicsr` is now importable: `python3 -c "import basicsr; print('ok')"`
 4. Confirm `realesrgan` is importable: `python3 -c "import realesrgan; print('ok')"`
 5. Run an ESRGAN upscale through the Odysseus UI or CLI to confirm the patched package functions correctly end-to-end.
 
-Tested on: Python 3.14. Not required on Python 3.11/3.12 (the standard `pip install` works there — the script is only for 3.13+).
+Tested on: Python 3.14. Not required on Python 3.11/3.12 (the standard `pip install` works there; the script is only for 3.13+).
 
 ---
 
 ## Filing Notes
 
 - One commit, no squash needed.
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`. Add the issue number to `Fixes #` above before opening the PR.
+- **File upstream issue first** (draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`). Add the issue number to `Fixes #` above before opening the PR.
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+None: no HTML, CSS, or DOM-writing JS was changed.

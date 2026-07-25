@@ -1,4 +1,4 @@
-# PR Draft: feat/nvidia-nim-support → odysseus-dev/odysseus:dev
+# PR Draft: feat/nvidia-nim-support -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/nvidia-nim-support`
 **Issue:** [#56](https://github.com/jdmanring/odysseus/issues/56) (fork tracking)
@@ -20,14 +20,14 @@ Odysseus ships a static `KNOWN_CONTEXT_WINDOWS` table keyed by substring match. 
 model whose name contains no matching key falls back to `(DEFAULT_CONTEXT=128000,
 known=False)`. When `known=False`, `budget_context_for_model` returns `0`, which
 disables auto-scaling and locks `agent_input_token_budget` at its 6000-token sentinel
-value — trimming 85% of agent context on every call.
+value, trimming 85% of agent context on every call.
 
 Separately, NVIDIA NIM models appear in raw alphabetical order in the model picker
 because `_PROVIDER_CURATED` has no `"nvidia"` entry.
 
 ### What changed
 
-**`src/model_context.py` — `KNOWN_CONTEXT_WINDOWS`:**
+**`src/model_context.py`: `KNOWN_CONTEXT_WINDOWS`:**
 
 30 NIM model families previously unrecognized:
 
@@ -59,7 +59,7 @@ because `_PROVIDER_CURATED` has no `"nvidia"` entry.
 | CodeGemma 1.1/7B | `codegemma` | 8,192 |
 | Mistral Small 4 | `mistral-small-4` | 262,144 |
 | Mistral Medium 3.5 | `mistral-medium-3.5` | 262,144 |
-| Mixtral 8×22B | `mixtral-8x22b` | 65,536 |
+| Mixtral 8x22B | `mixtral-8x22b` | 65,536 |
 | Kimi K2 | `kimi-k2` | 262,144 |
 | Minitron-8k | `mistral-nemo-minitron-8b-8k` | 8,192 |
 
@@ -70,28 +70,28 @@ because `_PROVIDER_CURATED` has no `"nvidia"` entry.
 | `deepseek-r1` | 64,000 | 128,000 | Production context |
 | `deepseek-v3` | 64,000 | 128,000 | Production context |
 | `deepseek-coder` | 64,000 | 4,096 | NIM serves deepseek-coder-6.7b; overcount causes 400 errors |
-| `mixtral` | 32,000 | 65,536 | Key now matches 8×7B only; 8×22B has its own key |
+| `mixtral` | 32,000 | 65,536 | Key now matches 8x7B only; 8x22B has its own key |
 | `mistral-small` | 32,000 | 262,144 | mistral-small-4-119b-2603 on NIM |
 | `mistral-medium` | 32,000 | 262,144 | mistral-medium-3.5-128b on NIM |
 
-**`src/model_context.py` — `_lookup_known` scoring fix:**
+**`src/model_context.py`: `_lookup_known` scoring fix:**
 
 Basename matches now score `len(key) * 2`; full-name-only matches score `len(key)`.
 Without this, `'moonshot'` (len 8) beat `'kimi-k2'` (len 7) by matching `'moonshotai'`
 in the org prefix of `'moonshotai/kimi-k2.6'`, returning 128K instead of the correct
 262K ISL value.
 
-**`routes/model_routes.py` — `_PROVIDER_CURATED`:**
+**`routes/model_routes.py`: `_PROVIDER_CURATED`:**
 
 Added `"nvidia"` entry with 15 ranked models so the NIM catalog is presented with
 flagship models first rather than raw alphabetically. All model IDs verified against
 NVIDIA NIM documentation before filing.
 
-**`routes/model_routes.py` — endpoint auto-name fallback:**
+**`routes/model_routes.py`: endpoint auto-name fallback:**
 
 When an endpoint is added without an explicit name (e.g. by typing the URL directly
 rather than using the provider picker), the backend previously extracted the raw
-hostname — `integrate.api.nvidia.com` for NIM — which then appeared verbatim in
+hostname, `integrate.api.nvidia.com` for NIM, which then appeared verbatim in
 Added Models and AI Defaults. The fallback now calls `_provider_label()` first; for
 recognised providers it uses the friendly name ("NVIDIA", "OpenAI", "Anthropic", etc.).
 Local and unrecognised endpoints continue using the hostname, where it remains more
@@ -125,10 +125,10 @@ recommended version, superseding v1 with additional RL/DPO training stages.
 
 ### Testing
 
-- `tests/test_nvidia_nim_context.py` — 54 tests covering all 30 previously-
+- `tests/test_nvidia_nim_context.py`: 54 tests covering all 30 previously-
   unrecognized families, all stale-value corrections, longest-key invariants, and
   the nvidia curated list.
-- `tests/test_model_context.py` — updated 3 existing assertions for corrected deepseek
+- `tests/test_model_context.py`: updated 3 existing assertions for corrected deepseek
   values.
 
 All tests pass.
@@ -174,7 +174,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 ## Filing Notes
 
 - Four commits (includes a revert). Squash to three before filing if preferred.
-- Branch: `feat/nvidia-nim-support` — built from `upstream-mirror`.
+- Branch: `feat/nvidia-nim-support`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - All curated list model IDs verified against NVIDIA NIM documentation
   (docs.api.nvidia.com/nim/reference/). Citations in table above.

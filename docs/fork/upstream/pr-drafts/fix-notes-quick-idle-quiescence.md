@@ -30,4 +30,4 @@ and caret animate perpetually while visible (pausing only on hover/focus).
 CSS pauses (not disables) under `app-blurred`; gate covers element + both pseudo-elements.
 
 ## Risk
-Low — only affects decorative animations, only while backgrounded; pauses (resumes on focus).
+Low: only affects decorative animations, only while backgrounded; pauses (resumes on focus).

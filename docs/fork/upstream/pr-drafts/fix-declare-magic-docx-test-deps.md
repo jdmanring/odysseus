@@ -10,7 +10,7 @@ silently skip on every fresh install:
 
 - `src/upload_handler.py` lazy-imports `python-magic` for content-based MIME sniffing
   (with a graceful fallback to basic detection when absent), but no requirements file
-  mentions it — `tests/test_upload_content_detection_magic.py` has been skipping
+  mentions it; `tests/test_upload_content_detection_magic.py` has been skipping
   everywhere. Added to `requirements-optional.txt`, matching the app's
   optional-with-fallback treatment.
 - `tests/test_markitdown_runtime.py` builds its fixture `.docx` with `python-docx`,
@@ -20,20 +20,20 @@ silently skip on every fresh install:
 No change to the markitdown entry itself: `markitdown[docx,pptx,xlsx,xls]==0.1.6` in
 `requirements-optional.txt` already carries the `[docx]` extra the runtime needs. (Worth
 knowing: installing `python-docx` while markitdown lacks its `[docx]` extra turns the
-markitdown test from a skip into a real failure — the extra must come from the declared
+markitdown test from a skip into a real failure: the extra must come from the declared
 entry, which it does.)
 
 ## CI impact
 
 None. CI installs only `requirements.txt`, so it now gets `python-docx`; the markitdown
 test still short-circuits on `importorskip("markitdown")` (optional file), and the magic
-test still skips without `python-magic`. Nothing new runs or fails in CI — the change
+test still skips without `python-magic`. Nothing new runs or fails in CI; the change
 benefits anyone installing the optional set, where all three tests now execute.
 
 ## Verified
 
 With a venv installed from both requirements files: the three affected tests pass
-(real docx→markdown extraction, libmagic content sniffing), full suite
+(real docx->markdown extraction, libmagic content sniffing), full suite
 5537 passed / 2 skipped, exit 0. The two remaining skips are structural
 (a Windows-only guard on Linux; a scheduling-dependent alternate path whose primary
 path is asserted unconditionally).
@@ -43,8 +43,8 @@ path is asserted unconditionally).
 Both new entries are unpinned, matching the current convention (`requirements.txt` has
 zero `==` pins; `requirements-optional.txt` has exactly one, `markitdown==0.1.6`, pinned
 for the #485 release-age reason). #485 settled a 30-day minimum release age for new
-dependencies — both entries satisfy it comfortably (`python-magic` 0.4.27 is from 2022,
-`python-docx` 1.2.0 is over a year old) — but it did not decide whether entries should be
+dependencies (both entries satisfy it comfortably (`python-magic` 0.4.27 is from 2022,
+`python-docx` 1.2.0 is over a year old), but it did not decide whether entries should be
 version-pinned. If you'd rather new entries land pinned (e.g. `python-magic==0.4.27`,
 `python-docx==1.2.0`), say the word and this PR will be updated; it seemed wrong to
 introduce a pinning convention unilaterally in an unpinned file.

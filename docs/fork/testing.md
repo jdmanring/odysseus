@@ -42,7 +42,7 @@ python3 -m unittest tests/tooling
 
 ## Suite Gates Before a Merge (hard rule)
 
-A merge to `develop` is gated on the FULL suite's **own exit code** — never on a
+A merge to `develop` is gated on the FULL suite's **own exit code**, never on a
 pipeline's. Piping swallows the test runner's status: `pytest ... | tail -3`
 exits with `tail`'s 0, and a merge once landed on a 4-failure suite exactly this
 way (2026-07-17). The safe shape:
@@ -58,7 +58,7 @@ gates on the wrong program.
 
 ## Convergence Guards
 
-Two drift classes have bitten this fork and each now has a mechanical guard —
+Two drift classes have bitten this fork and each now has a mechanical guard;
 extend the pattern rather than re-deriving it:
 
 - `tests/test_bench_vendor_snapshot_drift.py`: a vendored benchmark snapshot

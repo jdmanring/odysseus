@@ -1,4 +1,4 @@
-# PR Draft: fix/agent-context-budget-discovery → odysseus-dev/odysseus:dev
+# PR Draft: fix/agent-context-budget-discovery -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/agent-context-budget-discovery`
 **Issue:** [#54](https://github.com/jdmanring/odysseus/issues/54) (fork tracking)
@@ -20,7 +20,7 @@
 skips the network probe entirely and falls back to the `KNOWN_CONTEXT_WINDOWS` static
 table. When a model is not in the table, `known=False`, causing `budget_context_for_model`
 to return `0`, which disables auto-scaling and locks `agent_input_token_budget` at its
-6000-token sentinel — effectively dropping 85% of agent context on every call.
+6000-token sentinel, effectively dropping 85% of agent context on every call.
 
 The original intent was to avoid downloading full model catalogs on remote endpoints.
 That concern is addressed by the existing `(endpoint_url, model)` cache: the probe runs
@@ -57,13 +57,13 @@ return DEFAULT_CONTEXT, False
 
 The probe result (`api_ctx`) comes from the `/v1/models` endpoint's `context_length`
 field. For endpoints that don't return this field (including NVIDIA NIM), `api_ctx` is
-`None` and the table value is used as before — so this change is a no-op for NIM
+`None` and the table value is used as before, so this change is a no-op for NIM
 specifically. For endpoints that do return `context_length`, models are now auto-
 discovered without any table entry required.
 
 ### Testing
 
-- `tests/test_model_context.py` — updated `test_configured_proxy_uses_default_without_model_listing`:
+- `tests/test_model_context.py`: updated `test_configured_proxy_uses_default_without_model_listing`:
   the probe now runs for proxy endpoints (one `/v1/models` call), but when the probe
   returns no models the result is still `DEFAULT_CONTEXT`. New tests: probe runs for
   api/proxy, result is cached after first call, known model still returns table value
@@ -102,7 +102,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
    to ~85% of the model's actual context rather than defaulting to 6000.
 4. Confirm the same call is not repeated on the second request (cache is effective).
 5. For NVIDIA NIM (which does not return context_length): confirm existing behaviour is
-   unchanged — table lookup still works and no regression in recognized models.
+   unchanged; table lookup still works and no regression in recognized models.
 6. Run `pytest tests/test_model_context.py -q`.
 
 ---
@@ -110,7 +110,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 ## Filing Notes
 
 - One commit. No squash needed.
-- Branch: `fix/agent-context-budget-discovery` — built from `upstream-mirror`.
+- Branch: `fix/agent-context-budget-discovery`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - Related: the companion table-expansion in `feat/nvidia-nim-support` (#56) covers the
   NIM-specific case where the probe returns nothing. These can be filed independently.

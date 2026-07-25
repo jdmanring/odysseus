@@ -9,7 +9,7 @@
 
 ## Title
 
-`[CSS] backdrop-filter on opaque elements causes GPU compositor flicker — black-screen stall on sidebar/dropdown/modal interactions`
+`[CSS] backdrop-filter on opaque elements causes GPU compositor flicker: black-screen stall on sidebar/dropdown/modal interactions`
 
 ---
 
@@ -31,9 +31,9 @@
 **Actual:** On Linux/Wayland/NVIDIA, hovering sidebar items or opening dropdowns produces black-screen flicker lasting one to several seconds. On all platforms, unnecessary GPU compositor layer work is triggered on every sidebar hover, dropdown open, and modal open.
 
 **Logs / Error Output:**
-No error logged — symptom is visible rendering glitch (black screen stall) on NVIDIA + Wayland, and invisible but measurable GPU overhead on other platforms.
+No error logged; symptom is visible rendering glitch (black screen stall) on NVIDIA + Wayland, and invisible but measurable GPU overhead on other platforms.
 
-**Additional context:** `backdrop-filter: blur()` is applied to ten elements (`.sidebar`, `.dropdown`, `.search-overlay`, overlays, recording indicators, etc.) whose backgrounds are already fully or near-fully opaque. When the background is opaque, the blur result is completely hidden by the fill color — but the GPU compositor work still runs. This includes:
+**Additional context:** `backdrop-filter: blur()` is applied to ten elements (`.sidebar`, `.dropdown`, `.search-overlay`, overlays, recording indicators, etc.) whose backgrounds are already fully or near-fully opaque. When the background is opaque, the blur result is completely hidden by the fill color, but the GPU compositor work still runs. This includes:
 
 - Promoting each element to its own GPU compositor layer (holding a GPU texture allocation permanently)
 - Re-running the blur sample and composite cycle on every state change (hover, show/hide, transition)
@@ -42,4 +42,4 @@ For `.sidebar` specifically, this fires on every mouse movement across the sideb
 
 Additionally, the `cookbook-modal-enter` keyframe animates `filter: saturate()` from a non-`none` value to `none` at 100%, which triggers a compositor layer teardown on the final frame, causing a one-frame flash as the layer is removed.
 
-The fix is pure CSS deletion — removing `backdrop-filter` from elements where it has no visible effect, and removing the `saturate` step from the Cookbook animation. No visual change on any platform.
+The fix is pure CSS deletion: removing `backdrop-filter` from elements where it has no visible effect, and removing the `saturate` step from the Cookbook animation. No visual change on any platform.

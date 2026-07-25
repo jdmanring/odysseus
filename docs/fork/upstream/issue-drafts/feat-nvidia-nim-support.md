@@ -11,7 +11,7 @@
 Three distinct gaps in NVIDIA NIM support, all confirmed against `data/app.db` (91 cached model IDs)
 and the source:
 
-1. `_HOST_TO_CURATED` maps `nvidia.com` → `"nvidia"` but `_PROVIDER_CURATED` has no `"nvidia"` key.
+1. `_HOST_TO_CURATED` maps `nvidia.com` -> `"nvidia"` but `_PROVIDER_CURATED` has no `"nvidia"` key.
    All 91 models are shown in raw API alphabetical order with no flagship prioritization.
 2. `KNOWN_CONTEXT_WINDOWS` covers 61 of 91 NIM models via substring match. The remaining **30 models
    are unrecognized** and silently receive the 6K agent budget (see #54 for the root cause). This
@@ -19,11 +19,11 @@ and the source:
 3. Several recognized models have wrong context windows: `nvidia/mistral-nemo-minitron-8b-8k-instruct`
    (8K actual, assigned 128K), `moonshotai/kimi-k2.6` (262,144 on NIM, assigned 128K),
    `mistralai/mistral-medium-3.5-128b` (262,144 actual, assigned 32K),
-   `deepseek-ai/deepseek-coder-6.7b-instruct` (4K on NIM, assigned 64K — causes API errors), and
+   `deepseek-ai/deepseek-coder-6.7b-instruct` (4K on NIM, assigned 64K; causes API errors), and
    others. All values verified against NVIDIA NIM documentation.
 
 NVIDIA's `/v1/models` response does not include `context_length` fields, so the live probe cannot
-fill the gap — the static table is the only viable source for this endpoint.
+fill the gap: the static table is the only viable source for this endpoint.
 
 ---
 
@@ -31,11 +31,11 @@ fill the gap — the static table is the only viable source for this endpoint.
 
 1. Add an NVIDIA NIM endpoint (`https://integrate.api.nvidia.com/v1`) in Settings and refresh
    models.
-2. Open the model selector: all 91 models appear in alphabetical order — `01-ai/yi-large` is
+2. Open the model selector: all 91 models appear in alphabetical order; `01-ai/yi-large` is
    listed before flagship models like `deepseek-ai/deepseek-v4-pro`, `meta/llama-4-maverick-*`,
    `nvidia/llama-3.1-nemotron-ultra-253b-v1`, etc.
 3. Select any model not in the Nemotron or Mistral-Nemo families (e.g.
-   `deepseek-ai/deepseek-v4-pro`) as the default model and start an agent session. After 2–3
+   `deepseek-ai/deepseek-v4-pro`) as the default model and start an agent session. After 2-3
    exchanges, the agent loses context.
 
 ---
@@ -85,7 +85,7 @@ All 91 models are returned in the `curated` bucket in raw API alphabetical order
 
 ---
 
-## Root Cause: 30/91 models have no known context window → 6K budget
+## Root Cause: 30/91 models have no known context window -> 6K budget
 
 ### KNOWN_CONTEXT_WINDOWS table coverage for NVIDIA NIM
 
@@ -132,7 +132,7 @@ zyphra/zamba2-7b-instruct                  — 16,384
 ### The context budget chain
 
 The impact of missing context windows on agent sessions is documented in the related bug
-(#54 — agent context budget locks at 6K for unrecognized models):
+(#54, agent context budget locks at 6K for unrecognized models):
 
 ```
 budget_context_for_model() → 0 (unknown)
@@ -149,7 +149,7 @@ All 30 unrecognized NVIDIA NIM models trigger this path on every agent call.
 These models are "recognized" by the table (`known=True`), but the context value assigned is
 wrong for the NIM deployment. All values verified against NVIDIA NIM documentation.
 
-**`nvidia/mistral-nemo-minitron-8b-8k-instruct`** — 8K actual context, assigned 128K budget.
+**`nvidia/mistral-nemo-minitron-8b-8k-instruct`**: 8K actual context, assigned 128K budget.
 
 `_lookup_known` does longest-substring match:
 
@@ -161,23 +161,23 @@ basename = "mistral-nemo-minitron-8b-8k-instruct"
 With 85% headroom the agent will send up to ~108K tokens to a model that accepts 8,192, resulting
 in a 400 error from NIM or server-side truncation.
 
-**`moonshotai/kimi-k2.6`** — 262,144 actual context on NIM (ISL 256K = 2^18), assigned 128K via the `moonshot` key.
+**`moonshotai/kimi-k2.6`**: 262,144 actual context on NIM (ISL 256K = 2^18), assigned 128K via the `moonshot` key.
 The full Kimi K2 model supports 1M context, but NVIDIA NIM limits it to 262,144. Either way, 128K
 is wrong.
 
-**`mistralai/mistral-medium-3.5-128b`** — 262,144 actual context on NIM (ISL 256K = 2^18; model name describes
-parameter count, not context), assigned 32K via `mistral-medium: 32000`. Stale by 8×.
+**`mistralai/mistral-medium-3.5-128b`**: 262,144 actual context on NIM (ISL 256K = 2^18; model name describes
+parameter count, not context), assigned 32K via `mistral-medium: 32000`. Stale by 8x.
 
-**`deepseek-ai/deepseek-coder-6.7b-instruct`** — 4,096 actual context on NIM, assigned 64K via
+**`deepseek-ai/deepseek-coder-6.7b-instruct`**: 4,096 actual context on NIM, assigned 64K via
 `deepseek-coder: 64000`. Inverse bug: the agent sends up to ~54K tokens to a 4K model, causing
 NIM to return 400 errors on any call after the first exchange.
 
-**`mistralai/mixtral-8x22b-v0.1`** — 65,536 actual context, assigned 32K via `mixtral: 32000`.
-The `mixtral` key was sized for Mixtral 8×7B; 8×22B has a 64K context window. The same key
+**`mistralai/mixtral-8x22b-v0.1`**: 65,536 actual context, assigned 32K via `mixtral: 32000`.
+The `mixtral` key was sized for Mixtral 8x7B; 8x22B has a 64K context window. The same key
 matches both.
 
-**`mistralai/mistral-small-4-119b-2603`** — 262,144 actual context on NIM (ISL 256K = 2^18), assigned 32K via
-`mistral-small: 32000`. Stale by 8×.
+**`mistralai/mistral-small-4-119b-2603`**: 262,144 actual context on NIM (ISL 256K = 2^18), assigned 32K via
+`mistral-small: 32000`. Stale by 8x.
 
 ---
 
@@ -211,7 +211,7 @@ nothing for NVIDIA models. The static table is the only viable data source here.
 - **30/91 NVIDIA NIM models silently trimmed to ~5K tokens per agent call**: Every agent session
   on any unrecognized model operates with a 6K token budget. This includes the two flagship
   DeepSeek V4 models (1M context each) that are the most likely primary model choices on NIM.
-- **`deepseek-ai/deepseek-v4-pro`** — the primary model in the affected user configuration — is
+- **`deepseek-ai/deepseek-v4-pro`** (the primary model in the affected user configuration) is
   one of the 30 unrecognized models. Every agent call drops ~85% of accumulated context.
 - **`deepseek-ai/deepseek-coder-6.7b-instruct`** receives up to 54K tokens per call against a
   4K context limit, guaranteed to produce 400 errors after the first exchange.
@@ -343,11 +343,11 @@ Add a more specific key that matches before `mistral-nemo: 128000`:
 
 ## What NOT to change
 
-- The `_HOST_TO_CURATED` entry for `nvidia.com` — it is correct; only the downstream
+- The `_HOST_TO_CURATED` entry for `nvidia.com`, which is correct; only the downstream
   `_PROVIDER_CURATED` key needs to be added.
-- The `_lookup_known` substring algorithm — it correctly handles the longest-match disambiguation
+- The `_lookup_known` substring algorithm; it correctly handles the longest-match disambiguation
   needed for the minitron and other specificity fixes.
-- The NVIDIA endpoint's `endpoint_kind = "api"` classification in the database — correct.
+- The NVIDIA endpoint's `endpoint_kind = "api"` classification in the database (correct).
 
 ---
 
@@ -380,7 +380,7 @@ mean 262,144 (2^18), confirmed by cross-referencing models where both forms appe
 | `meta/codellama-70b` | 16,384 | https://www.llmreference.com/provider/nvidia-nim/models |
 | `meta/llama2-70b` | 4,096 | https://www.llmreference.com/provider/nvidia-nim/models |
 | `mistralai/ministral-14b-instruct-2512` | 262,144 | https://www.llmreference.com/provider/nvidia-nim/models |
-| `nvidia/embed-qa-4` | 512 | https://www.llmreference.com/provider/nvidia-nim/models (embedding model — not for agent use) |
+| `nvidia/embed-qa-4` | 512 | https://www.llmreference.com/provider/nvidia-nim/models (embedding model, not for agent use) |
 | `nvidia/llama3-chatqa-1.5-70b` | 8,192 | https://www.llmreference.com/provider/nvidia-nim/models |
 | `openai/gpt-oss-120b` | 131,072 | https://www.llmreference.com/provider/nvidia-nim/models |
 | `openai/gpt-oss-20b` | 131,072 | https://www.llmreference.com/provider/nvidia-nim/models |
@@ -388,7 +388,7 @@ mean 262,144 (2^18), confirmed by cross-referencing models where both forms appe
 | `stepfun-ai/step-3.5-flash` | 262,144 | https://docs.api.nvidia.com/nim/reference/stepfun-ai-step-3-5-flash ("ISL: 256k" = 2^18) |
 | `stepfun-ai/step-3.7-flash` | 262,144 | https://www.llmreference.com/provider/nvidia-nim/models |
 | `stockmark/stockmark-2-100b-instruct` | 128,000 | https://www.llmreference.com/provider/nvidia-nim/models |
-| `writer/palmyra-creative-122b` | 131,072 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated — docs.api.nvidia.com page disabled) |
+| `writer/palmyra-creative-122b` | 131,072 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated; docs.api.nvidia.com page disabled) |
 | `writer/palmyra-fin-70b-32k` | 32,768 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated) |
 | `writer/palmyra-med-70b` | 32,768 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated) |
 | `writer/palmyra-med-70b-32k` | 32,768 | https://www.llmreference.com/provider/nvidia-nim/models (NIM listing may be deprecated) |
@@ -410,5 +410,5 @@ mean 262,144 (2^18), confirmed by cross-referencing models where both forms appe
 
 ## Files
 
-- `routes/model_routes.py` — `_PROVIDER_CURATED` dict (~line 234)
-- `src/model_context.py` — `KNOWN_CONTEXT_WINDOWS` table (~line 112), `_lookup_known` (~line 296)
+- `routes/model_routes.py`: `_PROVIDER_CURATED` dict (~line 234)
+- `src/model_context.py`: `KNOWN_CONTEXT_WINDOWS` table (~line 112), `_lookup_known` (~line 296)

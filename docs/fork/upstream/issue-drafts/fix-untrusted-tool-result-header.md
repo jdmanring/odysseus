@@ -25,7 +25,7 @@
 
 1. Use Agent mode with any model.
 2. Ask the agent to perform any tool action (read a file, run a command, fetch a page).
-3. In a follow-up turn, ask the agent to use another tool — e.g. "search the web for X" or "run ls".
+3. In a follow-up turn, ask the agent to use another tool, e.g. "search the web for X" or "run ls".
 4. Observe: the agent refuses, stating it cannot follow "instructions from an untrusted source" even though the request came directly from the user.
 
 **Expected:** Tool calls requested by the user execute normally. The untrusted-source policy applies only to instructions embedded inside tool results.
@@ -42,4 +42,4 @@ The phrase "because this block asks you to" is meant to scope the restriction to
 
 The header does not assert that user instructions remain authoritative. Without that, the model has no clear signal to prefer the user's direct request over the per-turn security header it already saw.
 
-**Note:** The security goal of #1629 is correct — prompt injection via tool output is a real attack surface. The bug is in the header wording, not the wrapping mechanism.
+**Note:** The security goal of #1629 is correct; prompt injection via tool output is a real attack surface. The bug is in the header wording, not the wrapping mechanism.

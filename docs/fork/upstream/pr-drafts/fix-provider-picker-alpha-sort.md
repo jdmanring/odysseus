@@ -1,4 +1,4 @@
-# PR Draft: fix/provider-picker-alpha-sort → odysseus-dev/odysseus:dev
+# PR Draft: fix/provider-picker-alpha-sort -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/provider-picker-alpha-sort`
 **Fork issue:** [#122](https://github.com/jdmanring/odysseus/issues/122)
@@ -11,7 +11,7 @@
 
 ### Problem
 The "Add API Models" provider picker renders providers in the raw static `<option>`
-order. As providers were appended over time that order drifted out of A–Z, so the
+order. As providers were appended over time that order drifted out of A-Z, so the
 list is no longer alphabetical and a provider is hard to locate.
 
 ### Fix
@@ -21,13 +21,13 @@ list now stays alphabetical regardless of the underlying append order; no data m
 change.
 
 ## How to Test
-1. Open Settings → Add API Models → open the provider picker.
-   - **Expected:** providers are listed A–Z, with Custom URL first.
+1. Open Settings -> Add API Models -> open the provider picker.
+   - **Expected:** providers are listed A-Z, with Custom URL first.
    - **Before this fix:** providers appear in append order (not alphabetical).
 2. Selecting a provider still populates its endpoint as before.
 
 ### Tests
-`tests/test_provider_picker_sort_js.py` — a source-audit guard asserting
+`tests/test_provider_picker_sort_js.py`: a source-audit guard asserting
 `_renderPickerMenu` sorts via case-insensitive `localeCompare`. (A DOM/behaviour
 test would be stronger; this locks the sort call and pin-first ordering.)
 

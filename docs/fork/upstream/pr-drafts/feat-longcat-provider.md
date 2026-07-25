@@ -1,8 +1,8 @@
-# PR Draft: feat/longcat-provider → odysseus-dev/odysseus:dev
+# PR Draft: feat/longcat-provider -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/longcat-provider`
 **Issues:** [#58](https://github.com/jdmanring/odysseus/issues/58) (provider integration), [#61](https://github.com/jdmanring/odysseus/issues/61) (max_tokens + stream_options gaps)
-**Status:** 3 commits — ready to file. File upstream issue first.
+**Status:** 3 commits, ready to file. File upstream issue first.
 
 ---
 
@@ -16,37 +16,37 @@
 
 ### Problem
 
-LongCat — an OpenAI-compatible API from Meituan — is not recognized by Odysseus.
+LongCat (an OpenAI-compatible API from Meituan) is not recognized by Odysseus.
 Users who type `https://api.longcat.chat/openai/v1` into the endpoint form get:
 
 - Hostname (`api.longcat.chat`) used as the endpoint display name instead of "LongCat"
-- No curated model list → model picker presents any available models alphabetically
+- No curated model list -> model picker presents any available models alphabetically
   with no ordering
-- No entry in `KNOWN_CONTEXT_WINDOWS` → `LongCat-2.0-Preview` (1M-token context)
+- No entry in `KNOWN_CONTEXT_WINDOWS` -> `LongCat-2.0-Preview` (1M-token context)
   falls through to the `DEFAULT_CONTEXT=128000` floor with `known=False`, causing
   `budget_context_for_model` to return 0 and `agent_input_token_budget` to lock at
-  the 6000-token sentinel — destroying 99% of the available context for agent sessions
-- No quick-add dropdown entry → users must type the URL manually
+  the 6000-token sentinel, destroying 99% of the available context for agent sessions
+- No quick-add dropdown entry -> users must type the URL manually
 - No `/setup longcat` slash-command alias
 
 ### What changed
 
 **`src/llm_core.py`:**
-- `_detect_provider`: `longcat.chat` → `"longcat"`
-- `_provider_label`: `longcat.chat` → `"LongCat"`
+- `_detect_provider`: `longcat.chat` -> `"longcat"`
+- `_provider_label`: `longcat.chat` -> `"LongCat"`
 
-**`src/model_context.py` — `KNOWN_CONTEXT_WINDOWS`:**
-- `'longcat': 1048576` — LongCat-2.0-Preview exposes a 1,048,576-token context window.
+**`src/model_context.py`: `KNOWN_CONTEXT_WINDOWS`:**
+- `'longcat': 1048576`; LongCat-2.0-Preview exposes a 1,048,576-token context window.
   Source: https://longcat.chat/platform/docs/APIDocs.html
 
 **`routes/model_routes.py`:**
-- `_PROVIDER_CURATED["longcat"]`: `["LongCat-2.0-Preview"]` — single model as of
+- `_PROVIDER_CURATED["longcat"]`: `["LongCat-2.0-Preview"]`, single model as of
   2026-06-19. Source: https://longcat.chat/platform/docs/APIDocs.html
 - `_HOST_TO_CURATED`: `("longcat.chat", "longcat")`
 
 **`static/js/providers.js`:**
-- `_PROVIDERS`: `/longcat/i` → cat SVG icon (silhouette with pointed ears)
-- `_ENDPOINT_LABELS`: `/(^|\.)longcat\.chat$/i` → `"LongCat"`
+- `_PROVIDERS`: `/longcat/i` -> cat SVG icon (silhouette with pointed ears)
+- `_ENDPOINT_LABELS`: `/(^|\.)longcat\.chat$/i` -> `"LongCat"`
 
 **`static/index.html`:**
 - Quick-add provider dropdown: `LongCat` entry pointing to
@@ -59,14 +59,14 @@ Users who type `https://api.longcat.chat/openai/v1` into the endpoint form get:
 - `SETUP_PROVIDER_URLS`: `longcat: { name: 'LongCat', url: 'https://api.longcat.chat/openai/v1' }`
 - `SETUP_PROVIDER_NAMES`: `'longcat'` appended
 
-**`src/agent_loop.py` — `_API_HOSTS`:**
+**`src/agent_loop.py`, `_API_HOSTS`:**
 
 ```python
 "api.longcat.chat",  # belt-and-suspenders: ensures native schemas even for
                      # future LongCat model names that may not contain "longcat"
 ```
 
-**`src/llm_core.py` — `_PROVIDER_DEFAULT_MAX_OUTPUT` (new table):**
+**`src/llm_core.py`, `_PROVIDER_DEFAULT_MAX_OUTPUT` (new table):**
 
 ```python
 _PROVIDER_DEFAULT_MAX_OUTPUT: dict[str, int] = {
@@ -87,10 +87,10 @@ if _effective_max_tokens > 0:
 
 This replaces the previous unconditional `if max_tokens and max_tokens > 0` guard,
 which meant Odysseus sent no `max_tokens` when the caller passed `0` (the "let API
-decide" sentinel) — causing the LongCat API to apply its 32 768-token default and
+decide" sentinel), causing the LongCat API to apply its 32 768-token default and
 truncate long responses mid-output.
 
-**`src/llm_core.py` — `stream_options` exclusion:**
+**`src/llm_core.py`, `stream_options` exclusion:**
 
 ```python
 if provider not in {"openrouter", "groq", "longcat"}:
@@ -108,7 +108,7 @@ documented quirks: a 32 768-token API default for `max_tokens` (ceiling 131 072)
 no support for `stream_options`. Both are handled by the additions above.
 
 The model name `LongCat-2.0-Preview` is mixed-case and must be sent exactly
-as documented — the curated list entry preserves this casing.
+as documented: the curated list entry preserves this casing.
 
 LongCat does not expose a `/v1/models` endpoint, so model discovery relies
 on the curated list. This is consistent with how other single-model providers
@@ -133,7 +133,7 @@ https://longcat.chat/platform/docs/APIDocs.html
 | Class | Tests |
 |-------|-------|
 | `TestLongCatDetect` | API host detected; apex detected; lookalike rejected; domain-in-path rejected |
-| `TestLongCatLabel` | API host → "LongCat"; apex → "LongCat" |
+| `TestLongCatLabel` | API host -> "LongCat"; apex -> "LongCat" |
 | `TestLongCatCurated` | URL matches curated key; Preview model in list; list is non-empty |
 | `TestLongCatContextWindow` | Direct lookup returns 1048576; namespaced form resolves |
 
@@ -171,7 +171,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ### How to Test
 
-1. Open Settings → AI Defaults. Select the quick-add dropdown. Confirm "LongCat" appears.
+1. Open Settings -> AI Defaults. Select the quick-add dropdown. Confirm "LongCat" appears.
 2. Select LongCat from the dropdown. Confirm the endpoint name displays as "LongCat",
    not `api.longcat.chat`.
 3. Open the model picker for a LongCat endpoint. Confirm `LongCat-2.0-Preview` appears
@@ -199,7 +199,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 ## Filing Notes
 
 - Three commits (`212b5099` logo, `1b7f04b3` ordering fix, `fae6ae6d` max_tokens + stream_options + _API_HOSTS). Squash to one before filing if preferred; all are logically part of the same provider integration.
-- Branch: `feat/longcat-provider` — built from `upstream-mirror`.
+- Branch: `feat/longcat-provider`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - LongCat is Meituan's API service. API reference: https://longcat.chat/platform/docs/APIDocs.html
 

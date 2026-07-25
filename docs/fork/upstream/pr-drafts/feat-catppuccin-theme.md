@@ -1,4 +1,4 @@
-# PR Draft: feat/catppuccin-theme → odysseus-dev/odysseus:dev
+# PR Draft: feat/catppuccin-theme -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/catppuccin-theme`
 **Base:** `dev`
@@ -40,8 +40,8 @@ hot-pink). None uses a **blue-purple tinted white at moderate saturation**: Catp
 H226/S64%/L88% is a specific perceptual position not occupied by any existing theme.
 
 The accent column shows the same gap: the only purple/violet accent in the dark themes
-is cyberpunk's H291/S96% neon magenta. Catppuccin's H258/S54% mauve is a soft purple —
-the same hue family, 42 percentage points lower saturation; which behaves completely
+is cyberpunk's H291/S96% neon magenta. Catppuccin's H258/S54% mauve is a soft purple:
+the same hue family, 42 percentage points lower saturation, which behaves completely
 differently in practice (readable alongside text, not attention-grabbing neon).
 
 That is the niche Catppuccin's [design
@@ -101,7 +101,7 @@ refracts differently through the periphery of an irregularly-curved cornea, and 
 larger the pupil aperture, the worse this aberration. The result is that high-brightness
 text bleeds perceptibly into the surrounding dark field.
 
-Astigmatism is common (8–62% prevalence across populations; Zhang et al. 2023,
+Astigmatism is common (8-62% prevalence across populations; Zhang et al. 2023,
 *Optometry & Vision Science*, [PMID 36749017](https://pubmed.ncbi.nlm.nih.gov/36749017/)).
 Piepenbrock et al. (2013, *Ergonomics*, DOI:
 [10.1080/00140139.2013.790485](https://doi.org/10.1080/00140139.2013.790485)) confirmed
@@ -141,13 +141,13 @@ luminance would require a *higher* measured luminance to appear as subjectively 
 
 Catppuccin's 11.34:1 measured ratio therefore understates its effective perceptual
 contrast. The lavender-white foreground reads as subjectively brighter than the number
-predicts; which is why the palette can sit at 11.34:1 rather than 13–14:1 and still
+predicts; which is why the palette can sit at 11.34:1 rather than 13-14:1 and still
 feel as readable. It is also why Catppuccin describes the palette as "eye-candy": the
 chroma is doing real perceptual work, not just decorating.
 
 **Environmental suitability: bright offices and dim locations**
 
-Catppuccin's explicit design requirement; "suitability under various light conditions" —
+Catppuccin's explicit design requirement, "suitability under various light conditions",
 maps to two distinct ergonomic scenarios:
 
 **Bright ambient environment (office lighting):** In bright rooms, a dark-theme display
@@ -167,12 +167,12 @@ reducing the halation load on astigmatic users in low-light conditions.
 
 The `gpt` and `claude` themes are specifically styled after the ChatGPT and Claude web
 interfaces respectively. Both use achromatic or near-achromatic foregrounds (S0% for
-`gpt`, S20% for `claude`) at 13–14:1 contrast. They are not designed for cross-environment
+`gpt`, S20% for `claude`) at 13-14:1 contrast. They are not designed for cross-environment
 ergonomics; they replicate a specific product's appearance. Catppuccin has a documented
 ergonomic design mandate that none of the existing Odysseus themes share.
 
 Nothing in the existing Odysseus set has this combination: moderate contrast in the
-10–12:1 range, a blue-violet chromatic foreground that picks up H-K perceptual
+10-12:1 range, a blue-violet chromatic foreground that picks up H-K perceptual
 brightness, and a palette built around cross-environment suitability from the start.
 
 Prior PR closures cited the ROADMAP note on themes; a scope concern, not a quality one.
@@ -261,9 +261,9 @@ Fixes # <!-- [file upstream issue first] -->
 ### How to Test
 
 1. Start the server (`docker compose up -d --build` or `uvicorn app:app`).
-2. Open the app; go to Settings → Appearance → Theme.
+2. Open the app; go to Settings -> Appearance -> Theme.
 3. Select "Catppuccin" from the theme list. Verify the theme name appears in the dropdown.
-4. Confirm the background shifts to `#1e1e2e`, text to a soft lavender-white (`#cdd6f4`), and the accent color is Mocha Mauve (`#cba6f7`) — a soft purple, not the default red.
+4. Confirm the background shifts to `#1e1e2e`, text to a soft lavender-white (`#cdd6f4`), and the accent color is Mocha Mauve (`#cba6f7`), a soft purple, not the default red.
 5. Open a conversation and send a message; verify syntax highlighting in code blocks renders correctly with the new palette.
 6. Switch to another theme (e.g. "dark") and back; confirm no bleed-through or broken state.
 7. Reload the page; confirm the selected Catppuccin theme persists.

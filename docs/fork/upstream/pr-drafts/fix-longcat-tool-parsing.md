@@ -40,8 +40,8 @@ Two distinct variants appear in the wild:
 Adds `_LONGCAT_TOOL_CALL_RE` (Pattern 6 in `tool_parsing.py`) and
 `_parse_longcat_tool_call()`:
 
-- Variant A (JSON): parsed via `_parse_longcat_tool_call()`; `name` → tool type,
-  `arguments` → JSON args string; goes through `function_call_to_tool_block()` for
+- Variant A (JSON): parsed via `_parse_longcat_tool_call()`; `name` -> tool type,
+  `arguments` -> JSON args string; goes through `function_call_to_tool_block()` for
   normalisation and tool name mapping, with a single-value fallback identical to the
   other parsers.
 - Variant B (tag pairs): not executed. `_parse_longcat_tool_call()` returns `None`
@@ -85,20 +85,20 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/fix-longcat-tool-parsi
 
 Searched merged commits and open issues/PRs on `dev`:
 
-- **#5033** (merged) *parse Gemma 3/4 custom tool calling tokens* — different provider/format (Gemma `<|tool_call|>` vs Meituan LongCat `<longcat_tool_call>`); **complements**, no overlap.
-- **#4941 / #4704 / #4877** (merged) ReDoS-safe parser/stripper rewrites — this change targets the post-rewrite parser and adds the LongCat pattern as an independent branch + a bounded strip.
-- **#5275** (open) bracket-tag tool calls, **#5199** (open; issue **#5187**) Qwen/Hermes `<tool_call>` — **adjacent, non-conflicting** additions to the same parser.
+- **#5033** (merged) *parse Gemma 3/4 custom tool calling tokens*, different provider/format (Gemma `<|tool_call|>` vs Meituan LongCat `<longcat_tool_call>`); **complements**, no overlap.
+- **#4941 / #4704 / #4877** (merged) ReDoS-safe parser/stripper rewrites; this change targets the post-rewrite parser and adds the LongCat pattern as an independent branch + a bounded strip.
+- **#5275** (open) bracket-tag tool calls, **#5199** (open; issue **#5187**) Qwen/Hermes `<tool_call>`; **adjacent, non-conflicting** additions to the same parser.
 
 **Verdict:** complements existing + in-flight parser work; not a duplicate.
 
 ## How to Test
 
-1. Configure a Meituan LongCat model as an OpenAI-compatible provider in Settings → Providers using credentials from Meituan's API platform.
+1. Configure a Meituan LongCat model as an OpenAI-compatible provider in Settings -> Providers using credentials from Meituan's API platform.
 2. Send a prompt that triggers a tool call (e.g. "read the file ./index.vue" with the
    file tool enabled).
 3. Confirm the tool executes and the result is returned to the model; the raw
    `<longcat_tool_call>` block should not appear in the chat response.
-4. Variant B (tag-pair format) is stripped from display but not executed —
+4. Variant B (tag-pair format) is stripped from display but not executed;
    `strip_tool_blocks()` removes the raw tags. No behavioral test is possible without
    a model that emits this format; it is stripped silently regardless of whether the
    tool name is recognized.

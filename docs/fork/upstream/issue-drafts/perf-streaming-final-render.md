@@ -1,7 +1,7 @@
 # Upstream Issue Draft: perf-streaming-final-render
 
 **File on:** `odysseus-dev/odysseus`
-**Related PR draft:** *(no dedicated PR draft — see perf series)*
+**Related PR draft:** *(no dedicated PR draft, see perf series)*
 **Branch:** `perf/streaming-final-render`
 **Type:** Performance
 
@@ -32,7 +32,7 @@ This is a full response's worth of Oilpan garbage on every plain-text response c
 
 **Impact:**
 
-For a 100-message session of plain-text responses, the finalize path alone creates 100 full response DOM trees as garbage. Combined with the streaming allocation, this means every response is effectively allocated twice — once incrementally via `renderTail()`, and once via the final `innerHTML`.
+For a 100-message session of plain-text responses, the finalize path alone creates 100 full response DOM trees as garbage. Combined with the streaming allocation, this means every response is effectively allocated twice: once incrementally via `renderTail()`, and once via the final `innerHTML`.
 
 **Proposed fix:**
 
@@ -40,4 +40,4 @@ Add a fast path in the finalize sequence: if the final text is plain prose (no m
 
 For responses with code blocks, the existing `innerHTML` path runs unchanged (code blocks need hljs re-processing, which the in-place path cannot handle).
 
-**Affected file:** `static/js/streamingRenderer.js` or `static/js/chat.js` — finalize/unwrap path after stream completion
+**Affected file:** `static/js/streamingRenderer.js` or `static/js/chat.js`, finalize/unwrap path after stream completion

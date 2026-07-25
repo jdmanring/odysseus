@@ -1,4 +1,4 @@
-# AI Context — Odysseus
+# AI Context: Odysseus
 
 > **The Map.** This document provides the mental model and codebase map for the Odysseus project.
 
@@ -11,7 +11,7 @@ Self-hosted AI workspace. FastAPI backend + browser UI, running locally at
 Plan mode, memory (RAG via ChromaDB), model downloads, TTS/STT, MCP servers,
 calendar, email, notes, documents, gallery. Single-user.
 
-On Linux it also runs as a native Qt app (`qt_wrapper.py`) — PyQt6 wraps the
+On Linux it also runs as a native Qt app (`qt_wrapper.py`): PyQt6 wraps the
 web UI in `QWebEngineView`, manages server lifecycle, GPU flags, crash recovery.
 
 ---
@@ -36,14 +36,14 @@ feeds results back, and loops until the model stops calling tools.
 
 | Path | Role |
 |------|---------|
-| `app.py` | Thin FastAPI orchestrator — imports all routers, configures middleware, serves static |
+| `app.py` | Thin FastAPI orchestrator; imports all routers, configures middleware, serves static |
 | `core/database.py` | SQLAlchemy models + SQLite session factory. All persistent data except embeddings |
 | `core/models.py` | Pydantic models shared across routes |
-| `core/auth.py` | Auth middleware (optional — off by default in `.env`) |
+| `core/auth.py` | Auth middleware (optional; off by default in `.env`) |
 | `routes/` | One file per feature area. Each registers an `APIRouter` included in `app.py` |
-| `src/` | Business logic called by routes — `llm_core.py`, `agent_loop.py`, `embeddings.py` |
+| `src/` | Business logic called by routes: `llm_core.py`, `agent_loop.py`, `embeddings.py` |
 | `mcp_servers/` | MCP server implementations (email, image gen, memory, RAG) |
-| `tooling/` | Standalone utilities — `aria2c_download.py`, `bin_manager.py`, `hf_url_resolver.py` |
+| `tooling/` | Standalone utilities: `aria2c_download.py`, `bin_manager.py`, `hf_url_resolver.py` |
 
 **Frontend**
 
@@ -52,13 +52,13 @@ is the SPA shell. `init.js` boots the UI.
 
 | File | Role |
 |------|---------|
-| `init.js` | App bootstrap — event wiring, initial state load |
+| `init.js` | App bootstrap: event wiring, initial state load |
 | `chat.js` | Chat input, send logic, session switching |
-| `chatStream.js` | SSE consumer — feeds tokens to renderer |
+| `chatStream.js` | SSE consumer; feeds tokens to renderer |
 | `chatRenderer.js` | Turns message objects into DOM |
-| `cookbook*.js` | Model management UI (6 files — see Cookbook below) |
+| `cookbook*.js` | Model management UI (6 files; see Cookbook below) |
 | `theme.js` + `colorPicker.js` | Theme system and color picker |
-| `qt-bridge.js` | Non-module — sets up `window.qtBridge` for native Qt calls |
+| `qt-bridge.js` | Non-module; sets up `window.qtBridge` for native Qt calls |
 | `platform.js` | Detects `window.__QT_WRAPPER__` to gate Qt-only features |
 
 ---
@@ -78,14 +78,14 @@ is the SPA shell. `init.js` boots the UI.
 | Conversations, sessions, messages | SQLite `data/app.db` via SQLAlchemy |
 | Memory / RAG embeddings | ChromaDB `data/chroma/` |
 | User preferences | `data/settings.json` |
-| User profile data (theme, etc.) | `data/user_prefs.json` — per-user keyed by email |
-| Custom themes | `data/user_prefs.json` → `custom-themes` per-user, also in browser localStorage synced via `/api/prefs/custom-themes` |
-| Current theme (active) | `data/user_prefs.json` → `theme.name` per-user |
-| Current theme colors | `data/user_prefs.json` → `theme.colors` per-user (includes `advanced` overrides) |
+| User profile data (theme, etc.) | `data/user_prefs.json`, per-user keyed by email |
+| Custom themes | `data/user_prefs.json` -> `custom-themes` per-user, also in browser localStorage synced via `/api/prefs/custom-themes` |
+| Current theme (active) | `data/user_prefs.json` -> `theme.name` per-user |
+| Current theme colors | `data/user_prefs.json` -> `theme.colors` per-user (includes `advanced` overrides) |
 | Uploaded files | `uploads/` |
 | HuggingFace model cache | `~/.cache/huggingface/hub/` (standard HF layout) |
 
-**Critical: `data/user_prefs.json` is the source of truth for the active theme.** When asked to update a theme or find current colors, read this file first. Do not guess colors — look them up from the user's actual profile data.
+**Critical: `data/user_prefs.json` is the source of truth for the active theme.** When asked to update a theme or find current colors, read this file first. Do not guess colors: look them up from the user's actual profile data.
 
 ---
 
@@ -97,19 +97,19 @@ Lets users download, serve, and manage local AI models.
 |---------|------|
 | `cookbook.js` | Entry point, model list, tab switching |
 | `cookbookDownload.js` | Download form, initiates downloads |
-| `cookbookRunning.js` | Live download cards — polls `/api/cookbook/download/status`, renders aria2c progress |
+| `cookbookRunning.js` | Live download cards; polls `/api/cookbook/download/status`, renders aria2c progress |
 | `cookbookServe.js` | Serve/stop model, port management |
 | `cookbookSchedule.js` | Scheduled download jobs |
 | `cookbookProgressSignal.js` | Stale-download detection |
 
-**Download pipeline:** `cookbookDownload.js` → `POST /api/cookbook/download/start` →
-`cookbook_routes.py` spawns `aria2c_download.py` as a subprocess →
-`cookbookRunning.js` polls `GET /api/cookbook/download/status/{session_id}` every 2s →
+**Download pipeline:** `cookbookDownload.js` -> `POST /api/cookbook/download/start` ->
+`cookbook_routes.py` spawns `aria2c_download.py` as a subprocess ->
+`cookbookRunning.js` polls `GET /api/cookbook/download/status/{session_id}` every 2s ->
 parses aria2c stdout, updates progress cards in-place. Supports gated models (via token injection) and deep GGUF subdirectory resolution.
 
-**aria2c progress format** (non-obvious — will bite you):
+**aria2c progress format** (non-obvious, will bite you):
 Lines look like `·[#a1b2c3 1GiB/5GiB(21%) CN:4 DL:50MiB ETA:1m20s]` followed by
-`·FILE: /path/to/file`. The leading space before `[#` is literal — regexes must use
+`·FILE: /path/to/file`. The leading space before `[#` is literal; regexes must use
 `^\s*\[#` not `^\[#`.
 
 ---
@@ -120,7 +120,7 @@ Lines look like `·[#a1b2c3 1GiB/5GiB(21%) CN:4 DL:50MiB ETA:1m20s]` followed by
 between `static/js/` files work; `node_modules` doesn't exist.
 
 - **`qt_wrapper.py` starts the server.** When running the native app, don't also
-run uvicorn — the wrapper spawns it and owns its lifecycle.
+run uvicorn; the wrapper spawns it and owns its lifecycle.
 
 - **`QWebEngineView` is Chromium but not a browser.** Web EyeDropper API is missing.
 Check Qt compat when adding UI features touching Qt code paths.

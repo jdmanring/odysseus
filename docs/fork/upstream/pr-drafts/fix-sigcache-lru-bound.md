@@ -15,4 +15,4 @@
 `tests/test_sigcache_bound.py` (2 guards): helper defines cap + eviction; all writes go through the bounded helper (only the helper retains a raw `.set`).
 
 ## Risk
-Low — behaviour identical below the cap; oldest entries re-fetch lazily if evicted.
+Low: behaviour identical below the cap; oldest entries re-fetch lazily if evicted.

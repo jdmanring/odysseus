@@ -58,10 +58,10 @@ Fixes # <!-- [file upstream issue first] -->
 
 **`tests/test_gh_cli_detection.py`**: 12 tests covering all guarded paths:
 
-- **Not installed** (2 tests): `shutil.which` returns `None` → returns `""` and returns a `str`
-- **Auth failure** (2 tests): `gh auth status` exits non-zero → returns `""`;
-  subprocess raises `OSError` → returns `""` (exception guard)
-- **Authenticated** (7 tests): both guards pass → returns a non-empty string
+- **Not installed** (2 tests): `shutil.which` returns `None` -> returns `""` and returns a `str`
+- **Auth failure** (2 tests): `gh auth status` exits non-zero -> returns `""`;
+  subprocess raises `OSError` -> returns `""` (exception guard)
+- **Authenticated** (7 tests): both guards pass -> returns a non-empty string
   containing "GitHub CLI", the authenticated username, and example commands
   (`gh repo list`, `gh pr list`, `gh issue create`); `GH_TOKEN` is set from
   `gh auth token` when not already present; existing `GH_TOKEN` is not overwritten;

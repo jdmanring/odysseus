@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Repo] Move demo media to assets/, application icon to static/icons/ — separate binary files from documentation prose`
+`[Repo] Move demo media to assets/, application icon to static/icons/: separate binary files from documentation prose`
 
 ---
 
@@ -34,10 +34,10 @@ docs/bg.webm               →  assets/bg.webm
 [all remaining demo media in docs/]
 ```
 
-`odysseus.jpg` is renamed to `landingpage.jpg` to prevent it from being confused with the application icon. The SVG goes to `static/icons/` rather than `assets/` because it is an application icon, not a README screenshot — it belongs alongside the 192px and 512px PNG manifest icons that already live there, and can be referenced directly in `manifest.json` as `"sizes": "any"` for browsers that support SVG icons.
+`odysseus.jpg` is renamed to `landingpage.jpg` to prevent it from being confused with the application icon. The SVG goes to `static/icons/` rather than `assets/` because it is an application icon, not a README screenshot; it belongs alongside the 192px and 512px PNG manifest icons that already live there, and can be referenced directly in `manifest.json` as `"sizes": "any"` for browsers that support SVG icons.
 
-No functional changes to the app. Pure file reorganization — 17 files moved, references updated.
+No functional changes to the app. Pure file reorganization: 17 files moved, references updated.
 
 **Alternatives Considered:**
 - All icons in `assets/`: `assets/` is the right home for README media, but not for web-served app icons. The XDG desktop entries and PWA manifest both reference icon files; co-locating them in `static/icons/` is cleaner.
-- Leave as-is: current state — binary files mixed into `docs/` alongside prose.
+- Leave as-is: current state, binary files mixed into `docs/` alongside prose.

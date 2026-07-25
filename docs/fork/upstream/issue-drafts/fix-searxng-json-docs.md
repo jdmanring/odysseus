@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Search] SearXNG integration silently returns HTTP 404 — JSON output format requirement not documented anywhere`
+`[Search] SearXNG integration silently returns HTTP 404: JSON output format requirement not documented anywhere`
 
 ---
 
@@ -28,7 +28,7 @@
 
 **Expected:** Either the search succeeds, or a clear error message explains that SearXNG requires JSON output to be enabled.
 
-**Actual:** Every search silently fails. The Odysseus search panel shows a failure with no explanation. The underlying cause — HTTP 404 from the SearXNG instance because JSON output is disabled — is not surfaced to the user and is not documented anywhere in the repository.
+**Actual:** Every search silently fails. The Odysseus search panel shows a failure with no explanation. The underlying cause (HTTP 404 from the SearXNG instance because JSON output is disabled) is not surfaced to the user and is not documented anywhere in the repository.
 
 **Logs / Error Output:**
 HTTP 404 returned by the SearXNG instance for all JSON-format search requests.

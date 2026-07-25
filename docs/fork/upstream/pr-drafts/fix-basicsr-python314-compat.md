@@ -1,8 +1,8 @@
-# PR Draft: fix/basicsr-python314-compat → odysseus-dev/odysseus:dev
+# PR Draft: fix/basicsr-python314-compat -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/basicsr-python314-compat`
 **Issue:** [#9](https://github.com/jdmanring/odysseus/issues/9) (fork tracking)
-**Status:** Ready to file — file upstream issue first (draft in issue-drafts/fix-basicsr-python314-compat.md)
+**Status:** Ready to file; file upstream issue first (draft in issue-drafts/fix-basicsr-python314-compat.md)
 
 ---
 
@@ -35,7 +35,7 @@ functions per PEP 667: assignments made inside `exec()` are no longer visible th
 build before pip can install basicsr.
 
 The change is tracked in [CPython issue #118888](https://github.com/python/cpython/issues/118888),
-which was closed as expected behavior per PEP 667 — a permanent semantic change in
+which was closed as expected behavior per PEP 667, a permanent semantic change in
 Python 3.13, not a bug that will be reverted.
 
 basicsr has not released a fix and the repository shows minimal maintenance activity.
@@ -57,8 +57,8 @@ preflight approach as #3741 and extends it to cover a second install path that
 There are two paths in Odysseus that can trigger `pip install realesrgan`:
 
 1. **Cookbook Dependencies tab** (`/api/cookbook/packages/install` in `shell_routes.py`)
-   — the primary user-facing install button. **Not covered by PR #3741.**
-2. **Serve panel** (`/api/model/serve` in `cookbook_routes.py`) — when a user pastes
+   (the primary user-facing install button). **Not covered by PR #3741.**
+2. **Serve panel** (`/api/model/serve` in `cookbook_routes.py`): when a user pastes
    a `pip install realesrgan` command manually. Covered by PR #3741.
 
 Both paths are covered by this PR.
@@ -69,7 +69,7 @@ Both paths are covered by this PR.
 1. Exits immediately if Python < 3.13 (the scoping change is 3.13+ only).
 2. Exits immediately if basicsr is already importable.
 3. Fetches the `basicsr==1.4.2` sdist URL from the PyPI JSON API and downloads
-   it with `urllib.request` — `pip download --no-binary :all:` would invoke
+   it with `urllib.request`; `pip download --no-binary :all:` would invoke
    `get_requires_for_build_wheel`, running setup.py and hitting the same
    `KeyError` the preflight is here to prevent.
 4. Rewrites `get_version()` in `setup.py` to use an explicit namespace dict
@@ -102,7 +102,7 @@ callers that don't build a shell runner script.
 **Other guards:**
 - `tarfile.extractall` uses `filter="data"` on Python 3.12+ for security (parameter
   added in 3.12; becomes the default in 3.14).
-- The setup.py patch only writes if the original pattern is still present — fails
+- The setup.py patch only writes if the original pattern is still present; fails
   loudly rather than silently producing a broken install if basicsr ever releases a fix.
 
 ## Target branch
@@ -115,8 +115,8 @@ Fixes # <!-- [file upstream issue first using issue-drafts/fix-basicsr-python314
 
 ## Type of Change
 
-- [x] Bug fix (non-breaking — fixes a confirmed issue)
-- [ ] New feature (non-breaking — adds new behaviour)
+- [x] Bug fix (non-breaking; fixes a confirmed issue)
+- [ ] New feature (non-breaking; adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -124,10 +124,10 @@ Fixes # <!-- [file upstream issue first using issue-drafts/fix-basicsr-python314
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls) — this is not a duplicate (see PR #3741 note above).
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate (see PR #3741 note above).
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
-- [x] I ran `python -m pytest` — 76 tests pass, 0 failures.
+- [x] My changes are limited to the scope described above, no unrelated refactors or whitespace changes mixed in.
+- [x] I ran `python -m pytest`: 76 tests pass, 0 failures.
 - [ ] **I am not an LLM agent submitting a bulk PR.** I reviewed and tested this change personally before submitting.
 
 ### How to Test
@@ -146,7 +146,7 @@ python -m pip install basicsr==1.4.2
 3. Run an ESRGAN upscale through the UI to confirm end-to-end.
 
 **Testing the Dependencies tab path (shell_routes.py):**
-1. In the Odysseus UI, go to **Cookbook → Dependencies → Real-ESRGAN → Install**.
+1. In the Odysseus UI, go to **Cookbook -> Dependencies -> Real-ESRGAN -> Install**.
 2. Confirm the preflight runs and basicsr installs before the realesrgan install.
 3. Confirm `import basicsr` succeeds and an ESRGAN upscale works end-to-end.
 
@@ -167,22 +167,22 @@ the subprocess return code.
 
 ## Filing Notes
 
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`.
+- **File upstream issue first**; draft in `docs/fork/upstream/issue-drafts/fix-basicsr-python314-compat.md`.
   Add the upstream issue number to `Fixes #` above before opening the PR.
 - Acknowledge PR #3741 in the PR description if it is still open at filing time; the
   body above already does this.
 
 **Verify before filing:**
-- **CPython issue #118888** — verified: exists, describes the exec/locals scoping change,
+- **CPython issue #118888**. Verified: exists, describes the exec/locals scoping change,
   closed as expected behavior per PEP 667. Cite confidently.
-- **PR #3741 scope** — verified: patches exec/locals in `cookbook_helpers.py` and
+- **PR #3741 scope**. Verified: patches exec/locals in `cookbook_helpers.py` and
   `cookbook_routes.py` only; does not touch `shell_routes.py`. This PR's additional
   coverage claim is accurate.
-- **basicsr 1.4.2 collections imports** — verified against the actual sdist
+- **basicsr 1.4.2 **. Verified against the actual sdist
   (SHA256: `b89b595a87ef964cda9913b4d99380ddb6554c965577c0c10cb7b78e31301e87`): every
   `from collections import` uses only `OrderedDict` or `Counter`; no ABC names are
   imported. No collections.abc fix is needed or included.
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+None; no HTML, CSS, or DOM-writing JS was changed.

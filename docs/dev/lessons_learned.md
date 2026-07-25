@@ -15,7 +15,7 @@
 
 ---
 
-## Misread Symptoms → Hours of Wrong Debugging (Download Progress Case)
+## Misread Symptoms Lead to Hours of Wrong Debugging (Download Progress Case)
 
 **Issue:** Download progress appeared to show double the expected size (e.g., 18 GB
 reported as 36 GB). An AI agent diagnosed this as zombie aria2c processes running in
@@ -33,7 +33,7 @@ that reads the number before dismantling the system that produces it.
 
 ---
 
-## Split-Brain Logic → The "No Files Matched" Ghost
+## Split-Brain Logic and The "No Files Matched" Ghost
 
 **Issue:** A "No files matched" error persisted during GGUF downloads even after the discovery logic was fixed and verified.
 
@@ -51,7 +51,7 @@ that reads the number before dismantling the system that produces it.
 
 **Cause:** The `aria2c` configuration was set to 4 concurrent files with 16 threads per file, totaling 64 concurrent TCP connections. Many consumer-grade routers have small NAT tables and cannot handle this volume of high-speed streams, leading to CPU exhaustion and memory overflows on the routing hardware.
 
-**Lesson:** High-concurrency settings that work in data centers can be destructive on residential hardware. Always balance `max-concurrent-downloads` and `split` to stay within a reasonable total connection budget (e.g., 12–16 total connections) for consumer-grade equipment.
+**Lesson:** High-concurrency settings that work in data centers can be destructive on residential hardware. Always balance `max-concurrent-downloads` and `split` to stay within a reasonable total connection budget (e.g., 12-16 total connections) for consumer-grade equipment.
 
 **Action Item:** Standardize "Balanced" vs "Aggressive" profiles for downloader tools.
 

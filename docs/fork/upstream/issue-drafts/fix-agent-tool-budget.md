@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Agent] agent_max_tool_calls defaults to 0 — no tool call budget on fresh installs`
+`[Agent] agent_max_tool_calls defaults to 0: no tool call budget on fresh installs`
 
 ---
 
@@ -20,7 +20,7 @@
 **OS / device:** Any
 
 **Steps to Reproduce:**
-1. Fresh install — do not change `data/settings.json` or any agent settings.
+1. Fresh install; do not change `data/settings.json` or any agent settings.
 2. Open the agent interface and send a complex prompt designed to trigger many tool calls (e.g. "research X thoroughly and summarise the latest findings").
 3. Observe the agent.
 
@@ -38,7 +38,7 @@ When `agent_max_tool_calls` is `0`, the condition `max_tool_calls > 0` is False 
 
 **Additional context:**
 
-The Settings UI displays `0` next to "Max tool calls," which users reasonably read as "zero calls allowed — tool use disabled." This causes confusion: users set it to a positive number thinking they are enabling tool use, when they are actually imposing a cap that did not previously exist.
+The Settings UI displays `0` next to "Max tool calls," which users reasonably read as "zero calls allowed, tool use disabled." This causes confusion: users set it to a positive number thinking they are enabling tool use, when they are actually imposing a cap that did not previously exist.
 
 The companion setting `agent_max_rounds` defaults to `20`, giving each conversation a sensible round limit. `agent_max_tool_calls` at `0` (unlimited) is inconsistent with this: rounds are capped but tool calls within each round are not, leaving the door open for significant runaway cost in multi-tool-call-per-round scenarios.
 

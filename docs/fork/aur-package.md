@@ -1,8 +1,8 @@
 # Agent Handoff: AUR Package
 
 ## Status
-PLANNING — nothing written yet. Blockers identified. Read the full document
-before starting. Also read `docs/fork/build-linux-app.md` first — the AUR
+PLANNING: nothing written yet. Blockers identified. Read the full document
+before starting. Also read `docs/fork/build-linux-app.md` first; the AUR
 package depends on that script existing and working.
 
 ---
@@ -42,7 +42,7 @@ If it works: PKGBUILD uses `depends=('python')` (Arch's current Python, whatever
 version that is). The venv will be created with the system Python.
 
 If it breaks: investigate which 3.14-specific syntax or APIs are used. Most
-likely candidates are type annotation syntax (`X | Y`, `type` statement) — these
+likely candidates are type annotation syntax (`X | Y`, `type` statement); these
 can often be backported with minor changes or avoided.
 
 Do NOT proceed with the PKGBUILD until this is confirmed.
@@ -58,7 +58,7 @@ behavior for ML packages and should be noted in the package description.
 
 ### 3. No pyproject.toml `[project]` section
 
-The project has no installable package metadata — it is designed to run in-place.
+The project has no installable package metadata: it is designed to run in-place.
 The PKGBUILD will therefore NOT use `pip install .`. Instead it copies the repo
 tree to `/opt/odysseus` and creates the venv there.
 
@@ -75,7 +75,7 @@ tree to `/opt/odysseus` and creates the venv there.
 
 The `build-linux-app.sh` script (once written) handles the user-level desktop
 integration (`~/.local/bin/`, `.desktop` files). It is run as a post-install
-message instruction, not as a root hook — desktop integration is per-user and
+message instruction, not as a root hook; desktop integration is per-user and
 must not run as root.
 
 ### Package metadata
@@ -206,7 +206,7 @@ via yay. The two mechanisms are mutually exclusive in practice.
 
 ## Files to create (in order)
 
-1. `build-linux-app.sh` — see `docs/fork/build-linux-app.md` — **do this first**
+1. `build-linux-app.sh`: see `docs/fork/build-linux-app.md`. **Do this first**
 2. Test Python version compatibility
 3. Write `odysseus-jdmanring.install` (post-install message)
 4. Write `PKGBUILD`

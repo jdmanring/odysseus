@@ -1,4 +1,4 @@
-# PR Draft: fix/tool-bubble-timer-leak → odysseus-dev/odysseus:dev
+# PR Draft: fix/tool-bubble-timer-leak -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/tool-bubble-timer-leak`
 **Issue:** [#73](https://github.com/jdmanring/odysseus/issues/73)
@@ -17,7 +17,7 @@
 
 Two bugs in the tool bubble update path inside `chat.js`.
 
-### Bug 1 — Timer leak before `_isBg` skip
+### Bug 1: Timer leak before `_isBg` skip
 
 The tool bubble update handler starts a wave animation timer (`_waveInterval`) and an elapsed-time ticker (`_elapsedTicker`) to animate the "thinking" indicator on tool calls. Both timers are started before the `_isBg` (is-background-stream) guard:
 
@@ -36,9 +36,9 @@ When `_isBg` is true, the function continues to the next iteration without ever 
 
 Fix: move the timer setup to after the `_isBg` guard so background-stream iterations exit cleanly before starting any timers.
 
-### Bug 2 — Silent write failure after Phase 2 eviction
+### Bug 2: Silent write failure after Phase 2 eviction
 
-`chatHistory.js` Phase 2 eviction removes the holder from the DOM while a long tool call is in progress. After eviction, writes to the detached bubble (`currentToolBubble.innerHTML = ...`) silently fail — the DOM update is discarded and no error is thrown.
+`chatHistory.js` Phase 2 eviction removes the holder from the DOM while a long tool call is in progress. After eviction, writes to the detached bubble (`currentToolBubble.innerHTML = ...`) silently fail; the DOM update is discarded and no error is thrown.
 
 The handler had a null check (`if (!currentToolBubble)`) but not a connectivity check. A non-null detached element passes the null check; the write silently does nothing.
 
@@ -55,7 +55,7 @@ if (!currentToolBubble || !currentToolBubble.isConnected) {
 
 ## Files changed
 
-- `static/js/chat.js` — timer setup moved after `_isBg` guard; `isConnected` check added to tool bubble null guard
+- `static/js/chat.js`: timer setup moved after `_isBg` guard; `isConnected` check added to tool bubble null guard
 
 ## Tests
 
@@ -86,7 +86,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 
 ### How to Test
 
-1. **Timer leak:** Start a background stream (session with `checkBackgroundStream`). In DevTools → Performance, record during streaming. Confirm no `_waveInterval` or `_elapsedTicker` callbacks appear in the background-stream path.
+1. **Timer leak:** Start a background stream (session with `checkBackgroundStream`). In DevTools -> Performance, record during streaming. Confirm no `_waveInterval` or `_elapsedTicker` callbacks appear in the background-stream path.
 2. **Evicted bubble:** Run a long agent session until Phase 2 eviction fires. When a tool call's bubble is evicted mid-execution, confirm `[chat] tool_output: bubble evicted before completion, skipping update` appears in the console and the tool call completes without a JS error.
 3. Confirm tool bubbles still animate correctly in non-background, non-evicted sessions.
 
@@ -95,9 +95,9 @@ Fixes # <!-- [add upstream issue number before filing] -->
 ## Filing Notes
 
 - Single commit: `ef8b82e4` (on branch), cherry-picked to develop as `773c7d51`.
-- Branch: `fix/tool-bubble-timer-leak` — built from `upstream-mirror`.
+- Branch: `fix/tool-bubble-timer-leak`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
-- Bug 2 (`isConnected` guard) is most impactful when paired with `fix/dom-oom-virtualization` (which introduces Phase 2 eviction). It is still a valid fix without it — any DOM removal of the bubble (e.g., session switch) triggers the same silent-write scenario.
+- Bug 2 (`isConnected` guard) is most impactful when paired with `fix/dom-oom-virtualization` (which introduces Phase 2 eviction). It is still a valid fix without it: any DOM removal of the bubble (e.g., session switch) triggers the same silent-write scenario.
 
 ## Visual / UI changes
 

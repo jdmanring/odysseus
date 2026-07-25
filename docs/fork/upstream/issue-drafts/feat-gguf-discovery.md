@@ -10,7 +10,7 @@
 
 ## Title
 
-`[Cookbook] Quality-scored GGUF source discovery — find the best community quantization automatically`
+`[Cookbook] Quality-scored GGUF source discovery, find the best community quantization automatically`
 
 ---
 
@@ -23,7 +23,7 @@ When a llamacpp model has no static `ggufSource` configured, the auto-discovery 
 
 1. **Discovery returns low-quality results.** Sorting by downloads alone surfaces repositories with "GGUF" in the name but no actual GGUF files, old unmaintained repos, and repos from quantizers with a poor track record. Users see "No GGUF source is configured" for popular models even when high-quality community quantizations exist (addresses #2342).
 
-2. **File selection ignores the model's configured quantization.** When the resolver returns a repository, `_ggufIncludePattern` uses `source.file` as the include pattern — silently ignoring the model's own `quant` field (e.g. `Q4_K_M`). A model whose name and UI clearly indicate Q4_K_M can end up downloading Q2_K or a projector companion file (`*-mmproj.f16.gguf`) instead.
+2. **File selection ignores the model's configured quantization.** When the resolver returns a repository, `_ggufIncludePattern` uses `source.file` as the include pattern: silently ignoring the model's own `quant` field (e.g. `Q4_K_M`). A model whose name and UI clearly indicate Q4_K_M can end up downloading Q2_K or a projector companion file (`*-mmproj.f16.gguf`) instead.
 
 **Proposed Solution:**
 Replace the download-count sort with an 8-signal quality scorer:
@@ -45,4 +45,4 @@ Additionally:
 - **Tier-aware closest-quant fallback:** when the exact quant isn't available, select the best available quant in the same bit-depth tier rather than the first alphabetical file
 
 **Alternatives Considered:**
-Direct HuggingFace leaderboard API: requires OAuth and returns model performance, not quantization quality. The 8-signal scorer uses only public metadata from `model_info(expand=[...])` — one API call per candidate, no authentication required.
+Direct HuggingFace leaderboard API: requires OAuth and returns model performance, not quantization quality. The 8-signal scorer uses only public metadata from `model_info(expand=[...])`; one API call per candidate, no authentication required.

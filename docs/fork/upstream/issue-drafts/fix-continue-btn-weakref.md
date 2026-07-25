@@ -46,9 +46,9 @@ In a long session with 20 agent rounds that each trigger the step limit (common 
 **Steps to observe:**
 
 1. Start a long agent session until Phase 2 eviction fires.
-2. After eviction, open DevTools → Memory and take a heap snapshot.
+2. After eviction, open DevTools -> Memory and take a heap snapshot.
 3. Search for `HTMLDivElement` nodes with the `message-holder` or equivalent class that are detached (not in the DOM but referenced by a live closure). With this bug, these count equals the number of step-limit Continue buttons that were created and not clicked.
 
 **Expected:** After Phase 2 eviction, the evicted holders are collectable. The step-limit button's click handler should hold a `WeakRef` and dereference at call time, returning early if the holder has been collected.
 
-**Affected file:** `static/js/chat.js` — three `contBtn.addEventListener('click', ...)` sites
+**Affected file:** `static/js/chat.js`: three `contBtn.addEventListener('click', ...)` sites

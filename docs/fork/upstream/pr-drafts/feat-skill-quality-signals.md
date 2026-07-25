@@ -1,4 +1,4 @@
-# PR Draft: feat/skill-quality-signals → odysseus-dev/odysseus
+# PR Draft: feat/skill-quality-signals -> odysseus-dev/odysseus
 
 **Fork issue:** [#87](https://github.com/jdmanring/odysseus/issues/87)
 **Branch:** `feat/skill-quality-signals`
@@ -19,11 +19,11 @@
 
 Two improvements to the Brain > Skills quality layer:
 
-1. **BM25 hybrid retrieval** — `get_relevant_skills()` now scores using `0.5 * Jaccard + 0.5 * BM25_norm`. Skills with distinctive vocabulary (specific tool names, domain terms, command syntax) score higher for domain-specific queries; generic filler terms no longer get equal weight to rare procedural tokens.
+1. **BM25 hybrid retrieval**: `get_relevant_skills()` now scores using `0.5 * Jaccard + 0.5 * BM25_norm`. Skills with distinctive vocabulary (specific tool names, domain terms, command syntax) score higher for domain-specific queries; generic filler terms no longer get equal weight to rare procedural tokens.
 
-2. **Composite health score** — a new 0–100 `health_score` field in the skill card API response, derived from four existing sidecar signals (confidence, audit verdict, use count, necessity). Rendered as a color-coded badge on Brain > Skills cards.
+2. **Composite health score**: a new 0-100 `health_score` field in the skill card API response, derived from four existing sidecar signals (confidence, audit verdict, use count, necessity). Rendered as a color-coded badge on Brain > Skills cards.
 
-Neither change modifies the SKILL.md schema or `_usage.json` format — all signals are read from existing fields.
+Neither change modifies the SKILL.md schema or `_usage.json` format; all signals are read from existing fields.
 
 ---
 
@@ -35,12 +35,12 @@ Pure Jaccard similarity treats all token overlaps equally. A query for
 `"configure libvirt XML bridge networking"` scores a libvirt-specific skill and a
 generic "configure application settings" skill nearly identically if they share three
 common tokens. BM25 assigns IDF weight to each token based on how many skills contain
-it — specific tool names and domain vocabulary score higher.
+it: specific tool names and domain vocabulary score higher.
 
 The SkillRet benchmark (arxiv:2605.05726, 2025) and Skill Retrieval Benchmark
 (arxiv:2604.24594, 2025) demonstrate that BM25 hybrid retrieval significantly
 outperforms pure Jaccard for skill libraries. Their core finding: skills are "executable
-capability packages" — retrieval must recognize procedural intent, which correlates
+capability packages"; retrieval must recognize procedural intent, which correlates
 with distinctive vocabulary, not just semantic overlap.
 
 **Health score**
@@ -71,8 +71,8 @@ and a pass verdict.
 - Returns raw (unbounded) score; caller normalizes
 
 `_health_score(skill: Dict) -> int`
-- Derives 0–100 integer from existing sidecar fields
-- Breakdown: `confidence×40` + audit verdict (pass=30/inconclusive=15/needs_work=10/skipped=5/fail=0) + `min(uses,20)/20×20` + necessity (absent/True=+10, False=+0)
+- Derives 0-100 integer from existing sidecar fields
+- Breakdown: `confidencex40` + audit verdict (pass=30/inconclusive=15/needs_work=10/skipped=5/fail=0) + `min(uses,20)/20x20` + necessity (absent/True=+10, False=+0)
 - Handles None/missing fields without raising
 
 **`SkillsManager.__init__`:**
@@ -84,7 +84,7 @@ and a pass verdict.
 **`load_all()` (called by `to_dict()`):**
 - `d["health_score"] = _health_score(d)` added after usage sidecar fields are merged
 
-**`get_relevant_skills()` — hybrid scoring loop:**
+**`get_relevant_skills()`, hybrid scoring loop:**
 ```python
 # Before scoring loop: build IDF cache and per-skill token lists
 if self._idf_cache is None:
@@ -120,17 +120,17 @@ Stats span in skill card template updated to:
 <span class="skill-stats">${_auditMarks(sk)}<span class="skill-conf" style="color:${confColor};">${conf}%</span> · ${uses}u ${_healthBadge(sk)}</span>
 ```
 
-#### `tests/test_skill_retrieval_bm25.py` (NEW FILE — 7 tests)
+#### `tests/test_skill_retrieval_bm25.py` (NEW FILE, 7 tests)
 
 | Test | What it verifies |
 |------|-----------------|
 | `test_bm25_ranks_distinctive_skill_higher` | BM25 scores libvirt-specific skill > generic "configure settings" skill for a libvirt query |
 | `test_bm25_returns_zero_for_no_overlap` | BM25 returns 0.0 for a query with no corpus token overlap |
-| `test_hybrid_get_relevant_skills_empty_list` | Empty skills list → empty result, no exception |
+| `test_hybrid_get_relevant_skills_empty_list` | Empty skills list -> empty result, no exception |
 | `test_hybrid_get_relevant_skills_retrieves_distinctive` | Hybrid `get_relevant_skills()` returns distinctive skill first (threshold=0.0) |
-| `test_health_score_ideal_skill_is_100` | confidence=1.0, pass verdict, 20 uses, necessary → score=100 |
-| `test_health_score_failed_skill_is_low` | confidence=0.35, fail verdict, 0 uses, unnecessary → score<30 |
-| `test_health_score_handles_missing_fields` | `_health_score({})` and None fields do not raise; result is 0–100 |
+| `test_health_score_ideal_skill_is_100` | confidence=1.0, pass verdict, 20 uses, necessary -> score=100 |
+| `test_health_score_failed_skill_is_low` | confidence=0.35, fail verdict, 0 uses, unnecessary -> score<30 |
+| `test_health_score_handles_missing_fields` | `_health_score({})` and None fields do not raise; result is 0-100 |
 
 All 7 tests pass. Full skill test suite: 40 passed.
 
@@ -155,7 +155,7 @@ All 7 tests pass. Full skill test suite: 40 passed.
    Confirm the libvirt-specific skill appears in the injected candidates, ranked first.
 
 2. **Generic skill does not contaminate domain query:**
-   Same setup — confirm the "configure-application-settings" skill does not appear
+   Same setup; confirm the "configure-application-settings" skill does not appear
    in the top-3 injected candidates for the libvirt-specific query.
 
 3. **Health score badge on skill cards:**
@@ -164,8 +164,8 @@ All 7 tests pass. Full skill test suite: 40 passed.
    `"Health score: N/100 (confidence + audit verdict + uses + necessity)"`.
 
 4. **Health score color thresholds:**
-   A skill with confidence=0.95, pass verdict, ≥20 uses, necessary=True should show
-   green (score ≥ 80). A skill with confidence=0.35, fail verdict, 0 uses should show
+   A skill with confidence=0.95, pass verdict, >=20 uses, necessary=True should show
+   green (score >= 80). A skill with confidence=0.35, fail verdict, 0 uses should show
    red (score < 60).
 
 5. **IDF cache invalidation:**
@@ -185,15 +185,15 @@ All 7 tests pass. Full skill test suite: 40 passed.
 
 Searched merged commits and open issues/PRs on `dev`:
 
-- **#5261/#5262** (open) *harden skill importer: block private SSRF targets, revalidate redirects* and **#5215/#5210** (open) *SKILL.md frontmatter corrupts non-ASCII* — both touch skill *import/loading* in `services/memory/skills.py`, the file this PR extends with BM25 retrieval + health scores. **Non-conflicting** (retrieval/scoring vs. import safety), but same file — **rebase-order matters**; keep their fixes.
-- Teacher Tier-2 work (merged) + issue **#4962** — the skill/teacher area is volatile; re-validate at rebase.
+- **#5261/#5262** (open) *harden skill importer: block private SSRF targets, revalidate redirects* and **#5215/#5210** (open) *SKILL.md frontmatter corrupts non-ASCII*: both touch skill *import/loading* in `services/memory/skills.py`, the file this PR extends with BM25 retrieval + health scores. **Non-conflicting** (retrieval/scoring vs. import safety), but same file, so **rebase-order matters**; keep their fixes.
+- Teacher Tier-2 work (merged) + issue **#4962**: the skill/teacher area is volatile; re-validate at rebase.
 
 **Verdict:** complements; same-file coordination on rebase.
 
 ## Filing Notes
 
 - File the upstream issue first; reference the issue number in the PR.
-- File after `fix/skill-lifecycle-correctness` has been filed and reviewed — retrieval
+- File after `fix/skill-lifecycle-correctness` has been filed and reviewed; retrieval
   improvement is most meaningful when the audit pipeline is functional.
 - Base branch: `dev` (upstream default development branch).
 - No migration needed. No config changes needed.

@@ -1,4 +1,4 @@
-# PR Draft: feat/logging → odysseus-dev/odysseus:dev
+# PR Draft: feat/logging -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/logging`
 **Issue:** [#31](https://github.com/jdmanring/odysseus/issues/31) (fork tracking)
@@ -54,7 +54,7 @@ Replace stdlib `logging` initialisation with [structlog](https://www.structlog.o
 **Auth Event Logging (`routes/auth_routes.py`); addresses upstream #3803**
 - Login success/failure (with reason: invalid_password, invalid_totp)
 - Signup, logout, password change, admin user create/delete
-- Every `POST /api/auth/settings` logs actor, key changed, and old → new values
+- Every `POST /api/auth/settings` logs actor, key changed, and old -> new values
 
 **Environment Variables**
 
@@ -129,10 +129,10 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/feat-logging.md] -->
 
 Searched merged commits and open issues/PRs on `dev`:
 
-- **#5236** (open) *move note domain into `routes/note/` subpackage* — this PR's ntfy-send timing instrumentation lives in `note_routes.py`, which #5236 converts to a subpackage shim (the same refactor already applied to history/gallery/contacts/memory/research). **Coordinate:** rebase onto #5236's layout when it lands — the timing re-homes into `routes/note/`.
-- **#5208** (open; issue **#5207**) *sanitize ntfy Title header to ASCII* — touches the same ntfy send path. **Non-conflicting** (header encoding vs. timing log); keep both. Also mind **#5142** (merged) which added the SSRF guard our merge already sits behind.
+- **#5236** (open) *move note domain into `routes/note/` subpackage*: this PR's ntfy-send timing instrumentation lives in `note_routes.py`, which #5236 converts to a subpackage shim (the same refactor already applied to history/gallery/contacts/memory/research). **Coordinate:** rebase onto #5236's layout when it lands; the timing re-homes into `routes/note/`.
+- **#5208** (open; issue **#5207**) *sanitize ntfy Title header to ASCII*: touches the same ntfy send path. **Non-conflicting** (header encoding vs. timing log); keep both. Also mind **#5142** (merged) which added the SSRF guard our merge already sits behind.
 
-**Verdict:** non-conflicting but same file(s) — rebase-order matters; note it at file time.
+**Verdict:** non-conflicting but same file(s), so rebase-order matters; note it at file time.
 
 ## How to Test
 
@@ -157,4 +157,4 @@ Searched merged commits and open issues/PRs on `dev`:
 - **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-logging.md`. Add the issue number to `Fixes #` above before opening the PR.
 - Reference upstream #3803 in the PR summary as the hardening audit that identified the PII and audit logging gaps. Note this PR does not address all items in #3803.
 - Branch: `jdmanring/odysseus:feat/logging` (previously split into feat/logging-core and feat/logging-timing; combined here because callsites are untestable without the infrastructure).
-- **SearXNG query content moved to DEBUG:** `services/search/providers.py` previously logged `query=query[:80]` at INFO alongside the timing entry. Query content (health conditions, legal situations, personal research) is the same category of PII that upstream #3803 flagged. Fix: the `searxng_http` INFO entry now logs only `elapsed_ms` and `status`; a paired `searxng_http_query` DEBUG entry carries the query text. Query content is available when `ODYSSEUS_DEBUG=1` or `ODYSSEUS_DEBUG_SUBSYSTEMS=services.search.providers` — a conscious opt-in, not an always-on exposure.
+- **SearXNG query content moved to DEBUG:** `services/search/providers.py` previously logged `query=query[:80]` at INFO alongside the timing entry. Query content (health conditions, legal situations, personal research) is the same category of PII that upstream #3803 flagged. Fix: the `searxng_http` INFO entry now logs only `elapsed_ms` and `status`; a paired `searxng_http_query` DEBUG entry carries the query text. Query content is available when `ODYSSEUS_DEBUG=1` or `ODYSSEUS_DEBUG_SUBSYSTEMS=services.search.providers`: a conscious opt-in, not an always-on exposure.

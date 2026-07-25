@@ -1,4 +1,4 @@
-# PR Draft: fix/pytest-timeout-dependency → odysseus-dev/odysseus:dev
+# PR Draft: fix/pytest-timeout-dependency -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/pytest-timeout-dependency`
 **Issue:** [#6](https://github.com/jdmanring/odysseus/issues/6) (fork tracking)
@@ -35,7 +35,7 @@ false confidence: a test suite that appears green is actually not enforcing any 
 timeout guarantees.
 
 **3; Contributor onboarding failure.** Every new contributor who follows the standard
-setup path (`pip install -r requirements.txt` → `pytest`) sees either error (1) or
+setup path (`pip install -r requirements.txt` -> `pytest`) sees either error (1) or
 silent issue (2) on their very first test run. The error message gives no indication that
 a dependency is missing; it looks like a pytest configuration problem. Contributors
 spend time debugging test infrastructure rather than contributing code.

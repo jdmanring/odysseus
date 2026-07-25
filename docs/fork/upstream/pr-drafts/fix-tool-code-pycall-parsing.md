@@ -65,7 +65,7 @@ Fixes # <!-- [file upstream issue first] -->
 `_parse_tool_code_pycall()` uses `ast.parse` (already imported) to extract the function
 name and keyword arguments from blocks like `bash(command="gh repo list")`. The name is
 looked up in `_TOOL_NAME_MAP` and the args are routed through `function_call_to_tool_block`
-— the same path used by native function calls and `<invoke>` blocks.
+(the same path used by native function calls and `<invoke>` blocks).
 
 `strip_tool_blocks` is updated to use `_TOOL_CODE_ANY_RE` (matches any `<tool_code>` block
 regardless of inner format) instead of the narrower `_TOOL_CODE_RE`, consistent with the
@@ -78,9 +78,9 @@ The MiniMax `{tool => ...}` path is unchanged and still tried first.
 
 Searched merged commits and open issues/PRs on `dev`:
 
-- **#5033** (merged) *parse Gemma 3/4 custom tool calling tokens* — **complements; different format.** #5033 parses Gemma's `<|tool_call|> call:name{...}` tokens; this PR parses the `<tool_code>name(args)` python-call syntax. Both coexist (`dev` already carries #5033). No overlap.
-- **#4941 / #4704 / #4877** (merged) ReDoS-safe delimited parser/stripper rewrites — this change is written against that post-rewrite parser (forward-only `_strip_delimited`, no lazy rescan), so it does not reintroduce the ReDoS surface.
-- **#5275** (open) *bracket-tag `[bash]/[shell]/[python]` tool calls* and **#5199** (open; issue **#5187**) *Qwen/Hermes `<tool_call>` bare-JSON* — **adjacent, non-conflicting.** Each is an independent `if not blocks:` branch in the same parser; rebase around whichever lands first.
+- **#5033** (merged) *parse Gemma 3/4 custom tool calling tokens*: **complements; different format.** #5033 parses Gemma's `<|tool_call|> call:name{...}` tokens; this PR parses the `<tool_code>name(args)` python-call syntax. Both coexist (`dev` already carries #5033). No overlap.
+- **#4941 / #4704 / #4877** (merged) ReDoS-safe delimited parser/stripper rewrites: this change is written against that post-rewrite parser (forward-only `_strip_delimited`, no lazy rescan), so it does not reintroduce the ReDoS surface.
+- **#5275** (open) *bracket-tag `[bash]/[shell]/[python]` tool calls* and **#5199** (open; issue **#5187**) *Qwen/Hermes `<tool_call>` bare-JSON*: **adjacent, non-conflicting.** Each is an independent `if not blocks:` branch in the same parser; rebase around whichever lands first.
 
 **Verdict:** complements existing + in-flight parser work; not a duplicate.
 

@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Chat] TTS left in broken state after stream error — ReferenceError: streamingTTS is not defined in catch block`
+`[Chat] TTS left in broken state after stream error: ReferenceError: streamingTTS is not defined in catch block`
 
 ---
 

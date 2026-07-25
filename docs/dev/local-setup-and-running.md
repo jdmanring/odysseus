@@ -9,7 +9,7 @@
 
 - Python 3.11+
 - `pip` / virtualenv
-- `aria2c` — **the** Cookbook downloader (the fork's replacement for the flaky
+- `aria2c`: **the** Cookbook downloader (the fork's replacement for the flaky
   `hf_transfer`; it is not an optional accelerator). Auto-installed by
   `BinManager` on Linux/Windows; on **macOS** there is no static build, so it is
   installed by `start-macos.sh` (`brew install aria2`; conda-forge also works).
@@ -25,9 +25,9 @@ pip install -r requirements.txt
 ```
 
 Copy `.env.example` to `.env` and configure:
-- `AUTH_ENABLED=false` — for local single-user use
-- `OPENAI_API_KEY` — if using OpenAI models
-- `HF_TOKEN` — for gated HuggingFace models
+- `AUTH_ENABLED=false`: for local single-user use
+- `OPENAI_API_KEY`: if using OpenAI models
+- `HF_TOKEN`: for gated HuggingFace models
 
 Note: `.env` must be saved as UTF-8 without BOM. A BOM causes keys to be silently
 misread (upstream issue #142).
@@ -40,11 +40,11 @@ venv/bin/uvicorn app:app --host 127.0.0.1 --port 7000
 ```
 Open `http://127.0.0.1:7000` in a browser.
 
-**Linux native wrapper** (requires PyQt6 and PyQt6-WebEngine — install via your distro package manager or `pip install PyQt6 PyQt6-WebEngine`):
+**Linux native wrapper** (requires PyQt6 and PyQt6-WebEngine; install via your distro package manager or `pip install PyQt6 PyQt6-WebEngine`):
 ```bash
 python3 qt_wrapper.py
 ```
-Starts the server and opens a Qt window. Do not also run uvicorn manually — the
+Starts the server and opens a Qt window. Do not also run uvicorn manually: the
 wrapper owns the server lifecycle.
 
 ## Data locations

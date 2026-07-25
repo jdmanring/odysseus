@@ -1,4 +1,4 @@
-# PR Draft: perf/round-finalize-inplace → odysseus-dev/odysseus:dev
+# PR Draft: perf/round-finalize-inplace -> odysseus-dev/odysseus:dev
 
 **Branch:** `perf/round-finalize-inplace`
 **Issue:** [#77](https://github.com/jdmanring/odysseus/issues/77) (fork tracking)
@@ -19,7 +19,7 @@
 In multi-round agent sessions with tool calls, each text round's DOM is rebuilt
 via `innerHTML` up to twice:
 
-**Reset 1 — at `tool_start`** (line ~2045):
+**Reset 1, at `tool_start`** (line ~2045):
 
 ```javascript
 var _contentEl3 = _ensureStreamLayout(_body3);
@@ -33,7 +33,7 @@ streaming renderer was incrementally building into. `_ensureStreamLayout` return
 the same element. The `innerHTML` assignment destroys all the incrementally built
 DOM nodes and reconstructs the identical content from scratch.
 
-**Reset 2 — at final completion with sources/findings** (line ~2703):
+**Reset 2, at final completion with sources/findings** (line ~2703):
 
 ```javascript
 _body4.innerHTML = (_sourcesData ? _buildSourcesBox(...) : '')
@@ -41,8 +41,8 @@ _body4.innerHTML = (_sourcesData ? _buildSourcesBox(...) : '')
   + (_findingsData ? chatRenderer.buildFindingsBox(_findingsData) : '');
 ```
 
-This wipes the entire `.body` — including the content that was finalized at Reset 1
-— and rebuilds it again. For a 5-round session, this pattern creates approximately
+This wipes the entire `.body` (including the content that was finalized at Reset 1)
+and rebuilds it again. For a 5-round session, this pattern creates approximately
 10 discarded DOM subtrees per session.
 
 ### Fix
@@ -101,7 +101,7 @@ taken.
 
 ## Files changed
 
-- `static/js/chat.js` — Reset 1: renderer-aware finalize at `tool_start`; Reset 2:
+- `static/js/chat.js`: Reset 1: renderer-aware finalize at `tool_start`; Reset 2:
   sibling injection when in-place content exists
 
 ## Tests
@@ -166,20 +166,20 @@ focused upstream issue if warranted and link it here before submitting.
 ### How to Test
 
 1. Start the app with agent mode active (tool calls enabled).
-2. Run a multi-round agent session — 3+ rounds, with tool calls and text in each round.
+2. Run a multi-round agent session: 3+ rounds, with tool calls and text in each round.
 3. In `wrapper_system.log` (or DevTools Console), confirm:
    - `[chat] round-finalize: tool_start in-place` appears once per round (Reset 1 in-place path firing)
    - `[chat] round-finalize: sources in-place` appears for rounds with sources (Reset 2 in-place path)
-4. Open DevTools → Memory. Confirm `div` count grows more slowly than before for multi-round sessions.
+4. Open DevTools -> Memory. Confirm `div` count grows more slowly than before for multi-round sessions.
 5. Verify final rendered content and source boxes are identical to the previous behavior.
-6. Run `pytest tests/test_chat_round_finalize_js.py -q` — 13 tests.
+6. Run `pytest tests/test_chat_round_finalize_js.py -q`; 13 tests.
 
 ---
 
 ## Filing Notes
 
 - 2 commits: in-place fixes (`1ee51846`), logging (`06cb0a2e`).
-- Branch: `perf/round-finalize-inplace` — built from `upstream-mirror`.
+- Branch: `perf/round-finalize-inplace`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - Reset 1 only fires when `_contentEl3._streamRenderer` is non-null. In thinking-only rounds (no text tokens), `_streamRenderer` is null and the existing `innerHTML` path runs. This is expected.
 - Reset 2's `_hasInPlaceContent` check is structural (child node presence), not flag-based. It composes correctly with both the Reset 1 in-place path and the existing `perf/streaming-final-render` fast-path finalize.

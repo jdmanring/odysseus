@@ -1,4 +1,4 @@
-# PR Draft — fix/dom-oom-streaming-throttle
+# PR Draft: fix/dom-oom-streaming-throttle
 
 **Branch**: `fix/dom-oom-streaming-throttle` (from `upstream-mirror`)
 **Issue**: jdmanring/odysseus#64
@@ -15,27 +15,27 @@
 
 ## Summary
 
-The QtWebEngine renderer grows to 14–18 GB RSS in long agent sessions (~300+ messages). Root cause analysis via `/proc/PID/maps` confirmed three allocating sources in `chat.js`. This PR fixes all three plus adds a post-stream GC yield.
+The QtWebEngine renderer grows to 14-18 GB RSS in long agent sessions (~300+ messages). Root cause analysis via `/proc/PID/maps` confirmed three allocating sources in `chat.js`. This PR fixes all three plus adds a post-stream GC yield.
 
-### Fix A — thinking block textContent during streaming (primary fix)
+### Fix A: thinking block textContent during streaming (primary fix)
 
-`_liveThinkInner.innerHTML = markdownModule.mdToHtml(thinkText)` ran on every SSE delta while a thinking block was open. With ~500 tokens per response and mdToHtml returning 50–200 KB of HTML per call, this generated ~50 MB of V8 old-gen garbage per thinking response that the GC never compacted during active streaming.
+`_liveThinkInner.innerHTML = markdownModule.mdToHtml(thinkText)` ran on every SSE delta while a thinking block was open. With ~500 tokens per response and mdToHtml returning 50-200 KB of HTML per call, this generated ~50 MB of V8 old-gen garbage per thinking response that the GC never compacted during active streaming.
 
 Fix: replace with `textContent = thinkText; style.whiteSpace = 'pre-wrap'` during streaming. A single `mdToHtml` render fires when the block closes and `whiteSpace` is cleared. This approach is adapted from upstream PR #4661 (holden093), which applies the same textContent fix.
 
-### Fix A2 — rAF throttle for normal streaming
+### Fix A2: rAF throttle for normal streaming
 
 `_renderStream()` was called synchronously on every SSE delta in the normal streaming path. At 200 tok/sec this is 200 layout-triggering re-renders per second. Throttled to one per animation frame via a `requestAnimationFrame` guard (`_renderRafId`). The pending frame is cancelled in `finally` so the final synchronous render is not double-fired.
 
-### Fix C1 — StreamRenderer closure teardown
+### Fix C1: StreamRenderer closure teardown
 
 `contentEl._streamRenderer` held `lastText` (the full response string) and a detached `tailMarker` comment node in old-gen indefinitely. Neither `finalize()` nor any cleanup was ever called after the final `innerHTML` re-render. Fixed by nulling both references after the final render: `_scEl._streamRenderer = null` and `_liveReplyEl._streamRenderer = null`.
 
-### Fix C3 — Post-stream idle GC yield
+### Fix C3: Post-stream idle GC yield
 
 After stream finalization, yield to idle via `scheduler.postTask(() => {}, { priority: 'background' })` with `requestIdleCallback` fallback. This gives V8 a compaction window after the streaming allocation burst. `scheduler.postTask` with `'background'` priority is stronger than a bare `requestIdleCallback` in Chromium-based runtimes because it runs at the lowest scheduler priority rather than at idle hint.
 
-### Fix C4 — Background stream field cleanup on `[DONE]`
+### Fix C4: Background stream field cleanup on `[DONE]`
 
 `_backgroundStreams` map entries kept `accumulated`, `sourcesHtml`, and `findingsData` populated after stream completion. Text is already persisted to DB at this point; retaining it in-memory serves no purpose. All three are cleared when `[DONE]` is received. (Upstream PR #4661 cleared only `accumulated` and `abortCtrl`.)
 
@@ -43,8 +43,8 @@ After stream finalization, yield to idle via `scheduler.postTask(() => {}, { pri
 
 ## Files changed
 
-- `static/js/chat.js` — all five fixes
-- `tests/test_chat_streaming_oom.py` — new file, 14 static-analysis tests
+- `static/js/chat.js`; all five fixes
+- `tests/test_chat_streaming_oom.py`, new file, 14 static-analysis tests
 
 ## Tests
 
@@ -94,16 +94,16 @@ and link it here before submitting.
 
 1. Run a long agent session with thinking blocks enabled (20+ thinking-block responses).
 2. Monitor renderer RSS via `cat /proc/$(pgrep -n QtWebEngineProc)/smaps_rollup | grep Rss` between responses. With the thinking-block fix, RSS should grow significantly more slowly during thinking-heavy sessions.
-3. Open DevTools → Memory. Compare heap snapshots before and after a thinking-block response. The post-response snapshot should show fewer retained `HTMLDivElement` instances.
+3. Open DevTools -> Memory. Compare heap snapshots before and after a thinking-block response. The post-response snapshot should show fewer retained `HTMLDivElement` instances.
 4. Verify rendered output is identical for thinking-block responses (final mdToHtml render fires correctly).
-5. Run `pytest tests/test_chat_streaming_oom.py -q` — 14 tests.
+5. Run `pytest tests/test_chat_streaming_oom.py -q`, 14 tests.
 
 ---
 
 ## Filing Notes
 
 - 3 commits: fix (`d35f3819`), tests (`6cae1aad`), PR draft (`16e8bc16`).
-- Branch: `fix/dom-oom-streaming-throttle` — built from `upstream-mirror`.
+- Branch: `fix/dom-oom-streaming-throttle`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - **Relationship to upstream PR #4661**: the thinking-block `textContent` fix and the
   background-stream cleanup are adapted from PR #4661 (holden093), with attribution. The

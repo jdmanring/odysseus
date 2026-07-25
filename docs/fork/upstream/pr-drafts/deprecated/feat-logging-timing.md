@@ -1,4 +1,4 @@
-# PR Draft: feat/logging-timing → odysseus-dev/odysseus:dev
+# PR Draft: feat/logging-timing -> odysseus-dev/odysseus:dev
 
 **Branch:** `jdmanring/odysseus:feat/logging-timing`
 **Base:** `jdmanring/odysseus:feat/logging-core` (depends on PR #1)
@@ -50,17 +50,17 @@ All timing uses structured keys (`duration_ms`, `elapsed_ms`) so results are fil
 
 ### Files Changed
 
-- `src/embeddings.py` — encode timing, FastEmbed load timing, factory timing
-- `src/chroma_client.py` — TCP probe timing, heartbeat timing
-- `routes/email_helpers.py` — IMAP connect/login timing, SMTP duration
-- `src/service_health.py` — elapsed_ms in all probe results
-- `services/search/providers.py` — SearXNG HTTP timing
-- `routes/email_pollers.py` — poller cycle timing
-- `routes/note_routes.py` — ntfy publish timing
-- `src/agent_loop.py` — loop completion summary
-- `src/bg_jobs.py` — job lifecycle logging
-- `src/mcp_manager.py` — MCP call success/failure with duration
-- `src/tool_execution.py` — tool execution timing
+- `src/embeddings.py`: encode timing, FastEmbed load timing, factory timing
+- `src/chroma_client.py`: TCP probe timing, heartbeat timing
+- `routes/email_helpers.py`: IMAP connect/login timing, SMTP duration
+- `src/service_health.py`: elapsed_ms in all probe results
+- `services/search/providers.py`: SearXNG HTTP timing
+- `routes/email_pollers.py`: poller cycle timing
+- `routes/note_routes.py`: ntfy publish timing
+- `src/agent_loop.py`: loop completion summary
+- `src/bg_jobs.py`: job lifecycle logging
+- `src/mcp_manager.py`: MCP call success/failure with duration
+- `src/tool_execution.py`: tool execution timing
 
 ## Target branch
 
@@ -72,8 +72,8 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Type of Change
 
-- [ ] Bug fix (non-breaking — fixes a confirmed issue)
-- [x] New feature (non-breaking — adds new behaviour)
+- [ ] Bug fix (non-breaking; fixes a confirmed issue)
+- [x] New feature (non-breaking; adds new behaviour)
 - [ ] Breaking change (changes or removes existing behaviour)
 - [ ] Refactor / cleanup (behaviour unchanged)
 - [ ] Documentation only
@@ -81,9 +81,9 @@ Fixes # <!-- [file upstream issue first] -->
 
 ## Checklist
 
-- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls) — this is not a duplicate.
+- [x] I searched [open issues](https://github.com/odysseus-dev/odysseus/issues) and [open PRs](https://github.com/odysseus-dev/odysseus/pulls); this is not a duplicate.
 - [x] This PR targets `dev`
-- [x] My changes are limited to the scope described above — no unrelated refactors or whitespace changes mixed in.
+- [x] My changes are limited to the scope described above, with no unrelated refactors or whitespace changes mixed in.
 - [x] I actually ran the app (`docker compose up` or `uvicorn app:app`) and verified the change works end-to-end. Type-checks and unit tests are not enough.
 
 ### How to Test
@@ -97,18 +97,18 @@ Fixes # <!-- [file upstream issue first] -->
 2. Hit the health endpoint: `curl http://localhost:7000/api/health | python3 -m json.tool`
 3. Confirm the JSON response includes `elapsed_ms` fields in the subsystem probe results (ChromaDB, embeddings, SearXNG).
 4. If SearXNG is configured and takes > 500ms to respond, confirm a `search.timing` log entry appears in `data/logs/odysseus.log`.
-5. Open the Cookbook tab and start a model download — confirm timing entries appear in the log for the IMAP/SMTP paths if email is configured.
-6. Run the agent with a multi-step task — confirm `agent.timing` entries appear in the log on completion with `duration_ms` populated.
-7. Start the server with `ODYSSEUS_DEBUG=1` — confirm timing is logged even for fast operations (below the thresholds).
+5. Open the Cookbook tab and start a model download and confirm timing entries appear in the log for the IMAP/SMTP paths if email is configured.
+6. Run the agent with a multi-step task; confirm `agent.timing` entries appear in the log on completion with `duration_ms` populated.
+7. Start the server with `ODYSSEUS_DEBUG=1` and confirm timing is logged even for fast operations (below the thresholds).
 8. Confirm no new test failures: `pytest` should pass all 64+ tests.
 
 ---
 
 ## Filing Notes
 
-- **File upstream issue first** — draft in `docs/fork/upstream/issue-drafts/feat-logging-timing.md`. Add the issue number to `Fixes #` above before opening the PR.
+- **File upstream issue first**; draft in `docs/fork/upstream/issue-drafts/feat-logging-timing.md`. Add the issue number to `Fixes #` above before opening the PR.
 - Depends on `feat/logging-core` merging upstream first. File the issue now; file the PR after core merges.
 
 ## Visual / UI changes
 
-None — no HTML, CSS, or DOM-writing JS was changed.
+None: no HTML, CSS, or DOM-writing JS was changed.

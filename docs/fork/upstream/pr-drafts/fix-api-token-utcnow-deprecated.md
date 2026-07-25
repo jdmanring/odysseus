@@ -1,4 +1,4 @@
-# PR Draft: fix/api-token-utcnow-deprecated → odysseus-dev/odysseus:dev
+# PR Draft: fix/api-token-utcnow-deprecated -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/api-token-utcnow-deprecated`
 **Fork issue:** [#51](https://github.com/jdmanring/odysseus/issues/51) (open)
@@ -28,8 +28,8 @@ _db.query(ApiToken).filter(ApiToken.id == tid).update(
 ```
 
 The project already has the correct abstraction: `utcnow_naive()` in
-`core/database.py`, which returns `datetime.now(timezone.utc).replace(tzinfo=None)`
-— naive UTC suitable for the `DateTime` columns used throughout the schema. Every
+`core/database.py`, which returns `datetime.now(timezone.utc).replace(tzinfo=None)`,
+naive UTC suitable for the `DateTime` columns used throughout the schema. Every
 other timestamp write in the codebase uses it. This was the only remaining site
 using the deprecated direct call.
 

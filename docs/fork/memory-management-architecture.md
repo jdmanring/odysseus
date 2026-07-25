@@ -96,7 +96,7 @@ Because the OS signal never arrives, the app must generate it.
 
 **Measured correction (2026-06-25):** the wrapper already wires the triggers
 below, but it calls `Memory.simulatePressureNotification('critical')`, which on
-this QtWebEngine build is a **no-op** — tested live, RSS 4861 to 4884 MB
+this QtWebEngine build is a **no-op**, tested live, RSS 4861 to 4884 MB
 (unchanged) after the call. That is why memory climbs unbounded despite the
 existing "idle tile eviction": the triggers fire but the call reclaims nothing.
 The call that actually works is `Memory.forciblyPurgeJavaScriptMemory` (page
@@ -152,7 +152,7 @@ open and eventually filled all RAM. Two findings:
      unbounded `!_wpWasConnected` grace). Fixed in #107 (a shared visibility guard
      for all three spinner loops). A further ~1.7 MB/s producer was then found
      when Tasks was open: the `#tasks-clock` 1/sec repaint re-rastering the whole
-     draggable Tasks-modal layer — fixed in #110 by isolating the clock to its own
+     draggable Tasks-modal layer, fixed in #110 by isolating the clock to its own
      layer. Lesson: name the producer (rAF/mutation capture, `tooling/mem-probe.py`)
      before fixing; do not guess.
 

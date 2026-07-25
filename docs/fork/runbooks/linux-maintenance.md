@@ -1,4 +1,4 @@
-# Linux App — Maintenance Runbook
+# Linux App: Maintenance Runbook
 
 ## Pending: Remove qt6-webengine version pin
 
@@ -27,7 +27,7 @@ The wrapper requires system-installed PyQt6 (not pip). Install once; no venv inv
 sudo pacman -S python-pyqt6 python-pyqt6-webengine
 ```
 
-`QWebChannel` and `QtDBus` are bundled with `python-pyqt6` — no additional packages needed.
+`QWebChannel` and `QtDBus` are bundled with `python-pyqt6`; no additional packages needed.
 
 ---
 

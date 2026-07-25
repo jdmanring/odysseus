@@ -10,7 +10,7 @@
 
 ## Body
 The "Add API Models" provider picker renders providers in the raw static `<option>`
-order. As providers were appended over time, that order drifted out of A–Z, so the
+order. As providers were appended over time, that order drifted out of A-Z, so the
 list is no longer alphabetical and providers are hard to find.
 
 **Fix:** sort by label in `_renderPickerMenu` at render time (with the Custom URL

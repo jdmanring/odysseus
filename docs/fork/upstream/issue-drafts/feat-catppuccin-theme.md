@@ -31,7 +31,7 @@ Add a `catppuccin` entry to `THEMES` in `static/js/theme.js` using the official 
 | Border | `#585b70` | Mocha Surface2 |
 | Accent | `#cba6f7` | Mocha Mauve |
 
-The default theme remains `dark`. This is an opt-in preset — a single entry added to the existing themes list. No changes to the theme engine, scheduling, persistence, or UI.
+The default theme remains `dark`. This is an opt-in preset, a single entry added to the existing themes list. No changes to the theme engine, scheduling, persistence, or UI.
 
 **Alternatives Considered:**
 The existing custom color picker lets users approximate any palette, but a first-class preset is more discoverable, ensures exact official palette values, and is consistent with how other named themes (rose-pine, gruvbox, etc.) are provided.
