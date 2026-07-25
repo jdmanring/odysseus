@@ -334,6 +334,23 @@ class LlamaCppEmbedClient:
                 "rope_freq_scale": float(os.getenv("LLAMACPP_EMBED_ROPE_FREQ_SCALE", "0.75")),
             }
 
+        # Optional GPU offload for the embedder. Motivation and numbers:
+        # docs/dev/memory-architecture.md (iGPU section) - measured on the
+        # smallest iGPU AMD ships, embedding throughput under full CPU load
+        # is 28x the CPU's own, because the iGPU is the one device the LLM
+        # (dGPU) and the app (CPU) never contend for. Vendor-neutral: any
+        # llama.cpp GPU backend honors n_gpu_layers (Vulkan covers AMD,
+        # Intel, and NVIDIA; CUDA and Metal builds work identically), and
+        # a CPU-only build silently ignores it, so the default of 0 changes
+        # nothing anywhere. ODYSSEUS_EMBED_GPU_DEVICE picks the Vulkan
+        # device index (e.g. the iGPU on a two-GPU box); it must be set
+        # before the context is created, hence here. CUDA builds use
+        # CUDA_VISIBLE_DEVICES for the same purpose.
+        n_gpu_layers = int(os.getenv("ODYSSEUS_EMBED_GPU_LAYERS", "0"))
+        gpu_device = os.getenv("ODYSSEUS_EMBED_GPU_DEVICE")
+        if n_gpu_layers and gpu_device is not None:
+            os.environ.setdefault("GGML_VK_VISIBLE_DEVICES", gpu_device)
+
         _load_start = time.monotonic()
         self._llm = Llama.from_pretrained(
             repo_id=repo,
@@ -344,6 +361,7 @@ class LlamaCppEmbedClient:
             n_batch=512,
             n_threads=n_threads,
             n_threads_batch=n_threads_batch,
+            n_gpu_layers=n_gpu_layers,
             verbose=False,
             cache_dir=FASTEMBED_CACHE_DIR,
             **rope_kwargs,
@@ -352,7 +370,8 @@ class LlamaCppEmbedClient:
         self._dim: Optional[int] = None
         self.url = "local://llamacpp"
         logger.info("llamacpp_embed_loaded", model=repo, file=filename,
-                    load_ms=round(_load_ms, 1))
+                    load_ms=round(_load_ms, 1), gpu_layers=n_gpu_layers,
+                    gpu_device=gpu_device)
 
     def get_sentence_embedding_dimension(self) -> int:
         if self._dim is not None:
