@@ -528,6 +528,14 @@ stores the new wording and retires the old entry; 0.72-0.80 still drops (by
 similarity alone, update vs duplicate is unknowable there — the marked
 upgrade path is an LLM arbitration step in the extraction pipeline).
 
+What this buys, measured at the system level (benchmark system-mode
+study, 2026-07-25): on the stale section the raw model scores 0.500; the
+AUTO tier alone lifts it to 0.583; with suggest-tier supersedes confirmed
+it reaches 0.708 (5-0 discordant queries) — a score no embedding model in
+the 18-model matrix reached on stale, because the fix removes the stale
+competitor instead of trying to out-rank it. The residual misses with
+every stale decoy gone are ordinary retrieval difficulty, not staleness.
+
 Thresholds are model-specific (env-tunable via
 `ODYSSEUS_MEMORY_SUPERSEDE_AUTO`/`_SUGGEST`; `ODYSSEUS_MEMORY_SUPERSEDE=0`
 disables): re-run the threshold probe if the embedding model changes.
@@ -544,12 +552,18 @@ search action all rank through the shared fusion; the chat hot path keeps its
 own tokenizer and category boosts (live-tested) but shares the fusion shape
 and the superseded filter.
 
-Honest framing of the lexical term: the benchmark's dense+BM25 study
-measured the lift as directionally real but statistically unproven at n=140
-(4-1 discordant queries, p=0.375), landing exactly where dense similarity is
-weakest — stale/temporal wording. It costs nothing at memory-store scale
-(sub-millisecond at thousands of entries) and can only be re-scored, so it
-ships as infrastructure, not as a claimed accuracy win.
+Status of the lexical term, upgraded 2026-07-25: the dense+BM25 lift is
+now CONFIRMED at benchmark scale — five fresh corpus pools at
+pre-registered blend weights pool to 16-3 discordant for the production
+model (p = 0.0044, exact sign test; about +2 points R@1), landing exactly
+where dense similarity is weakest, stale/temporal wording. It costs
+sub-millisecond at memory-store scale. Two related negatives, measured
+the same day so nobody re-litigates them: widening the Matryoshka
+truncation past 256 dims buys nothing (R@1 flat 128-768 at 140-query
+resolution), and stock cross-encoder rerankers HURT memory-shaped
+retrieval (bge-reranker-base 11-30 against dense order, p = 0.004) — the
+rerank headroom is real (recall@10 0.971) but harvesting it needs a
+domain-tuned reranker, not a stock one.
 
 Also fixed while wiring: the agent edit path re-embeds now
 (`MemoryVectorStore.update`) — `add()` skips already-indexed ids, so an
