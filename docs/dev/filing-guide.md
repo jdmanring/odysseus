@@ -11,8 +11,8 @@ How to file a professional, complete upstream issue and pull request from a cont
 ### Before You File
 
 1. Search existing issues on `odysseus-dev/odysseus` for the bug or feature. Duplicate issues are closed without comment.
-2. Check `docs/fork/upstream/pr-status.md` — if a staging branch already fixes the bug, you can skip the issue and file the PR directly (include a clear problem statement in the PR body).
-3. Verify the fix is not already in `upstream-mirror` — run `git diff upstream-mirror develop -- <relevant file>` to confirm.
+2. Check `docs/fork/upstream/pr-status.md`: if a staging branch already fixes the bug, you can skip the issue and file the PR directly (include a clear problem statement in the PR body).
+3. Verify the fix is not already in `upstream-mirror`; run `git diff upstream-mirror develop -- <relevant file>` to confirm.
 
 ### Bug Issue Template
 
@@ -37,7 +37,7 @@ How to file a professional, complete upstream issue and pull request from a cont
 [paste relevant log lines or console errors here]
 ```
 
-**Additional context:** [anything else — GPU type, model backend, token state, etc.]
+**Additional context:** [anything else: GPU type, model backend, token state, etc.]
 ```
 
 **Rules for bug issues:**
@@ -52,7 +52,7 @@ How to file a professional, complete upstream issue and pull request from a cont
 **Area:** [Cookbook | Chat | Email | Search | Settings | other]
 
 **Problem / Motivation:**
-[What gap or pain point does this address? Be specific — "it would be nice" is not a motivation.]
+[What gap or pain point does this address? Be specific; "it would be nice" is not a motivation.]
 
 **Proposed Solution:**
 [What would you add, change, or remove? What does the user experience look like after this change?]
@@ -63,10 +63,10 @@ How to file a professional, complete upstream issue and pull request from a cont
 
 ### Issue Title Conventions
 
-- Bug: `[Component] Short description of the broken behavior` — e.g. `[Cookbook] Download crashes on SSL error mid-transfer`
-- Feature: `[Component] What you want to add` — e.g. `[Cookbook] Add pause/resume for model downloads`
+- Bug: `[Component] Short description of the broken behavior`; e.g. `[Cookbook] Download crashes on SSL error mid-transfer`
+- Feature: `[Component] What you want to add`, e.g. `[Cookbook] Add pause/resume for model downloads`
 - Keep it under 80 characters.
-- Do not start with "Bug:" or "Feature:" — the issue type is visible from the label.
+- Do not start with "Bug:" or "Feature:"; the issue type is visible from the label.
 
 ---
 
@@ -76,14 +76,14 @@ How to file a professional, complete upstream issue and pull request from a cont
 
 Go through this checklist before opening the GitHub PR form:
 
-- [ ] Branch starts from `upstream-mirror` (not `develop`) — verify: `git log --oneline upstream-mirror..fix/branch-name`
-- [ ] Single clean commit — `git log --oneline upstream-mirror..fix/branch-name` shows exactly 1 commit (or a small set of tightly related commits)
-- [ ] Diff contains only intended files — `git diff upstream-mirror..fix/branch-name --name-only`
+- [ ] Branch starts from `upstream-mirror` (not `develop`); verify: `git log --oneline upstream-mirror..fix/branch-name`
+- [ ] Single clean commit, `git log --oneline upstream-mirror..fix/branch-name` shows exactly 1 commit (or a small set of tightly related commits)
+- [ ] Diff contains only intended files, `git diff upstream-mirror..fix/branch-name --name-only`
 - [ ] No hardcoded paths, usernames, or tokens in the diff
-- [ ] All tests pass locally — `python -m pytest` (or equivalent)
+- [ ] All tests pass locally; `python -m pytest` (or equivalent)
 - [ ] For UI changes: screenshots captured and ready to attach (see Part 3)
-- [ ] The upstream issue has been filed and you have its number (if one was required — check Filing Notes in the PR draft)
-- [ ] Read the **Filing Notes** section of the PR draft — it has branch-specific instructions
+- [ ] The upstream issue has been filed and you have its number (if one was required: check Filing Notes in the PR draft)
+- [ ] Read the **Filing Notes** section of the PR draft; it has branch-specific instructions
 
 ### PR Title
 
@@ -98,23 +98,23 @@ Common types: `fix`, `feat`, `refactor`, `docs`, `test`, `chore`, `ci`
 Examples:
 - `fix(chat): hoist streamingTTS to fix ReferenceError in catch block`
 - `feat(cookbook): aria2c parallel download system with real-time progress UI`
-- `docs: AI-first documentation system — universal hub-and-spoke onboarding`
+- `docs: AI-first documentation system: universal hub-and-spoke onboarding`
 
 Keep the title under 72 characters. Put the "why" in the body, not the title.
 
 ### PR Base Branch
 
-**Always target `dev`, not `main`.** The GitHub form may default to `main` — change it. PRs against `main` are redirected or closed.
+**Always target `dev`, not `main`.** The GitHub form may default to `main`: change it. PRs against `main` are redirected or closed.
 
 ### PR Description Bot
 
 The upstream repo runs an automated bot (`pr-description-check-bot`) on every new PR. It auto-comments and flags missing or empty sections. PRs that don't clear the bot are often closed by maintainers without review. The bot checks for:
 
-- **`## Summary`** — must exist and be non-empty ("describe what changed and why")
-- **`## Linked Issue`** — must contain `Fixes #NNN`, a bare `#NNN`, or an issue URL
-- **`## Type of Change`** — at least one box must be checked
-- **`## Checklist`** — the duplicate-search box must be checked
-- **`## How to Test`** — must contain real detail ("a sentence or two, not just 'tested locally'")
+- **`## Summary`**: must exist and be non-empty ("describe what changed and why")
+- **`## Linked Issue`**: must contain `Fixes #NNN`, a bare `#NNN`, or an issue URL
+- **`## Type of Change`**: at least one box must be checked
+- **`## Checklist`**: the duplicate-search box must be checked
+- **`## How to Test`**: must contain real detail ("a sentence or two, not just 'tested locally'")
 
 The bot does not check `## Target branch` or `## Visual / UI changes` but reviewers do.
 
@@ -124,15 +124,15 @@ The bot does not check `## Target branch` or `## Visual / UI changes` but review
 
 #### 1. Summary (bot-required)
 
-One to two paragraphs explaining what changed and why — written for a reviewer who hasn't seen your issue.
+One to two paragraphs explaining what changed and why, written for a reviewer who hasn't seen your issue.
 
 #### 2. Target Branch
 
-`- [x] This PR targets **\`dev\`**, not \`main\`.` — pre-checked in all drafts.
+`- [x] This PR targets **\`dev\`**, not \`main\`.`, pre-checked in all drafts.
 
 #### 3. Linked Issue (bot-required)
 
-`Fixes #NNN` — fill in the upstream issue number. The bot rejects a bare `Fixes #`. If filing the PR without a corresponding issue, reference a related discussion with `Related: #NNN`.
+`Fixes #NNN`: fill in the upstream issue number. The bot rejects a bare `Fixes #`. If filing the PR without a corresponding issue, reference a related discussion with `Related: #NNN`.
 
 #### 4. Type of Change (bot-required)
 
@@ -160,7 +160,7 @@ Detail sections go between Type of Change and Checklist. Common subheadings:
 Pre-checked in all draft files. The bot specifically checks the duplicate-search box:
 
 ```markdown
-- [x] I searched open issues and open PRs — this is not a duplicate.
+- [x] I searched open issues and open PRs; this is not a duplicate.
 - [x] This PR targets `dev`
 - [x] My changes are limited to the scope described above.
 - [x] I actually ran the app and verified the change works end-to-end.
@@ -178,7 +178,7 @@ Format: numbered steps, starting from a defined state. Write so that a reviewer 
 1. Clone the repo and start the server: `docker compose up -d --build` or `uvicorn app:app`
 2. [Action that triggers the change]
 3. [What you should observe]
-4. [Optional: verify the old broken behavior is gone — how to confirm the before-state would have failed]
+4. [Optional: verify the old broken behavior is gone, and how to confirm the before-state would have failed]
 ```
 
 **Rules:**
@@ -189,15 +189,15 @@ Format: numbered steps, starting from a defined state. Write so that a reviewer 
 - For bug fixes: include how to reproduce the original bug without the patch (even just in prose), so reviewers understand what changed.
 - If you couldn't test on a platform, say so explicitly: "Tested on Artix Linux, Wayland, NVIDIA open drivers. Not tested on macOS or Windows."
 
-**Automated tests** — if you have them, list results:
+**Automated tests**: if you have them, list results:
 ```
-- [x] `pytest tests/test_foo.py` — 12 passed
+- [x] `pytest tests/test_foo.py`: 12 passed
 - [x] `node --check static/js/affected-file.js`
 ```
 
 #### 8. Visual / UI changes
 
-Required for any UI-touching PR (full checklist). For non-UI PRs, just say "None — no HTML, CSS, or DOM-writing JS was changed." See Part 3 for requirements.
+Required for any UI-touching PR (full checklist). For non-UI PRs, just say "None; no HTML, CSS, or DOM-writing JS was changed." See Part 3 for requirements.
 
 ---
 
@@ -220,19 +220,19 @@ If you're unsure whether your change is "visual," treat it as visual and attach 
 - The changed element in context (not a cropped-out fragment)
 - For modifications to existing UI: both before and after (two screenshots, labeled)
 - For new UI elements: the element in its natural location in the app
-- If the change affects mobile layout: add a mobile screenshot (browser DevTools → responsive mode, or a real device)
+- If the change affects mobile layout: add a mobile screenshot (browser DevTools -> responsive mode, or a real device)
 
 ### How to Attach
 
-Drag and drop images into the GitHub PR description text box. Do not link to files in your fork repo — upstream reviewers may not have access. GitHub stores the image on its CDN and renders it inline.
+Drag and drop images into the GitHub PR description text box. Do not link to files in your fork repo: upstream reviewers may not have access. GitHub stores the image on its CDN and renders it inline.
 
 ### Screenshot Notes in PR Drafts
 
 PR draft files note which screenshots are needed:
-- `Screenshot: docs/fork/screenshots/<name>.png` — the screenshot exists locally; attach it
-- `Screenshots: (To be captured before filing)` — capture before opening the PR form
+- `Screenshot: docs/fork/screenshots/<name>.png`: the screenshot exists locally; attach it
+- `Screenshots: (To be captured before filing)`; capture before opening the PR form
 
-Never file a UI PR with "screenshots pending" — the PR will be sent back.
+Never file a UI PR with "screenshots pending": the PR will be sent back.
 
 ---
 
@@ -242,7 +242,7 @@ CONTRIBUTING.md contains this warning:
 
 > **Auto-generated PRs.** If you are running an LLM agent (Devin, Cursor, OpenHands, Claude Code, etc.) against this repo: please open an issue describing the problem first instead of opening a PR directly. Bulk agent-generated PRs that don't match the project's visual style or contribution format will be closed without review, even when the underlying fix is correct.
 
-**This applies to unreviewed bulk submissions — not to work developed with AI assistance.**
+**This applies to unreviewed bulk submissions, not to work developed with AI assistance.**
 
 You reviewed every change, ran the tests, tested the app manually, and are the human author submitting the PR. This is no different from a developer using GitHub Copilot for code suggestions. The policy targets agents that open PRs directly without human review, not contributors who used AI as a development tool.
 
@@ -260,8 +260,8 @@ Odysseus runs on Linux (primary), macOS, and Windows (via PowerShell). Docker is
 - State what you tested on: "Tested on Linux (Arch, Wayland, NVIDIA 3080). Not tested on macOS or Windows."
 - For Docker-specific changes: run `docker compose config` and `docker compose up -d --build` before filing.
 - For changes touching shell commands or scripts: note which shells you tested (bash, zsh, PowerShell).
-- For changes to `qt_wrapper.py` or `qt-bridge.js`: Linux-only by nature — state that clearly.
-- For Windows-specific code paths you can't test: describe the change and note it needs Windows verification. This is acceptable — do not omit the code because you can't test it.
+- For changes to `qt_wrapper.py` or `qt-bridge.js`: Linux-only by nature: state that clearly.
+- For Windows-specific code paths you can't test: describe the change and note it needs Windows verification. This is acceptable; do not omit the code because you can't test it.
 
 ---
 
@@ -274,14 +274,14 @@ Every staging branch has a corresponding draft file in `docs/fork/upstream/pr-dr
 | Section | Purpose |
 |---------|---------|
 | **Proposed title** | Ready to paste into GitHub PR title field |
-| **Description body** | Everything between the title and "Filing Notes" — paste this into the GitHub PR body |
-| **Filing Notes** | Internal instructions — **do not paste upstream** |
+| **Description body** | Everything between the title and "Filing Notes": paste this into the GitHub PR body |
+| **Filing Notes** | Internal instructions: **do not paste upstream** |
 
 The description body is pre-filled with all 8 required PR template sections (Summary, Target branch, Linked Issue, Type of Change, detail sections, Checklist, How to Test, Visual / UI changes). Paste it directly and the upstream PR template bot will pass.
 
 ### Issue Drafts
 
-Branches whose Filing Notes say "File upstream issue first" have a corresponding issue draft in `docs/fork/upstream/issue-drafts/`. This is a **separate file** from the PR draft — it contains the upstream issue title and body pre-written and ready to paste into GitHub's new issue form on `odysseus-dev/odysseus`.
+Branches whose Filing Notes say "File upstream issue first" have a corresponding issue draft in `docs/fork/upstream/issue-drafts/`. This is a **separate file** from the PR draft: it contains the upstream issue title and body pre-written and ready to paste into GitHub's new issue form on `odysseus-dev/odysseus`.
 
 **Issue draft format:**
 
@@ -303,14 +303,14 @@ Branches whose Filing Notes say "File upstream issue first" have a corresponding
 
 ## Body
 
-[complete issue body — paste into the GitHub new-issue text box]
+[complete issue body; paste into the GitHub new-issue text box]
 ```
 
-The body uses the upstream bug or feature request template, fully filled out — not a skeleton. For bugs: Install method, OS/device, Steps to Reproduce, Expected, Actual, Logs, Additional context. For features: Area, Problem/Motivation, Proposed Solution, Alternatives Considered.
+The body uses the upstream bug or feature request template, fully filled out, not a skeleton. For bugs: Install method, OS/device, Steps to Reproduce, Expected, Actual, Logs, Additional context. For features: Area, Problem/Motivation, Proposed Solution, Alternatives Considered.
 
 **Every PR draft needs a new upstream issue filed on `odysseus-dev/odysseus` before the PR is opened.** The issue draft for each branch lives in `docs/fork/upstream/issue-drafts/<name>.md`.
 
-Even when a related upstream issue already exists (filed by someone else, or covering a broader topic), file a new issue for your specific PR. The new issue should describe your contribution's scope and approach precisely. Reference the existing issue in the body — `Related to #NNN` or `Addresses the [specific aspect] described in #NNN` — but use `Fixes #` on your own new issue, not on someone else's.
+Even when a related upstream issue already exists (filed by someone else, or covering a broader topic), file a new issue for your specific PR. The new issue should describe your contribution's scope and approach precisely. Reference the existing issue in the body, `Related to #NNN` or `Addresses the [specific aspect] described in #NNN`, but use `Fixes #` on your own new issue, not on someone else's.
 
 The upstream CONTRIBUTING.md and its LLM agent policy both require opening an issue before opening a PR. There are no exceptions.
 
@@ -318,7 +318,7 @@ All active PR drafts have `Fixes # <!-- [file upstream issue first] -->` and a c
 
 ### Filing Workflow
 
-**Step 1 — If the PR draft says "file upstream issue first":**
+**Step 1: If the PR draft says "file upstream issue first":**
 
 1. Open `docs/fork/upstream/issue-drafts/<name>.md`
 2. Go to `https://github.com/odysseus-dev/odysseus/issues/new`
@@ -327,11 +327,11 @@ All active PR drafts have `Fixes # <!-- [file upstream issue first] -->` and a c
 5. Submit and note the issue number assigned
 6. Open `docs/fork/upstream/pr-drafts/<name>.md` and replace `Fixes # <!-- [file upstream issue first] -->` with `Fixes #NNN`
 
-**Step 2 — File the PR:**
+**Step 2. File the PR:**
 
 1. Open the PR draft file for the branch
-2. Read **Filing Notes** — confirm issue number is filled in and screenshots are ready
-3. Open: `<your-fork>:<branch>` → `odysseus-dev/odysseus:dev`
+2. Read **Filing Notes**; confirm issue number is filled in and screenshots are ready
+3. Open: `<your-fork>:<branch>` -> `odysseus-dev/odysseus:dev`
 4. Paste the proposed title
 5. Paste the description body (everything above "Filing Notes")
 6. Attach screenshots by drag-and-drop

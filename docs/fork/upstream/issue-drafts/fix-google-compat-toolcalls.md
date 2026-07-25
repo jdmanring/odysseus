@@ -9,7 +9,7 @@
 
 ## Title
 
-`[LLM] Google OpenAI-compat endpoint sends camelCase "toolCalls" — tool calls silently dropped`
+`[LLM] Google OpenAI-compat endpoint sends camelCase "toolCalls": tool calls silently dropped`
 
 ---
 
@@ -20,7 +20,7 @@
 **OS / device:** Any
 
 **Steps to Reproduce:**
-1. Add a Google model via Settings → Providers → OpenAI-Compatible. Base URL: `https://generativelanguage.googleapis.com/v1beta/openai/`. Model: `gemini-2.0-flash` or `gemini-1.5-pro`.
+1. Add a Google model via Settings -> Providers -> OpenAI-Compatible. Base URL: `https://generativelanguage.googleapis.com/v1beta/openai/`. Model: `gemini-2.0-flash` or `gemini-1.5-pro`.
 2. Enable at least one tool in the chat (e.g. web search).
 3. Send a prompt that should trigger a tool call.
 4. Observe the response.

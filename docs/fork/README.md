@@ -1,4 +1,4 @@
-# docs/fork — Fork Management Hub
+# docs/fork: Fork Management Hub
 
 This directory is the source of truth for everything that makes this fork different
 from the upstream project, and for tracking our work as contributors.
@@ -17,7 +17,7 @@ on KDE/Artix Linux. The goals are:
 2. Contribute improvements and bug fixes back to the upstream project over time
 
 This fork adds Linux-native capabilities (Qt native wrapper, GPU acceleration,
-crash recovery) and a high-performance model download stack — none of which exist
+crash recovery) and a high-performance model download stack, none of which exist
 upstream. It also tracks upstream bugs and prepares PRs for upstreaming fixes.
 
 ---
@@ -41,7 +41,7 @@ upstream. It also tracks upstream bugs and prepares PRs for upstreaming fixes.
 
 ## Two Remotes, One Rule
 
-- `origin` — This fork. Normal dev target. Push freely.
-- `upstream` — The source project. **Never push, file issues, or open PRs here
+- `origin`: This fork. Normal dev target. Push freely.
+- `upstream`: The source project. **Never push, file issues, or open PRs here
   without explicit per-action authorization.** Stage work in `upstream/drafts/`
   and file them yourself.

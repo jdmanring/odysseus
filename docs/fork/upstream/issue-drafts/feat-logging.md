@@ -41,9 +41,9 @@ The upstream hardening audit ([#3803](https://github.com/odysseus-dev/odysseus/i
 1. Run `uvicorn app:app --host 0.0.0.0 --port 7000` with `ODYSSEUS_DEBUG=1`.
 2. Open two browser tabs and send concurrent requests.
 3. Observe that log lines from both requests are interleaved with no way to separate them.
-4. Trigger a login event — confirm no `auth.login.*` entry appears in the log.
-5. Change a setting via the UI — confirm no `settings.audit` entry appears.
-6. Search your email in Odysseus — observe that the email address appears in the log output.
+4. Trigger a login event; confirm no `auth.login.*` entry appears in the log.
+5. Change a setting via the UI, confirm no `settings.audit` entry appears.
+6. Search your email in Odysseus; observe that the email address appears in the log output.
 
 **Expected:**
 
@@ -54,4 +54,4 @@ The upstream hardening audit ([#3803](https://github.com/odysseus-dev/odysseus/i
 
 **Related upstream issues:** #3803 (hardening audit), #3799 (PII scrubbing pass)
 
-**Note:** This issue does not address all items in #3803 — only the logging-specific gaps. Other hardening items from that audit are tracked separately.
+**Note:** This issue does not address all items in #3803: only the logging-specific gaps. Other hardening items from that audit are tracked separately.

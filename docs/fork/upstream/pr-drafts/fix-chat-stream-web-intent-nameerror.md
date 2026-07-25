@@ -22,7 +22,7 @@ This PR restores the assignment only; the denial-condition removal from `264da65
 A second instance of the same class, found by generalizing the guard below to every
 module in `routes/`: commit `fbdec22d` ("CodeQL hardening for cookbook sync") rewrote
 the exception handler in `hf_gguf_files` (`routes/cookbook_routes.py`) to log the
-failure but typed `repo` for `repo_id` — so whenever the HuggingFace API request
+failure but typed `repo` for `repo_id`, so whenever the HuggingFace API request
 raises, the graceful `{"ok": False, ...}` fallback path itself raises `NameError` and
 `GET /api/cookbook/hf-gguf-files` returns 500. Fixed by using `repo_id`.
 
@@ -35,7 +35,7 @@ with green tests.
 ## Test plan
 
 - `tests/test_routes_defined_names.py` (new): stdlib-`symtable` guard, parametrized over
-  every module in `routes/` (55 files) — every name a function reads as an implicit
+  every module in `routes/` (55 files); every name a function reads as an implicit
   global must be bound at module level, in builtins, or among the implicit module
   globals (`__file__` etc.). Catches this whole defect class with no server or model in
   the loop. Mutation-checked (detector red on a synthetic removed-assignment shape, on a
@@ -47,7 +47,7 @@ with green tests.
 
 ## Filing notes (fork-internal, not part of the PR body)
 
-- Found by the first run of the long-session soak harness — the first test to execute
+- Found by the first run of the long-session soak harness (the first test to execute
   the send path. The soak itself travels with the DOM-virtualization PR, not this one.
 - No dependency on any other staged branch; file-able independently and early (small,
   user-facing breakage, trivial review).

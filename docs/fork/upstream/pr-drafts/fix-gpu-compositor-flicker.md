@@ -52,7 +52,7 @@ The cost is measurable on every platform:
   of the system. Ten unnecessary promoted layers across the sidebar, dropdowns,
   and overlays means ten GPU texture allocations held for the lifetime of the
   session, consuming memory that would otherwise be available for model context,
-  browser tabs, or other applications. On low-memory devices (4–8 GB unified RAM)
+  browser tabs, or other applications. On low-memory devices (4-8 GB unified RAM)
   compositor layer count is a real memory cost on constrained hardware.
 - **On touch devices** (phones, tablets): the browser fires a synthetic hover event
   on tap that persists until the user taps elsewhere. The `.sidebar`
@@ -74,9 +74,9 @@ The cost is measurable on every platform:
 | `.sidebar` | `blur(10px)` | `background: var(--panel)`: fully opaque |
 | `.dropdown` | `blur(12px)` | Solid panel background |
 | Import notification banner | `blur(12px)` | Solid panel background |
-| `#styled-confirm-overlay` | `blur(4px)` | `rgba(0,0,0,0.5)`: 50% opacity black — the blur adds GPU compositor cost without contributing meaningfully to the visual design; the decorative dimming is the intent |
+| `#styled-confirm-overlay` | `blur(4px)` | `rgba(0,0,0,0.5)`: 50% opacity black; the blur adds GPU compositor cost without contributing meaningfully to the visual design; the decorative dimming is the intent |
 | `#styled-prompt-overlay` | `blur(4px)` | Same |
-| Recording indicator (×2) | `blur(10px)` | `rgba(0,0,0,0.8)`: blur effectively invisible at 80% fill opacity; 20% transparency leaves insufficient contrast for the effect to be detectable |
+| Recording indicator (x2) | `blur(10px)` | `rgba(0,0,0,0.8)`: blur effectively invisible at 80% fill opacity; 20% transparency leaves insufficient contrast for the effect to be detectable |
 | `.search-overlay` | `blur(6px)` | `rgba(0,0,0,0.6)` |
 | `.popper-dropdown` | `blur(12px)` | Solid panel background |
 | `.doc-suggestion-banner` | `blur(12px)` | Solid panel background |
@@ -143,7 +143,7 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/fix-gpu-compositor-fli
 3. Open and close the Downloads dropdown; confirm no flicker.
 4. Open Settings, then the Providers modal; confirm no flicker on open or close.
 5. Navigate to the Cookbook and open it; confirm the open animation (opacity + scale) plays cleanly with no one-frame flash at the end.
-6. Open DevTools → More Tools → Rendering → enable "Highlight composited layers"; confirm the sidebar and dropdown are **not** highlighted as separate compositor layers.
+6. Open DevTools -> More Tools -> Rendering -> enable "Highlight composited layers"; confirm the sidebar and dropdown are **not** highlighted as separate compositor layers.
 
 Tested on: Artix Linux, Wayland, NVIDIA open drivers, QtWebEngine. On standard desktop Chrome/Firefox there is no visual change; the `backdrop-filter` removal only affects GPU layer behavior, not the visible appearance.
 

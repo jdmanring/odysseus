@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Cookbook] basicsr / realesrgan fail to install on Python 3.13+ — ESRGAN upscaler completely broken`
+`[Cookbook] basicsr / realesrgan fail to install on Python 3.13+: ESRGAN upscaler completely broken`
 
 ---
 
@@ -38,4 +38,4 @@ KeyError: '__version__'
 
 `realesrgan` depends on basicsr and fails for the same reason.
 
-Tested on Python 3.14. Python 3.11 and 3.12 are unaffected — the standard `pip install basicsr realesrgan` works there.
+Tested on Python 3.14. Python 3.11 and 3.12 are unaffected; the standard `pip install basicsr realesrgan` works there.

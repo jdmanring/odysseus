@@ -24,7 +24,7 @@
 
 Two cleanup gaps in `chatHistory.js` (introduced by `fix/dom-oom-virtualization`) that cause unnecessary GC pressure after DOM eviction.
 
-**Gap 1 — Missing idle GC yield after `_evictLive` and `_pruneBottom`:**
+**Gap 1: Missing idle GC yield after `_evictLive` and `_pruneBottom`:**
 
 `_pruneTop` already yields to idle after removing a batch of nodes:
 
@@ -36,7 +36,7 @@ if (typeof requestIdleCallback !== 'undefined') {
 
 This gives V8/Oilpan a cooperative GC window to incrementally collect detached subtrees before the next frame. `_evictLive` (Phase 2 eviction) and `_pruneBottom` (scroll-up pruning) both create equivalent batches of detached nodes but have no corresponding yield. Without the hint, detached nodes from these operations accumulate in Oilpan until a full GC sweep fires.
 
-**Gap 2 — `_waveInterval`, `_elapsedTicker`, and `_streamRenderer` not cleared before removal in `_pruneTop` and `_pruneBottom`:**
+**Gap 2: `_waveInterval`, `_elapsedTicker`, and `_streamRenderer` not cleared before removal in `_pruneTop` and `_pruneBottom`:**
 
 `_evictLive` correctly clears all three before every `.remove()`:
 
@@ -48,7 +48,7 @@ if (el._streamRenderer) { el._streamRenderer = null; }
 ```
 
 `_pruneTop` and `_pruneBottom` only call `hljsDeferForgetNode` before `.remove()`. They skip the timer and renderer cleanup entirely. After removal:
-- `_waveInterval` and `_elapsedTicker` continue firing against detached nodes — wasted CPU, and the timer closure holds a reference to the detached element, preventing GC.
+- `_waveInterval` and `_elapsedTicker` continue firing against detached nodes: wasted CPU, and the timer closure holds a reference to the detached element, preventing GC.
 - `_streamRenderer` holds `lastText` (full response string) and a detached `tailMarker` comment node in old-gen indefinitely.
 
 For a session with 100 pruned nodes, this is 100 live setInterval handles and 100 retained response strings after pruning.
@@ -57,4 +57,4 @@ For a session with 100 pruned nodes, this is 100 live setInterval handles and 10
 
 Apply the same four-line teardown block from `_evictLive` before each `.remove()` call site in `_pruneTop` (2 sites: main loop + boundary cleanup) and `_pruneBottom` (2 sites: same structure). Add the idle yield to `_evictLive` and `_pruneBottom`.
 
-**Affected file:** `static/js/chatHistory.js` — `_pruneTop`, `_pruneBottom`, `_evictLive`
+**Affected file:** `static/js/chatHistory.js`, `_pruneTop`, `_pruneBottom`, `_evictLive`

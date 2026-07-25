@@ -1,4 +1,4 @@
-# PR Draft: fix/stream-429-backoff → odysseus-dev/odysseus:dev
+# PR Draft: fix/stream-429-backoff -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/stream-429-backoff`
 **Issue:** [#55](https://github.com/jdmanring/odysseus/issues/55) (fork tracking)
@@ -27,7 +27,7 @@ All three LLM call paths treat HTTP 429 as a permanent failure with no backoff:
 
 In practice, under sustained 429 load, `stream_llm_with_fallback` cycles through all
 fallback candidates simultaneously (they share the same endpoint and same rate limit),
-fails all of them, and reports failure — without waiting the seconds the provider
+fails all of them, and reports failure, without waiting the seconds the provider
 specified would clear the limit. A single retry with the header-specified wait would
 often succeed.
 
@@ -54,7 +54,7 @@ hammering all fallback candidates on the same rate-limited endpoint.
 
 ### Testing
 
-- `tests/test_llm_core_429_backoff.py` — new tests covering:
+- `tests/test_llm_core_429_backoff.py`: new tests covering:
   - `_parse_retry_after`: integer seconds, HTTP-date, missing, malformed, cap enforcement
   - `stream_llm`: one retry on 429, honour Retry-After delay, no second retry on repeated 429
   - `llm_call_async`: reads Retry-After instead of fixed RETRY_DELAY
@@ -101,7 +101,7 @@ Fixes # <!-- [add upstream issue number before filing] -->
 ## Filing Notes
 
 - One commit. No squash needed.
-- Branch: `fix/stream-429-backoff` — built from `upstream-mirror`.
+- Branch: `fix/stream-429-backoff`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - The `_parse_retry_after` helper is intentionally narrow: seconds-integer or HTTP-date
   only (RFC 7231 §7.1.3). The `delta-seconds` form covers the NVIDIA NIM case; the

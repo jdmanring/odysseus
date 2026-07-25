@@ -2,9 +2,9 @@
 
 **Title:** fix(ui): adaptive threshold for chat auto-scroll drift guard
 
-**Branch:** `fix/chat-auto-scroll-threshold` → `odysseus-dev/odysseus:dev`
+**Branch:** `fix/chat-auto-scroll-threshold` -> `odysseus-dev/odysseus:dev`
 
-**Upstream issue required:** Yes — file from `issue-drafts/fix-chat-auto-scroll-threshold.md` first.
+**Upstream issue required:** Yes; file from `issue-drafts/fix-chat-auto-scroll-threshold.md` first.
 
 ---
 
@@ -39,8 +39,8 @@ if (diff > maxAllowedDiff) {
 ```
 
 `Math.max(300, viewportHeight * 1.5)` retains the 300px minimum so the guard still fires
-on small viewports and for genuine user scrolling. For typical desktop viewports (700–900px
-tall) the threshold becomes 1050–1350px, which tolerates any realistic content-driven layout
+on small viewports and for genuine user scrolling. For typical desktop viewports (700-900px
+tall) the threshold becomes 1050-1350px, which tolerates any realistic content-driven layout
 shift while still suppressing auto-scroll when the user has genuinely scrolled far up.
 
 ### Testing
@@ -54,12 +54,12 @@ shift while still suppressing auto-scroll when the user has genuinely scrolled f
 2. **Image in response:** Trigger a response that includes an embedded image. Verify
    auto-scroll follows to the bottom after the image loads.
 
-3. **User-initiated scroll preserved:** During a response, scroll up by 2–3 viewport-heights.
+3. **User-initiated scroll preserved:** During a response, scroll up by 2-3 viewport-heights.
    Verify auto-scroll does NOT resume dragging you back to the bottom (the guard still fires
    when the user has genuinely scrolled up significantly).
 
 4. **Small viewport:** Resize the browser to a small viewport (< 400px tall). Verify the
-   300px minimum floor keeps the guard active — a 400px layout shift on a 300px viewport
+   300px minimum floor keeps the guard active: a 400px layout shift on a 300px viewport
    should still suppress auto-scroll.
 
 ---
@@ -69,4 +69,4 @@ shift while still suppressing auto-scroll when the user has genuinely scrolled f
 - File the upstream issue first (from `issue-drafts/fix-chat-auto-scroll-threshold.md`)
 - Get the upstream issue number; fill it into `Fixes #` in the commit message before the PR
   is opened (`git commit --amend` on `fix/chat-auto-scroll-threshold`, then force-push)
-- This PR has no dependencies — can be filed independently
+- This PR has no dependencies and can be filed independently

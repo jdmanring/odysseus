@@ -1,4 +1,4 @@
-# PR Draft: fix/gguf-quality-scored → odysseus-dev/odysseus:dev
+# PR Draft: fix/gguf-quality-scored -> odysseus-dev/odysseus:dev
 
 **Fork issues:** [#24](https://github.com/jdmanring/odysseus/issues/24) + [#29](https://github.com/jdmanring/odysseus/issues/29)
 **Branch:** `fix/gguf-quality-scored` (from `upstream-mirror`)
@@ -68,7 +68,7 @@ that do reach the downloader:
    actual model weights.
 
 2. **`source.file` overrode `model.quant`.** When the resolver returned any
-   file, `_ggufIncludePattern` used it directly as the include pattern —
+   file, `_ggufIncludePattern` used it directly as the include pattern,
    silently ignoring the model's own `quant` field (e.g. `Q4_K_M`). A model
    whose name and UI clearly indicated Q4_K_M could end up downloading Q2_K
    or the mmproj file instead.
@@ -130,8 +130,8 @@ Selection priority:
    prefer the smaller file (go down a tier) to avoid overshooting the user's
    intended file size.
 
-Within each tier, imatrix variants lead the ranking (IQ4_XS → IQ4_NL → Q4_K_M
-→ Q4_K_S → Q4_1 → Q4_0) so the same-tier rule automatically selects the best
+Within each tier, imatrix variants lead the ranking (IQ4_XS -> IQ4_NL -> Q4_K_M
+-> Q4_K_S -> Q4_1 -> Q4_0) so the same-tier rule automatically selects the best
 available quantization method, not just the closest name.
 
 ### Author tiers
@@ -172,7 +172,7 @@ VRAM/RAM fit, and backend support remain future work.
 - Models with a static `ggufSource` configured are unaffected; discovery
   only fires when `backend === 'llamacpp' && !ggufSource`.
 - The `resolve-gguf` endpoint is additive; no existing routes changed.
-- `_ggufIncludePattern` fallback chain (`model.quant` → `source.file` →
+- `_ggufIncludePattern` fallback chain (`model.quant` -> `source.file` ->
   `*.gguf`) preserves all previous behavior for models that don't use
   auto-discovery.
 
@@ -194,7 +194,7 @@ python -m pytest tests/test_gguf_scoring.py
 - **`_detect_imatrix`** (6 tests): filename pattern recognition for IQ/imat variants,
   false-positive resistance for non-imatrix files.
 - **`_score_candidate`** (8 tests): zero-signal baseline returns 0, downloads capped at
-  40, reputed author bonus (`bartowski` ≥ 25), imatrix bonus, likes ratio contribution,
+  40, reputed author bonus (`bartowski` >= 25), imatrix bonus, likes ratio contribution,
   eval score contribution, recency bonus, score never goes negative.
 
 All 20 tests pass with no internet connection.
@@ -211,9 +211,9 @@ All 20 tests pass with no internet connection.
 
 Searched merged commits and open issues/PRs on `dev`:
 
-- **#5136** (open; issue **#5137**) *don't use display-label quant as GGUF download include filter* — **overlaps the same include-filter path.** #5137: a download fetches 0 files when the catalog quant is a display label (e.g. `QAT-INT4`) rather than the real quant string. This PR's quality-scored resolver chooses the GGUF; it must match on the **real** quant, not the display label. **Coordinate:** fold in / rebase after #5136, and confirm the resolver honours its fix so we don't reintroduce the 0-files bug.
+- **#5136** (open; issue **#5137**) *don't use display-label quant as GGUF download include filter*: **overlaps the same include-filter path.** #5137: a download fetches 0 files when the catalog quant is a display label (e.g. `QAT-INT4`) rather than the real quant string. This PR's quality-scored resolver chooses the GGUF; it must match on the **real** quant, not the display label. **Coordinate:** fold in / rebase after #5136, and confirm the resolver honours its fix so we don't reintroduce the 0-files bug.
 
-**Verdict:** complements, but shares a code path with an open bugfix — reconcile before filing.
+**Verdict:** complements, but shares a code path with an open bugfix; reconcile before filing.
 
 ## How to Test
 - Llama-3.2-11B-Vision-Instruct (llamacpp, no static ggufSource): resolver
@@ -256,7 +256,7 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/feat-gguf-discovery.md
 
 1. **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-gguf-discovery.md`. Add the issue number to `Fixes #` above before opening the PR.
 2. In the PR Summary body, reference #2342 as the original symptom report this addresses.
-3. Note: the branch is named `fix/gguf-quality-scored` (historical) but the PR type is `feat`. This is intentional — the change adds new discovery logic rather than correcting a regression; the `fix/` prefix predates the current scope.
+3. Note: the branch is named `fix/gguf-quality-scored` (historical) but the PR type is `feat`. This is intentional: the change adds new discovery logic rather than correcting a regression; the `fix/` prefix predates the current scope.
 3. Target branch: `dev` (not `main`).
 4. Can be filed independently of `feat/aria2c-downloader`: auto-discovery works with the standard `hf download` fallback too.
 5. The `_REPUTED_AUTHORS` list is a starting point; upstream maintainers may want to add or remove names.

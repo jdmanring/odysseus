@@ -1,4 +1,4 @@
-# PR Draft: refactor/assets-move → odysseus-dev/odysseus:dev
+# PR Draft: refactor/assets-move -> odysseus-dev/odysseus:dev
 
 **Branch:** `refactor/assets-move`
 **Issue:** [#19](https://github.com/jdmanring/odysseus/issues/19) (fork tracking)
@@ -21,8 +21,8 @@ documentation prose with binary assets. This causes several practical problems.
 ### Why the current layout is harmful
 
 **`docs/` is becoming a documentation directory, and binary media files pollute it.**
-Once documentation prose lands in `docs/` — architecture notes, contributor guides,
-API references — developers navigating there will encounter 14 GIF, WebM, and JPEG
+Once documentation prose lands in `docs/` (architecture notes, contributor guides,
+API references), developers navigating there will encounter 14 GIF, WebM, and JPEG
 files at the root. Those files are README embed assets and have nothing to do with
 documentation content. This refactor separates them before the documentation tree grows.
 A separate PR adding markdown documentation to `docs/ai/`, `docs/dev/`, and `docs/user/`
@@ -94,7 +94,7 @@ Fixes # <!-- [file upstream issue first] -->
 3. Verify `static/icons/odysseus.svg` exists.
 4. Verify `docs/` no longer contains the media files (`odysseus.jpg`, `odysseus.svg`, `chat.gif`, `bg.webm`, etc.).
 5. Run `grep -r "docs/odysseus\|docs/chat\|docs/bg" README.md`: should return nothing (all references updated).
-6. Open Settings → install the PWA: the icon should appear correctly on the home screen.
+6. Open Settings -> install the PWA: the icon should appear correctly on the home screen.
 7. Run one of the platform build scripts (`build-linux-app.sh`): verify the icon installs without the `WARNING: No icon found` message.
 
 ---
@@ -103,7 +103,7 @@ Fixes # <!-- [file upstream issue first] -->
 
 - **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/refactor-assets-move.md`. Add the issue number to `Fixes #` above before opening the PR.
 - No dependencies. Can be filed in any order.
-- Build scripts are updated in this PR — no follow-up required for script breakage.
+- Build scripts are updated in this PR; no follow-up required for script breakage.
 
 ## Visual / UI changes
 

@@ -9,7 +9,7 @@
 
 ## Title
 
-`pytest-timeout missing from requirements.txt — CI fails on clean environments with "unrecognized arguments: --timeout"`
+`pytest-timeout missing from requirements.txt: CI fails on clean environments with "unrecognized arguments: --timeout"`
 
 ---
 
@@ -28,11 +28,11 @@
 
 **Actual:** Two failure modes depending on how `pytest` is invoked:
 - If invoked with `--timeout=N` (as CI scripts commonly do): fails immediately with `error: unrecognized arguments: --timeout=N`
-- If invoked without that flag: `@pytest.mark.timeout` decorators are silently ignored — tests that should time out run forever
+- If invoked without that flag: `@pytest.mark.timeout` decorators are silently ignored, so tests that should time out run forever
 
 **Logs / Error Output:**
 ```
 error: unrecognized arguments: --timeout=60
 ```
 
-**Additional context:** `pytest-timeout` is used throughout the test suite via both `--timeout` CLI flags and `@pytest.mark.timeout` decorators, but is not declared as a dependency in `requirements.txt`. The existing test dependency entries are `pytest` and `pytest-asyncio` — `pytest-timeout` should appear alongside them. This breaks CI on any clean environment and makes contributor setup unreliable.
+**Additional context:** `pytest-timeout` is used throughout the test suite via both `--timeout` CLI flags and `@pytest.mark.timeout` decorators, but is not declared as a dependency in `requirements.txt`. The existing test dependency entries are `pytest` and `pytest-asyncio`; `pytest-timeout` should appear alongside them. This breaks CI on any clean environment and makes contributor setup unreliable.

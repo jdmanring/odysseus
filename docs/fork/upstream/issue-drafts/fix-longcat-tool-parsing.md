@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Tool Parsing] LongCat (Meituan) tool_call format not parsed — tool calls silently ignored`
+`[Tool Parsing] LongCat (Meituan) tool_call format not parsed, tool calls silently ignored`
 
 ---
 
@@ -20,7 +20,7 @@
 **OS / device:** Any
 
 **Steps to Reproduce:**
-1. Configure a Meituan LongCat model as an OpenAI-compatible provider in Settings → Providers using credentials from Meituan's API platform.
+1. Configure a Meituan LongCat model as an OpenAI-compatible provider in Settings -> Providers using credentials from Meituan's API platform.
 2. Enable at least one tool (e.g. web search or file read).
 3. Send a prompt that should trigger a tool call (e.g. "search for recent news about X").
 4. Observe the response.

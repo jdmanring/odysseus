@@ -42,8 +42,8 @@ def utcnow_naive() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 ```
 
-Every other timestamp write in the codebase uses `utcnow_naive()` — all `TimestampMixin` columns and all explicit writes in `database.py`. `ApiToken.last_used_at` is a plain `DateTime` column (no timezone) that stores naive UTC, consistent with the rest of the schema. This call was the only site in the codebase still using the deprecated API directly.
+Every other timestamp write in the codebase uses `utcnow_naive()`: all `TimestampMixin` columns and all explicit writes in `database.py`. `ApiToken.last_used_at` is a plain `DateTime` column (no timezone) that stores naive UTC, consistent with the rest of the schema. This call was the only site in the codebase still using the deprecated API directly.
 
 Commit `790ef81b` ("fix: use aware UTC in health timestamp") fixed the same class of deprecation in the `/api/health` endpoint but missed this instance.
 
-**Note:** `datetime.now()` at the nightly skill-audit loop (also in `app.py`) is intentional — it computes a next-run time in local wall-clock terms so the job fires at a configurable local hour (default 2 AM). That call is correct and not affected by this fix.
+**Note:** `datetime.now()` at the nightly skill-audit loop (also in `app.py`) is intentional; it computes a next-run time in local wall-clock terms so the job fires at a configurable local hour (default 2 AM). That call is correct and not affected by this fix.

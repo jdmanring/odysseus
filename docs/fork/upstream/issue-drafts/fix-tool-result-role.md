@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Agent] Text-based tool results injected as role=user — model re-reads them as user input, degrading multi-step agent quality`
+`[Agent] Text-based tool results injected as role=user: model re-reads them as user input, degrading multi-step agent quality`
 
 ---
 
@@ -33,4 +33,4 @@ No error logged. The symptom is degraded agent reasoning quality visible in the 
 
 **Additional context:** `_append_tool_results()` in `src/agent_loop.py` injects textual tool results with `"role": "user"`. On the non-native-tool path (text-encoded tool calls rather than OpenAI function-calling format), this makes tool results indistinguishable from actual user messages. Models trained on role-separated conversation formats interpret `role=user` content as user-injected input and respond accordingly.
 
-The native tool path (`role=tool` for OpenAI function-calling format) is not affected by this bug — only the text-based fallback path.
+The native tool path (`role=tool` for OpenAI function-calling format) is not affected by this bug: only the text-based fallback path.

@@ -9,7 +9,7 @@
 
 ## Title
 
-`[Agent] NVIDIA NIM models receive no tool schemas — missing from _API_HOSTS and _model_supports_tools`
+`[Agent] NVIDIA NIM models receive no tool schemas; missing from _API_HOSTS and _model_supports_tools`
 
 ---
 
@@ -21,7 +21,7 @@
 
 **Steps to reproduce:**
 
-1. Add an NVIDIA NIM endpoint (`integrate.api.nvidia.com`) in Settings → Endpoints.
+1. Add an NVIDIA NIM endpoint (`integrate.api.nvidia.com`) in Settings -> Endpoints.
 2. Select a NIM model that supports tool calling (e.g., `meta/llama-3.3-70b-instruct`).
 3. Run an agent task that requires tool use (search, file operations, etc.).
 4. Observe: no tools are offered to the model; the agent runs without tool schemas injected.
@@ -38,4 +38,4 @@ NVIDIA NIM supports OpenAI-compatible tool calling for all its hosted language m
 
 **Expected:** When a NIM endpoint is configured and the selected model supports tool calls, tool schemas are injected and tool calls are processed correctly.
 
-**Affected files:** `src/agent_loop.py` — `_API_HOSTS`, `_model_supports_tools`
+**Affected files:** `src/agent_loop.py` (`_API_HOSTS`, `_model_supports_tools`)

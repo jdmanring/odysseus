@@ -10,7 +10,7 @@ paint discipline as a standard. Each item is upstream-candidate, issue-first,
 and (because the Qt wrapper is fork-developed) the wrapper items stack on the Qt
 native-app feature branches.
 
-## Layer 3 — reclaim (highest leverage, in progress)
+## Layer 3: reclaim (highest leverage, in progress)
 
 **Issue #106. Branch `perf/renderer-memory-reclaim` (stacked on
 `feat/qt-native-linux-app`). Implemented.**
@@ -25,7 +25,7 @@ native-app feature branches.
   `[MEM] forcible purge (mouse-idle): ok RSS X -> Y kB (delta=-N kB)` with a
   large negative delta once RSS passes the ceiling, and confirm the renderer
   stops climbing without a stutter during active use.
-- **Follow-up — platform parity:** mirror the same swap to `mac_wrapper.py`
+- **Follow-up (platform parity):** mirror the same swap to `mac_wrapper.py`
   (branch `feat/qt-native-mac-app`) and `windows_wrapper.py`
   (`feat/qt-native-windows-app`). Same no-op applies on all QtWebEngine
   platforms. Separate issues, one per platform branch.
@@ -33,7 +33,7 @@ native-app feature branches.
   reading still stutters too often, raise the ceiling; if memory still peaks too
   high, lower it. These are the two knobs.
 
-## Layer 2 — residency (unload, do not just hide)
+## Layer 2: residency (unload, do not just hide)
 
 Panels currently `classList.add('hidden')` and stay fully resident. With many
 open, all DOM, observers, timers, and decoded images live at once. Adopt the
@@ -57,7 +57,7 @@ Proposed issues / branches (from `upstream-mirror`):
 Sequence: 1 then 2 then 3 then 4. Each lowers the ceiling the reclaim must fight
 and cuts how often the purge fires.
 
-## Layer 1 — paint discipline (standing standard, not a project)
+## Layer 1: paint discipline (standing standard, not a project)
 
 Already largely done (compositor-promote animations, `content-visibility`,
 remove the raster-tint flag, fix listener leaks). The 2026-06-25 measurement
@@ -95,7 +95,7 @@ every animation did not change the slope). Keep as a review standard:
 
 ## Open decisions (user)
 
-- Reclaim knobs: ceiling 1.8 GB, interval 15 s — adjust after watching it run.
+- Reclaim knobs: ceiling 1.8 GB, interval 15 s: adjust after watching it run.
 - Residency aggressiveness: teardown immediately on close, after a hidden TTL, or
   only under RSS pressure.
 - Aesthetics: pause-when-not-foreground (source-faithful, chosen default) vs

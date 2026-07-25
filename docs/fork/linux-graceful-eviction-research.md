@@ -1,4 +1,4 @@
-# Adding Graceful (Lazy) Memory-Pressure Eviction to Linux — Research & Plan
+# Adding Graceful (Lazy) Memory-Pressure Eviction to Linux: Research & Plan
 
 **Goal:** give QtWebEngine on Linux the **non-blocking, incremental** cache eviction that macOS /
 Windows already have, so Odysseus no longer needs the blocking `forciblyPurgeJavaScriptMemory`
@@ -11,7 +11,7 @@ to take it"). Related: `idle-reclaim-threshold-research.md`, #116. Date: 2026-06
 
 Chromium reclaims renderer caches gracefully when its **`MemoryPressureMonitor`** receives an OS
 pressure signal: it dispatches `MemoryPressureLevel` (moderate/critical) to every process's
-`MemoryPressureListener`, and Blink/V8/Skia evict caches incrementally — **no blocking GC, no
+`MemoryPressureListener`, and Blink/V8/Skia evict caches incrementally: **no blocking GC, no
 stutter.** The OS signal comes from a platform **`SystemMemoryPressureEvaluator`**.
 
 The Linux gap is one branch:
@@ -27,16 +27,16 @@ SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(MultiSourceMemoryPre
 #endif
 ```
 
-No evaluator ⇒ no pressure votes ⇒ no eviction. (ChromeOS/Chromecast have their own evaluators in
+No evaluator -> no pressure votes -> no eviction. (ChromeOS/Chromecast have their own evaluators in
 separate components; desktop Linux was simply never given one.) This also explains why
 `Memory.simulatePressureNotification` is a measured no-op for us.
 
-## 1b. Prior art — YES, and it reframes everything (Gerrit-confirmed 2026-06-26)
+## 1b. Prior art: YES, and it reframes everything (Gerrit-confirmed 2026-06-26)
 
-**There was a near-complete Chromium CL, and it was abandoned for a structural reason — read this
+**There was a near-complete Chromium CL, and it was abandoned for a structural reason; read this
 before writing any code.**
 
-**Chromium CL [7594942](https://chromium-review.googlesource.com/c/chromium/src/+/7594942)** — *"Add
+**Chromium CL [7594942](https://chromium-review.googlesource.com/c/chromium/src/+/7594942)**: *"Add
 PSI-based memory pressure monitoring for Linux"* by **Helmut Januschka** (external contributor),
 created 2026-02-23, **abandoned by the author 2026-04-09** after 5 patch sets. It **passed CQ** and
 implements *exactly* our design:
@@ -44,31 +44,31 @@ implements *exactly* our design:
 `pressure_stall_info_linux.{cc,h}` + unittests + `chrome/browser/chrome_browser_main_linux.cc`
 wiring + a `chrome_features` flag + histograms.
 
-**Why it was abandoned (the critical part — from the Chromium memory team in review):**
-- Code quality was fine — Benoit Lize: *"the PSI parsing code looks correct, quite close to the one
+**Why it was abandoned (the critical part, from the Chromium memory team in review):**
+- Code quality was fine. Benoit Lize: *"the PSI parsing code looks correct, quite close to the one
   on CrOS."*
-- **Google already wants Linux PSI** — Patrick Monette: *"Using Linux PSI for memory pressure
+- **Google already wants Linux PSI**. Patrick Monette: *"Using Linux PSI for memory pressure
   monitoring is actually something that's been on our radar already."*
-- **They are mid-rewrite of the whole memory-pressure architecture** (MemoryPressureListener →
+- **They are mid-rewrite of the whole memory-pressure architecture** (MemoryPressureListener ->
   MemoryConsumer), so a new evaluator on the *old* architecture would be discarded. Design doc:
   <https://docs.google.com/document/d/1HT-ii0_gVPjV12NoYlnWbXfTWL4szqWDGnP63ysvRwQ>.
-- **The hard part is tuning, not code** — Francois Doray: *"the main challenge is to tune the signal
-  to maximize speed and stability, which likely requires field experiments"* (A/B) — which an
+- **The hard part is tuning, not code**. Francois Doray: *"the main challenge is to tune the signal
+  to maximize speed and stability, which likely requires field experiments"* (A/B), which an
   external contributor cannot run.
 
 **Strategic implications (this changes the plan in §5/§7/§8):**
-1. **Do NOT attempt a from-scratch upstream Chromium PR** — Helmut had a CQ-passing CL *and* memory-
+1. **Do NOT attempt a from-scratch upstream Chromium PR**: Helmut had a CQ-passing CL *and* memory-
    team engagement and still couldn't land it, for reasons (architecture revamp + Google-only field
    experiments) that **we cannot overcome either**. We'd hit the same wall.
 2. **For Odysseus, his code is a ready-made patch.** The evaluator + PSI parser are BSD-licensed
    Chromium code; we can **adapt CL 7594942 as a QtWebEngine patch** (path C: local patched Qt
-   build) to get lazy eviction *now*, independent of Google's revamp — crediting Helmut.
-3. **Upstream lands when Google's MemoryConsumer revamp does** — track that design doc + Patrick
+   build) to get lazy eviction *now*, independent of Google's revamp, crediting Helmut.
+3. **Upstream lands when Google's MemoryConsumer revamp does**: track that design doc + Patrick
    Monette's work, rather than push our own. A Qt-side patch (path A) is the only "contribute it"
    avenue worth pursuing, and even that competes with the in-flight rewrite.
 
-Downstream reference implementations also exist (ChromeOS PSI monitor — Lize even links the CrOS
-code; Chromecast; Endless OS), but **CL 7594942 is the best starting point** — it's the CrOS design
+Downstream reference implementations also exist (ChromeOS PSI monitor; Lize even links the CrOS
+code; Chromecast; Endless OS), but **CL 7594942 is the best starting point**; it's the CrOS design
 already ported to the exact `components/memory_pressure` desktop-Linux structure.
 
 So the honest answer to "isn't someone already doing this?": **a complete attempt exists, abandoned
@@ -76,12 +76,12 @@ not because it's wrong but because Google is rebuilding the subsystem and gates 
 internal experiments.** Our realistic play is a **local/Qt patch reviving Helmut's code**, not an
 upstream Chromium PR.
 
-**Downstream implementations exist — adapt, don't invent:**
-- **ChromeOS** — the canonical PSI `MemoryPressureMonitor` (the reference to port).
-- **Chromecast** — maintains its own under `chromecast/`.
-- **Endless OS** — *"a custom implementation based on ChromiumOS's MemoryPressureMonitor."* Most
-  relevant: a **desktop-Linux distro shipping Chromium** — almost exactly our case. Primary
-  reference to study (GPL/BSD Chromium licensing applies — check before lifting code).
+**Downstream implementations exist; adapt, don't invent:**
+- **ChromeOS**: the canonical PSI `MemoryPressureMonitor` (the reference to port).
+- **Chromecast**: maintains its own under `chromecast/`.
+- **Endless OS**: *"a custom implementation based on ChromiumOS's MemoryPressureMonitor."* Most
+  relevant: a **desktop-Linux distro shipping Chromium**, almost exactly our case. Primary
+  reference to study (GPL/BSD Chromium licensing applies; check before lifting code).
 - The 2015 starter CL `crrev/1250093006` (ChromeCast-context polling evaluator).
 
 **Implication:** this lowers the build effort (port a known design, don't design one) **and**
@@ -101,25 +101,25 @@ A `SystemMemoryPressureEvaluator` subclass (ref: `system_memory_pressure_evaluat
 - ctor takes a `MemoryPressureVoter`; `Start()` begins monitoring.
 - watch the OS for pressure; on change, `voter_->SetVote(level, notify)` then `SendCurrentVote()`.
 - Win uses OS notifications + a 2 s repeating timer while under pressure; thresholds scale with RAM
-  (small: moderate 500 MB / critical 200 MB; ≥1.5 GB: moderate 1000 / critical 400).
+  (small: moderate 500 MB / critical 200 MB; >=1.5 GB: moderate 1000 / critical 400).
 
-**The Linux analog is the bulk of the code** and is genuinely small (~200–350 LOC).
+**The Linux analog is the bulk of the code** and is genuinely small (~200-350 LOC).
 
-## 3. The Linux signal — three options (recommend PSI)
+## 3. The Linux signal: three options (recommend PSI)
 
 | Signal | How | Pros | Cons |
 |---|---|---|---|
-| **PSI** `/proc/pressure/memory` *(recommended)* | register a trigger (write `some <stall_us> <window_us>`), `poll()` the fd for events | event-driven, kernel-grade, the modern standard (Linux ≥4.20), what ChromeOS uses | needs a sane stall threshold; host-PSI vs cgroup-PSI distinction |
+| **PSI** `/proc/pressure/memory` *(recommended)* | register a trigger (write `some <stall_us> <window_us>`), `poll()` the fd for events | event-driven, kernel-grade, the modern standard (Linux >=4.20), what ChromeOS uses | needs a sane stall threshold; host-PSI vs cgroup-PSI distinction |
 | **systemd / cgroup** `memory.pressure` + `sd_event_add_memory_pressure(3)` | per-cgroup PSI via systemd | correct under containers/cgroup limits | systemd dependency; not all distros/sessions |
 | **`/proc/meminfo` polling** (the 2015 starter, crrev 1250093006) | poll MemAvailable on a timer, RAM-scaled thresholds like Win | no kernel-version dep; mirrors Win/Mac exactly | polling (not event-driven); pre-PSI legacy |
 
-Recommendation: **PSI**, with a `/proc/meminfo`-polling fallback for kernels without PSI — this
+Recommendation: **PSI**, with a `/proc/meminfo`-polling fallback for kernels without PSI; this
 matches ChromeOS (the closest existing reference) and is the senior choice.
 
-## 4. The pieces — RESOLVED 2026-06-26: it's the evaluator *only* (source-confirmed)
+## 4. The pieces: RESOLVED 2026-06-26: it's the evaluator *only* (source-confirmed)
 
 The earlier worry was that QtWebEngine might not even create the monitor (then no evaluator would
-run). **That is now settled by reading current Chromium source — the monitor IS created in
+run). **That is now settled by reading current Chromium source: the monitor IS created in
 `content/`, which QtWebEngine compiles:**
 
 ```cpp
@@ -132,49 +132,49 @@ run). **That is now settled by reading current Chromium source — the monitor I
 
 `IS_LINUX` is in the guard, so QtWebEngine's browser process **does** instantiate the monitor, and
 the monitor's `MaybeStartPlatformVoter()` calls
-`SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(this)` — which returns **`nullptr`** on
+`SystemMemoryPressureEvaluator::CreateDefaultSystemEvaluator(this)`, which returns **`nullptr`** on
 Linux (§1, re-verified verbatim from `system_memory_pressure_evaluator.cc`). So:
 
 - ✅ The **monitor** is wired (content/, runs in QtWebEngine).
-- ✅ The **response** machinery is wired: monitor → `MemoryPressureListener` fan-out → cc/V8/Skia
+- ✅ The **response** machinery is wired: monitor -> `MemoryPressureListener` fan-out -> cc/V8/Skia
   graceful eviction already exists and runs.
 - ❌ The **only** missing piece is the **evaluator** (the detector that calls
   `voter_->SetVote(level)`), because `CreateDefaultSystemEvaluator` returns nullptr.
 
-**Consequence — the patch surface is ONE self-contained component, no `chrome/` changes.** The fix
+**Consequence: the patch surface is ONE self-contained component, no `chrome/` changes.** The fix
 lives entirely in `components/memory_pressure/` (which QtWebEngine compiles): add a Linux evaluator
 and make `CreateDefaultSystemEvaluator` return it on Linux. Helmut's CL also edited
-`chrome/browser/chrome_browser_main_linux.cc`, `about_flags.cc`, `flag_descriptions.h`, etc. — those
+`chrome/browser/chrome_browser_main_linux.cc`, `about_flags.cc`, `flag_descriptions.h`, etc.; those
 are **Chrome-UI flag plumbing we can drop**; QtWebEngine has no `chrome/` and can enable the
 evaluator via a build flag or unconditionally. This removes the previously-feared "monitor
 instantiation" piece and the `simulatePressureNotification` no-op is now fully explained: the
 listener fan-out works, but with no evaluator there is nothing to translate a simulated pressure
 call into a vote on Linux.
 
-## 4b. Detection source — PSI in-process vs. reuse the desktop `LowMemoryMonitor` signal
+## 4b. Detection source: PSI in-process vs. reuse the desktop `LowMemoryMonitor` signal
 
 The evaluator's *detection* half can be sourced two ways, and this is the only place the
 "why aren't we using what Endless OS has?" question actually bites. Both fit the same ~200 LOC slot;
-the **response** glue (vote → `MemoryPressureListener`) is identical either way and is the part only
+the **response** glue (vote -> `MemoryPressureListener`) is identical either way and is the part only
 a Chromium-side patch can provide.
 
 | Detection source | What it is | Pros | Cons |
 |---|---|---|---|
 | **In-process PSI** (Helmut's CL, ChromeOS) | evaluator reads `/proc/pressure/memory` itself | **zero runtime deps** (matters on Arch, headless, containers); self-contained; CQ-passing code to start from | re-implements PSI parsing; we own the thresholds |
-| **Desktop signal** (`org.freedesktop.LowMemoryMonitor` via Chromium `dbus::Bus` — **not** GIO/`GMemoryMonitor`, see §4b note) | evaluator subscribes to the existing D-Bus `LowMemoryWarning` signal | reuses a maintained daemon; the standard GNOME/Endless desktop signal; thresholds tuned by the daemon | **adds a runtime dependency** (daemon installed + running — not default on Arch); no signal at all if absent; GIO path doesn't work in QtWebEngine |
+| **Desktop signal** (`org.freedesktop.LowMemoryMonitor` via Chromium `dbus::Bus`, **not** GIO/`GMemoryMonitor`, see §4b note) | evaluator subscribes to the existing D-Bus `LowMemoryWarning` signal | reuses a maintained daemon; the standard GNOME/Endless desktop signal; thresholds tuned by the daemon | **adds a runtime dependency** (daemon installed + running, not default on Arch); no signal at all if absent; GIO path doesn't work in QtWebEngine |
 
 **Key facts established this session:**
 - Endless OS `psi-monitor`, `systemd-oomd`, `nohang` all *detect* pressure but *respond by
-  killing/pausing whole processes* — wrong granularity; we want Chromium to **shrink**, not be
+  killing/pausing whole processes*: wrong granularity; we want Chromium to **shrink**, not be
   OOM-killed.
 - `low-memory-monitor` / `GMemoryMonitor` provide the *detection signal* (`LowMemoryWarning`, levels
-  0–255) but **delegate the response to each app**. Chromium **does not subscribe today**, and across
-  **all 37 review messages on CL 7594942 the Chromium memory team never raised this path** — it was
+  0-255) but **delegate the response to each app**. Chromium **does not subscribe today**, and across
+  **all 37 review messages on CL 7594942 the Chromium memory team never raised this path**; it was
   simply not considered there.
-- Therefore **no external project removes the need for a Chromium patch** — the graceful-eviction
+- Therefore **no external project removes the need for a Chromium patch**: the graceful-eviction
   response lives inside Chromium. The desktop signal only changes the detector's *source*.
 
-### Nailed down 2026-06-26 — the "D-Bus from sandbox" worry was misframed; the real catch is the main loop
+### Nailed down 2026-06-26: the "D-Bus from sandbox" worry was misframed; the real catch is the main loop
 
 Two questions had to be settled before picking a source. Both now resolved from source/spec:
 
@@ -182,26 +182,26 @@ Two questions had to be settled before picking a source. Both now resolved from 
    is the *privileged, unsandboxed* process (only renderers/GPU are sandboxed; they request resources
    via IPC). Chromium's browser process **already opens session-bus connections** today (secret
    service / GNOME-keyring / KWallet, xdg portals, proxy config). So there is **no sandbox barrier**
-   to a D-Bus subscription from the evaluator — the original "can it reach the bus under the sandbox?"
+   to a D-Bus subscription from the evaluator; the original "can it reach the bus under the sandbox?"
    framing doesn't apply, because the code path isn't sandboxed.
 
-2. **GIO/`GMemoryMonitor` is a main-loop question — UNVERIFIED, and moot for the primary path.**
+2. **GIO/`GMemoryMonitor` is a main-loop question: UNVERIFIED, and moot for the primary path.**
    `GMemoryMonitor` is GIO/GDBus, and GDBus signals only dispatch while a **`GMainContext` is being
    iterated** (GLib main-loop docs, confirmed). The *open* question is whether QtWebEngine's
    browser-process main thread iterates one. It plausibly **does**: Qt's default Linux event dispatcher
    is `QEventDispatcherGlib` (iterates a `GMainContext` unless `QT_NO_GLIB=1`), and standard Chromium's
    browser UI thread uses `MessagePumpGlib` (also GLib). For a `GMemoryMonitor` subscription to *fail*,
-   QtWebEngine's browser-process pump would have to be **neither** — which is **not confirmed**. ⇒ This
+   QtWebEngine's browser-process pump would have to be **neither**, which is **not confirmed**, so this
    is **trivially checkable once a prototype Qt build exists**, and it does **not** affect the primary
    path. If the desktop signal is ever used, the robust choice regardless of pump is Chromium's own
-   **`dbus::Bus`** (`components/dbus`, a dedicated libdbus thread — **no GLib dependency**), which is
+   **`dbus::Bus`** (`components/dbus`, a dedicated libdbus thread, **no GLib dependency**), which is
    how Chromium already does keyring/bluez D-Bus.
 
 **Decision this tips (independent of the unverified item above):** in-process PSI is the clean primary
-source — **zero runtime deps, no D-Bus, no main-loop coupling** — and it's the CQ-passing code
+source (**zero runtime deps, no D-Bus, no main-loop coupling**), and it's the CQ-passing code
 (CL 7594942 / ChromeOS) we'd start from. The desktop-signal path is an *optional* enhancement; if
 added, prefer `dbus::Bus` over GIO to avoid the (unverified) pump dependency. **Recommendation: ship
-in-process PSI; treat a `LowMemoryMonitor` subscription as an optional Rung-2-style enhancement — not
+in-process PSI; treat a `LowMemoryMonitor` subscription as an optional Rung-2-style enhancement, not
 the foundation.** This settles the source decision that gated the repo charter; the canonical
 implementation record now lives in the `chromium-linux-mempressure` project folder.
 
@@ -210,11 +210,11 @@ implementation record now lives in the `chromium-linux-mempressure` project fold
 | Path | Lands in | Effort to land | Reaches Odysseus when | Notes |
 |---|---|---|---|---|
 | **A. QtWebEngine (Qt)** *(recommended for us)* | Qt Gerrit (`qtwebengine`) | medium | next Qt release (months) | Qt carries Chromium patches in `src/3rdparty/chromium`; can add evaluator **+** monitor instantiation together. Directly fixes Odysseus's runtime. |
-| **B. Chromium** | Chromium Gerrit | high (CLA, OWNERS, chrome-memory@ design review) | only after QtWebEngine rebases onto that Chromium (≈1–2 yr) | Biggest impact (Chrome/Electron/CEF/Qt all benefit). Slow for *us*. |
+| **B. Chromium** | Chromium Gerrit | high (CLA, OWNERS, chrome-memory@ design review) | only after QtWebEngine rebases onto that Chromium (~1-2 yr) | Biggest impact (Chrome/Electron/CEF/Qt all benefit). Slow for *us*. |
 | **C. Local patched Qt build / AppImage** | our distribution | low-med (build infra) | immediately, on our builds only | Unmaintainable long-term, but the way to **prototype + measure** before upstreaming. |
 
-Strategy: **C to prototype and prove the win → A to land it where it helps Odysseus → optionally B**
-for the ecosystem (citing the working Qt patch). Prior community interest exists — Igalia (the firm
+Strategy: **C to prototype and prove the win -> A to land it where it helps Odysseus -> optionally B**
+for the ecosystem (citing the working Qt patch). Prior community interest exists; Igalia (the firm
 behind much Linux Chromium/WebKit embedding) has discussed Linux embedded memory pressure on
 chromium-dev.
 
@@ -225,26 +225,26 @@ think that's safe to change. Likely reasons / risks to address in the PR:
 
 - **No single good threshold** across the huge variety of Linux configs (swap on/off, zram,
   cgroup limits, headless servers). Over-eager eviction would *hurt* (constant cache re-fill).
-- **Host PSI vs the app's cgroup** — host pressure may not reflect the browser's own budget.
-- **Double reclaim** — interacting with our own PSI monitor / the OS killer.
+- **Host PSI vs the app's cgroup**: host pressure may not reflect the browser's own budget.
+- **Double reclaim**: interacting with our own PSI monitor / the OS killer.
 
-These are *design* questions, not blockers — but they're why this is a "research + measure +
+These are *design* questions, not blockers, but they're why this is a "research + measure +
 justify," not a drive-by patch.
 
 ## 7. Effort estimate (honest)
 
 | Task | Effort |
 |---|---|
-| ~~Verify QtWebEngine creates the monitor (§4)~~ | ✅ **DONE** — source-confirmed it does (content/, `IS_LINUX`); only the evaluator is missing, no `chrome/` work |
-| Linux evaluator (adapt CL 7594942 / ChromeOS/Win; pick PSI vs `GMemoryMonitor` per §4b) | ~200–350 LOC, **2–4 days** |
-| Wire into `CreateDefaultSystemEvaluator` (evaluator only — monitor already exists) | hours |
-| **Build QtWebEngine from source** (the real time sink) | env setup **1–3 days**; ~100 GB disk; **hours per rebuild** |
-| Threshold tuning + measure on real low-RAM hardware | **3–7 days** (needs a constrained box) |
-| Upstream review (Qt Gerrit; or Chromium) | **weeks–months** elapsed, design pushback likely |
+| ~~Verify QtWebEngine creates the monitor (§4)~~ | ✅ **DONE**: source-confirmed it does (content/, `IS_LINUX`); only the evaluator is missing, no `chrome/` work |
+| Linux evaluator (adapt CL 7594942 / ChromeOS/Win; pick PSI vs `GMemoryMonitor` per §4b) | ~200-350 LOC, **2-4 days** |
+| Wire into `CreateDefaultSystemEvaluator` (evaluator only; monitor already exists) | hours |
+| **Build QtWebEngine from source** (the real time sink) | env setup **1-3 days**; ~100 GB disk; **hours per rebuild** |
+| Threshold tuning + measure on real low-RAM hardware | **3-7 days** (needs a constrained box) |
+| Upstream review (Qt Gerrit; or Chromium) | **weeks-months** elapsed, design pushback likely |
 
 **Net:** the *code* is small (~a week of focused work). The cost is **the build/test environment,
-threshold validation on real hardware, and the review process** — realistically **~1–2 weeks to a
-working prototype** (path C), **1–3 months** to land upstream (path A). One person can do it.
+threshold validation on real hardware, and the review process**; realistically **~1-2 weeks to a
+working prototype** (path C), **1-3 months** to land upstream (path A). One person can do it.
 
 ## 8. Phased plan
 
@@ -252,7 +252,7 @@ working prototype** (path C), **1–3 months** to land upstream (path A). One pe
    This decides whether the fix is "evaluator only" or "monitor + evaluator."
 2. **Prototype (path C):** add a PSI evaluator (+ monitor if needed) to a local QtWebEngine build;
    confirm via CDP that `simulatePressureNotification` and real pressure now evict (RSS drops with
-   **no** main-thread stall — the win we want). Measure on a real ≤4 GB box.
+   **no** main-thread stall, the win we want). Measure on a real <=4 GB box.
 3. **Measure vs the blocking purge:** prove graceful eviction keeps RSS bounded without the ~1 s
    freeze; tune PSI thresholds; check no over-eviction (cache thrash).
 4. **Upstream (path A):** submit to Qt with the measurements + the design answers from §6; keep the
@@ -267,12 +267,12 @@ working prototype** (path C), **1–3 months** to land upstream (path A). One pe
   is the primary source; the desktop `LowMemoryMonitor` signal, if added, goes via Chromium
   `dbus::Bus` (never GIO/`GMemoryMonitor`) as an optional enhancement.**
 - ~~D-Bus from the QtWebEngine browser process under its sandbox~~ ✅ **Resolved (§4b): no sandbox
-  barrier — the evaluator runs in the unsandboxed browser process.** *(Sub-question still open: does
+  barrier; the evaluator runs in the unsandboxed browser process.** *(Sub-question still open: does
   QtWebEngine's browser-process pump iterate a `GMainContext`? Matters only for a GIO path; avoidable
   by using `dbus::Bus`. Checkable once a prototype Qt build exists.)*
-- PSI host vs cgroup for a desktop app — which budget do we trust? *(still open — measurement)*
+- PSI host vs cgroup for a desktop app: which budget do we trust? *(still open: measurement)*
 - Threshold defaults that don't thrash across swap/zram/cgroup configs (tie to Rung-1 RAM detection).
-  *(still open — needs real low-RAM hardware)*
+  *(still open; needs real low-RAM hardware)*
 
 ## Sources
 - CDP no-op + `nullptr` proof: `idle-reclaim-threshold-research.md` (this fork).

@@ -10,7 +10,7 @@
 
 ### Description
 
-The chat history auto-scroll stops following the bottom when a large content block arrives —
+The chat history auto-scroll stops following the bottom when a large content block arrives;
 a code block with syntax highlighting, an image, or rich markdown with many lines. The user
 sees the conversation "drift off" the bottom and must scroll down manually.
 
@@ -29,7 +29,7 @@ if (diff > 300) {
 `diff` is `scrollHeight - clientHeight - scrollTop` (distance from current position to
 bottom). When large content arrives, `scrollHeight` can jump by several hundred pixels in a
 single animation frame. If the user was near the bottom, this sudden increase pushes `diff`
-over 300px, falsely triggering the guard — the scroll stops even though the user never
+over 300px, falsely triggering the guard: the scroll stops even though the user never
 scrolled up.
 
 ### Impact
@@ -56,4 +56,4 @@ big content blocks are expected to be proportionally larger.
 
 ### Affected File
 
-`static/js/ui.js` — `_smoothScrollStep()` function
+`static/js/ui.js`, `_smoothScrollStep()` function

@@ -1,7 +1,7 @@
 # Upstream Issue Draft: perf-gc-rendertail-instrumentation
 
 **File on:** `odysseus-dev/odysseus`
-**Related PR draft:** *(no dedicated PR draft — instrumentation-only change)*
+**Related PR draft:** *(no dedicated PR draft; instrumentation-only change)*
 **Branch:** `perf/gc-rendertail-instrumentation`
 **Type:** Performance / Observability
 
@@ -21,7 +21,7 @@
 
 **Problem:**
 
-`renderTail(tailText)` in `streamingRenderer.js` is called once per SSE token during streaming. Each call that does not hit the text-only fast path creates a holder `div` and calls `innerHTML = render(tailText)`. In a long streaming session, the rate at which `renderTail` allocates holder divs is the primary driver of Oilpan node accumulation — but there is no way to measure this rate without adding instrumentation.
+`renderTail(tailText)` in `streamingRenderer.js` is called once per SSE token during streaming. Each call that does not hit the text-only fast path creates a holder `div` and calls `innerHTML = render(tailText)`. In a long streaming session, the rate at which `renderTail` allocates holder divs is the primary driver of Oilpan node accumulation, but there is no way to measure this rate without adding instrumentation.
 
 Without counters, it is impossible to verify:
 - Whether the text-only fast path (issue #75) is firing as expected for prose responses
@@ -32,8 +32,8 @@ Without counters, it is impossible to verify:
 
 Add two counters to `streamingRenderer.js`:
 
-- `_rtCalls` — incremented on every `renderTail()` invocation
-- `_rtFast` — incremented when the fast path fires (text-only append or in-place node patch, where no holder div is created)
+- `_rtCalls`: incremented on every `renderTail()` invocation
+- `_rtFast`: incremented when the fast path fires (text-only append or in-place node patch, where no holder div is created)
 
 At `finalize()`, log the combined rate:
 
@@ -43,6 +43,6 @@ console.log(`[streamRenderer] renderTail calls=${_rtCalls} fast=${_rtFast} (${Ma
 
 This log line is routed through `javaScriptConsoleMessage` in the Qt wrapper into `wrapper_system.log`, making it available in production sessions without DevTools. The percentage tells you immediately whether a given session benefited from the fast path or hit the full allocation path for most tokens.
 
-**Note:** This is instrumentation-only — no behavior change. The counters are local to the `createStreamRenderer` closure and reset to zero at `start()`. No global state is modified.
+**Note:** This is instrumentation-only, no behavior change. The counters are local to the `createStreamRenderer` closure and reset to zero at `start()`. No global state is modified.
 
-**Affected file:** `static/js/streamingRenderer.js` — `renderTail()`, `finalize()`
+**Affected file:** `static/js/streamingRenderer.js`: `renderTail()`, `finalize()`

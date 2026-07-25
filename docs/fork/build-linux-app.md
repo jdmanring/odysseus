@@ -9,7 +9,7 @@ The Linux native app has two separate Python runtimes:
 | Display (`qt_wrapper.py`) | `/usr/bin/python3` (system) | Uses system-built PyQt6/WebEngine with native Wayland support |
 | Backend (`uvicorn app:app`) | `venv/bin/python` | All server dependencies (FastAPI, ML libs, etc.) live in the venv |
 
-The pip-distributed PyQt6 must not be used for the wrapper — use system packages only.
+The pip-distributed PyQt6 must not be used for the wrapper: use system packages only.
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ The pip-distributed PyQt6 must not be used for the wrapper — use system packag
 sudo pacman -S python-pyqt6 python-pyqt6-webengine
 ```
 
-Qt itself runs on native Wayland. The embedded Chromium renderer uses Vulkan for GPU rendering (NVIDIA does not support GBM direct compositing in the QtWebEngine subprocess). The pip equivalents (`PyQt6`, `PyQt6-WebEngine`) must not be installed in the venv — remove them if present:
+Qt itself runs on native Wayland. The embedded Chromium renderer uses Vulkan for GPU rendering (NVIDIA does not support GBM direct compositing in the QtWebEngine subprocess). The pip equivalents (`PyQt6`, `PyQt6-WebEngine`) must not be installed in the venv: remove them if present:
 ```bash
 venv/bin/python -m pip uninstall -y PyQt6 PyQt6-Qt6 PyQt6_sip PyQt6-WebEngine PyQt6-WebEngine-Qt6
 ```
@@ -62,8 +62,8 @@ Log out and back in after the first install so KDE picks up the new icon.
                   SharedArrayBuffer       required for WASM-based ML workloads
 ```
 
-Qt auto-detects Wayland from `WAYLAND_DISPLAY` — no `QT_QPA_PLATFORM` override needed.
-Do not add `--ozone-platform=wayland` — that flag is for standalone Chromium, not QtWebEngine.
+Qt auto-detects Wayland from `WAYLAND_DISPLAY`: no `QT_QPA_PLATFORM` override needed.
+Do not add `--ozone-platform=wayland`: that flag is for standalone Chromium, not QtWebEngine.
 On NVIDIA, Chromium falls back to Vulkan rendering (GBM direct compositing is unavailable in the
 subprocess context). Full GPU acceleration is still active via the RTX.
 
@@ -76,21 +76,21 @@ JS can detect the wrapper environment immediately.
 
 **Color picker (`static/js/colorPicker.js`)**
 The eyedropper button uses the xdg-desktop-portal `PickColor` API (same mechanism as the
-browser EyeDropper API on Linux) — no intermediate dialog. The portal call is made via
+browser EyeDropper API on Linux): no intermediate dialog. The portal call is made via
 `PyQt6.QtDBus`; the crosshair cursor is provided by the KDE portal implementation. Falls back
 to `QColorDialog` if the portal is unavailable.
 
 **Extending the bridge**
 Add a `@pyqtSlot` method to `NativeBridge` and a corresponding signal. Register no additional
-packages — `QWebChannel` and `QtDBus` are bundled with `python-pyqt6`.
+packages: `QWebChannel` and `QtDBus` are bundled with `python-pyqt6`.
 
 ### Log files
 All logs go to `$REPO/logs/`:
-- `wrapper_system.log` — Python wrapper stdout/stderr
-- `server.log` — uvicorn/FastAPI (via `ODYSSEUS_LOG_FILE` env var)
-- `chrome_debug.log` — Chromium renderer
+- `wrapper_system.log`: Python wrapper stdout/stderr
+- `server.log`: uvicorn/FastAPI (via `ODYSSEUS_LOG_FILE` env var)
+- `chrome_debug.log`: Chromium renderer
 
 ### Persistent profile
 Browser storage (cookies, localStorage, session) lives at:
-- `~/.local/share/odysseus/webengine/` — persistent data
-- `~/.cache/odysseus/webengine/` — network/GPU cache
+- `~/.local/share/odysseus/webengine/`: persistent data
+- `~/.cache/odysseus/webengine/`: network/GPU cache

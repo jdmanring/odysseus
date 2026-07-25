@@ -17,7 +17,7 @@
 
 **Area:** Tool parsing / Agent loop
 
-**Prerequisite context:** Issue #3222 (now closed) fixed the opposite problem — fenced code
+**Prerequisite context:** Issue #3222 (now closed) fixed the opposite problem: fenced code
 blocks being accidentally executed as tool calls. Part of that fix introduced `skip_fenced`
 for native function-calling models, which correctly prevents illustrative examples from
 running. This issue is about a different gap in the same layer.
@@ -35,8 +35,8 @@ bash(command="gh repo list")
 ```
 
 Because `_TOOL_CODE_RE` requires a `{...}` wrapper, Gemma-style calls are:
-1. Not executed — the intended tool call never runs
-2. Not stripped — the raw `<tool_code>` XML renders as visible text in the chat
+1. Not executed; the intended tool call never runs
+2. Not stripped; the raw `<tool_code>` XML renders as visible text in the chat
 
 The `_resolve_tool_blocks` comment explicitly states that `<tool_code>` appearing in text
 content is always a real tool call, never illustrative. The Gemma format is a genuine call
@@ -48,7 +48,7 @@ the model couldn't emit on a structured channel, not user-facing prose.
 - Add `_parse_tool_code_pycall()` using `ast.parse` (already imported) to extract function
   name + kwargs and route through `_TOOL_NAME_MAP` / `function_call_to_tool_block`
 - Hook into `parse_tool_blocks` after the existing MiniMax check
-- Replace `_TOOL_CODE_RE` in `strip_tool_blocks` with `_TOOL_CODE_ANY_RE` — a broad
+- Replace `_TOOL_CODE_RE` in `strip_tool_blocks` with `_TOOL_CODE_ANY_RE`, a broad
   pattern that strips any `<tool_code>` block regardless of inner format, consistent with
   the existing docstring: "that markup should never reach the user regardless of whether
   it converted to a tool call"

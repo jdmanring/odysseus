@@ -21,7 +21,7 @@
 
 **Summary:**
 
-Four CSS animations in the Brain and Notes panels produce unbounded raster-tile growth in the Qt wrapper. Users report 14–18 GB RSS after opening the Brain panel with many memories visible, or after interacting with the Notes panel while drag mode is active. The app must be restarted to recover.
+Four CSS animations in the Brain and Notes panels produce unbounded raster-tile growth in the Qt wrapper. Users report 14-18 GB RSS after opening the Brain panel with many memories visible, or after interacting with the Notes panel while drag mode is active. The app must be restarted to recover.
 
 **Root cause:**
 
@@ -29,21 +29,21 @@ Qt embeds Chromium without the browser process that monitors OS memory pressure.
 
 Four animation patterns have this problem:
 
-**Pattern A — @property --sweep on .memory-item::after (primary):**
+**Pattern A: @property --sweep on .memory-item::after (primary):**
 
 The memory-synapse-sweep animation used `@property --sweep` (syntax: `'<percentage>'`) to animate gradient stop positions. Typed registered custom properties participate in computed-value cascading: every change to `--sweep` forces a style recalculation for every element that references `var(--sweep)` in a computed value. At 60 fps with N memories visible, that is 60 * N style recalculations per second, each producing a fresh raster tile. Additionally, `-webkit-mask` on the same pseudo-element added a second compositor pass per item per frame.
 
 A secondary symptom: the hover rule suppressed the animation with `animation: none`, which destroys the promoted compositor layer. The layer was recreated on mouse-leave, producing the gray-frame flash users reported when mousing over memory entries.
 
-**Pattern B — filter: drop-shadow() in @keyframes note-ai-shine:**
+**Pattern B: filter: drop-shadow() in @keyframes note-ai-shine:**
 
 Every `.note-card-ai-chip svg` element runs `note-ai-shine`. Animating `filter: drop-shadow()` requires the compositor to reapply the filter every frame as values change, preventing frame elision. With many note cards visible simultaneously the per-frame filter work accumulates raster tiles that are never evicted.
 
-**Pattern C — animation: none on .notes-quick-add hover/focus:**
+**Pattern C: animation: none on .notes-quick-add hover/focus:**
 
 The hover and focus-within rules set `animation: none` to suppress the `notes-quick-pulse` animation. `animation: none` destroys the promoted compositor layer; it is recreated on mouse-leave and focus-leave, producing a gray-frame flash on every interaction with the quick-add form.
 
-**Pattern D — background-position animation in @keyframes notes-drag-shimmer:**
+**Pattern D: background-position animation in @keyframes notes-drag-shimmer:**
 
 The notes-drag-shimmer animation on `.note-card::after` animated `background-position` across a 250%-wide gradient. `background-position` is not compositor-promoted; each frame re-rasterizes the gradient on every visible note card. During drag with 30+ cards visible, that is 30+ gradient repaints per frame, each depositing raster tiles the renderer never evicts.
 

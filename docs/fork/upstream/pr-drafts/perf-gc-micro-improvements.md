@@ -1,4 +1,4 @@
-# PR Draft: perf: reduce GC pressure — squashOutsideCode fast path, deferred hljs highlight, background stream cleanup
+# PR Draft: perf: reduce GC pressure: squashOutsideCode fast path, deferred hljs highlight, background stream cleanup
 
 **Branch:** `perf/gc-micro-improvements` (squashOutsideCode), `perf/hljs-deferred-highlight` (deferHighlightAll)
 **Issue:** [#82](https://github.com/jdmanring/odysseus/issues/82)
@@ -8,7 +8,7 @@
 
 ## Title
 
-`perf(chat): reduce GC pressure — squashOutsideCode fast path, deferred hljs, background stream cleanup`
+`perf(chat): reduce GC pressure, squashOutsideCode fast path, deferred hljs, background stream cleanup`
 
 ---
 
@@ -18,8 +18,8 @@ Three targeted GC/memory improvements requiring no architectural changes:
 
 ### A. squashOutsideCode fast path (markdown.js)
 
-`squashOutsideCode` is called at ~30 fps during streaming. For the common case —
-plain-text responses with no code blocks — it was allocating a `split` array and
+`squashOutsideCode` is called at ~30 fps during streaming. For the common case,
+plain-text responses with no code blocks, it was allocating a `split` array and
 `join` string on every call, discarded immediately.
 
 Add `str.includes('```')` guard that returns after applying the three normalization
@@ -49,7 +49,7 @@ only when they scroll into the viewport. The existing migration left 7 direct
 `window.hljs.highlightElement` forEach loops in chat.js:
 
 - stop-stream path (`currentHolder`)
-- agent round finalise (`roundHolder`) — two sites
+- agent round finalise (`roundHolder`): two sites
 - continue-message merge (`prevEl`)
 - error/stop catch block (`holder`)
 - variant switch (`msgElement`)
@@ -58,7 +58,7 @@ only when they scroll into the viewport. The existing migration left 7 direct
 
 4 of these 7 highlight containers that may be entirely off-screen (history loads,
 completed background streams). Replaced all 7 with `deferHighlightAll(container)`.
-Visible blocks still highlight within one observer tick (~16 ms) — imperceptible.
+Visible blocks still highlight within one observer tick (~16 ms): imperceptible.
 
 ### C. Purge stale background stream Map entries on session switch (chat.js)
 
@@ -67,7 +67,7 @@ entries and deletes them. It was called only in `handleChatSubmit`. Completed en
 with text cleared to `''` accumulated across session switches until the next submit.
 
 Added a call at the top of `checkBackgroundStream`, which sessions.js invokes on
-every session switch. Zero new API surface — one line added.
+every session switch. Zero new API surface: one line added.
 
 ```javascript
 export function checkBackgroundStream(sessionId) {
@@ -77,28 +77,28 @@ export function checkBackgroundStream(sessionId) {
 
 ## Files changed
 
-- `static/js/markdown.js` — squashOutsideCode fast path (+5 −1 lines)
-- `static/js/chat.js` — 7 highlightElement → deferHighlightAll; purge on session switch (+3 −18 lines)
-- `tests/test_markdown_squash_js.py` — new file, 3 tests
-- `tests/test_chat_hljs_defer_js.py` — new file, 3 tests
-- `tests/test_chat_gc_hint_js.py` — +1 test
+- `static/js/markdown.js`: squashOutsideCode fast path (+5 −1 lines)
+- `static/js/chat.js`: 7 highlightElement -> deferHighlightAll; purge on session switch (+3 −18 lines)
+- `tests/test_markdown_squash_js.py`: new file, 3 tests
+- `tests/test_chat_hljs_defer_js.py`: new file, 3 tests
+- `tests/test_chat_gc_hint_js.py`: +1 test
 
 ## Tests
 
 6 new static-analysis tests across 3 files:
 
 **`tests/test_markdown_squash_js.py`** (new, 3 tests):
-- `test_squash_fast_path_on_no_backticks` — `includes('```')` guard present
-- `test_squash_fast_path_precedes_split` — fast path before `split()` call
-- `test_squash_code_fence_path_preserved` — split+join path still present
+- `test_squash_fast_path_on_no_backticks`: `includes('```')` guard present
+- `test_squash_fast_path_precedes_split`: fast path before `split()` call
+- `test_squash_code_fence_path_preserved`: split+join path still present
 
 **`tests/test_chat_hljs_defer_js.py`** (new, 3 tests):
-- `test_no_direct_highlight_element_calls` — `window.hljs.highlightElement` absent
-- `test_hljs_defer_import_present` — `import { deferHighlightAll` present
-- `test_defer_highlight_all_call_count` — ≥ 8 `deferHighlightAll(` calls
+- `test_no_direct_highlight_element_calls`: `window.hljs.highlightElement` absent
+- `test_hljs_defer_import_present`: `import { deferHighlightAll` present
+- `test_defer_highlight_all_call_count`: >= 8 `deferHighlightAll(` calls
 
 **`tests/test_chat_gc_hint_js.py`** (+1 test):
-- `test_check_background_stream_purges_stale` — `_purgeStaleBackgroundStreams()` at top of `checkBackgroundStream`
+- `test_check_background_stream_purges_stale`: `_purgeStaleBackgroundStreams()` at top of `checkBackgroundStream`
 
 ## Target branch
 
@@ -137,5 +137,5 @@ reference.)
 
 - `perf/gc-micro-improvements` contains only the `squashOutsideCode` change.
 - `perf/hljs-deferred-highlight` contains the `deferHighlightAll` migration; this PR extends that branch.
-- The `checkBackgroundStream` purge can be filed as part of either branch — it is a single line and has no dependencies.
+- The `checkBackgroundStream` purge can be filed as part of either branch: it is a single line and has no dependencies.
 - The chatHistory.js changes (rIC signal, teardown gap) are fork-specific for now (chatHistory.js is not yet in upstream); they will ship with the DOM virtualization PR when that is filed.

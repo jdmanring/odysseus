@@ -1,4 +1,4 @@
-# PR Draft: fix/nvidia-native-tool-calling → odysseus-dev/odysseus:dev
+# PR Draft: fix/nvidia-native-tool-calling -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/nvidia-native-tool-calling`
 **Fork issue:** [#60](https://github.com/jdmanring/odysseus/issues/60) (open)
@@ -32,8 +32,8 @@ When neither arm matches, `_is_api_model` is `False`. The agent then:
 
 NVIDIA NIM exposes a fully OpenAI-compatible function-calling API. Both Nemotron-Ultra
 and Nemotron-Super are documented to support function calling. Sending fenced-block
-descriptions instead of native schemas makes tool calls unreliable and — for models
-that parse JSON function calls natively — produces malformed output.
+descriptions instead of native schemas makes tool calls unreliable and, for models
+that parse JSON function calls natively, produces malformed output.
 
 The `_model_supports_tools` keyword list includes many model families but not
 `"nemotron"`. Nemotron model names (`nvidia/llama-3.1-nemotron-ultra-253b-v1`,
@@ -42,7 +42,7 @@ also fails.
 
 ### Fix
 
-**`src/agent_loop.py` — `_API_HOSTS`:**
+**`src/agent_loop.py`, `_API_HOSTS`:**
 
 ```python
 "integrate.api.nvidia.com",   # NIM — OpenAI-compatible function calling
@@ -52,7 +52,7 @@ Substring-match against the full endpoint URL. `integrate.api.nvidia.com` is the
 documented NIM API hostname; self-hosted NIM deployments use localhost or a custom host
 and are already covered by the `"localhost"` and `"127.0.0.1"` entries.
 
-**`src/agent_loop.py` — `_model_supports_tools` keyword tuple:**
+**`src/agent_loop.py`, `_model_supports_tools` keyword tuple:**
 
 ```python
 # NVIDIA NIM — Nemotron-native model names contain no other listed keyword.
@@ -76,8 +76,8 @@ API key to exercise end-to-end.
 
 Searched merged commits and open issues/PRs on `dev`:
 
-- **#5206** (open) *per-endpoint native tool-calling toggle in Added Models* — **complements.** This PR adds `integrate.api.nvidia.com` + the `nemotron` keyword to the *default* native-tool detection; #5206 adds a manual per-endpoint override. Independent — mention the relationship so the reviewer doesn't read them as competing.
-- **#4729** (merged) local provider detection/labeling — unrelated to the NVIDIA cloud host allowlist here.
+- **#5206** (open) *per-endpoint native tool-calling toggle in Added Models*: **complements.** This PR adds `integrate.api.nvidia.com` + the `nemotron` keyword to the *default* native-tool detection; #5206 adds a manual per-endpoint override. Independent; mention the relationship so the reviewer doesn't read them as competing.
+- **#4729** (merged) local provider detection/labeling; unrelated to the NVIDIA cloud host allowlist here.
 
 **Verdict:** complements; not a duplicate.
 
@@ -94,7 +94,7 @@ Searched merged commits and open issues/PRs on `dev`:
    The model's tool invocations are parsed from text, not structured JSON.
 
 6. Repeat step 4 with a Nemotron model served via a self-hosted vLLM instance at a
-   custom hostname — confirm `_model_supports_tools` picks up `"nemotron"` and enables
+   custom hostname; confirm `_model_supports_tools` picks up `"nemotron"` and enables
    native schemas regardless of the host URL.
 
 ---
@@ -102,7 +102,7 @@ Searched merged commits and open issues/PRs on `dev`:
 ## Filing Notes
 
 - Single commit (`116bb913`). No squash needed.
-- Branch: `fix/nvidia-native-tool-calling` — built from `upstream-mirror`.
+- Branch: `fix/nvidia-native-tool-calling`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #___` before opening.
 - PR targets `odysseus-dev/odysseus:dev`.
 - This fix is a subset of the broader NVIDIA NIM support in `feat/nvidia-nim-support`

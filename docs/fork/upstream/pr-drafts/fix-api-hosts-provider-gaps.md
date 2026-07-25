@@ -1,4 +1,4 @@
-# PR Draft: fix/api-hosts-provider-gaps → odysseus-dev/odysseus:dev
+# PR Draft: fix/api-hosts-provider-gaps -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/api-hosts-provider-gaps`
 **Fork issue:** [#62](https://github.com/jdmanring/odysseus/issues/62) (open)
@@ -45,7 +45,7 @@ is not; users who configure the `.ai` domain get degraded behavior.
 
 ### Fix
 
-**`src/agent_loop.py` — `_API_HOSTS`:**
+**`src/agent_loop.py`, `_API_HOSTS`:**
 
 ```python
 # Provider secondary domains and endpoints whose model names do not
@@ -81,8 +81,8 @@ by inspection.
 
 Searched merged commits and open issues/PRs on `dev`:
 
-- **#4729** (merged) *detect llama.cpp servers and label local providers* — **complements; distinct path.** #4729 is provider *discovery/labeling* (fingerprinting local serving ports via `/props`); this PR extends the `_API_HOSTS` allowlist that decides which endpoints receive native tool schemas. No shared code, no conflict.
-- **#5206** (open) *per-endpoint native tool-calling toggle in Added Models* — **complements.** #5206 adds a manual per-endpoint override; this PR fixes the *default* host detection so well-behaved providers get native schemas without manual toggling. Valid regardless of merge order — worth a note to the reviewer to coordinate.
+- **#4729** (merged) *detect llama.cpp servers and label local providers*: **complements; distinct path.** #4729 is provider *discovery/labeling* (fingerprinting local serving ports via `/props`); this PR extends the `_API_HOSTS` allowlist that decides which endpoints receive native tool schemas. No shared code, no conflict.
+- **#5206** (open) *per-endpoint native tool-calling toggle in Added Models*: **complements.** #5206 adds a manual per-endpoint override; this PR fixes the *default* host detection so well-behaved providers get native schemas without manual toggling. Valid regardless of merge order; worth a note to the reviewer to coordinate.
 
 **Verdict:** complements; not a duplicate. If #5206 lands first, this remains the sensible default-detection fix beneath the toggle.
 
@@ -108,7 +108,7 @@ Also verify that the existing primary `api.together.xyz` endpoint is unaffected.
 ## Filing Notes
 
 - Single commit (`4047e40a`). No squash needed.
-- Branch: `fix/api-hosts-provider-gaps` — built from `upstream-mirror`.
+- Branch: `fix/api-hosts-provider-gaps`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #___` before opening.
 - PR targets `odysseus-dev/odysseus:dev`.
 - `fix/nvidia-native-tool-calling` addresses the same class of bug for NVIDIA NIM and

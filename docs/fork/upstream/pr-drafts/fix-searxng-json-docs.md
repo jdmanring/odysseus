@@ -1,4 +1,4 @@
-# PR Draft: fix/searxng-json-docs → odysseus-dev/odysseus:dev
+# PR Draft: fix/searxng-json-docs -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/searxng-json-docs`
 **Issue:** [#8](https://github.com/jdmanring/odysseus/issues/8) (fork tracking)
@@ -17,7 +17,7 @@
 
 SearXNG's JSON output format is disabled in its default `settings.yml`. When a user
 points `SEARXNG_INSTANCE` at a stock SearXNG install, every search request Odysseus
-makes returns HTTP 404. There is no useful error message anywhere in the Odysseus UI —
+makes returns HTTP 404. There is no useful error message anywhere in the Odysseus UI;
 only a blank or failed search result.
 
 ### Who is affected and why it's a trap
@@ -38,7 +38,7 @@ The typical debugging path for a user hitting this:
 5. Eventually discover the JSON format requirement by reading SearXNG's API docs
 
 Without the comment, users hit HTTP 404 from a working SearXNG install with no
-indication that JSON output must be explicitly enabled — it is an Odysseus-specific
+indication that JSON output must be explicitly enabled; it is an Odysseus-specific
 prerequisite that SearXNG's own installation guide does not mention.
 
 There is currently **no documentation anywhere in the repository** about this

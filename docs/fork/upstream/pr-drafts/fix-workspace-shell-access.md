@@ -1,7 +1,7 @@
-# PR Draft: fix/workspace-shell-access → odysseus-dev/odysseus:dev
+# PR Draft: fix/workspace-shell-access -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/workspace-shell-access`
-**Issue:** [#47](https://github.com/jdmanring/odysseus/issues/47) (fork tracking, open — bash/python verified; web_search unverified)
+**Issue:** [#47](https://github.com/jdmanring/odysseus/issues/47) (fork tracking, open, bash/python verified; web_search unverified)
 **Status:** Single clean commit. File upstream issue first, fill in `Fixes #___`, then open PR.
 
 ---
@@ -28,7 +28,7 @@ contains both `bash` and `web_search`: `PLAN_MODE_READONLY_TOOLS` has
 `web_search`. The intersection therefore excludes all three.
 
 The user-facing toggles (Shell Access, Web Search) only prevent tools from
-entering `disabled_tools` — they do not positively add tools to `_relevant_tools`.
+entering `disabled_tools`: they do not positively add tools to `_relevant_tools`.
 The fast path builds `_relevant_tools` from scratch and never consults
 `disabled_tools`, so both toggles are silently ignored for every low-signal turn
 with an active workspace.
@@ -55,7 +55,7 @@ if workspace:
 This preserves the conservative read-only default when tools are disabled: if
 `bash` or `web_search` is in `disabled_tools` (toggle off, or a privilege check
 blocked it), neither tool is added. The existing `blocked_tools_for_owner()` gate
-and plan-mode denylist remain authoritative — this fix only affects what is
+and plan-mode denylist remain authoritative: this fix only affects what is
 *offered*, not who is *allowed*, mirroring the approach taken in PR #4398 for
 task agents.
 
@@ -78,7 +78,7 @@ No schema changes, no new settings, no new tools.
    **Before this fix:** the agent responds that it has no access to the shell.
 
 6. Disable Shell Access (toggle off). Repeat step 4.
-7. **Expected:** `bash` and `python` remain unavailable — the gate holds.
+7. **Expected:** `bash` and `python` remain unavailable, the gate holds.
 
 **Web Search:**
 
@@ -88,7 +88,7 @@ No schema changes, no new settings, no new tools.
     **Before this fix:** the agent reports no web search access.
 
 11. Disable Web Search. Repeat step 9.
-12. **Expected:** `web_search` and `web_fetch` remain unavailable — the gate holds.
+12. **Expected:** `web_search` and `web_fetch` remain unavailable, the gate holds.
 
 **Specific requests (regression check):**
 

@@ -6,15 +6,15 @@ This file **extends** the upstream `CONTRIBUTING.md`. All upstream rules still a
 
 ## 0️⃣ Pre‑flight Checklist (run before starting work)
 
-1. **Synchronise with upstream** – ensure `upstream‑mirror` and `develop` are up‑to‑date. Use the helper script `scripts/run_full_sync.sh` (see *Automation helpers* below).
-2. **Search upstream for overlap** – verify that there is no open upstream issue, discussion, roadmap item, or PR that already covers the change:
+1. **Synchronise with upstream**: ensure `upstream‑mirror` and `develop` are up‑to‑date. Use the helper script `scripts/run_full_sync.sh` (see *Automation helpers* below).
+2. **Search upstream for overlap**: verify that there is no open upstream issue, discussion, roadmap item, or PR that already covers the change:
    ```bash
    gh issue list --repo odysseus-dev/odysseus --search "<short description>" --state open
    gh pr list    --repo odysseus-dev/odysseus --search "<short description>" --state open
    ```
    **Always pass `--repo` explicitly, on reads as well as writes.** A bare `gh` command
    resolves against `gh repo set-default`, which has historically pointed at the *read‑only
-   upstream* — a bare `gh issue comment 128` once posted onto upstream's unrelated PR #128,
+   upstream*. A bare `gh issue comment 128` once posted onto upstream's unrelated PR #128,
    because both repos happened to have an item at that number and nothing errored. Reading
    the returned URL is the only tell.
 
@@ -28,8 +28,8 @@ This file **extends** the upstream `CONTRIBUTING.md`. All upstream rules still a
    scope reaches.
 
    The token is the boundary; the guard is a guardrail. Do not rely on the guard alone, and
-   never edit it to widen it — that change belongs to the repository owner.
-3. **Identify roadmap synergies** – review `docs/ROADMAP.md` for items that could be addressed with a small extension of your change. If you find a match, add a link in the PR body under “Potential roadmap impact”.
+   never edit it to widen it; that change belongs to the repository owner.
+3. **Identify roadmap synergies**: review `docs/ROADMAP.md` for items that could be addressed with a small extension of your change. If you find a match, add a link in the PR body under “Potential roadmap impact”.
 
 ---
 
@@ -69,19 +69,19 @@ All helper scripts now live in the dedicated `scripts/fork/` directory and are l
 
 ### How to use the helper scripts
 
-- **`scripts/run_full_sync.sh`** – Run the full upstream‑sync pipeline. Simply execute the script from the repository root:
+- **`scripts/run_full_sync.sh`** - Run the full upstream‑sync pipeline. Simply execute the script from the repository root:
   ```bash
   ./scripts/fork/run_full_sync.sh
   ```
   It fetches upstream, resets `upstream‑mirror`, fast‑forwards `develop`, and rebases any open feature/fix branches onto the new `develop`.
 
-- **`scripts/create_pr.sh <branch>`** – Open a PR for a given branch using the matching draft file. Example:
+- **`scripts/create_pr.sh <branch>`** - Open a PR for a given branch using the matching draft file. Example:
   ```bash
   ./scripts/fork/create_pr.sh feat/awesome-feature
   ```
   The script extracts the title and body from `docs/fork/upstream/pr-drafts/` and creates a PR against the `dev` base.
 
-- **`scripts/post‑merge‑hook.sh`** – Intended to be run as a Git `post‑merge` hook. It updates `docs/fork/upstream/pr‑status.md` to mark the merged branch as *Merged* and cleans up the entry. The hook is automatically installed at `.git/hooks/post‑merge`.
+- **`scripts/post‑merge‑hook.sh`** - Intended to be run as a Git `post‑merge` hook. It updates `docs/fork/upstream/pr‑status.md` to mark the merged branch as *Merged* and cleans up the entry. The hook is automatically installed at `.git/hooks/post‑merge`.
 
 ---
 

@@ -7,14 +7,14 @@ prior art it is measured against, and the lessons learned.
 
 Related issues and branches:
 
-- `#49` `fix/chat-auto-scroll-threshold` — adaptive viewport-based distance
+- `#49` `fix/chat-auto-scroll-threshold`: adaptive viewport-based distance
   guard (`max(300, 1.5 x viewport)`) replacing a rigid 300px threshold in
   `_smoothScrollStep()`. The stick-to-bottom work reuses this same distance as
   its pin threshold so the two mechanisms agree.
-- `#103` `fix/chat-history-virtualization` scroll-down fix — `_loadNewer`
+- `#103` `fix/chat-history-virtualization` scroll-down fix: `_loadNewer`
   cascade gated on `_draining` only, so scrolling down loads one batch instead
   of behaving like a scroll-to-bottom button.
-- `#104` `fix/chat-stick-to-bottom` — one observer is the source of truth for
+- `#104` `fix/chat-stick-to-bottom`: one observer is the source of truth for
   staying pinned: it re-pins on any geometry change while pinned, covering both
   late layout growth (image decode, highlight reflow, the final block) and the
   mid-stream "Thinking" box shrink/grow. Stacks on `#49` (its pin threshold
@@ -54,7 +54,7 @@ deliberate user scroll):
 scroll. Consequences:
 
 - The only thing that respected "user scrolled away" was the incidental
-  `maxAllowedDiff` distance bail inside `_smoothScrollStep` — not a clean
+  `maxAllowedDiff` distance bail inside `_smoothScrollStep`, not a clean
   signal.
 - Any guard written as `if (!autoScrollEnabled) return;` (including the first
   version of `scrollHistorySettle`) is a no-op. The claim "gated on auto-follow
@@ -68,7 +68,7 @@ This converts the dead gate into the real source of truth.
 
 ## Architecture (stick-to-bottom observer, `ui.js`)
 
-- `isPinned` — set on each `scroll` event: `true` when within
+- `isPinned`: set on each `scroll` event: `true` when within
   `_followDistance(box)` (= `max(300, clientHeight * 1.5)`, matching the #49
   guard) of the bottom. Matching the follow distance matters: the lerp leaves
   transient gaps while catching up, so a tighter threshold would flip
@@ -81,12 +81,12 @@ This converts the dead gate into the real source of truth.
   change, highlight reflow, new blocks) and attaches a `ResizeObserver` to each
   added child for pure layout growth.
 - Re-pin is coalesced through one `requestAnimationFrame`, and **only fires
-  when `isPinned` was true before the growth** — read from the last scroll
+  when `isPinned` was true before the growth**, read from the last scroll
   position, never recomputed after the growth (a single large block that lands
   below the fold would otherwise measure as "far from bottom" and fail to
   re-pin precisely when needed).
 - The observer **defers only while the smooth follow loop is actively
-  animating** (`_scrollRafId` set) — **not** for the whole 500ms throttle
+  animating** (`_scrollRafId` set), **not** for the whole 500ms throttle
   window. This is the subtlety that lets one mechanism cover everything: during
   continuous streaming the loop stays armed (each token grows the content, so
   `diff > 1` and the rAF chain keeps running), so the observer defers and the
@@ -105,8 +105,8 @@ across the Thinking-box transition only. Once the observer exists, that box
 removal is just another geometry change it already catches, so two mechanisms
 were doing overlapping work. The senior call was to consolidate *down* to the
 one correct primitive rather than keep both: `scrollHistorySettle` and its call
-site were removed and the behaviour folded into the observer. The alternative —
-adopting the full `use-stick-to-bottom` velocity-spring engine — was rejected:
+site were removed and the behaviour folded into the observer. The alternative,
+adopting the full `use-stick-to-bottom` velocity-spring engine, was rejected:
 its animation polish is imperceptible under our 500ms throttle and QtWebEngine
 runtime, it is a React port with a license-attribution burden, and as an
 upstream PR it would rewrite the maintainer's existing scroll animation (the
@@ -117,25 +117,25 @@ upstream PR it would rewrite the maintainer's existing scroll animation (the
 
 The approach matches the mainstream pattern for AI-chat stick-to-bottom:
 
-- **`use-stick-to-bottom`** (stackblitz-labs) — the widely used React hook for
+- **`use-stick-to-bottom`** (stackblitz-labs): the widely used React hook for
   AI chat. Uses `ResizeObserver` exclusively to detect content resize, supports
   content *shrinking* without losing stickiness, lets the user cancel
   stickiness by scrolling up, and uses a velocity-based spring scroll
   animation. Source:
   https://github.com/stackblitz-labs/use-stick-to-bottom (README:
   https://github.com/stackblitz-labs/use-stick-to-bottom/blob/main/README.md)
-- **WICG ResizeObserver "chat" example** — the canonical demonstration of
+- **WICG ResizeObserver "chat" example**: the canonical demonstration of
   scrolling to the bottom on every resize when the user is at the bottom.
   Source: https://rawgit.com/WICG/ResizeObserver/master/examples/chat.html
-- **`vue-stick-to-bottom`** (cwandev) — Vue port of the same idea. Source:
+- **`vue-stick-to-bottom`** (cwandev): Vue port of the same idea. Source:
   https://github.com/cwandev/vue-stick-to-bottom
 - **"Anchor scroll at the bottom of the container with dynamic content"**
-  (dev.to/hugaidas) — bottom-anchor + observer pattern writeup. Source:
+  (dev.to/hugaidas): bottom-anchor + observer pattern writeup. Source:
   https://dev.to/hugaidas/anchor-scroll-at-the-bottom-of-the-container-with-dynamic-content-2knj
-- **"Intuitive Scrolling for Chatbot Message Streaming"** (tuffstuff9) —
+- **"Intuitive Scrolling for Chatbot Message Streaming"** (tuffstuff9):
   distinguishing user vs programmatic scroll without debouncing. Source:
   https://tuffstuff9.hashnode.dev/intuitive-scrolling-for-chatbot-message-streaming
-- **`overflow-anchor` / scroll anchoring** (CSS-Tricks almanac) — the native
+- **`overflow-anchor` / scroll anchoring** (CSS-Tricks almanac): the native
   CSS feature that prevents content *above* the viewport from shifting the
   view; complementary to bottom-pinning but not a substitute (no Safari
   support, and it does not pull the view *to* the bottom). Source:
@@ -144,7 +144,7 @@ The approach matches the mainstream pattern for AI-chat stick-to-bottom:
 Where this implementation differs deliberately: `use-stick-to-bottom` runs its
 own velocity-spring scroll animation and a debounce-free user-intent detector.
 Here the existing `_smoothScrollStep` lerp already owns the streaming animation,
-so the observer does not animate — it only fills the late-growth gap the lerp
+so the observer does not animate; it only fills the late-growth gap the lerp
 leaves, and defers to the lerp while it runs. User intent is read from the
 `isPinned` distance flag rather than a velocity heuristic. This is a simpler
 mechanism justified by the narrower job; the trade-off is that it cannot
@@ -162,7 +162,7 @@ lerp) stays within the pin distance and the observer defers while it runs.
   this work assert that the code strings exist; they cannot prove the view
   holds. Behavioural claims need an in-app before/after with a concrete repro
   (here: a reply ending in a large code block, or a message with an image
-  attachment — late-growing content). Record which claims are still
+  attachment; late-growing content). Record which claims are still
   behaviourally unverified.
 - **Re-pin gating must read the pre-growth state.** Measuring distance-to-bottom
   inside the observer callback (after growth) defeats the fix for the exact
@@ -180,18 +180,18 @@ lerp) stays within the pin distance and the observer defers while it runs.
   This exercises the `MutationObserver` path (childList shrink on box removal +
   message growth while the loop is idle during the pause) and confirms the fold
   from `scrollHistorySettle` into the observer holds behaviourally.
-- **Still to confirm:** the `ResizeObserver` child-resize path — a child element
+- **Still to confirm:** the `ResizeObserver` child-resize path: a child element
   growing *after* it is already in the DOM (image decode replacing a fixed-size
   skeleton, syntax-highlight reflow). Cleanest repro that does **not** need image
-  generation (which is inpaint-scoped — see below): ask the model for a long
+  generation (which is inpaint-scoped, see below): ask the model for a long
   fenced **code block**; `deferHighlightAll` reflows it after render, so the
   block grows post-stream and the view should stay pinned. An image *attachment*
   on a sent message is the other repro.
 
 ## Aside: image generation is inpaint-scoped (separate issue)
 
-The Settings → Image Generation panel (`static/js/settings.js` `initImageSettings`)
-is scoped to **inpainting** only — it lists inpaint-compatible Stable Diffusion
+The Settings -> Image Generation panel (`static/js/settings.js` `initImageSettings`)
+is scoped to **inpainting** only; it lists inpaint-compatible Stable Diffusion
 models and shows hardcoded fallbacks as "(not detected)" when none are served,
 with no general provider/model path for chat "generate an image" requests. This
 is why image generation cannot be used to test the scroll fix. Filed as its own

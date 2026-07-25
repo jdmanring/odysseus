@@ -1,6 +1,6 @@
 # GitHub Support request: re-root/detach `jdmanring/odysseus` fork network
 
-**Problem:** `jdmanring/odysseus` shows "forked from `arcahyadi/odysseus`" — the wrong
+**Problem:** `jdmanring/odysseus` shows "forked from `arcahyadi/odysseus`", which is the wrong
 parent. The fork was created from the canonical upstream (`pewdiepie-archdaemon/odysseus`,
 since renamed to `odysseus-dev/odysseus`, 61k+ stars). A fork-network restructuring
 event (likely triggered by the upstream rename) re-rooted the network to the unrelated
@@ -12,10 +12,10 @@ defaults the base repo to `arcahyadi/odysseus` instead of `odysseus-dev/odysseus
 
 **What only GitHub Support can do** (no API/CLI/settings path exists):
 - **Detach** `jdmanring/odysseus` from its current fork network (makes it a standalone
-  repo — preferred; preserves all branches, issues, and PRs), **or**
+  repo; preferred, since it preserves all branches, issues, and PRs), **or**
 - **Re-root** it under `odysseus-dev/odysseus` if that's possible on their side.
 
-## Submit at https://support.github.com/contact (or `gh` → not supported; use the web form)
+## Submit at https://support.github.com/contact (`gh` is not supported for this; use the web form)
 
 Suggested text:
 
@@ -35,7 +35,7 @@ Suggested text:
 Deleting `jdmanring/odysseus` to sever the link would destroy ~100 staged PR branches,
 every fork-tracker issue, and open PRs. Detach via Support preserves all of it.
 
-## After detach — verify
+## After detach: verify
 
 ```sh
 gh api repos/jdmanring/odysseus --jq '{fork, parent: .parent.full_name, source: .source.full_name}'
@@ -44,5 +44,5 @@ gh api repos/jdmanring/odysseus --jq '{fork, parent: .parent.full_name, source: 
 
 The git remotes are already correct and need no change (`origin` = jdmanring,
 `upstream` = odysseus-dev, push to upstream disabled). PRs staged via `gh` already
-target `odysseus-dev` explicitly, so contribution flow is unaffected meanwhile — just
+target `odysseus-dev` explicitly, so contribution flow is unaffected meanwhile. Just
 never accept the web UI's default base repo until this is fixed.

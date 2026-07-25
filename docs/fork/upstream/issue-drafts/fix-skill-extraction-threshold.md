@@ -20,15 +20,15 @@
 
 **OS / device:** Any
 
-**Problem 1 — Extraction gate fires on trivially short sessions:**
+**Problem 1: Extraction gate fires on trivially short sessions:**
 
-The gate in `routes/chat_helpers.py` triggers when `agent_rounds >= 2 OR agent_tool_calls >= 2`. Nearly every non-trivial agent interaction qualifies — a task that reads a file and writes it back (2 tool calls, 1 round) is enough. The corresponding gate in `services/memory/skill_extractor.py` uses the same OR logic. This is not selective enough to identify genuinely reusable procedures; it extracts from routine housekeeping tasks.
+The gate in `routes/chat_helpers.py` triggers when `agent_rounds >= 2 OR agent_tool_calls >= 2`. Nearly every non-trivial agent interaction qualifies; a task that reads a file and writes it back (2 tool calls, 1 round) is enough. The corresponding gate in `services/memory/skill_extractor.py` uses the same OR logic. This is not selective enough to identify genuinely reusable procedures; it extracts from routine housekeeping tasks.
 
-**Problem 2 — Confidence threshold mismatch creates zombie skills:**
+**Problem 2: Confidence threshold mismatch creates zombie skills:**
 
-`MIN_CONFIDENCE = 0.6` in `skill_extractor.py` saves skills to disk. The injection gate in `agent_loop.py` defaults to `skill_min_confidence = 0.85`. Skills with confidence 0.60–0.84 are saved but never surfaced to the agent. They accumulate in `data/skills/` as dead weight, growing the storage footprint without contributing to agent capability.
+`MIN_CONFIDENCE = 0.6` in `skill_extractor.py` saves skills to disk. The injection gate in `agent_loop.py` defaults to `skill_min_confidence = 0.85`. Skills with confidence 0.60-0.84 are saved but never surfaced to the agent. They accumulate in `data/skills/` as dead weight, growing the storage footprint without contributing to agent capability.
 
-**Problem 3 — `auto_approve_skills` defaults to `True`:**
+**Problem 3: `auto_approve_skills` defaults to `True`:**
 
 Extracted skills are auto-published without user review. A skill extracted from a failed or one-off session immediately becomes part of the agent's injected context on the next turn. The user has no gate to prevent a low-quality extraction from affecting agent behavior.
 
@@ -43,5 +43,5 @@ Low-quality skills (libvirt XML configuration procedures, etc.) appear in `data/
 - Extracted skills land as drafts; the user reviews and publishes from Brain > Skills.
 
 **Affected files:**
-- `services/memory/skill_extractor.py` — `MIN_CONFIDENCE`, extraction gate condition, `auto_approve_skills` default
-- `routes/chat_helpers.py` — outer extraction gate condition
+- `services/memory/skill_extractor.py`: `MIN_CONFIDENCE`, extraction gate condition, `auto_approve_skills` default
+- `routes/chat_helpers.py`: outer extraction gate condition

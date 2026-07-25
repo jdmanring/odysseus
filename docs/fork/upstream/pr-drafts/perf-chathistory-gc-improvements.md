@@ -1,4 +1,4 @@
-# PR Draft: perf/chathistory-gc-improvements → odysseus-dev/odysseus:dev
+# PR Draft: perf/chathistory-gc-improvements -> odysseus-dev/odysseus:dev
 
 **Branch:** `perf/chathistory-gc-improvements`
 **Issue:** [#83](https://github.com/jdmanring/odysseus/issues/83)
@@ -56,23 +56,23 @@ Added one call at the top of `checkBackgroundStream`, which `sessions.js` invoke
 
 ## Files changed
 
-- `static/js/chatHistory.js` — idle yield in `_evictLive` and `_pruneBottom`; full teardown in all four removal loops of `_pruneTop` and `_pruneBottom`
-- `static/js/chat.js` — `_purgeStaleBackgroundStreams()` at top of `checkBackgroundStream`
-- `tests/test_chat_history_js.py` — +4 tests
-- `tests/test_chat_gc_hint_js.py` — +1 test
+- `static/js/chatHistory.js`: idle yield in `_evictLive` and `_pruneBottom`; full teardown in all four removal loops of `_pruneTop` and `_pruneBottom`
+- `static/js/chat.js`: `_purgeStaleBackgroundStreams()` at top of `checkBackgroundStream`
+- `tests/test_chat_history_js.py`: +4 tests
+- `tests/test_chat_gc_hint_js.py`: +1 test
 
 ## Tests
 
 5 new static-analysis tests:
 
 **`tests/test_chat_history_js.py`** (+4):
-- `test_evict_live_yields_to_idle` — `requestIdleCallback` present in `_evictLive`
-- `test_prune_bottom_yields_to_idle` — `requestIdleCallback` present in `_pruneBottom`
-- `test_prune_top_clears_intervals_before_remove` — `_waveInterval` cleared in `_pruneTop`
-- `test_prune_bottom_clears_intervals_before_remove` — `_waveInterval` cleared in `_pruneBottom`
+- `test_evict_live_yields_to_idle`: `requestIdleCallback` present in `_evictLive`
+- `test_prune_bottom_yields_to_idle`: `requestIdleCallback` present in `_pruneBottom`
+- `test_prune_top_clears_intervals_before_remove`: `_waveInterval` cleared in `_pruneTop`
+- `test_prune_bottom_clears_intervals_before_remove`: `_waveInterval` cleared in `_pruneBottom`
 
 **`tests/test_chat_gc_hint_js.py`** (+1):
-- `test_check_background_stream_purges_stale` — `_purgeStaleBackgroundStreams()` at top of `checkBackgroundStream`
+- `test_check_background_stream_purges_stale`: `_purgeStaleBackgroundStreams()` at top of `checkBackgroundStream`
 
 ## Target branch
 
@@ -103,17 +103,17 @@ an upstream issue reference.)
 
 ### How to Test
 
-1. Run a long session until Phase 1 pruning fires (scroll up far enough to trigger `_pruneTop` or `_pruneBottom` — look for `[chatHistory] pruned` in console). Confirm no `setInterval` callbacks fire after pruned nodes are removed (DevTools → Performance → check for orphaned timer callbacks).
-2. Run a session until Phase 2 eviction fires (`[chatHistory] Phase 2 evict` in console). In DevTools → Memory, confirm the heap snapshot shows fewer detached nodes in the 5 s after eviction vs. before this patch.
+1. Run a long session until Phase 1 pruning fires (scroll up far enough to trigger `_pruneTop` or `_pruneBottom`: look for `[chatHistory] pruned` in console). Confirm no `setInterval` callbacks fire after pruned nodes are removed (DevTools -> Performance -> check for orphaned timer callbacks).
+2. Run a session until Phase 2 eviction fires (`[chatHistory] Phase 2 evict` in console). In DevTools -> Memory, confirm the heap snapshot shows fewer detached nodes in the 5 s after eviction vs. before this patch.
 3. Open a background stream in one session, let it complete, switch sessions. Confirm `_backgroundStreams` no longer contains the completed entry (instrument via DevTools console: `chatModule._backgroundStreams.size`).
-4. Run `pytest tests/test_chat_history_js.py tests/test_chat_gc_hint_js.py -q` — covers both the new tests and the existing 15 tests.
+4. Run `pytest tests/test_chat_history_js.py tests/test_chat_gc_hint_js.py -q`: covers both the new tests and the existing 15 tests.
 
 ---
 
 ## Filing Notes
 
 - 2 commits from `upstream-mirror`: base chatHistory.js (`337fedc5`), GC improvements (`d05e9e2e`).
-- Branch: `perf/chathistory-gc-improvements` — built from `upstream-mirror`.
+- Branch: `perf/chathistory-gc-improvements`, built from `upstream-mirror`.
 - **Depends on `fix/dom-oom-virtualization`**: chatHistory.js is introduced by that PR. This branch can be filed as a follow-up once the virtualization PR lands upstream. Alternatively, include it in the virtualization PR as an additional commit.
 - **File upstream issue first.** Issue is tracked at jdmanring/odysseus#83; upstream issue number needed before filing.
 - The change C (`_purgeStaleBackgroundStreams` on session switch) is also present in `perf/gc-micro-improvements`. File only one; the other branch's version can be dropped.

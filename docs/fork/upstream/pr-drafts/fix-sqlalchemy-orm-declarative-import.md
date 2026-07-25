@@ -1,9 +1,9 @@
-# PR Draft: fix/sqlalchemy-orm-declarative-import → odysseus-dev/odysseus:dev
+# PR Draft: fix/sqlalchemy-orm-declarative-import -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/sqlalchemy-orm-declarative-import`
 **Fork issue:** [#163](https://github.com/jdmanring/odysseus/issues/163) (open)
 **Status:** Single clean commit. File upstream issue first, fill in `Fixes #___`, then open PR.
-**Context:** Sibling to `#51` (utcnow deprecation) — same class of SQLAlchemy-family deprecation cleanup.
+**Context:** Sibling to `#51` (utcnow deprecation): same class of SQLAlchemy-family deprecation cleanup.
 
 ---
 
@@ -35,7 +35,7 @@ sqlalchemy.orm.declarative_base(). (deprecated since: 2.0)
 ### Fix
 
 Both names are re-exported from `sqlalchemy.orm` (verified on 2.0.50), which the
-file already imports from — so fold them into that line and drop the deprecated
+file already imports from, so fold them into that line and drop the deprecated
 import:
 
 ```python
@@ -47,7 +47,7 @@ from sqlalchemy.orm import relationship, sessionmaker, backref
 from sqlalchemy.orm import declarative_base, declared_attr, relationship, sessionmaker, backref
 ```
 
-No behavior change — same objects, current import path, warning gone. Verified
+No behavior change: same objects, current import path, warning gone. Verified
 with `python -W error::DeprecationWarning -c "import core.database"` (clean).
 
 ### Scope

@@ -1,4 +1,4 @@
-# PR Draft: fix/continue-btn-weakref → odysseus-dev/odysseus:dev
+# PR Draft: fix/continue-btn-weakref -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/continue-btn-weakref`
 **Issue:** [#78](https://github.com/jdmanring/odysseus/issues/78) (fork tracking)
@@ -20,7 +20,7 @@ Three "Continue" buttons in `chat.js` capture the message holder element directl
 in their click handler closures:
 
 1. **Interrupted-message button** (inside the holder's subtree, ~line 375)
-2. **Step-limit button** — appended to `_chatBox`, not the holder's subtree (~line 1898)
+2. **Step-limit button**: appended to `_chatBox`, not the holder's subtree (~line 1898)
 3. **Catch-block interrupted button** (inside the holder's subtree, ~line 2959)
 
 Site 2 is a confirmed GC retention bug: the step-limit `contBtn` is appended to
@@ -65,14 +65,14 @@ from `_chatBox`.
 
 CDP `Memory.getDOMCounters` `jsEventListeners` count measured before and after a
 Phase 2 eviction batch (via `_cdp_audit_listeners()` in `qt_wrapper.py`). Expected
-result after this fix: `delta ≈ n_evicted` (one listener freed per evicted holder
+result after this fix: `delta ~ n_evicted` (one listener freed per evicted holder
 with a continue button), versus near-zero delta before the fix.
 
 ---
 
 ## Files changed
 
-- `static/js/chat.js` — WeakRef at three continue-button handler sites
+- `static/js/chat.js`: WeakRef at three continue-button handler sites
 
 ## Tests
 
@@ -113,20 +113,20 @@ Fixes # <!-- [add upstream issue number before filing] -->
 ### How to Test
 
 1. Start a long agent session (10+ multi-step rounds) until Phase 2 eviction fires (`[chatHistory] Phase 2 evict: removed N live nodes` in the console/wrapper_system.log).
-2. After eviction, open DevTools → Memory. Take a heap snapshot. Search for detached nodes with `_pendingContinue` or `continue-btn` in their tree — the count should be zero (no holder retained by the step-limit button after eviction).
+2. After eviction, open DevTools -> Memory. Take a heap snapshot. Search for detached nodes with `_pendingContinue` or `continue-btn` in their tree; the count should be zero (no holder retained by the step-limit button after eviction).
 3. In `qt_wrapper.py`, the post-evict CDP audit (`_cdp_audit_listeners`) logs `delta=Z nodes-evicted=N`. With this fix, `Z` should be close to `N`; without it, `Z` is near zero.
-4. Click the Continue button after Phase 2 eviction — confirm it either works (if the holder is still live) or silently does nothing (if evicted), rather than retaining a stale reference.
-5. Run `pytest tests/test_chat_continue_btn_js.py -q` — 9 tests.
+4. Click the Continue button after Phase 2 eviction and confirm it either works (if the holder is still live) or silently does nothing (if evicted), rather than retaining a stale reference.
+5. Run `pytest tests/test_chat_continue_btn_js.py -q`: 9 tests.
 
 ---
 
 ## Filing Notes
 
 - Single commit: `d3ba512c`.
-- Branch: `fix/continue-btn-weakref` — built from `upstream-mirror`.
+- Branch: `fix/continue-btn-weakref`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - Depends on `fix/dom-oom-virtualization` for the Phase 2 eviction mechanism that makes this observable in production, but is independently correct as a defensive measure without it.
 
 ## Visual / UI changes
 
-None. Continue button behavior is unchanged — the WeakRef only affects what happens when the holder has already been evicted.
+None. Continue button behavior is unchanged; the WeakRef only affects what happens when the holder has already been evicted.

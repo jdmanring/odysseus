@@ -1,4 +1,4 @@
-# AI Rules — Odysseus
+# AI Rules: Odysseus
 
 > **The Law.** This document contains hard constraints, the Git pipeline, and non-negotiable policies.
 
@@ -10,10 +10,10 @@
 you find. Do not generate code against an assumption about what the code looks like.
 
 **No sudo.** If an operation requires elevated privileges, write the command for
-the user to run — do not execute it yourself.
+the user to run: do not execute it yourself.
 
 **Issue before PR.** Upstream explicitly requires an issue to exist before any PR
-is filed. This applies to agent-generated work as well — see `CONTRIBUTING.md` for
+is filed. This applies to agent-generated work as well: see `CONTRIBUTING.md` for
 the full policy on agent PRs.
 
 **One thing per PR.** No mixing unrelated fixes, formatting changes, or refactors into
@@ -31,7 +31,7 @@ considered ready, the fix must be confirmed end-to-end in the actual application
 must include a screenshot or clip. See `CONTRIBUTING.md` for details.
 
 **Use existing constants and helpers.** Never hardcode paths, ports, or URLs that
-the project already exposes. See `CONTRIBUTING.md` — Code conventions.
+the project already exposes. See `CONTRIBUTING.md`: Code conventions.
 
 ---
 
@@ -53,7 +53,7 @@ git rebase dev
 
 - [ ] Branch starts from current `dev`
 - [ ] Single clean commit (or tightly related commits)
-- [ ] Diff contains only intended files — no unrelated content
+- [ ] Diff contains only intended files: no unrelated content
 - [ ] No hardcoded paths, usernames, or tokens
 - [ ] Commit message is clear and written for reviewers
 - [ ] `python -m py_compile` passes on changed Python files

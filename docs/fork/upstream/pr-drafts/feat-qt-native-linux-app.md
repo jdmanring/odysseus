@@ -1,4 +1,4 @@
-# PR Draft: feat/qt-native-linux-app → odysseus-dev/odysseus:dev
+# PR Draft: feat/qt-native-linux-app -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/qt-native-linux-app`
 **Issue:** [#14](https://github.com/jdmanring/odysseus/issues/14) (fork tracking)
@@ -132,7 +132,7 @@ low-resource profile.
 - **Graduated Linux-PSI monitor (`qt_psi.py`):** supplies the missing OS pressure signal.
   A daemon thread reads `/proc/pressure/memory` (`some` + `full` avg10) and classifies
   NONE/MODERATE/CRITICAL via a notify FSM (thresholds env-tunable, defaults `some` 10/40,
-  `full` 5). **MODERATE → async GC; CRITICAL → the gated forcible purge.** The detection
+  `full` 5). **MODERATE -> async GC; CRITICAL -> the gated forcible purge.** The detection
   logic is a **Qt-free module** (parse, level mapping, FSM, `/proc/meminfo` reads, the
   daemon loop) so it is unit-tested without the GUI stack; `qt_wrapper.py` is the output
   adapter: a 250 ms main-thread drain timer reads the monitor's event cell (GIL-atomic
@@ -328,13 +328,13 @@ Fixes #___
 1. Run the wrapper: `bash build-linux-app.sh`: confirm it launches a native desktop window showing the Odysseus UI.
 2. Log in; confirm login state persists after closing and re-opening the app (session stored in `~/.local/share/odysseus/webengine/`).
 3. Click an external URL in an AI response; confirm it opens in the system browser, not inside the wrapper window.
-4. Open Settings → Appearance → Theme and use the color picker; confirm the native Qt color dialog opens (not the browser eyedropper which is unsupported in QWebEngineView).
+4. Open Settings -> Appearance -> Theme and use the color picker; confirm the native Qt color dialog opens (not the browser eyedropper which is unsupported in QWebEngineView).
 5. Open the sidebar, hover over items, open a dropdown, and open the Cookbook; confirm no black-screen flicker on any of these actions.
 6. Chrome DevTools: navigate to `http://localhost:9222` in a regular browser; confirm the remote debugging endpoint is accessible.
 7. Confirm standard features work: chat, session switching, model switching, Cookbook, Downloads, Settings.
 8. Memory management: `tail -f logs/wrapper_system.log`, then induce memory pressure
    (e.g. `stress-ng --vm 4 --vm-bytes 6G --timeout 35s`). Confirm `[PSI]` lines appear with
-   the level rising (NONE→MODERATE→…) and `mem_avail_mb`/`swap_mb` tracking the stall, and
+   the level rising (NONE->MODERATE->…) and `mem_avail_mb`/`swap_mb` tracking the stall, and
    that a `[MEM] forcible purge` line follows a CRITICAL with a negative RSS delta. Switch
    focus away or minimize the window and confirm an off-interaction purge fires while the
    window is unfocused, never mid-interaction.
@@ -364,8 +364,8 @@ Tested on: Artix Linux, Wayland, NVIDIA open drivers. Not tested on: macOS, Wind
    not read as "introduce naive, then patch." Verify the squash changed only history:
    `git diff <squashed-branch> feat/qt-native-linux-app` must be empty.
 7. **Verify the CRITICAL purge in-app before ticking "ran end-to-end" (How-to-Test step 8).**
-   Automated coverage and the stress-ng smoke reached the MODERATE→async-GC path and the
-   off-interaction purge, but **not** PSI CRITICAL→`forciblyPurgeJavaScriptMemory`; confirm
+   Automated coverage and the stress-ng smoke reached the MODERATE->async-GC path and the
+   off-interaction purge, but **not** PSI CRITICAL->`forciblyPurgeJavaScriptMemory`; confirm
    the `[MEM] forcible purge (psi-critical)` line actually fires under heavy pressure.
 
 ## Visual / UI changes; REQUIRED if you touched anything that renders

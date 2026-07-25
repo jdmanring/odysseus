@@ -22,7 +22,7 @@
 When a user reports "the app is slow," there is currently no way to determine which subsystem is the bottleneck without adding temporary debug logging and manually comparing timestamps. Is it the IMAP server connection? ChromaDB? SearXNG? The LLM provider? The agent loop? There is no structured timing data in the logs, no standard keys for filtering or aggregation, and no threshold-based signal for when something is slow vs. normal.
 
 **Proposed Solution:**
-`time.perf_counter()` timing instrumentation on the hottest network I/O paths. Each instrumented path logs at INFO level only when a configurable threshold is exceeded — zero noise in normal operation, immediate visibility when something is slow. All timing uses structured keys (`duration_ms`, `elapsed_ms`) so results are filterable with `jq` or ingestable into log aggregation systems.
+`time.perf_counter()` timing instrumentation on the hottest network I/O paths. Each instrumented path logs at INFO level only when a configurable threshold is exceeded, zero noise in normal operation, immediate visibility when something is slow. All timing uses structured keys (`duration_ms`, `elapsed_ms`) so results are filterable with `jq` or ingestable into log aggregation systems.
 
 | Path | What is timed | Threshold |
 |------|--------------|-----------|

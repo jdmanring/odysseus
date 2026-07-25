@@ -1,4 +1,4 @@
-# PR Draft: perf/rendertail-text-only-path → odysseus-dev/odysseus:dev
+# PR Draft: perf/rendertail-text-only-path -> odysseus-dev/odysseus:dev
 
 **Branch:** `perf/rendertail-text-only-path`
 **Issue:** [#75](https://github.com/jdmanring/odysseus/issues/75) (fork tracking)
@@ -16,7 +16,7 @@
 
 ### Problem
 
-`renderTail(tailText)` is called once per SSE token — roughly 20–60 times per second
+`renderTail(tailText)` is called once per SSE token, roughly 20-60 times per second
 during streaming. Every call runs:
 
 ```javascript
@@ -34,14 +34,14 @@ Qt's inability to trigger OS-level GC events.
 ### Fix
 
 Add a text-only append fast path that fires **before** the holder is created. The path
-tracks `_lastTailText` — the text from the last successful `renderTail()`. On each call:
+tracks `_lastTailText`: the text from the last successful `renderTail()`. On each call:
 
 1. `tailText` starts with `_lastTailText` (the tail grew by a pure append)
 2. The new suffix contains no markdown structural characters: `!/[*_`#\[\]<>\n\\{]/.test(suffix)`
 3. `_tailNodes.length > 0` (there are existing live tail nodes)
 4. The last tail node's `lastChild` is a `TEXT_NODE`
 
-If all four hold: call `lastTail.lastChild.appendData(suffix)` — no holder, no re-parse,
+If all four hold: call `lastTail.lastChild.appendData(suffix)`: no holder, no re-parse,
 no DOM rebuild. Set `_lastTailText = tailText`, increment `tailShownLen`, increment
 `_rtFast`, return.
 
@@ -59,14 +59,14 @@ path. The `finalize()` log line already emits the combined rate:
 ### What this doesn't fix
 
 Tokens containing markdown structural characters (`*`, `_`, `` ` ``, `#`, `[`, `<`, `\n`)
-still go through the full holder path. That's correct — safe fallback. This is primarily
+still go through the full holder path. That's correct: safe fallback. This is primarily
 effective for plain prose responses, which constitute the majority of agent output.
 
-**Estimated reduction:** 60–80% fewer holder allocations for prose-heavy responses.
+**Estimated reduction:** 60-80% fewer holder allocations for prose-heavy responses.
 
 ### Testing
 
-- `tests/test_streaming_renderer_text_path_js.py` — 14 static-analysis tests:
+- `tests/test_streaming_renderer_text_path_js.py`, 14 static-analysis tests:
   - `_lastTailText` declared as `let` with `null` initializer
   - `_lastTailText` reset in `start()`, `clearTail()`, and the fence branch
   - Text path guards: `.startsWith()`, `!== null`, structural-char regex, `TEXT_NODE` check
@@ -103,19 +103,19 @@ focused upstream issue if warranted and link it here before submitting.
 ### How to Test
 
 1. Start the app and begin a long streaming agent response (30+ tokens of plain prose).
-2. Open DevTools → Console. After the stream finishes, check for:
+2. Open DevTools -> Console. After the stream finishes, check for:
    `[streamRenderer] renderTail calls=N fast=M (P%)`
    `P` should be noticeably higher than before this change for prose-heavy responses.
-3. Open DevTools → Memory. Record heap snapshots before and after streaming.
+3. Open DevTools -> Memory. Record heap snapshots before and after streaming.
    The `div` count should grow more slowly during prose streaming than without this patch.
-4. Run `pytest tests/test_streaming_renderer_text_path_js.py -q` — 14 tests.
+4. Run `pytest tests/test_streaming_renderer_text_path_js.py -q`, 14 tests.
 
 ---
 
 ## Filing Notes
 
 - 2 commits: main fix (`751ef499`), test gap closures (`9733d2e1`).
-- Branch: `perf/rendertail-text-only-path` — built from `upstream-mirror`.
+- Branch: `perf/rendertail-text-only-path`: built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
 - The structural-char regex intentionally excludes `}` only to protect template-literal
   and object syntax in tokens; the set `*_\`#\[\]<>\n\\{` covers all CommonMark inline

@@ -9,7 +9,7 @@
 
 ## Overview
 
-Create `windows_wrapper.py` and `build-windows-app.ps1` — a native Windows desktop
+Create `windows_wrapper.py` and `build-windows-app.ps1`: a native Windows desktop
 wrapper using PyQt6, modeled on `qt_wrapper.py`. The core architecture is identical;
 Windows requires different subprocess management, signal handling, fd redirection, GPU
 flags, and path conventions.
@@ -22,13 +22,13 @@ flags, and path conventions.
 
 Start from `qt_wrapper.py` and apply the following changes:
 
-**1. LOG_DIR** — change log location to Windows AppData convention:
+**1. LOG_DIR**: change log location to Windows AppData convention:
 ```python
 _appdata = os.environ.get("APPDATA") or os.path.expanduser("~")
 LOG_DIR = os.path.join(_appdata, "Odysseus", "logs")
 ```
 
-**2. Remove `os.dup2` fd redirect block** — Windows Chromium renderer subprocesses
+**2. Remove `os.dup2` fd redirect block**: Windows Chromium renderer subprocesses
 do not inherit fd 1/2 via `os.dup2` reliably. Replace with a log file opened for
 `sys.stdout`/`sys.stderr` only:
 ```python
@@ -39,13 +39,13 @@ sys.stderr = _log_file
 # os.dup2 calls removed — not used on Windows
 ```
 
-**3. Remove `QTWEBENGINE_FORCE_USE_GBM`** — Linux-only Qt regression guard:
+**3. Remove `QTWEBENGINE_FORCE_USE_GBM`**: Linux-only Qt regression guard:
 ```python
 # Remove this line entirely:
 os.environ.setdefault("QTWEBENGINE_FORCE_USE_GBM", "0")
 ```
 
-**4. Chromium flags** — replace with Windows/ANGLE flags:
+**4. Chromium flags**: replace with Windows/ANGLE flags:
 ```python
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--ignore-gpu-blocklist "
@@ -58,7 +58,7 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
 ```
 Flags removed vs Linux: `--no-sandbox`, all Vulkan/GBM guards.
 
-**5. Imports** — remove D-Bus, add `ctypes` for Windows process management:
+**5. Imports**: remove D-Bus, add `ctypes` for Windows process management:
 ```python
 # Remove:
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
@@ -66,17 +66,17 @@ from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 import ctypes
 ```
 
-**6. PORT default** — 7000 (no AirPlay conflict on Windows):
+**6. PORT default**: 7000 (no AirPlay conflict on Windows):
 ```python
 PORT = os.environ.get("APP_PORT", "7000")
 ```
 
-**7. VENV_PYTHON** — Windows venv uses `Scripts\python.exe`, not `bin/python`:
+**7. VENV_PYTHON**: Windows venv uses `Scripts\python.exe`, not `bin/python`:
 ```python
 VENV_PYTHON = os.path.join(INSTALL_DIR, "venv", "Scripts", "python.exe")
 ```
 
-**8. `kill_zombies()`** — replace `pkill` with Windows `taskkill`:
+**8. `kill_zombies()`**: replace `pkill` with Windows `taskkill`:
 ```python
 def kill_zombies():
     subprocess.run(
@@ -91,7 +91,7 @@ def kill_zombies():
     )
 ```
 
-**9. Signal handling** — `SIGTERM` is not supported on Windows. Use only `SIGINT`:
+**9. Signal handling**: `SIGTERM` is not supported on Windows. Use only `SIGINT`:
 ```python
 signal.signal(signal.SIGINT, _signal_handler)
 # SIGTERM: not available on Windows — omit
@@ -102,7 +102,7 @@ except AttributeError:
     pass  # SIGBREAK only exists on Windows; AttributeError on Linux/macOS
 ```
 
-**10. NativeBridge** — replace D-Bus portal with direct `QColorDialog`:
+**10. NativeBridge**: replace D-Bus portal with direct `QColorDialog`:
 ```python
 class NativeBridge(QObject):
     colorPicked = pyqtSignal(str)
@@ -113,7 +113,7 @@ class NativeBridge(QObject):
         self.colorPicked.emit(color.name() if color.isValid() else '')
 ```
 
-**11. `_log_renderer_memory()`** — replace `pgrep` with Windows `tasklist`:
+**11. `_log_renderer_memory()`**: replace `pgrep` with Windows `tasklist`:
 ```python
 def _log_renderer_memory():
     try:
@@ -131,13 +131,13 @@ def _log_renderer_memory():
         print(f'[MEM] error: {e}', flush=True)
 ```
 
-**12. `app.setDesktopFileName()`** — not available on Windows. Replace with:
+**12. `app.setDesktopFileName()`**: not available on Windows. Replace with:
 ```python
 app.setApplicationName("Odysseus")
 app.setOrganizationName("Odysseus")
 ```
 
-**13. QSettings** — no change. Qt automatically writes to the Windows Registry under
+**13. QSettings**: no change. Qt automatically writes to the Windows Registry under
 `HKCU\Software\Odysseus\odysseus` when using `QSettings("odysseus", "odysseus")`.
 
 ### `build-windows-app.ps1`
@@ -158,9 +158,9 @@ python -m venv venv
 
 These were added by `feat/qt-native-linux-app` and work on Windows without modification:
 
-- `static/js/qt-bridge.js` — `window.__QT_WRAPPER__` guard is platform-neutral
-- `static/index.html` — `<script>` injection is platform-neutral
-- `static/js/colorPicker.js` — `window.qtBridge.openColorPicker()` call is neutral
+- `static/js/qt-bridge.js`: the `window.__QT_WRAPPER__` guard is platform-neutral
+- `static/index.html`: the `<script>` injection is platform-neutral
+- `static/js/colorPicker.js`: the `window.qtBridge.openColorPicker()` call is neutral
 
 ---
 
@@ -186,7 +186,7 @@ These were added by `feat/qt-native-linux-app` and work on Windows without modif
 ## Windows-Specific Risk Areas
 
 **`taskkill` zombie cleanup:** The WMIC approach is deprecated in recent Windows builds.
-If WMIC is unavailable, fall back to iterating `psutil.process_iter()` — but that adds
+If WMIC is unavailable, fall back to iterating `psutil.process_iter()`, but that adds
 a dependency. Try `taskkill` + WMIC first; if both fail, leave zombie cleanup as best-effort
 (the Popen handle approach in `stop_server()` already terminates the tracked process).
 
@@ -228,7 +228,7 @@ follow-up.
 - Reference upstream issue #3528 (Windows desktop wrapper) and issue #606
   (standalone native app) and PR #3310 (Electron wrapper) as prior art.
   In the PR description, explain why Qt WebEngine is preferable to Electron:
-  same Chromium engine, 35–50% less RAM (180 MB vs 400 MB measured on
+  same Chromium engine, 35-50% less RAM (180 MB vs 400 MB measured on
   constrained hardware), no bundled Node.js runtime, direct Python integration,
   and full server lifecycle management (PR #3310 requires the server to already
   be running; this wrapper starts and manages it).

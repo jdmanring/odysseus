@@ -44,5 +44,5 @@ LongCat (longcat.chat) is a supported provider in Odysseus but has three gaps:
 **Source:** LongCat API documentation at https://longcat.chat/platform/docs/APIDocs.html confirms 131,072 max output tokens and the streaming API format.
 
 **Affected files:**
-- `static/js/providers.js` (or equivalent) — logo entry
-- `src/agent_loop.py` or provider config — `_PROVIDER_DEFAULT_MAX_OUTPUT`, `stream_options` exclusion list
+- `static/js/providers.js` (or equivalent); logo entry
+- `src/agent_loop.py` or provider config, `_PROVIDER_DEFAULT_MAX_OUTPUT`, `stream_options` exclusion list

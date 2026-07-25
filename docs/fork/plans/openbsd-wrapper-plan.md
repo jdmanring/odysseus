@@ -11,7 +11,7 @@
 
 Extend `qt_wrapper.py` with OpenBSD support. `qt6-qtwebengine` (v6.8.3p4) is in
 OpenBSD ports for amd64 and aarch64. OpenBSD's Chromium port uses `pledge(2)` and
-`unveil(2)` for sandboxing instead of Linux's seccomp-bpf — the wrapper's existing
+`unveil(2)` for sandboxing instead of Linux's seccomp-bpf; the wrapper's existing
 `--no-sandbox` flag disables the Linux-specific sandbox path and is the correct flag
 for non-Linux systems.
 
@@ -30,16 +30,16 @@ port; they'd need a browser-based workflow. The PR should note this constraint.
 
 ## What Already Works on OpenBSD
 
-- `os.dup2` — POSIX, works on OpenBSD
-- `signal.SIGTERM` / `signal.SIGINT` — works on OpenBSD
-- `QSettings("odysseus", "odysseus")` — Qt respects `XDG_CONFIG_HOME`; defaults
+- `os.dup2`: POSIX, works on OpenBSD
+- `signal.SIGTERM` / `signal.SIGINT`: works on OpenBSD
+- `QSettings("odysseus", "odysseus")`: Qt respects `XDG_CONFIG_HOME`; defaults
   to `~/.config/odysseus/odysseus.conf`
-- `QDBusConnection.sessionBus()` — D-Bus available in OpenBSD ports (`devel/dbus`);
+- `QDBusConnection.sessionBus()`: D-Bus available in OpenBSD ports (`devel/dbus`);
   XDG portal fallback to `QColorDialog` handles cases where portal is absent
-- `app.setDesktopFileName("odysseus")` — works on OpenBSD X11/Wayland DEs
-- `--no-sandbox` — already in flags; correct for OpenBSD's pledge/unveil approach
-- `_is_nvidia` detection — `/proc/driver/nvidia` won't exist (OpenBSD `/proc` is
-  optional and not typically mounted); returns `False` → Mesa path → correct
+- `app.setDesktopFileName("odysseus")`: works on OpenBSD X11/Wayland DEs
+- `--no-sandbox`: already in flags; correct for OpenBSD's pledge/unveil approach
+- `_is_nvidia` detection: `/proc/driver/nvidia` won't exist (OpenBSD `/proc` is
+  optional and not typically mounted); returns `False` -> Mesa path -> correct
 
 ---
 
@@ -55,7 +55,7 @@ No additional change needed if #45 is already applied.
 
 ### 2. `pkill` / `pgrep` availability
 
-`pgrep` and `pkill` are not in OpenBSD base — they come from the `sysutils/proctools`
+`pgrep` and `pkill` are not in OpenBSD base; they come from the `sysutils/proctools`
 port. The `kill_zombies()` and `_log_renderer_memory()` functions use both. Add a
 graceful fallback:
 
@@ -164,7 +164,7 @@ echo "Or find 'Odysseus' in your application menu."
 3. Create `build-openbsd-app.sh` and `chmod +x build-openbsd-app.sh`
 4. Test on an OpenBSD amd64 machine:
    - `doas pkg_add qt6-qtwebengine py3-pyqt6-webengine`
-   - `python3 qt_wrapper.py` — confirm UI loads
+   - `python3 qt_wrapper.py`; confirm UI loads
    - Confirm `pkill`/`pgrep` fallback works without `proctools` installed
    - Install `sysutils/proctools` and confirm memory logging works with it present
 5. Write PR draft at `docs/fork/upstream/pr-drafts/feat-qt-native-openbsd-app.md`
@@ -193,7 +193,7 @@ echo "Or find 'Odysseus' in your application menu."
   and FreeBSD platform guard.
 - Note the amd64/aarch64 constraint clearly. i386 users have no Qt WebEngine port.
 - Reference upstream issue #606 and PR #3310 (Electron wrapper): explain why
-  Qt WebEngine is preferable (same Chromium, 35–50% less RAM, no Node.js, direct
+  Qt WebEngine is preferable (same Chromium, 35-50% less RAM, no Node.js, direct
   Python integration, full server lifecycle management).
 - D-Bus / XDG portal may be absent on minimal OpenBSD desktops; `QColorDialog`
   fallback handles this transparently.

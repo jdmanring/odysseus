@@ -1,4 +1,4 @@
-# PR Draft: fix/tool-result-role — SUPERSEDED
+# PR Draft: fix/tool-result-role (SUPERSEDED)
 
 **Status:** Closed 2026-06-18. Superseded by upstream #1629 (commit `4e477741`).
 
@@ -25,7 +25,7 @@ all providers without the `_build_anthropic_payload` routing guard), and uses a 
 security envelope already applied to web content, RAG context, and email bodies.
 
 With #1629 merged, Part 1 was redundant. Part 2 (the `_build_anthropic_payload` guard)
-became dead code — the `role=system + [Tool execution results]` message format it
+became dead code: the `role=system + [Tool execution results]` message format it
 handled no longer exists. The guard was removed from develop in commit `eda573e1`.
 
 The UNTRUSTED_CONTEXT_HEADER wording fix is tracked separately in

@@ -1,4 +1,4 @@
-# PR Draft — fix/brain-panel-oom
+# PR Draft: fix/brain-panel-oom
 
 **Branch**: `fix/brain-panel-oom` (from `upstream-mirror`)
 **Issue**: jdmanring/odysseus#TBD (file before submitting)
@@ -21,7 +21,7 @@ This PR replaces each main-thread animation pattern with a compositor-promoted e
 
 ---
 
-## Fix A — @property --sweep (memory-synapse-sweep)
+## Fix A: @property --sweep (memory-synapse-sweep)
 
 **File**: `static/style.css`
 
@@ -35,7 +35,7 @@ Note: `will-change: transform` is intentionally absent from `#memory-list .memor
 
 ---
 
-## Fix B — filter: drop-shadow() (note-ai-shine)
+## Fix B: filter: drop-shadow() (note-ai-shine)
 
 **File**: `static/style.css`
 
@@ -45,7 +45,7 @@ Note: `will-change: transform` is intentionally absent from `#memory-list .memor
 
 ---
 
-## Fix C — animation: none on hover/focus (notes-quick-pulse)
+## Fix C: animation: none on hover/focus (notes-quick-pulse)
 
 **File**: `static/style.css`
 
@@ -55,7 +55,7 @@ Note: `will-change: transform` is intentionally absent from `#memory-list .memor
 
 ---
 
-## Fix D — background-position (notes-drag-shimmer)
+## Fix D: background-position (notes-drag-shimmer)
 
 **File**: `static/style.css`
 
@@ -67,8 +67,8 @@ Note: `will-change: transform` is intentionally absent from `#memory-list .memor
 
 ## Files changed
 
-- `static/style.css` — all four fixes
-- `tests/test_brain_panel_oom_css.py` — new file, 13 regression tests
+- `static/style.css`: all four fixes
+- `tests/test_brain_panel_oom_css.py`: new file, 13 regression tests
 
 ---
 
@@ -106,7 +106,7 @@ Pattern D:
 2. Hover over memory items. No gray flash on mouse-over or mouse-leave.
 3. Open the Notes panel with 10+ cards. Enable drag mode. RSS should remain stable.
 4. Hover over and click into the quick-add input. No flash on hover or focus transitions.
-5. Run `python -m pytest tests/test_brain_panel_oom_css.py -v` — 13 passed.
+5. Run `python -m pytest tests/test_brain_panel_oom_css.py -v`; 13 passed.
 
 ---
 

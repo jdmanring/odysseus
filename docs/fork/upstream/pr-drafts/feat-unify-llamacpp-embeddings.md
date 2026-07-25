@@ -1,9 +1,9 @@
-# PR Draft: feat/unify-llamacpp-embeddings → odysseus-dev/odysseus:dev
+# PR Draft: feat/unify-llamacpp-embeddings -> odysseus-dev/odysseus:dev
 
-**Fork issue:** [#TBD](https://github.com/jdmanring/odysseus/issues) — create before branching
+**Fork issue:** [#TBD](https://github.com/jdmanring/odysseus/issues); create before branching
 **Branch:** `feat/unify-llamacpp-embeddings` (from `upstream-mirror`)
 **Target:** `odysseus-dev/odysseus:dev`
-**Status:** Draft — code complete and green on the Linux host; needs the multi-platform install pass before filing
+**Status:** Draft: code complete and green on the Linux host; needs the multi-platform install pass before filing
 
 ---
 
@@ -24,7 +24,7 @@ block, and `--jinja` handling. GGUF is a format the project already ships and re
 about throughout the Cookbook/download stack.
 
 Embeddings were the **one exception**. Semantic memory, RAG, and tool selection ran
-on **fastembed**, which pulls in **onnxruntime** — an entire second native ML runtime
+on **fastembed**, which pulls in **onnxruntime**, an entire second native ML runtime
 and a second model format (ONNX), maintained purely to embed. That split cost real
 maintenance surface (a body of onnxruntime-specific workarounds, below) and gained
 nothing measurable: on the one-item-at-a-time embedding workload the two backends are
@@ -40,8 +40,8 @@ compatible. fastembed becomes an opt-in alternative
 `build_local_embed_client()` prefers llama.cpp and falls back to whichever backend is
 actually installed, so no existing install loses semantic memory during the
 transition. The client is tuned for the two real workloads: `n_threads` (default
-`min(4, cores)`) for the per-item hot path — single-item latency is flat past ~4
-threads — and `n_threads_batch` (all cores) for the rare full reindex. Context
+`min(4, cores)`) for the per-item hot path (single-item latency is flat past ~4
+threads) and `n_threads_batch` (all cores) for the rare full reindex. Context
 defaults to the GGUF's true 2048-token train range, with a load-time **YaRN** path
 (`LLAMACPP_EMBED_CTX>2048`) for long-document RAG.
 
@@ -51,7 +51,7 @@ defaults to the GGUF's true 2048-token train range, with a load-time **YaRN** pa
 |------|----------------------|-----------------------|---------|
 | Per-item latency (the hot path) | few ms | **p50 ~9.5 ms** | equivalent, imperceptible |
 | Retrieval accuracy (topic-acc) | identical | identical | quant/backend-independent on this task |
-| Bulk throughput (tuned, 24 cores) | **~62 docs/s** | ~37 docs/s | fastembed wins — but bulk only occurs on a one-off reindex |
+| Bulk throughput (tuned, 24 cores) | **~62 docs/s** | ~37 docs/s | fastembed wins, but bulk only occurs on a one-off reindex |
 
 The single axis fastembed wins (bulk throughput) is exercised only by a full
 reindex, which even the slowest backend finishes in minutes and which the memory
@@ -64,20 +64,20 @@ workload otherwise never triggers.
 Every item below existed *only* to keep fastembed/onnxruntime working. Retiring the
 backend removes all of it (14 workaround sites, grep-verified):
 
-- **Windows MSVC Redistributable requirement** — onnxruntime's `.pyd` links the MSVC
+- **Windows MSVC Redistributable requirement**: onnxruntime's `.pyd` links the MSVC
   runtime; without it the DLL load fails. `setup.ps1` installs it; the verifier
   special-cases the error string.
-- **~30 lines of broken-symlink cache-healing** in `FastEmbedClient` — HF-hub stores
+- **~30 lines of broken-symlink cache-healing** in `FastEmbedClient`: HF-hub stores
   the model as symlinks Windows refuses to follow on a UNC/network share
   (`WinError 1463`), silently degrading semantic memory; the code detects the dead
   link and forces a re-download.
 - **`HF_HUB_DISABLE_SYMLINKS` module-top env hack**, set before any import so
   onnxruntime can load the model on Windows at all.
-- **`py-rust-stemmers` source build on the BSDs** — no wheel, needs the Rust
+- **`py-rust-stemmers` source build on the BSDs**: no wheel, needs the Rust
   toolchain; onnxruntime has no BSD build whatsoever.
 - **Arch-mismatch onnxruntime wheel guard** in `setup.py` (pip pulling the wrong-CPU
   binary).
-- **The two-backend fallback branching itself** — a fastembed→llama.cpp selection
+- **The two-backend fallback branching itself**: a fastembed->llama.cpp selection
   path in `embedding_lanes.py` and the install verifier, collapsed to one default
   plus an opt-in.
 
@@ -87,25 +87,25 @@ fastembed can only run models in its **curated ONNX registry**. llama.cpp runs *
 GGUF**, so the whole community embedding ecosystem becomes reachable by config:
 
 - **Model upgrades are one env var** (`LLAMACPP_EMBED_REPO` / `LLAMACPP_EMBED_FILE`),
-  no code change — e.g. the multilingual upgrade path (`nomic-embed-text-v2-moe`,
+  no code change, e.g. the multilingual upgrade path (`nomic-embed-text-v2-moe`,
   `BAAI/bge-m3`, `arctic-embed-v2`). Impossible on fastembed unless that model has
   been ONNX-converted into their registry.
-- **Quantization becomes a choice** — f16 / Q8 / Q6 / Q4 per the RAM-vs-quality
+- **Quantization becomes a choice**: f16 / Q8 / Q6 / Q4 per the RAM-vs-quality
   tradeoff, instead of the single quant fastembed shipped.
-- **The community quantizer ecosystem** (bartowski, mradermacher, …) — the same
+- **The community quantizer ecosystem** (bartowski, mradermacher, …): the same
   library the GGUF-discovery work already taps for LLMs now applies to embedders.
-- **True 8K context** via the documented YaRN runtime lever — a llama.cpp capability
+- **True 8K context** via the documented YaRN runtime lever, a llama.cpp capability
   fastembed doesn't expose.
 
 ---
 
 ## Files changed
 
-- `src/embeddings.py`: `build_local_embed_client()` — llama.cpp default with a
+- `src/embeddings.py`: `build_local_embed_client()`: llama.cpp default with a
   resilient preference chain (fastembed opt-in via `EMBEDDING_LOCAL_BACKEND`);
   `LlamaCppEmbedClient` tuned (`n_threads`/`n_threads_batch` split, `n_ctx` default
   2048, YaRN auto-engaged above 2048); docstrings/module header updated.
-- `src/embedding_lanes.py`: `_build_fastembed_client` → `_build_local_lane_client`,
+- `src/embedding_lanes.py`: `_build_fastembed_client` -> `_build_local_lane_client`,
   builds the local backend via `build_local_embed_client()`.
 - `requirements.txt`: `llama-cpp-python` (from the prebuilt CPU wheel index via
   `--extra-index-url`) replaces `fastembed`.
@@ -150,10 +150,10 @@ This flips the **zero-config install default** from "one clean PyPI fastembed wh
 fetched at first run."
 
 **Wheel coverage is verified, not assumed.** The `--extra-index-url` serves prebuilt
-`py3-none` wheels (v0.3.34) for cp310–cp314 across manylinux2014 + musllinux_1_2
+`py3-none` wheels (v0.3.34) for cp310-cp314 across manylinux2014 + musllinux_1_2
 (x86_64 and aarch64), macOS (arm64 + x86_64), and win_amd64. Confirmed concretely:
 `pip download` on the dev host (Python 3.14, linux x86_64) pulled the prebuilt
-`llama_cpp_python-0.3.34-py3-none-manylinux2014_x86_64` wheel — **no compiler
+`llama_cpp_python-0.3.34-py3-none-manylinux2014_x86_64` wheel; **no compiler
 invoked.** A source build happens only on a platform/arch off that index (e.g. the
 BSDs, which build from source deliberately via `provision_bsd_memory.sh`).
 
@@ -188,13 +188,13 @@ regardless (it runs BSD and wants the flexibility).
 3. **Before filing, run the install on a non-BSD platform** to confirm the wheel
    index resolves a prebuilt `llama-cpp-python` (and note the fallback-to-source case
    for any Python with no wheel). The "Checks run" above are host-only so far.
-4. Coordinate with the GGUF-discovery PR (`feat-gguf-discovery.md`) — both lean on the
+4. Coordinate with the GGUF-discovery PR (`feat-gguf-discovery.md`); both lean on the
    community GGUF ecosystem and the shared quant vocabulary.
 
 ## Remaining before "Ready to file"
 
 - Wheel *resolution* is verified (see risk section); still want a real end-to-end
-  **app run** on at least one non-BSD platform (import → first embed → memory search)
+  **app run** on at least one non-BSD platform (import -> first embed -> memory search)
   before filing, since host checks so far are pytest + a direct backend smoke, not the
   full app.
 - (Done) Stale fastembed-framed comments in `setup.sh` / `provision_bsd_memory.sh`

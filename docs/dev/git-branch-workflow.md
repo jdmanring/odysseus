@@ -9,11 +9,11 @@ and the full issue-to-upstream-PR lifecycle. Read it completely before touching 
 
 | Branch | Purpose | Rules |
 |--------|---------|-------|
-| `upstream-mirror` | Exact copy of `upstream/dev` — reset on every sync | **Never commit here.** Read-only staging surface. |
+| `upstream-mirror` | Exact copy of `upstream/dev`, reset on every sync | **Never commit here.** Read-only staging surface. |
 | `integration` | Vetted upstream changes that passed all pipeline gates | Only the pipeline writes here. Never commit directly. |
-| `develop` | Active fork development — primary working branch | All fork work lands here eventually. |
+| `develop` | Active fork development; primary working branch | All fork work lands here eventually. |
 | `main` | Stable fork releases | Merge from `develop` when releasing. |
-| `feat/*` / `fix/*` | Feature and fix work branches | See origin rules below — origin depends on work type. |
+| `feat/*` / `fix/*` | Feature and fix work branches | See origin rules below; origin depends on work type. |
 | `refactor/*` | Refactor branches | Same origin rules apply. |
 | `sync/staging-*` | Temporary pipeline staging branches | Created and deleted automatically by the pipeline. |
 
@@ -21,19 +21,19 @@ and the full issue-to-upstream-PR lifecycle. Read it completely before touching 
 
 ---
 
-## Two Kinds of Work Branches — Different Origins
+## Two Kinds of Work Branches, Different Origins
 
 This is the most important thing to get right. There are two categories of work and they require different branch origins.
 
-**The default is upstream-candidate.** Fork-only is the narrow exception — only the sync
+**The default is upstream-candidate.** Fork-only is the narrow exception: only the sync
 pipeline (`tooling/sync-upstreams/`), fork CI (`.github/workflows/sync-upstream.yml`),
 and fork management docs (`docs/fork/`). Everything else defaults to upstream-candidate,
 including new files, large features, and documentation.
 
-### Category 1: Upstream-Candidate (the default — almost all work)
+### Category 1: Upstream-Candidate (the default; almost all work)
 
 These branches are staging for upstream pull requests. They must:
-- Contain **only the changes for that one fix or feature** — nothing from the fork-only list above
+- Contain **only the changes for that one fix or feature**, nothing from the fork-only list above
 - Start from `upstream-mirror` so they have no fork history
 - Have a **single clean commit** (or a small number of tightly related commits)
 
@@ -57,7 +57,7 @@ git checkout fix/short-description   # branch stays — it's the upstream PR sta
 
 The branch itself is kept permanently as the upstream PR staging. Do not delete it after cherry-picking to develop.
 
-### Category 2: Fork-Only (sync pipeline, fork CI, fork management docs — nothing else)
+### Category 2: Fork-Only (sync pipeline, fork CI, fork management docs; nothing else)
 
 These branches will never go upstream. They branch from `develop` and merge back.
 If you are unsure whether something belongs here, it belongs in Category 1.
@@ -170,7 +170,7 @@ git merge integration
 git push origin develop
 ```
 
-This is a manual step — the pipeline does not auto-merge to `develop`. Review what landed on `integration` before merging.
+This is a manual step: the pipeline does not auto-merge to `develop`. Review what landed on `integration` before merging.
 
 ### What the pipeline protects
 
@@ -179,23 +179,23 @@ The pipeline restores these files to their `integration` state after every upstr
 | Protected | Why |
 |-----------|-----|
 | `tooling/sync-upstreams/upstream_ingest_pipeline.py` | The pipeline itself |
-| `.github/workflows/sync-upstream.yml` | Fork-only workflow — does not exist upstream |
+| `.github/workflows/sync-upstream.yml` | Fork-only workflow; does not exist upstream |
 | `.env.example` | Fork may add env vars upstream doesn't have |
 | `README.md` | Fork uses `assets/` paths; upstream uses `docs/` |
 
-To add a new fork-specific file to protection, add it to `PROTECTED_FILES` in the pipeline source. To protect an entire directory, suffix the path with `/` — the pipeline uses `git checkout ref -- dir/` and also removes any files upstream added that aren't in the integration ref.
+To add a new fork-specific file to protection, add it to `PROTECTED_FILES` in the pipeline source. To protect an entire directory, suffix the path with `/`; the pipeline uses `git checkout ref -- dir/` and also removes any files upstream added that aren't in the integration ref.
 
 **Note on `.github/workflows/`:** The whole directory was previously protected but that froze all upstream workflow improvements. Now only `sync-upstream.yml` is protected. Upstream's other workflow files (ci.yml, issue-description-check.yml, pr-description-check.yml, etc.) flow through normally.
 
 ### How the pipeline handles the assets/ move
 
-This fork moved upstream's media files (`docs/*.gif`, `docs/*.webm`, etc.) to `assets/`. Upstream still keeps them in `docs/`. Every time a sync merge runs, upstream may re-add those files to `docs/` — the pipeline removes them automatically.
+This fork moved upstream's media files (`docs/*.gif`, `docs/*.webm`, etc.) to `assets/`. Upstream still keeps them in `docs/`. Every time a sync merge runs, upstream may re-add those files to `docs/`; the pipeline removes them automatically.
 
 **Automation**: `_restore_protected_files` in the pipeline iterates `docs/` after every merge and removes any file whose extension is in `_MOVED_TO_ASSETS_EXTS` **and** whose canonical copy already exists in `assets/`. This means:
 
 - The file must exist in `assets/` for the `docs/` copy to be removed. If you add a new media file, add it to `assets/`, not `docs/`.
 - Supported extensions: `.gif .webm .jpg .jpeg .png .svg .webp`. If upstream ever adds a new media format, add its extension to `_MOVED_TO_ASSETS_EXTS` in the pipeline source.
-- Only the top level of `docs/` is scanned. Subdirectory media (e.g. `docs/images/foo.png`) is not cleaned automatically — add explicit `PROTECTED_FILES` entries or extend the scan if needed.
+- Only the top level of `docs/` is scanned. Subdirectory media (e.g. `docs/images/foo.png`) is not cleaned automatically. Add explicit `PROTECTED_FILES` entries or extend the scan if needed.
 
 This automation is why the `refactor/assets-move` branch (issue #19) is safe to contribute upstream: we can accept the PR merge there while the pipeline keeps our `docs/` clean on every subsequent sync.
 
@@ -222,10 +222,10 @@ git branch -D sync/staging-TIMESTAMP
 ```
 
 **Pre-flight failure:** Most common causes:
-- Not on `integration` branch → `git checkout integration`
-- Uncommitted changes → `git stash` or commit them
-- Missing `upstream` remote → `git remote add upstream git@github.com:odysseus-dev/odysseus.git`
-- No venv (full run only) → `python3 -m venv venv && venv/bin/pip install -r requirements.txt`
+- Not on `integration` branch -> `git checkout integration`
+- Uncommitted changes -> `git stash` or commit them
+- Missing `upstream` remote -> `git remote add upstream git@github.com:odysseus-dev/odysseus.git`
+- No venv (full run only) -> `python3 -m venv venv && venv/bin/pip install -r requirements.txt`
 
 ---
 
@@ -233,23 +233,23 @@ git branch -D sync/staging-TIMESTAMP
 
 Agents do not file upstream PRs. The human author files them. The agent's job is to ensure the branch is clean and ready.
 
-**Full filing guide:** `docs/dev/filing-guide.md` — covers issue templates, PR template fields, the issue-drafts workflow, "How to Test" requirements, screenshot rules, the LLM agent policy, and common mistakes. Read it before filing.
+**Full filing guide:** `docs/dev/filing-guide.md` covers issue templates, PR template fields, the issue-drafts workflow, "How to Test" requirements, screenshot rules, the LLM agent policy, and common mistakes. Read it before filing.
 
 **What "ready to file" means:**
 - Branch starts from `upstream-mirror` (verify: `git log --oneline upstream-mirror..fix/branch-name` shows only your commit(s))
-- Contains only the files relevant to the specific fix — nothing fork-specific
+- Contains only the files relevant to the specific fix, nothing fork-specific
 - Single clean commit with a clear message
 - No hardcoded user-specific paths
 - Tests pass locally
-- For UI changes: screenshots captured (required — PR will be closed without them)
-- PR draft in `docs/fork/upstream/pr-drafts/` has a complete "How to Test" section (required — PR will be sent back without it)
+- For UI changes: screenshots captured (required; PR will be closed without them)
+- PR draft in `docs/fork/upstream/pr-drafts/` has a complete "How to Test" section (required; PR will be sent back without it)
 - Upstream issue draft exists in `docs/fork/upstream/issue-drafts/` (required for all branches)
 
 **When you are ready to file:**
 1. Open the issue draft in `docs/fork/upstream/issue-drafts/<name>.md`
-2. File the issue on the upstream repo — paste the title and body from the draft
+2. File the issue on the upstream repo, pasting the title and body from the draft
 3. Fill the assigned issue number into `Fixes #` in the PR draft
-4. Open PR: `<your-fork>:<branch>` → `odysseus-dev/odysseus:dev`
+4. Open PR: `<your-fork>:<branch>` -> `odysseus-dev/odysseus:dev`
 5. Record the upstream issue # and PR # in `docs/fork/upstream/pr-status.md`
 
 All upstream PRs target `upstream:dev`, never `upstream:main`.
@@ -304,7 +304,7 @@ git cherry-pick <commit-hash>
 
 - [ ] Branch starts from `upstream-mirror` (not `develop`)
 - [ ] Single clean commit (or tightly related commits)
-- [ ] Diff contains only intended files — no fork-specific content
+- [ ] Diff contains only intended files, no fork-specific content
 - [ ] No hardcoded paths, usernames, or tokens
 - [ ] Commit message is clear and written for upstream reviewers
 - [ ] `python -m py_compile` passes on changed Python files

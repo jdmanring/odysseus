@@ -5,21 +5,21 @@ Execution plan for the graduated PSI monitor in `qt_wrapper.py`. Related memory 
 `docs/fork/plans/memory-management-plan.md`.
 
 **Issue #120. Branch `perf/qt-psi-graduated-reclaim` (stacks on
-`perf/renderer-memory-reclaim`, the #106 branch — not on `feat/qt-native-linux-app`).
+`perf/renderer-memory-reclaim`, the #106 branch, not on `feat/qt-native-linux-app`).
 #106 supplies `_purge_renderer`, the RSS-ceiling env knobs, `_renderer_rss_kb`, and the
 PSI monitor this reworks; #106 is a *sibling* of `feat/qt-native-linux-app`, not chained
-onto it, so the upstream-PR ordering must carry #14 → #106 → #120. Implemented; cherry-
+onto it, so the upstream-PR ordering must carry #14 -> #106 -> #120. Implemented; cherry-
 picked to develop (`9e6ca024`, then `1f85aaa6`).**
 
 **Implementation note (post-plan):** the detection logic was extracted into a Qt-free
 `qt_psi.py` module (parse, level mapping, three-arm FSM, meminfo reads, daemon monitor +
-event cell); `qt_wrapper.py` keeps the output adapter (drain timer → action + `[PSI]`
+event cell); `qt_wrapper.py` keeps the output adapter (drain timer -> action + `[PSI]`
 line). This was forced by a real defect found during implementation: the unit tests were
 being *silently skipped* (`importorskip`) because `qt_wrapper` imports PyQt6, which is a
-stub in the server venv — so the logic had zero executing coverage. Post-extraction the
+stub in the server venv, so the logic had zero executing coverage. Post-extraction the
 tests run with no PyQt (`tests/test_psi_monitor.py`, no skip), and the split is the same
 detection-core/output-adapter separation the chromium project documents. **Verified
-end-to-end against live kernel PSI via `stress-ng`:** NONE→MODERATE→NONE with correlated
+end-to-end against live kernel PSI via `stress-ng`:** NONE -> MODERATE -> NONE with correlated
 `MemAvailable`/swap, `action=async_gc` on MODERATE. The ~15-line Qt drain closure
 (`runJavaScript` / `_purge_renderer` dispatch) remains inspection-verified.
 
@@ -51,7 +51,7 @@ Two outcomes, equally weighted:
 Three facts about the live code force the design:
 
 1. **The monitor is a daemon thread with no Qt event loop.** It must not touch Qt/CDP. It
-   can only read `/proc` and hand data to the main thread — exactly what `_request_async_gc`
+   can only read `/proc` and hand data to the main thread: exactly what `_request_async_gc`
    already does.
 2. **The telemetry line needs main-thread-only data.** `rss_mb` comes from
    `_renderer_rss_kb()` (a window method, `:831`), and the action is dispatched on the main
@@ -92,12 +92,12 @@ thread.
    line (`:412-414`) so every data run is self-describing.
 
 2. **Pure, testable decision functions** (module level, so the tests reach them without a
-   running Qt app — the current `_loop` inlines the decision and is untestable):
-   - `_psi_level(some, full, *, moderate, critical, full_critical) -> str` — direct
+   running Qt app; the current `_loop` inlines the decision and is untestable):
+   - `_psi_level(some, full, *, moderate, critical, full_critical) -> str`: direct
      transliteration of the harness `CalculatePressureLevel`: `CRITICAL` if
      `some >= critical or full >= full_critical`; `MODERATE` if `some >= moderate`; else
      `NONE`.
-   - `_psi_should_emit(prev_level, level, now, last_emit, *, cooldown) -> bool` — the
+   - `_psi_should_emit(prev_level, level, now, last_emit, *, cooldown) -> bool`: the
      harness `CheckMemoryPressure` discipline, reproduced with its **three distinct arms**
      (code-study.md:29-36), not a uniform cooldown:
      - **NONE:** emit only on the down-transition from a pressure level (not while idle).
@@ -105,7 +105,7 @@ thread.
      - **CRITICAL:** **emit every poll** (always notify). Acting is still throttled by
        `_purge_renderer`'s 15 s rate-limit + ceiling, and denser telemetry during a rare
        CRITICAL episode is exactly when the validation data is most wanted.
-     One gate drives **both** act and emit — the log is a faithful record of *when the
+     One gate drives **both** act and emit; the log is a faithful record of *when the
      harness policy would notify*, which is the property being field-validated. The ~60 s
      heartbeat (step 7) is the lone emit-without-act path. Keeps the discipline out of the
      I/O loop and under test.
@@ -116,7 +116,7 @@ thread.
      (this is the `swap_mb` in the telemetry).
 
 4. **Rework `_start_psi_monitor` loop** (`:474-495`): read both `some` and `full` avg10
-   (parse the `full` line too — present for memory PSI on all supported kernels); compute
+   (parse the `full` line too, present for memory PSI on all supported kernels); compute
    `level = _psi_level(...)`; gate with `_psi_should_emit(...)` against `prev_level` /
    `last_emit` / cooldown; on emit, read `mem_avail_mb` + `swap_mb`, set `requested`
    (`MODERATE -> 'async_gc'`, `CRITICAL -> 'critical'`, down-to-NONE -> `'none'`), write the
@@ -124,16 +124,16 @@ thread.
    Keep the `os.path.exists(_PSI_PATH)` kernel guard (`:471`).
 
 5. **Extend the drain timer** (`_drain_gc_requests`, `:780-791`): after the GC stanza, add
-   the PSI stanza — pop `_psi_event_pending`; if present, compute `rss_mb`; dispatch:
+   the PSI stanza: pop `_psi_event_pending`; if present, compute `rss_mb`; dispatch:
    - `async_gc` -> the existing JS GC (`page.runJavaScript("…gc({type:'major'…})")`, already
      here) and `action='async_gc'`;
    - `critical` -> `status = self._purge_renderer('psi-critical')` and map the status to
      `action` (`purge_submitted` / `purge_skipped_ceiling` / `purge_rate_limited`);
    - `none` -> `action='none'`.
    Then emit the one `[PSI]` line. (The new stanza calls `self._purge_renderer` /
-   `self._renderer_rss_kb`; `_drain_gc_requests` currently closes over `page` — it is nested
-   where `self` is in scope, `self._gc_drain_timer` is assigned just after it, but confirm at
-   implementation.)
+   `self._renderer_rss_kb`; `_drain_gc_requests` currently closes over `page` (it is nested
+   where `self` is in scope, `self._gc_drain_timer` is assigned just after it), but confirm at
+   implementation.
 
 6. **`_purge_renderer` returns a synchronous decision status** (`:845-875`): the ceiling
    skip (`:859`) returns `'skipped_ceiling'`, the rate-limit skip (`:862`) returns
@@ -146,7 +146,7 @@ thread.
    slow cadence even without a transition (via the same record path), so the trajectory is
    sampled without log spam.
 
-## Telemetry — the chromium-validation payload
+## Telemetry: the chromium-validation payload
 
 One greppable line per transition (and per heartbeat), emitted by the drain timer:
 
@@ -173,7 +173,7 @@ chromium project's `pre-build-calibration.md` and open-questions threshold item.
 - Validates the avg10 **percentage** threshold form; only partial transfer if the evaluator
   moves to stall-time `poll(POLLPRI)` triggers (design.md Axis 2).
 - Scope-limited on purpose: no observe-only mode, CSV pipeline, or per-poll ramp sampling
-  here — that observational job is `harness/sample_workload.sh`'s; the ramp shape is already
+  here. That observational job is `harness/sample_workload.sh`'s; the ramp shape is already
   characterized by the disk-swap probe. This monitor measures whether *shipped behavior* is
   sane.
 

@@ -13,7 +13,7 @@ table, even when the model's actual context window is orders of magnitude larger
 supposed to auto-scale to the model's context window when it is undeclared (the default 6,000 is
 the "auto" sentinel, not a real cap), but a flag mismatch in the discovery path causes auto-scaling
 to silently fail for unrecognized models. The result is that every agent turn with more than ~5K
-tokens of accumulated history throws away the older portion — the model effectively loses all memory
+tokens of accumulated history throws away the older portion; the model effectively loses all memory
 of anything that happened more than a handful of exchanges ago.
 
 ---
@@ -23,7 +23,7 @@ of anything that happened more than a handful of exchanges ago.
 Use any model **not** listed in `src/model_context.py :: KNOWN_CONTEXT_WINDOWS` (e.g.
 `deepseek-ai/deepseek-v4-pro`, `z-ai/glm-5.1`, `bytedance/seed-oss-36b-instruct`,
 `stepfun-ai/step-3.5-flash`) via an endpoint configured as `endpoint_kind = "api"` or `"proxy"`.
-Leave `agent_input_token_budget` at its default (6000). After 2–3 agent exchanges the session
+Leave `agent_input_token_budget` at its default (6000). After 2-3 agent exchanges the session
 will have accumulated enough history to trigger trimming. The agent will thereafter behave as if
 it has no memory of earlier turns.
 
@@ -58,8 +58,8 @@ if context_length > 0:
 return configured if configured > 0 else default                   # fallback: 6000
 ```
 
-So: unknown model → `budget_context_for_model` returns 0 → `compute_input_token_budget`
-returns 6,000 → `trim_for_context` runs with effective budget of **4,976 tokens**
+So: unknown model -> `budget_context_for_model` returns 0 -> `compute_input_token_budget`
+returns 6,000 -> `trim_for_context` runs with effective budget of **4,976 tokens**
 (6,000 − 1,024 reserve).
 
 ### Why models are "unknown"
@@ -76,7 +76,7 @@ if configured_kind in ("api", "proxy"):
 
 `_lookup_known` does substring matching against a static table. Any model family not in that
 table returns `None`, which makes `known = False`. The function returns
-`(DEFAULT_CONTEXT=128000, known=False)` — a value that looks like it was discovered but carries
+`(DEFAULT_CONTEXT=128000, known=False)`, a value that looks like it was discovered but carries
 a flag that prevents it from being used for auto-scaling.
 
 ### The flag survives into the budget calculation
@@ -102,7 +102,7 @@ Trimmed to 19308 tokens (11 messages)
 ```
 
 The PROTECT_RECENT floor (last 10 messages) prevents the trim from reaching the 4,976 target, but
-everything older than the last 10 messages is permanently dropped — on every single call.
+everything older than the last 10 messages is permanently dropped, on every single call.
 
 Aggregate across two log rotation files: **203 agent calls** triggered context trimming.
 Average session size at trim time: **57,325 tokens**. Average drop per call: **49,124 tokens**
@@ -110,7 +110,7 @@ Average session size at trim time: **57,325 tokens**. Average drop per call: **4
 
 ---
 
-## Affected Models (incomplete — any model not in KNOWN_CONTEXT_WINDOWS)
+## Affected Models (incomplete: any model not in KNOWN_CONTEXT_WINDOWS)
 
 Models confirmed to be missing from the table while being in common use (context windows
 verified against NVIDIA NIM documentation):
@@ -131,11 +131,11 @@ Models already in the table but with stale or wrong values:
 | Key | Table value | Actual | Impact |
 |---|---|---|---|
 | `deepseek-v3` | 64,000 | 128,000 | 50% context underuse |
-| `deepseek-coder` | 64,000 | 4,096 (NIM) | Overcount — sends 54K tokens to 4K model, causes 400 errors |
-| `mixtral` | 32,000 | 65,536 (8×22B) | 50% context underuse |
-| `mistral-small` | 32,000 | 262,144 (small-4 on NIM) | 8× undercount (source: docs.api.nvidia.com) |
-| `mistral-medium` | 32,000 | 262,144 (medium-3.5 on NIM) | 8× undercount (source: docs.api.nvidia.com) |
-| `kimi` / `moonshot` | 128,000 | 262,144 (kimi-k2.6 on NIM) | 2× undercount (source: docs.api.nvidia.com) |
+| `deepseek-coder` | 64,000 | 4,096 (NIM) | Overcount, sends 54K tokens to 4K model, causes 400 errors |
+| `mixtral` | 32,000 | 65,536 (8x22B) | 50% context underuse |
+| `mistral-small` | 32,000 | 262,144 (small-4 on NIM) | 8x undercount (source: docs.api.nvidia.com) |
+| `mistral-medium` | 32,000 | 262,144 (medium-3.5 on NIM) | 8x undercount (source: docs.api.nvidia.com) |
+| `kimi` / `moonshot` | 128,000 | 262,144 (kimi-k2.6 on NIM) | 2x undercount (source: docs.api.nvidia.com) |
 
 Any user running a frontier model released after the table was last updated will silently receive
 the 6,000-token cap. The table requires manual maintenance with no mechanism to detect when it
@@ -154,7 +154,7 @@ models (8K, 4K). The intent documented in `src/context_budget.py` is:
 The conservative posture is correct for a truly unknown model. The problem is that the "unknown"
 classification is being applied to well-known frontier models simply because the static table
 hasn't been updated. A model that the operator has explicitly configured via Settings is not
-"unknown" in any meaningful sense — but the code treats it that way.
+"unknown" in any meaningful sense, but the code treats it that way.
 
 ---
 
@@ -166,7 +166,7 @@ hasn't been updated. A model that the operator has explicitly configured via Set
   messages already trimmed to 5K tokens. Even a fallback with a 1M context window gets the
   same lobotomized history.
 - **Compounds with rate-limit failures**: If the primary model is rate-limited and a fallback
-  answers, the user receives a response with no memory of the session — the worst possible
+  answers, the user receives a response with no memory of the session, the worst possible
   failure mode for agent work.
 - **Stale `deepseek-coder` entry causes API errors**: Overcount sends up to 54K tokens to a
   model with 4K actual context; NIM returns 400 on any call after the first few exchanges.
@@ -234,7 +234,7 @@ return DEFAULT_CONTEXT, False
 ```
 
 Note: many cloud APIs (including NVIDIA NIM) do not return `context_length` fields in their
-`/v1/models` responses. For those, this change is a no-op — the probe runs but finds nothing,
+`/v1/models` responses. For those, this change is a no-op: the probe runs but finds nothing,
 and the known-table fallback continues to apply. The benefit accrues for APIs that do report
 context fields.
 
@@ -249,7 +249,7 @@ to override discovery for their specific deployment.
 
 ## What NOT to change
 
-- The `known=False → budget=0 → fallback to 6000` logic for genuinely unknown small models.
+- The `known=False -> budget=0 -> fallback to 6000` logic for genuinely unknown small models.
   A model with 4K context that reports nothing should not get a 108K budget.
 - The `PROTECT_RECENT = 10` floor in `trim_for_context`. Dropping the most recent exchange
   would be worse than dropping old history.
@@ -260,6 +260,6 @@ to override discovery for their specific deployment.
 
 ## Files
 
-- `src/model_context.py` — `KNOWN_CONTEXT_WINDOWS` table, `_query_context_length`
-- `src/context_budget.py` — `compute_input_token_budget`, `budget_is_explicit`
-- `src/agent_loop.py` — budget computation call site (~line 2186)
+- `src/model_context.py`, `KNOWN_CONTEXT_WINDOWS` table, `_query_context_length`
+- `src/context_budget.py`: `compute_input_token_budget`, `budget_is_explicit`
+- `src/agent_loop.py`, budget computation call site (~line 2186)

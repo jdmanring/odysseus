@@ -1,4 +1,4 @@
-# Memory investigation — evidence ledger (2026-06-25)
+# Memory investigation: evidence ledger (2026-06-25)
 
 This is the proof behind the memory/CPU work. Every claim here was measured on the
 running app via the Chrome DevTools Protocol (CDP) endpoint the wrapper exposes at
@@ -27,14 +27,14 @@ the correlation no off-the-shelf CDP client library provides. Read-only by desig
   `Memory.getDOMCounters`, `Memory.forciblyPurgeJavaScriptMemory`, etc.
 - Renderer RSS: read `VmRSS` from `/proc/<renderProcessPid>/status`.
 - CDP `Runtime.evaluate` returns `{result:{result:{value}}}` (two `result`
-  levels) — a parsing slip on the inner level produced false `None`s mid-session;
+  levels); a parsing slip on the inner level produced false `None`s mid-session;
   the corrected reads (verified with `2+2 -> 4`) are the ones recorded here.
 
 ## 1. The footprint is renderer-side reclaimable cache, not a JS leak
 
 | Measurement | Value | Method |
 |---|---|---|
-| Renderer RSS (panels open, idle) | 5.1–6.4 GB and climbing | `/proc/<pid>/status` VmRSS |
+| Renderer RSS (panels open, idle) | 5.1-6.4 GB and climbing | `/proc/<pid>/status` VmRSS |
 | JS heap used / total / limit | **43 / 45 / 527 MB** | `performance.memory` via CDP |
 | DOM counters | nodes **123,351**, documents 4, listeners 4,578 | `Memory.getDOMCounters` |
 | Live main-document nodes | **17,534** | `document.getElementsByTagName('*').length` |
@@ -58,7 +58,7 @@ transient Oilpan), not JavaScript objects.
 The wrapper's idle/periodic/focus-loss triggers all called the no-op
 (`simulatePressureNotification`), and `gc()` only collects the 43 MB JS pool, so
 the renderer climbed unbounded despite the existing infrastructure. Fix: issue
-#106 — replace with `forciblyPurgeJavaScriptMemory`, gated.
+#106, replace with `forciblyPurgeJavaScriptMemory`, gated.
 
 ## 3. Per-process: the renderer is the one that grows
 
@@ -79,8 +79,8 @@ App idle, ~10 panels open, zero input:
 
 | Condition | RSS slope | Inference |
 |---|---|---|
-| Baseline (24 CSS animations running) | ~5.0 MB/s | — |
-| All CSS animations cancelled (verified 0 running) | ~3.1 MB/s | animations ≈ **1.7 MB/s** |
+| Baseline (24 CSS animations running) | ~5.0 MB/s | - |
+| All CSS animations cancelled (verified 0 running) | ~3.1 MB/s | animations ~ **1.7 MB/s** |
 | All `setInterval`/`setTimeout` cleared | unchanged (~3.3 MB/s) | not a timer |
 | All panels hidden | unchanged | not panel compositing per se |
 | Visible `backdrop-filter` elements | **0** | ruled out |
@@ -99,7 +99,7 @@ rAF schedulers over 1s (count <- stack):
 ```
 
 Plus: **0 canvas elements in the DOM** at the same moment. A whirlpool spinner was
-scheduling ~43 frames/second on a canvas that is not in the DOM — an orphaned
+scheduling ~43 frames/second on a canvas that is not in the DOM: an orphaned
 spinner looping forever. CSS animations do not create DOM nodes and `clearInterval`
 does not stop rAF, which is why this survived tests in row 4. This is the ~3.1 MB/s
 and the main-thread saturation (CDP `Runtime.evaluate` began timing out under it,
@@ -115,7 +115,7 @@ itself a sign of a hot JS loop). Root cause and fix: issue #107.
 
 `memory-synapse-sweep` is declared `infinite` on every memory row, so it runs
 perpetually whenever the panel is open (and was inverted: hidden on hover). This is
-the bulk of the ~1.7 MB/s. Fix: issue #108 — hover-triggered, single iteration.
+the bulk of the ~1.7 MB/s. Fix: issue #108 (hover-triggered, single iteration).
 
 ## 7. Fixes shipped (with verification status)
 
@@ -124,9 +124,9 @@ the bulk of the ~1.7 MB/s. Fix: issue #108 — hover-triggered, single iteration
 | #106 | `forciblyPurgeJavaScriptMemory`, gated (RSS ceiling 1.8 GB, 15 s rate limit, off-interaction-path) | `perf/renderer-memory-reclaim` | **In-app: sawtooth confirmed** (user saw memory climb then drop repeatedly after restart) |
 | #106 follow-up | periodic sustained-idle reclaim (single-shot re-armed only on mouse move -> filled all RAM on walk-away; now repeating, keyboard-aware) | same | bounds memory; sawtooth is the evidence |
 | #107 | whirlpool spinner terminates when never-visible-within-grace or hidden (was unbounded `!_wpWasConnected`); later broadened to a shared `_shouldKeepSpinning()` guard covering all three spinner loops (whirlpool/sinewave rAF + ASCII setInterval) | `fix/spinner-orphan-leak` | source-text tests; in-app re-measure pending |
-| #108 | `memory-synapse-sweep` hover-triggered, not perpetual; `notes-quick-pulse` box-shadow glow moved to an opacity pseudo-element (box-shadow is a paint property → ~2 MB/s on the always-visible quick-add box) | `fix/brain-panel-oom` | source-text tests; in-app re-measure pending |
-| #109 | minimize no longer freezes the page (`setLifecycleState(Frozen)` left the UI unresponsive after the Frozen→Active thaw — Qt: a visible page must stay Active, a non-Active page can lose input); keep Active, reclaim via the gated purge | `perf/renderer-memory-reclaim` | source-text test; verify minimize/restore in-app |
-| #110 | `#tasks-clock` isolated to its own compositor layer (`transform: translateZ(0)` + `contain: layout paint`) so its 1/sec repaint stops re-rastering the whole draggable Tasks-modal layer (~600×848 → ~578×26, ~30×) | `fix/tasks-clock-repaint` | **confirmed by the user**: closing Tasks stopped the climb and memory settled; verify the isolated version with `mem-probe slope` |
+| #108 | `memory-synapse-sweep` hover-triggered, not perpetual; `notes-quick-pulse` box-shadow glow moved to an opacity pseudo-element (box-shadow is a paint property -> ~2 MB/s on the always-visible quick-add box) | `fix/brain-panel-oom` | source-text tests; in-app re-measure pending |
+| #109 | minimize no longer freezes the page (`setLifecycleState(Frozen)` left the UI unresponsive after the Frozen->Active thaw; Qt: a visible page must stay Active, a non-Active page can lose input); keep Active, reclaim via the gated purge | `perf/renderer-memory-reclaim` | source-text test; verify minimize/restore in-app |
+| #110 | `#tasks-clock` isolated to its own compositor layer (`transform: translateZ(0)` + `contain: layout paint`) so its 1/sec repaint stops re-rastering the whole draggable Tasks-modal layer (~600x848 -> ~578x26, ~30x) | `fix/tasks-clock-repaint` | **confirmed by the user**: closing Tasks stopped the climb and memory settled; verify the isolated version with `mem-probe slope` |
 
 Each fix is cherry-picked to `develop` (`-x`). Source-text tests pass
 (`test_qt_cdp_listener_audit.py`, `test_spinner_orphan_leak_js.py`,
@@ -146,25 +146,25 @@ runtime; the behavioural proofs are the measurements above and the sawtooth.
 
 ### Why a continuous animation can grow memory (the recurring question)
 
-"Wouldn't it just get cached once?" — correct for *compositor* animations, wrong
+"Wouldn't it just get cached once?" Correct for *compositor* animations, wrong
 for *paint* ones. Three tiers:
 
 - **Compositor (cheap, cacheable):** `transform`, `opacity`. The element is
   rasterized **once** into a layer; each frame the GPU just re-positions or fades
-  that one cached texture. Near-zero ongoing cost — fine to loop forever.
+  that one cached texture. Near-zero ongoing cost; fine to loop forever.
 - **Paint (expensive, NOT cacheable):** `box-shadow`, `filter`, `background`,
   `background-position`, `color`, `border-color`, `clip-path`, `-webkit-mask`.
   Computed *during rasterization*. Every step of the loop is a different bitmap, so
-  there is no single frame to cache — the engine re-rasterizes ~60x/s forever.
+  there is no single frame to cache, so the engine re-rasterizes ~60x/s forever.
 - **Layout (worst):** `top`/`left`/`width`/`height`/`inset`. Re-runs layout *and*
   paint every frame.
 
 A normal browser keeps even the expensive tiers bounded (buffers recycled, old
 tiles evicted under pressure). On **Qt WebEngine eviction never fires** (no OS
-pressure signal — the root defect of this whole investigation), so paint output
-**accumulates**. Cost ≈ repaint area × frame rate × persistence. Proof case:
-`notes-quick-pulse` animated `box-shadow` on the always-visible ~200×46px
-`.notes-quick-add` box → ~200×46×4×60fps ≈ **2.2 MB/s**, matching the measured idle
+pressure signal, the root defect of this whole investigation), so paint output
+**accumulates**. Cost is about repaint area x frame rate x persistence. Proof case:
+`notes-quick-pulse` animated `box-shadow` on the always-visible ~200x46px
+`.notes-quick-add` box -> ~200x46x4x60fps ~ **2.2 MB/s**, matching the measured idle
 climb. Fixed by baking the glow into a `::after` layer (rasterized once) and
 pulsing its **opacity**.
 
@@ -183,7 +183,7 @@ pulsing its **opacity**.
 18 animate a paint/layout property. Categorised:
 
 - **Always-on + large (the real cost):** `notes-quick-pulse` only. **Fixed.**
-- **State-gated (transient — run only during loading/unread/running/streaming/
+- **State-gated (transient: run only during loading/unread/running/streaming/
   notification, then stop):** `gallery-skeleton-shimmer`, `notes-skeleton-shimmer`,
   `ge-canvas-spin`, `task-log-pulse`, `thread-pulse`, `synapse-travel/-capped`,
   `research-dot-pulse`, `stream-complete-pulse`, `skill-audit-pulse`. Acceptable.
@@ -205,7 +205,7 @@ user measured the full cycle with `tooling/mem-probe.py slope`:
 - **Idle: flat.** `431 -> 431 MB (+0.00 MB/s, +0 nodes/s)`, repeated. With the
   per-second producers eliminated, doing nothing generates nothing.
 - **Active use: transient climb.** Clicking through windows: `+4 -> +16 -> +13
-  MB/s, +46 -> +140 nodes/s` — the cost of actually rendering UI.
+  MB/s, +46 -> +140 nodes/s`, the cost of actually rendering UI.
 - **Stop interacting -> reclaim -> baseline.** `724 -> 432 MB (-36.5 MB/s, -306
   nodes/s)` as the idle reclaim fired, then `432 -> 432 (+0.00)` settled flat at a
   ~430 MB working set.

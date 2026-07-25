@@ -1,4 +1,4 @@
-# PR Draft: fix/agent-tool-budget → odysseus-dev/odysseus:dev
+# PR Draft: fix/agent-tool-budget -> odysseus-dev/odysseus:dev
 
 **Branch:** `fix/agent-tool-budget`
 **Issue:** [#10](https://github.com/jdmanring/odysseus/issues/10) (fork tracking)
@@ -40,7 +40,7 @@ tool calls.
 
 The codebase acknowledges this risk in a comment in `agent_loop.py`: *"Small models
 (e.g. deepseek-v4-flash) can get stuck firing the same tool call over and over with no
-text — burns all 20 rounds, looks like the chat 'died'."* The existing loop-breaker only catches repeated
+text; burns all 20 rounds, looks like the chat 'died'."* The existing loop-breaker only catches repeated
 identical calls. A model that varies its calls slightly continues unchecked. The budget
 cap is the general-purpose backstop.
 
@@ -54,7 +54,7 @@ defaults to `20`: a sensible cap on round loops. `agent_max_tool_calls` at `0`
 (unlimited) is inconsistent: rounds are capped but tool executions within them are not.
 `20` tool calls matches `20` rounds and creates a coherent pair of budgets.
 
-**Misleading UI value.** Users who open Settings → Agent and see `0` next to
+**Misleading UI value.** Users who open Settings -> Agent and see `0` next to
 `Max tool calls` reasonably interpret it as "zero calls; tool use is disabled." They
 set it to some positive number (20, 50, 100) not realising that doing so actually
 *reduces* the agent's freedom from unlimited to whatever they typed. The default looks
@@ -100,7 +100,7 @@ Fixes # <!-- [file upstream issue first] -->
 1. Start Odysseus on a fresh install (or clear `data/settings.json` to reset to defaults).
 2. Open the agent interface and send a prompt that requires tool use (e.g., "search the web for X" or "read my notes about Y").
 3. Confirm the agent executes tool calls successfully. After 20 tool calls in the session, confirm a `budget_exceeded` event fires and the agent stops cleanly rather than looping indefinitely.
-4. Check Settings → Agent; confirm `agent_max_tool_calls` defaults to `20` (not `0`).
+4. Check Settings -> Agent; confirm `agent_max_tool_calls` defaults to `20` (not `0`).
 5. For existing installs with a previously stored non-zero value: confirm that stored value is preserved (the default is not overwritten on upgrade).
 
 ---

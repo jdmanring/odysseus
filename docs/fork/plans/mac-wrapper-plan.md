@@ -9,31 +9,31 @@
 
 ## Overview
 
-Create `mac_wrapper.py` and `build-mac-app.sh` — a native macOS desktop wrapper using
+Create `mac_wrapper.py` and `build-mac-app.sh`: a native macOS desktop wrapper using
 PyQt6, modeled directly on `qt_wrapper.py`. The architecture is identical; only the
 platform-specific blocks differ.
 
 Our approach is a direct alternative to upstream PR #3310 (Electron wrapper) and issue
 #606. Qt WebEngine uses the same Chromium engine as Electron but without bundling Node.js,
-using 35–50% less RAM, and integrating natively with the Python process that already
+using 35-50% less RAM, and integrating natively with the Python process that already
 runs the server. The PR description should reference #606/#3310 explicitly.
 
 ---
 
 ## What Changes vs `qt_wrapper.py`
 
-**1. LOG_DIR** — macOS convention:
+**1. LOG_DIR** (macOS convention):
 ```python
 LOG_DIR = os.path.join(os.path.expanduser("~"), "Library", "Logs", "Odysseus")
 ```
 
-**2. Remove `QTWEBENGINE_FORCE_USE_GBM`** — Linux Qt 6.9+ regression guard; not
+**2. Remove `QTWEBENGINE_FORCE_USE_GBM`**: Linux Qt 6.9+ regression guard; not
 applicable on macOS:
 ```python
 # Remove: os.environ.setdefault("QTWEBENGINE_FORCE_USE_GBM", "0")
 ```
 
-**3. Chromium flags** — macOS uses Metal natively; no GBM/Vulkan guards:
+**3. Chromium flags**. macOS uses Metal natively; no GBM/Vulkan guards:
 ```python
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
     "--ignore-gpu-blocklist",
@@ -46,17 +46,17 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = " ".join([
 Removed vs Linux: `--no-sandbox` (not required on macOS), all Vulkan/GBM guards,
 `--enable-zero-copy` (GBM-specific).
 
-**4. Remove D-Bus imports** — not available on macOS:
+**4. Remove D-Bus imports**; not available on macOS:
 ```python
 # Remove: from PyQt6.QtDBus import QDBusConnection, QDBusInterface, QDBusMessage
 ```
 
-**5. PORT default** — 7860; AirPlay Receiver holds 7000 on macOS:
+**5. PORT default**: 7860; AirPlay Receiver holds 7000 on macOS:
 ```python
 PORT = os.environ.get("APP_PORT", "7860")
 ```
 
-**6. NativeBridge** — replace the full D-Bus portal + fallback with direct QColorDialog:
+**6. NativeBridge**: replace the full D-Bus portal + fallback with direct QColorDialog:
 ```python
 class NativeBridge(QObject):
     colorPicked = pyqtSignal(str)
@@ -67,20 +67,20 @@ class NativeBridge(QObject):
         self.colorPicked.emit(color.name() if color.isValid() else '')
 ```
 
-**7. `_log_renderer_memory()`** — `pgrep` works on macOS; no change needed.
+**7. `_log_renderer_memory()`**. `pgrep` works on macOS; no change needed.
 
-**8. `app.setDesktopFileName()`** — not available on macOS. Replace with:
+**8. `app.setDesktopFileName()`**: not available on macOS. Replace with:
 ```python
 app.setApplicationName("Odysseus")
 app.setOrganizationName("Odysseus")
 ```
 
-**9. QSettings** — no change. Qt writes to `~/Library/Preferences/` on macOS
+**9. QSettings**: no change. Qt writes to `~/Library/Preferences/` on macOS
 automatically.
 
-**10. VENV_PYTHON** — `venv/bin/python`; same path as Linux on macOS.
+**10. VENV_PYTHON**: `venv/bin/python`; same path as Linux on macOS.
 
-**11. DATA_DIR / CACHE_DIR** — follow macOS convention:
+**11. DATA_DIR / CACHE_DIR**. Follow macOS convention:
 ```python
 DATA_DIR  = os.path.expanduser("~/Library/Application Support/odysseus/webengine")
 CACHE_DIR = os.path.expanduser("~/Library/Caches/odysseus/webengine")
@@ -92,9 +92,9 @@ CACHE_DIR = os.path.expanduser("~/Library/Caches/odysseus/webengine")
 
 ### `mac_wrapper.py`
 
-Apply the eleven changes above to `qt_wrapper.py`. Everything else — OdysseusPage,
+Apply the eleven changes above to `qt_wrapper.py`. Everything else (OdysseusPage,
 OdysseusWindow, QWebChannel, QWebEngineScript injection, crash recovery, window state,
-server lifecycle — is identical to the Linux version.
+server lifecycle) is identical to the Linux version.
 
 ### `build-mac-app.sh`
 
@@ -129,9 +129,9 @@ echo "Done. Launch with:  $VENV_PY $INSTALL_DIR/mac_wrapper.py"
 
 Added by `feat/qt-native-linux-app`, platform-neutral:
 
-- `static/js/qt-bridge.js` — `window.__QT_WRAPPER__` guard works on macOS unchanged
-- `static/index.html` — script injection is platform-neutral
-- `static/js/colorPicker.js` — `window.qtBridge.openColorPicker()` is neutral;
+- `static/js/qt-bridge.js`: `window.__QT_WRAPPER__` guard works on macOS unchanged
+- `static/index.html`: script injection is platform-neutral
+- `static/js/colorPicker.js`: `window.qtBridge.openColorPicker()` is neutral;
   the native dialog is QColorDialog on macOS
 
 ---
@@ -172,7 +172,7 @@ Added by `feat/qt-native-linux-app`, platform-neutral:
   If filing before: include shared JS files and note dependency.
 - Reference upstream issue #606 (standalone native app request) and PR #3310
   (Electron wrapper): explain that Qt WebEngine uses the same Chromium engine
-  as Electron but without bundling Node.js, using 35–50% less RAM, and
+  as Electron but without bundling Node.js, using 35-50% less RAM, and
   integrating directly with the Python process.
 - `build-mac-app.sh` is a new file; the existing `build-macos-app.sh` (Chrome
   --app mode) is separate and unmodified. Note the distinction in the PR.

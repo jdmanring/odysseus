@@ -1,4 +1,4 @@
-# PR Draft: perf(ui): rAF-coalesced autoResize — eliminate typing layout thrash
+# PR Draft: perf(ui): rAF-coalesced autoResize, eliminate typing layout thrash
 
 **Branch:** `perf/smooth-typing`
 **Issue:** jdmanring/odysseus#81
@@ -11,9 +11,9 @@
 `autoResize` in `static/js/ui.js` is wired to the textarea's `input` event and fires on
 every keystroke. The implementation uses a hidden clone to measure content height:
 
-1. `getComputedStyle(textarea).lineHeight` — forces style recalculation
-2. `textarea.offsetWidth` — forces layout reflow
-3. `clone.scrollHeight` — forces a second layout reflow
+1. `getComputedStyle(textarea).lineHeight`: forces style recalculation
+2. `textarea.offsetWidth`: forces layout reflow
+3. `clone.scrollHeight`: forces a second layout reflow
 
 This produces **2 forced DOM layout reflows per keystroke**. At typing speeds of 8+ chars/sec
 that is 16+ forced layout reflows per second. In embedded Chromium environments (Electron,
@@ -49,7 +49,7 @@ approach.
 pixel height so the browser computes the natural content height. Reading `scrollHeight`
 immediately after forces one layout pass. Setting the final `height: Npx` in the same
 script execution queues a second style write that resolves at paint. Both mutations are
-batched in a single frame — no visible flicker.
+batched in a single frame, so there is no visible flicker.
 
 **Clone cleanup:** the `_resizeClone`, `cloneNode`, and `offsetWidth` code is removed
 entirely. Existing in-DOM clones from sessions that ran the old code are hidden/positioned
@@ -57,17 +57,17 @@ off-screen and are removed on page reload.
 
 ## Files changed
 
-- `static/js/ui.js` — `autoResize` rewrite (−25 +16 lines)
-- `tests/test_ui_auto_resize_js.py` — new file, 5 static-analysis tests
+- `static/js/ui.js`: `autoResize` rewrite (−25 +16 lines)
+- `tests/test_ui_auto_resize_js.py`: new file, 5 static-analysis tests
 
 ## Tests
 
 5 new static-analysis tests in `tests/test_ui_auto_resize_js.py`:
-- `test_auto_resize_uses_raf_coalescing` — `requestAnimationFrame` present
-- `test_auto_resize_height_auto_for_measurement` — `'auto'` height reset present
-- `test_auto_resize_reads_scroll_height` — `scrollHeight` read present
-- `test_auto_resize_no_clone_creation` — `cloneNode` absent (old approach removed)
-- `test_auto_resize_sets_overflow` — `overflow` property set
+- `test_auto_resize_uses_raf_coalescing`: `requestAnimationFrame` present
+- `test_auto_resize_height_auto_for_measurement`: `'auto'` height reset present
+- `test_auto_resize_reads_scroll_height`: `scrollHeight` read present
+- `test_auto_resize_no_clone_creation`: `cloneNode` absent (old approach removed)
+- `test_auto_resize_sets_overflow`: `overflow` property set
 
 ## Embedding context
 

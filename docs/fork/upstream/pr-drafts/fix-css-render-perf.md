@@ -79,7 +79,7 @@ preserved (`manipulation` ≠ `none`). WCAG-safe.
 Effect: every sidebar item, session entry, dropdown option, and button tap feels
 immediate on phone and tablet rather than delayed by 300ms.
 
-**`filter: brightness()` on `:hover` → `@media (hover: hover) and (pointer: fine)` guard**
+**`filter: brightness()` on `:hover` -> `@media (hover: hover) and (pointer: fine)` guard**
 
 11 hover rules that used `filter: brightness()` wrapped in the pointer media query.
 
@@ -159,7 +159,7 @@ The ROADMAP lists two items this PR directly addresses:
    motion."**: The global `prefers-reduced-motion` catch-all fills the gap left
    by the existing 17 per-component blocks, which cover known animations but not
    the ~130 unnamed `@keyframe` animations and hundreds of undeclared transitions.
-   Issue #1857 ("Disable animations," closed) raised this exact concern —
+   Issue #1857 ("Disable animations," closed) raised this exact concern:
    users on constrained hardware see high CPU/GPU load from animations even when
    system-level "Reduce Motion" is on. The catch-all makes the OS setting
    effective for all animations with a single rule.
@@ -194,9 +194,9 @@ Fixes # <!-- [file upstream issue first; see issue-drafts/fix-css-render-perf.md
 1. Start the app and confirm no visual regression on standard desktop use; chat, sidebar, settings, dropdowns all look correct.
 2. Hover over sidebar session entries and items; confirm transitions still animate smoothly (no regression from `contain: content` on `.sidebar`).
 3. Open a long session, scroll to the bottom, send a new message; confirm no layout jump and the page scrolls to the new message correctly.
-4. Open Settings → Providers modal; confirm the provider dropdown menu is not clipped or hidden (validating `contain: layout style` on `.modal-content`).
-5. Enable OS "Reduce Motion" (System Settings → Accessibility on Linux, macOS, or Windows) and reload the app; confirm all animations and transitions become near-instant.
-6. Open DevTools → Rendering → "Highlight Composited Layers"; confirm compositor layer count is lower than before (the three permanent `will-change` allocations are gone).
+4. Open Settings -> Providers modal; confirm the provider dropdown menu is not clipped or hidden (validating `contain: layout style` on `.modal-content`).
+5. Enable OS "Reduce Motion" (System Settings -> Accessibility on Linux, macOS, or Windows) and reload the app; confirm all animations and transitions become near-instant.
+6. Open DevTools -> Rendering -> "Highlight Composited Layers"; confirm compositor layer count is lower than before (the three permanent `will-change` allocations are gone).
 7. On Android/Chrome (optional): tap sidebar items; confirm no stuck hover state (item should not stay brightened after the tap).
 
 Tested on: Linux desktop. No visual change visible on standard desktop. No screenshots required; all changes are either invisible or activate only for touch/reduced-motion users.

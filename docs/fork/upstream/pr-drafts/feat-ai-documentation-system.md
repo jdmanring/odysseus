@@ -1,4 +1,4 @@
-# PR Draft: feat/ai-documentation-system → odysseus-dev/odysseus:dev
+# PR Draft: feat/ai-documentation-system -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/ai-documentation-system`
 **Issue:** [#18](https://github.com/jdmanring/odysseus/issues/18) (fork tracking)
@@ -24,7 +24,7 @@ anyone working on the codebase.
 **AI coding assistants are actively degraded.** AI coding tools that read repository
 context before generating suggestions derive their understanding of a project from what
 they can read in the repository. When no documentation exists, these tools
-reverse-engineer the codebase from source on every session — getting architectural
+reverse-engineer the codebase from source on every session; getting architectural
 decisions wrong, misidentifying which file owns which responsibility, and producing
 suggestions that conflict with established patterns. The result is that AI-assisted
 contributions introduce more bugs than they would in a well-documented project.

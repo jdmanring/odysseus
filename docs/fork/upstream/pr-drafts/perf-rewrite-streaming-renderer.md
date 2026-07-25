@@ -1,4 +1,4 @@
-# PR Draft: perf/rewrite-streaming-renderer → odysseus-dev/odysseus:dev
+# PR Draft: perf/rewrite-streaming-renderer -> odysseus-dev/odysseus:dev
 
 **Branch:** `perf/rewrite-streaming-renderer`
 **Issue:** [#79](https://github.com/jdmanring/odysseus/issues/79) (fork tracking)
@@ -38,7 +38,7 @@ overlooked.
 ### Fix
 
 Lazy-initialize a `createStreamRenderer` on the first delta token and call
-`.update(newText)` per token — identical to the main streaming path pattern.
+`.update(newText)` per token: identical to the main streaming path pattern.
 After the SSE loop completes, finalize the renderer and perform a single final
 `bodyEl.innerHTML` render with the stripped text (thinking blocks removed by
 `_stripThink`):
@@ -74,7 +74,7 @@ bodyEl.innerHTML = markdownModule.processWithThinking(
 The renderer provides O(1)-per-token incremental DOM updates during streaming
 (total O(n) over the full response). The single final `innerHTML` after
 `_stripThink` ensures the displayed text is the clean canonical version with
-thinking tags removed — identical behaviour to before, with O(n) total work
+thinking tags removed: identical behaviour to before, with O(n) total work
 instead of O(n²).
 
 ### Performance impact
@@ -91,7 +91,7 @@ Heap allocation reduced from O(n²) intermediate trees to O(n) live nodes.
 
 ## Files changed
 
-- `static/js/chat.js` — lazy-init renderer in `rewriteWith()` delta loop; finalize
+- `static/js/chat.js`: lazy-init renderer in `rewriteWith()` delta loop; finalize
   before final render
 
 ## Tests
@@ -136,19 +136,19 @@ upstream issue if warranted and link it here before submitting.
 ### How to Test
 
 1. Start a session and trigger a rewrite (long response with `[REWRITE]` marker or the equivalent chat action).
-2. Open DevTools → Console. After the stream completes, confirm `[chat] rewrite: renderer finalized` appears.
-3. Open DevTools → Memory. Compare heap snapshot `div` counts during the rewrite vs. before — the count should grow at O(1) per token rather than O(n²).
+2. Open DevTools -> Console. After the stream completes, confirm `[chat] rewrite: renderer finalized` appears.
+3. Open DevTools -> Memory. Compare heap snapshot `div` counts during the rewrite vs. before: the count should grow at O(1) per token rather than O(n²).
 4. Verify the final rendered output is identical to a non-rewrite response of the same content.
-5. Run `pytest tests/test_chat_rewrite_streaming_js.py -q` — 11 tests.
+5. Run `pytest tests/test_chat_rewrite_streaming_js.py -q`: 11 tests.
 
 ---
 
 ## Filing Notes
 
 - 2 commits: main fix (`04eea77f`), logging (`1d8bdd83`).
-- Branch: `perf/rewrite-streaming-renderer` — built from `upstream-mirror`.
+- Branch: `perf/rewrite-streaming-renderer`, built from `upstream-mirror`.
 - **File upstream issue first.** Add the upstream issue number to `Fixes #` above.
-- The `_rwRenderer` variable is declared as `null` at the top of `rewriteWith()` scope. If an error path exits the SSE loop early, the `finally` block should null it out — verify this edge case is handled if filing this PR.
+- The `_rwRenderer` variable is declared as `null` at the top of `rewriteWith()` scope. If an error path exits the SSE loop early, the `finally` block should null it out: verify this edge case is handled if filing this PR.
 
 ## Visual / UI changes
 

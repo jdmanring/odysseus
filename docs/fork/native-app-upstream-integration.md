@@ -1,11 +1,11 @@
-# Native desktop app ↔ upstream "native installers" — integration map
+# Native desktop app vs upstream "native installers": integration map
 
 > **SUPERSEDED (2026-07-23):** the "keep both / additive only" verdict below is
-> reversed on the fork. All inherited browser fallbacks — `launcher.py`,
-> `Odysseus.spec`, `build-windows-portable.ps1`, `build-macos-app.sh` — are
+> reversed on the fork. All inherited browser fallbacks (`launcher.py`,
+> `Odysseus.spec`, `build-windows-portable.ps1`, `build-macos-app.sh`) are
 > **retired** on develop; the Qt wrapper is the sole desktop path on every OS.
 > Rationale: upstream's fallbacks hijack a full **browser** (Chromium `--app` /
-> `webbrowser.open`) — there is nothing lightweight about them, so the "no-Qt
+> `webbrowser.open`); there is nothing lightweight about them, so the "no-Qt
 > fallback has value" argument does not hold. **Upstream strategy is two-track:**
 > first an *additive* PR that adds our Qt wrapper alongside theirs and wins on a
 > comparison matrix (force acceptance through excellence); then, *after* it's
@@ -26,16 +26,16 @@ The upstream repo was renamed/transferred from `pewdiepie-archdaemon/odysseus` t
 reports `full_name: odysseus-dev/odysseus` for each, so the old name is a GitHub
 redirect. The fork's `upstream` remote fetch URL is updated to the new name (push
 stays disabled). Upstream-owned files still carrying the old name (README,
-CONTRIBUTING, `.github/` templates) are left alone — they take the new name when
+CONTRIBUTING, `.github/` templates) are left alone: they take the new name when
 we sync from upstream, not by hand.
 
 ## What upstream's "native installers" actually are
 
-Server-launch scripts and a browser launcher — **not** a GUI application:
+Server-launch scripts and a browser launcher, **not** a GUI application:
 
 - `start-macos.sh`, `launch-windows.ps1`: set up a venv and run `uvicorn`; the
   UI is a browser pointed at `127.0.0.1:7000`/`7860`.
-- `build-macos-app.sh`: builds `dist/Odysseus.app` — a **bash launcher** that
+- `build-macos-app.sh`: builds `dist/Odysseus.app`, a **bash launcher** that
   starts uvicorn and opens the UI in a Chromium `--app` window (Chrome/Edge/
   Brave/Chromium), falling back to the default browser, plus a drag-to-
   Applications `.dmg`. No PyQt6, no native window, no tray/Dock, no lifecycle.
@@ -47,7 +47,7 @@ upstream.
 
 A real native desktop application:
 
-- `mac_wrapper.py` / `qt_wrapper.py` / `windows_wrapper.py` — PyQt6/QtWebEngine
+- `mac_wrapper.py` / `qt_wrapper.py` / `windows_wrapper.py`: PyQt6/QtWebEngine
   windows with window-lifecycle management, system tray / menu-bar item,
   hide-to-Dock (macOS), GPU-flag handling, a renderer memory monitor, and crash
   recovery.
@@ -60,15 +60,15 @@ A real native desktop application:
 
 | File | Ours | Upstream | Relationship |
 |------|------|----------|--------------|
-| `mac_wrapper.py`, `qt_wrapper.py`, `windows_wrapper.py` | ✓ | — | fork-only, additive |
-| `setup.sh`, `setup.ps1`, `install.sh`, `install.bat` | ✓ | — | fork-only, additive |
-| `build-mac-app.sh`, `build-linux-app.sh`, `build-windows-app.ps1` | ✓ | — | fork-only, additive |
+| `mac_wrapper.py`, `qt_wrapper.py`, `windows_wrapper.py` | ✓ | - | fork-only, additive |
+| `setup.sh`, `setup.ps1`, `install.sh`, `install.bat` | ✓ | - | fork-only, additive |
+| `build-mac-app.sh`, `build-linux-app.sh`, `build-windows-app.ps1` | ✓ | - | fork-only, additive |
 | `launch-windows.ps1` | ✓ | ✓ | **identical** (inherited, untouched) |
 | `build-windows-portable.ps1` | ✓ | ✓ | **identical** (inherited, untouched) |
 | `start-macos.sh` | ✓ | ✓ | **differs** (fork drops the aria2c brew line) |
 | `build-macos-app.sh` | ✓ | ✓ | **differs** (the Chrome-launcher; see below) |
 
-So the native app is mostly **additive** — new files that slot alongside
+So the native app is mostly **additive**: new files that slot alongside
 upstream's installers without collision. Two shared files differ and are the only
 friction points.
 
@@ -76,23 +76,23 @@ friction points.
 
 The fork deliberately keeps **both** macOS paths, differentiated by filename:
 
-- `build-mac-app.sh` → the **Qt native** app (`dist/Odysseus.app` = the PyQt6
+- `build-mac-app.sh` -> the **Qt native** app (`dist/Odysseus.app` = the PyQt6
   wrapper) + `.dmg`. This is the primary, full-featured path.
-- `build-macos-app.sh` → the **Chrome `--app` launcher** (upstream's approach,
+- `build-macos-app.sh` -> the **Chrome `--app` launcher** (upstream's approach,
   no Qt dependency, browser-based UI) + `.dmg`.
 
 `build-mac-app.sh`'s own header points at `build-macos-app.sh` as the "no Qt
 dependency" alternative. The Qt native app is thus layered on top of the browser
-launcher, not a replacement for it — a user who does not want PyQt6 can still use
+launcher, not a replacement for it: a user who does not want PyQt6 can still use
 the lightweight launcher.
 
-## The "competing" macOS wrapper — verdict
+## The "competing" macOS wrapper: verdict
 
 Upstream's `build-macos-app.sh` is a browser-in-app-mode launcher. Compared with
 `mac_wrapper.py` it is primitive (no native window, tray, or Dock behavior), but
 it is not worthless and does two things cleanly worth keeping:
 
-- Produces a distributable **`.dmg`** (drag-to-Applications) — our
+- Produces a distributable **`.dmg`** (drag-to-Applications); our
   `build-mac-app.sh` already does this too.
 - Graceful **already-running** detection (curl the port, just open the UI),
   Chromium-`--app` detection across Chrome/Edge/Brave/Chromium with a

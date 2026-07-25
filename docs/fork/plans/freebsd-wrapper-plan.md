@@ -12,7 +12,7 @@
 KDE Plasma is available on FreeBSD via `pkg install plasma5-plasma` and is the
 most capable desktop environment for FreeBSD desktop users. The wrapper's
 `app.setDesktopFileName("odysseus")` call integrates directly with Plasma's
-taskbar grouping and icon display — the same integration used on Linux.
+taskbar grouping and icon display, the same integration used on Linux.
 
 **Secondary targets:** GhostBSD (ships MATE by default; wrapper works on MATE
 but without KDE taskbar pinning integration) and any other FreeBSD desktop
@@ -32,18 +32,18 @@ This is a follow-on PR to #14, not a new file. The change is ~10 lines.
 
 ## What Already Works on FreeBSD (No Changes Needed)
 
-- `pgrep` / `pkill` — in FreeBSD base system
-- `os.dup2` — POSIX syscall, works on FreeBSD
-- `signal.SIGTERM` / `signal.SIGINT` — works on FreeBSD
-- `QSettings("odysseus", "odysseus")` — Qt respects `XDG_CONFIG_HOME` on FreeBSD,
+- `pgrep` / `pkill`: in FreeBSD base system
+- `os.dup2`: POSIX syscall, works on FreeBSD
+- `signal.SIGTERM` / `signal.SIGINT`: works on FreeBSD
+- `QSettings("odysseus", "odysseus")`: Qt respects `XDG_CONFIG_HOME` on FreeBSD,
   defaults to `~/.config/odysseus/odysseus.conf`
-- `QDBusConnection.sessionBus()` — D-Bus available on FreeBSD via `devel/dbus` port;
+- `QDBusConnection.sessionBus()`: D-Bus available on FreeBSD via `devel/dbus` port;
   portal fallback to `QColorDialog` works where portal is absent
-- `app.setDesktopFileName("odysseus")` — works on FreeBSD X11/Wayland DEs
-- GPU flags after restructure — `_is_nvidia = os.path.exists("/proc/driver/nvidia")`
+- `app.setDesktopFileName("odysseus")`: works on FreeBSD X11/Wayland DEs
+- GPU flags after restructure: `_is_nvidia = os.path.exists("/proc/driver/nvidia")`
   returns `False` on FreeBSD (NVIDIA uses a different module path there); Mesa
   (AMD/Intel) path applies, which is correct for most FreeBSD desktops
-- `--no-sandbox` — already in flags; correct for FreeBSD where the Chromium sandbox
+- `--no-sandbox`: already in flags; correct for FreeBSD where the Chromium sandbox
   (Linux namespaces + seccomp-bpf) definitively does not work
 
 ---
@@ -158,10 +158,10 @@ def _log_renderer_memory():
   `build-linux-app.sh`) to refresh KDE's service cache after install.
 - DragonFly BSD: DPorts tracks FreeBSD ports (currently 2024Q3/2025Q2); Qt6
   WebEngine is available at `www/qt6-webengine` in FreeBSD ports which DPorts
-  mirrors. Worth a "should work on DragonFly BSD, untested" note in the PR —
+  mirrors. Worth a "should work on DragonFly BSD, untested" note in the PR:
   not a blocking dependency but a free win if someone tests it.
 - OpenBSD is tracked separately (issue #46). `qt6-qtwebengine` is in OpenBSD
   ports (amd64/aarch64); the same platform guard applied here covers OpenBSD too.
 - Reference upstream issue #606 (standalone native app) and PR #3310 (Electron
   wrapper) in the PR: Qt WebEngine uses the same Chromium engine without Node.js,
-  at 35–50% lower RAM, integrating directly with the Python server process.
+  at 35-50% lower RAM, integrating directly with the Python server process.
