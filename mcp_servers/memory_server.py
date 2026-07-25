@@ -109,17 +109,18 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="manage_memory",
-            description="Manage the user's memory system: list, add, edit, delete, or search memories.",
+            description="Manage the user's memory system: list, add, edit, delete, search, or supersede (mark an outdated memory replaced by a new one) memories.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
-                        "enum": ["list", "add", "edit", "delete", "search"],
+                        "enum": ["list", "add", "edit", "delete", "search", "supersede"],
                         "description": "The action to perform",
                     },
                     "text": {"type": "string", "description": "Memory text (add/edit) or search query (search)"},
-                    "memory_id": {"type": "string", "description": "Memory ID (edit/delete)"},
+                    "memory_id": {"type": "string", "description": "Memory ID (edit/delete; the NEW memory for supersede)"},
+                    "old_ids": {"type": "string", "description": "Comma-separated outdated memory ID(s) the new memory replaces (supersede)"},
                     "category": {
                         "type": "string",
                         "enum": ["fact", "event", "contact", "preference"],
@@ -177,12 +178,26 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         entry = _memory_manager.add_entry(text, source="ai_agent", category=category, owner=owner)
         memories.append(entry)
         _memory_manager.save(memories)
+        note = ""
         if _memory_vector and _memory_vector.healthy:
             try:
                 _memory_vector.add(entry["id"], text)
+                from src.memory_supersede import on_write
+                supersede = on_write(_memory_manager, _memory_vector, entry)
+                if supersede["superseded"]:
+                    note += "\nSuperseded outdated near-duplicate(s): " + \
+                        ", ".join(i[:8] for i in supersede["superseded"])
+                if supersede["candidates"]:
+                    cand = "; ".join(
+                        f"`{c['id'][:8]}` \"{c['text'][:80]}\" (sim {c['similarity']})"
+                        for c in supersede["candidates"]
+                    )
+                    note += (f"\nPossibly outdated predecessor(s): {cand}. If this "
+                             f"memory replaces one, confirm with action 'supersede' "
+                             f"(memory_id: {entry['id'][:8]}, old_ids: the old id).")
             except Exception:
                 pass
-        return _text_result(f"Memory added: [{category}] {text} (id: {entry['id'][:8]})")
+        return _text_result(f"Memory added: [{category}] {text} (id: {entry['id'][:8]}){note}")
 
     elif action == "edit":
         memory_id = arguments.get("memory_id", "")
@@ -267,8 +282,35 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             lines.append(f"- [{cat}] `{mid}` — {text}")
         return _text_result("\n".join(lines))
 
+    elif action == "supersede":
+        new_prefix = arguments.get("memory_id", "")
+        old_arg = arguments.get("old_ids", "")
+        if not new_prefix or not old_arg:
+            return _text_result("Error: supersede needs memory_id (new) and old_ids")
+        owner, _all_memories, visible, scope_error = _scope_entries()
+        if scope_error:
+            return _text_result(scope_error)
+
+        def _resolve(prefix):
+            prefix = prefix.strip()
+            return next((m["id"] for m in visible
+                         if prefix and m.get("id", "").startswith(prefix)), None)
+
+        new_full = _resolve(new_prefix)
+        if not new_full:
+            return _text_result(f"Error: Memory '{new_prefix}' not found")
+        old_full = [i for i in (_resolve(p) for p in str(old_arg).split(",")) if i]
+        if not old_full:
+            return _text_result(f"Error: No old memories matched '{old_arg}'")
+        from src.memory_supersede import apply as apply_supersede
+        applied = apply_supersede(_memory_manager, _memory_vector, new_full,
+                                  old_full, owner=owner)
+        if not applied:
+            return _text_result("Error: Nothing superseded (already superseded, or not yours)")
+        return _text_result("Superseded: " + ", ".join(i[:8] for i in applied))
+
     else:
-        return _text_result(f"Error: Unknown action '{action}'. Use: list, add, edit, delete, search")
+        return _text_result(f"Error: Unknown action '{action}'. Use: list, add, edit, delete, search, supersede")
 
 
 async def run():

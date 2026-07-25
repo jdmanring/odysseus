@@ -409,12 +409,16 @@ async def extract_and_store(
             # to the text/fuzzy dedup below instead of losing every validated
             # fact extracted this session. (`.healthy` is only set at init, so
             # it does not catch failures that develop later.)
+            supersede_target = None
             if memory_vector and memory_vector.healthy:
                 try:
-                    existing_id = memory_vector.find_similar(fact_text, threshold=0.72)
+                    _matches = memory_vector.similar(fact_text, k=1, floor=0.72)
+                    existing_id = _matches[0]["memory_id"] if _matches else None
+                    _match_sim = _matches[0]["similarity"] if _matches else 0.0
                 except Exception as e:
                     logger.warning(f"Memory dedup (vector) unavailable, using text fallback: {e}")
                     existing_id = None
+                    _match_sim = 0.0
                 if existing_id:
                     # The vector store is a single shared collection with no
                     # owner metadata, so find_similar can return ANOTHER
@@ -425,8 +429,24 @@ async def extract_and_store(
                     # text dedup below; cross-tenant/stale matches fall through.
                     _match = next((e for e in existing if e.get("id") == existing_id), None)
                     if _match is not None and (_match.get("owner") == _owner or _match.get("owner") is None):
-                        logger.debug(f"Memory dedup (vector): '{fact_text[:50]}' matches {existing_id}")
-                        continue
+                        from src.memory_supersede import AUTO_THRESHOLD
+                        if _match_sim >= AUTO_THRESHOLD:
+                            # Restatement/update of the user's own fact (zero
+                            # measured false positives at this threshold): store
+                            # the fresh wording and retire the old entry instead
+                            # of dropping the update — dropping is how stale
+                            # facts used to outlive the conversation that
+                            # corrected them.
+                            supersede_target = existing_id
+                        else:
+                            # DEFER(user reports stale facts persisting despite
+                            # correcting them in chat): 0.72-0.80 cannot be
+                            # auto-classified as update vs duplicate by
+                            # similarity alone (measured overlap with distinct
+                            # facts); an LLM arbitration step in the extraction
+                            # pipeline is the upgrade path.
+                            logger.debug(f"Memory dedup (vector): '{fact_text[:50]}' matches {existing_id}")
+                            continue
 
             # Text dedup fallback: exact match + fuzzy similarity
             user_existing = [e for e in existing if e.get("owner") == _owner or e.get("owner") is None] if _owner else existing
@@ -456,6 +476,21 @@ async def extract_and_store(
                     memory_vector.add(entry["id"], fact_text)
                 except Exception as e:
                     logger.warning(f"Memory vector add failed for {entry['id']}: {e}")
+
+            if supersede_target:
+                try:
+                    from src.memory_supersede import apply as apply_supersede
+                    applied = apply_supersede(memory_manager, memory_vector,
+                                              entry["id"], [supersede_target],
+                                              owner=_owner)
+                    if applied:
+                        # keep the in-memory list consistent with what apply()
+                        # just persisted, so later dedup passes this batch see it
+                        for e in existing:
+                            if e.get("id") in applied:
+                                e["superseded_by"] = entry["id"]
+                except Exception as e:
+                    logger.warning(f"Memory supersede failed for {entry['id']}: {e}")
 
             added += 1
 
