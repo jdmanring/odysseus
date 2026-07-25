@@ -89,8 +89,18 @@ def _ensure_init():
         from src.memory_vector import MemoryVectorStore
         _memory_vector = MemoryVectorStore(DATA_DIR)
         if not _memory_vector.healthy:
+            # Under embedded local mode the store takes an exclusive cross-process
+            # lock, so if the main app process already holds it this subprocess
+            # loses and semantic memory tools degrade to keyword. Say so loudly —
+            # it used to be silent. (Proper fix: a single vector-store owner the
+            # MCP proxies to; see docs/dev/memory-architecture.md.)
+            print("[memory-mcp] vector store unavailable (local Qdrant likely held "
+                  "by the app process); memory tools fall back to keyword search.",
+                  file=sys.stderr, flush=True)
             _memory_vector = None
-    except Exception:
+    except Exception as e:
+        print(f"[memory-mcp] vector store init failed ({e}); keyword fallback.",
+              file=sys.stderr, flush=True)
         _memory_vector = None
 
 
