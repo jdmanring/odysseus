@@ -443,8 +443,9 @@ ignores the flag entirely.
 
 Why this exists, measured (Biscuit placement study, 2026-07-25): on the
 smallest iGPU AMD ships (2 CUs), embedding throughput under a fully
-saturated CPU is 42 docs/s where CPU-only embedding collapses to 1.5 -
-a 28x advantage, with paired-test score neutrality (1-0 discordant
+saturated CPU is 42-43 docs/s where CPU-only embedding collapses to
+0.6-1.5 - at least a 28x advantage (the verified-idle rerun measured
+~70x), with paired-test score neutrality (1-0 discordant
 queries vs CPU kernels). The architecture point is resource negotiation:
 the LLM owns the discrete GPU, the app owns the CPU, and the iGPU is the
 one device nothing else contends for, over unified memory. On 780M-class
