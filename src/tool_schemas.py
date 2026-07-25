@@ -1442,6 +1442,9 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
             content = "edit\n" + args.get("memory_id", "") + "\n" + args.get("text", "")
         elif action == "delete":
             content = "delete\n" + args.get("memory_id", "")
+        elif action == "supersede":
+            content = ("supersede\n" + args.get("memory_id", "") + "\n"
+                       + str(args.get("old_ids") or args.get("old_id") or ""))
         elif action == "search":
             content = "search\n" + (args.get("text") or args.get("tex") or args.get("query") or "")
         elif action == "list":

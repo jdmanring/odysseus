@@ -380,6 +380,9 @@ def _parse_manage_memory(content: str) -> Dict:
         args["text"] = lines[2].strip() if len(lines) > 2 else ""
     elif action == "delete":
         args["memory_id"] = lines[1].strip() if len(lines) > 1 else ""
+    elif action == "supersede":
+        args["memory_id"] = lines[1].strip() if len(lines) > 1 else ""
+        args["old_ids"] = lines[2].strip() if len(lines) > 2 else ""
     elif action == "search":
         args["text"] = lines[1].strip() if len(lines) > 1 else ""
     elif action == "list":

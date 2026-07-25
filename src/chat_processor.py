@@ -99,6 +99,13 @@ class ChatProcessor:
         if not mem_entries or not message.strip():
             return []
 
+        # Superseded entries never reach chat context (see memory_supersede).
+        # Fusion shape is shared with src/memory_ranking.hybrid_search; this
+        # path keeps its own tokenizer/boosts because they are live-tested.
+        mem_entries = [m for m in mem_entries if not m.get("superseded_by")]
+        if not mem_entries:
+            return []
+
         now = time.time()
         query_tokens = _content_tokens(message)
 

@@ -70,7 +70,9 @@ def test_native_provider_recall_filters_vector_hits_by_owner(tmp_path):
 
     assert [hit.memory.id for hit in hits] == [alice.id]
     assert hits[0].provider_id == "native"
-    assert hits[0].score == 0.75
+    # recall now returns the fused dense+BM25+recency score, not the raw
+    # vector score passthrough; the dense term contributes 0.55 * 0.75.
+    assert hits[0].score is not None and hits[0].score >= 0.55 * 0.75
 
 
 def test_native_provider_recall_accepts_legacy_vector_rows(tmp_path):

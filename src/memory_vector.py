@@ -164,28 +164,43 @@ class MemoryVectorStore:
         out.sort(key=lambda row: (-row["score"], lane_priority.get(row["embedding_lane"], 99)))
         return dedupe_results(out, id_key="memory_id", limit=k)
 
-    def find_similar(self, text: str, threshold: float = 0.92) -> Optional[str]:
-        """Check if a near-duplicate exists. Returns memory_id if found, else None."""
+    def similar(self, text: str, k: int = 5, floor: float = 0.0) -> List[Dict]:
+        """Document-to-document similarity: the stored memories most similar
+        to `text` itself (no is_query prefix on either side). Returns
+        [{"memory_id", "similarity"}] sorted by similarity, filtered to
+        similarity >= floor. Used by write-time supersede detection."""
         if not self._healthy:
-            return None
+            return []
 
+        out = []
         for lane in self._lanes:
             try:
-                # Document-to-document comparison: no is_query prefix, and no
-                # count() guards — an empty collection just returns no hits.
+                # No count() guards — an empty collection just returns no hits.
                 results = lane.collection.query(
                     query_embeddings=lane.encode([text]),
-                    n_results=1,
+                    n_results=k,
                     include=["distances"],
                 )
-                if results["ids"][0]:
-                    distance = results["distances"][0][0]
-                    similarity = 1.0 - distance
-                    if similarity >= threshold:
-                        return results["ids"][0][0]
+                for idx, mid in enumerate(results["ids"][0]):
+                    similarity = 1.0 - results["distances"][0][idx]
+                    if similarity >= floor:
+                        out.append({"memory_id": mid, "similarity": round(similarity, 4)})
             except Exception as e:
                 logger.warning("memory similarity search failed in %s lane: %s", lane.name, e)
-        return None
+        out.sort(key=lambda row: -row["similarity"])
+        return dedupe_results(out, id_key="memory_id", limit=k)
+
+    def find_similar(self, text: str, threshold: float = 0.92) -> Optional[str]:
+        """Check if a near-duplicate exists. Returns memory_id if found, else None."""
+        matches = self.similar(text, k=1, floor=threshold)
+        return matches[0]["memory_id"] if matches else None
+
+    def update(self, memory_id: str, text: str):
+        """Re-embed an edited memory. add() deliberately skips ids that are
+        already indexed (idempotent writes), so an edit must remove first —
+        otherwise the entry keeps ranking by its OLD text forever."""
+        self.remove(memory_id)
+        self.add(memory_id, text)
 
     def rebuild(self, memories: List[Dict]):
         """Rebuild the entire index from a list of memory entries.
@@ -217,6 +232,10 @@ class MemoryVectorStore:
         texts = []
         ids = []
         for mem in memories:
+            if mem.get("superseded_by"):
+                # Superseded entries keep their JSON history but must never
+                # re-enter the index — stale facts outrank current ones.
+                continue
             text = mem.get("text", "").strip()
             mid = mem.get("id", "")
             if text and mid:
