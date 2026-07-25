@@ -457,6 +457,13 @@ llama-cpp-python built with GGML_VULKAN (or CUDA/Metal); who should turn
 it on: multi-GPU or APU machines where the CPU is busy - which is every
 machine actually running a local assistant.
 
+`tooling/provision_vulkan_embeddings.py` builds that Vulkan-enabled
+llama-cpp-python into the active venv (idempotent, `--check` to probe,
+prerequisites reported with package hints, nothing privileged). Measured
+safety property: a Vulkan build on a host with no usable Vulkan driver
+enumerates zero devices and keeps the CPU path fully working, so
+provisioning it can never regress a machine.
+
 Verified live on the production client: gpu_layers=99, device 1 (RADV
 iGPU), 18.4 ms query p50 with correct 256-dim output, matching the
 study's independent measurement.
