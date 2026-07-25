@@ -123,3 +123,54 @@ def test_vector_rag_owner_isolation_and_delete(real_qdrant, tmp_path, monkeypatc
     removed = rag.delete_by_source("py.md")
     assert removed == 1
     assert rag.get_stats()["document_count"] == 2
+
+
+# ── Supersede-on-write through the real adapter ─────────────────────────────
+
+def test_similar_update_and_supersede_loop_through_real_qdrant(real_qdrant, tmp_path, monkeypatch):
+    """The whole write-time supersede loop against a real Qdrant engine:
+    doc-doc similar(), the edit-path re-embed (update), on_write's AUTO tier
+    at exact-restatement similarity, and rebuild refusing superseded rows."""
+    monkeypatch.setenv("ODYSSEUS_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("ODYSSEUS_MEMORY_SUPERSEDE", raising=False)
+    from src.memory import MemoryManager
+    from src.memory_vector import MemoryVectorStore
+    from src import memory_supersede
+
+    mgr = MemoryManager(str(tmp_path))
+    mv = MemoryVectorStore(str(tmp_path))
+    assert mv.healthy
+
+    old = mgr.add_entry("the user drinks black coffee", owner="james")
+    other = mgr.add_entry("dinner reservation friday", owner="james")
+    mgr.save([old, other])
+    mv.add(old["id"], old["text"])
+    mv.add(other["id"], other["text"])
+
+    # doc-doc similar: identical text is a perfect match, floor filters the rest
+    matches = mv.similar("the user drinks black coffee", k=5, floor=0.9)
+    assert [m["memory_id"] for m in matches] == [old["id"]]
+    assert matches[0]["similarity"] == pytest.approx(1.0, abs=1e-3)
+
+    # update() re-embeds: the old text stops matching, the new one matches
+    mv.update(old["id"], "the user drinks espresso")
+    assert mv.similar("the user drinks black coffee", k=5, floor=0.9) == []
+    assert [m["memory_id"] for m in mv.similar("the user drinks espresso", k=5, floor=0.9)] \
+        == [old["id"]]
+
+    # on_write AUTO tier: an identical restatement supersedes the old entry
+    new = mgr.add_entry("the user drinks espresso", owner="james")
+    mems = mgr.load_all(); mems.append(new); mgr.save(mems)
+    mv.add(new["id"], new["text"])
+    result = memory_supersede.on_write(mgr, mv, new)
+    assert result["superseded"] == [old["id"]]
+    stored_old = next(e for e in mgr.load_all() if e["id"] == old["id"])
+    assert stored_old["superseded_by"] == new["id"]
+
+    # superseded entry left the index; search can no longer return it
+    assert all(h["memory_id"] != old["id"]
+               for h in mv.search("the user drinks espresso", k=5))
+
+    # rebuild refuses superseded rows
+    mv.rebuild(mgr.load_all())
+    assert mv.count() == 2  # other + new, never old
