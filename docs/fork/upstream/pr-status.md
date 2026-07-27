@@ -50,7 +50,11 @@ eviction graft was superseded and discarded.
 `fix/untrusted-tool-result-header` (#48) **rebuilt** as one clean commit on current
 `upstream-mirror`, byte-identical to develop; PR draft corrected to the shipped header.
 
-Nothing pushed yet (develop, integration+tag, and the rebased branches are local).
+Push state resolved 2026-07-26: develop, integration, and the rebased staging
+branches are all on origin. A sweep found three staged branches that had never
+been pushed (`fix/cookbook-hf-gguf-repo-nameerror`, `fix/history-route-shadow`,
+`fix/sqlalchemy-orm-declarative-import`, each a single clean commit off
+`upstream-mirror`, each already cherry-picked to develop); pushed same day.
 
 ---
 

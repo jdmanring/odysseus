@@ -1,5 +1,14 @@
 # Active Work
 
+**2026-07-26: Push-state sweep closed the 07-07 ledger item.** All local branches
+compared against origin: develop and integration were already up; three staged
+branches had never been pushed (`fix/cookbook-hf-gguf-repo-nameerror` #135-adjacent,
+`fix/history-route-shadow` #125, `fix/sqlalchemy-orm-declarative-import` #163 - each
+a single clean commit off `upstream-mirror`, each already cherry-picked to develop);
+pushed. pr-status.md's stale "Nothing pushed yet" corrected; the submission-strategy
+memory's wrong pager-supersession attribution (#5090) corrected to direct commit
+`45ee5a71` per pr-status. Remaining from 07-07: broader in-app Qt smoke-run.
+
 **2026-07-22: Tray server-runner menu + About (#159), BSD white-screen fixes, FreeBSD/memory bring-up, install-time memory check (#160).**
 Bench-driven across `ssh macos` / `ssh freebsd` / `ssh win11` / `ssh openbsd`.
 **Tray (#159, staged on the per-OS wrapper branches):** expanded the system tray from Open/Close-to-tray/Quit to the server-runner convention (Docker/Tailscale/Syncthing/Ollama): live status line, Open in Browser, Copy Server URL, Settings…, Shortcut Keys…, Expose to Network (gated 0.0.0.0 rebind), View Logs, Restart Server (off-thread), plus a native **About** dialog (icon, live version from `src/constants.py`, AGPL §5 notice, links) and a **Windows dark title bar** (`DwmSetWindowAttribute` immersive dark mode, verified S_OK on Win11 24H2). macOS tray is the rumps helper over a now-bidirectional socket (status poll + verbs). Settings/Shortcut Keys drive the app's own DOM; `window.settingsModule` is an ES export, not a global (found live via CDP against the running host page).
