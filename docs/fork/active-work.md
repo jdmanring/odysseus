@@ -1,5 +1,39 @@
 # Active Work
 
+**2026-08-02: WORKBENCH MIGRATED to `jdmanring/odysseus-workbench` (IN PROGRESS, read this first).**
+The old fork `jdmanring/odysseus` is mis-rooted: GitHub shows its `parent`/`source` as
+the unrelated `arcahyadi/odysseus` after a fork-network restructuring, and a support
+ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysseus`;
+`parent` and `source` both verify as upstream.
+
+**Done and verified:**
+- `jdmanring/odysseus-workbench`, public, **Issues disabled by design** (this repo
+  stages upstream PRs; it is not a public contribution target, and a GitHub tracker on
+  it only added confusion). Issue tracking is now **in-repo**: `docs/fork/issues/`.
+- **109 branches + 55 tags pushed, every tip SHA identical** to origin (0 missing,
+  0 mismatched). Only extras on the new fork are upstream's own `HEAD` and `dev`.
+- All 168 issues (134 open, 34 closed) exported with bodies and 113 comment threads to
+  `docs/fork/issues/issue-export.json`, rendered by `tooling/issues_to_markdown.py`
+  (the render is gitignored; regenerate it, do not commit it).
+- Acceptance check: `gh api "repos/odysseus-dev/odysseus/compare/dev...jdmanring:odysseus-workbench:develop"`
+  returns `diverged`, 3135 ahead / 1957 behind — the 1957 is exactly the ingest backlog.
+
+**Still to do before the old repo is deleted:**
+1. Set the new fork's default branch to `develop` (currently upstream's `dev`).
+2. Repoint `origin` to the workbench; keep `upstream` read-only with its disabled push URL.
+3. Rewrite the issue-first rules and every `github.com/jdmanring/odysseus/issues/N` link
+   in `CLAUDE.md`, `docs/fork/ai-policy.md`, `docs/fork/issue-tracker.md`, this file and
+   `docs/fork/upstream/pr-status.md` to point at `docs/fork/issues/`.
+   **Deleting the old repo leaves NO redirects** (only renames/transfers redirect), so
+   every such link dies the moment it goes. Rewrite first, delete second.
+4. Then delete `jdmanring/odysseus` once the above is verified.
+
+**Do NOT repeat the retracted claim** that the mis-rooting "blocks filing entirely".
+That was a shorthand-resolution artifact, now retracted in
+`docs/fork/github-fork-detach-request.md`. Whether a PR can be opened from a mis-rooted
+fork is still unknown. The migration is justified by removing the ambiguity, not by that
+claim.
+
 **2026-08-02: In-app Qt smoke-run (the 07-07 ledger item) - 4 surfaces verified, 3 left open.**
 Ran the real QtWebEngine app (`/usr/bin/python qt_wrapper.py`) driven over CDP on :9222,
 against a sandbox data dir seeded with a copy of the real `app.db` so the history checks
