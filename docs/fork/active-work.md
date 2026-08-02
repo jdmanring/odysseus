@@ -1,5 +1,37 @@
 # Active Work
 
+**2026-08-02: In-app Qt smoke-run (the 07-07 ledger item) - 4 surfaces verified, 3 left open.**
+Ran the real QtWebEngine app (`/usr/bin/python qt_wrapper.py`) driven over CDP on :9222,
+against a sandbox data dir seeded with a copy of the real `app.db` so the history checks
+had genuine long sessions. Baseline first: full suite **5991 passed, 6 skipped, 0 failed**
+(303 s, up from 5401 at the 07-07 merge). All 6 skips identified by reason and benign
+(2 opt-in live tiers, 1 scheduling-dependent JS path covered elsewhere, 1 absent branch,
+1 Windows guard, 1 CDP-gated); **no silently-skipped `qt_wrapper` module**, so the #120
+importorskip trap was not in play.
+
+| Surface | Result |
+|---|---|
+| Boot / ES-module graph in QtWebEngine | **PASS** - readyState complete, 0 uncaught, 0 console.error, 0 breakage signatures (same regex the boot-smoke test uses), 34 module scripts, chat + composer present |
+| `MessageWindow` eviction + scroll-up server paging | **PASS** - 205-message session: first page capped at 100 by the server, scroll-up walked 100 -> 200 -> 205, `hasMore` false, all 205 reachable, DOM bounded throughout (peak 177, final 175) |
+| Route subpackage shims / real send path | **PASS** - drove the actual composer with trusted CDP input events: `chat_stream` POST, SSE deltas, render, save; assistant returned the exact requested token |
+| `test_editor_undo_compression_integration` (was skipping) | **PASS** live against the running app |
+| `tool_implementations` facade (agent tool call) | **UNREACHED** - agent-mode submit did not fire; composer emptied and the send button stayed in `newchat-mode` ("+ New"). Plain (non-agent) submit works, so this is specific to that path. Not diagnosed; one attempt was budgeted |
+| Clipboard copy buttons | **UNREACHED** - `navigator.clipboard.writeText` never resolves under CDP even after `Browser.grantPermissions`; likely needs a real user gesture. Not evidence of a defect |
+| Cookbook Launch on a finished download | **UNREACHED** - no finished download exists in the sandbox state to click |
+| `test_idle_gc_integration` | skipped on a data precondition (Brain memory list too sparse in the sandbox), not a code failure |
+
+**Sandboxing trap worth keeping.** `ODYSSEUS_DATA_DIR` alone does NOT isolate the database.
+A local (gitignored) `.env` pins `DATABASE_URL=sqlite:///data/app.db`, a repo-relative path
+resolved against the server's cwd, and `load_dotenv` applies it over the DATA_DIR-derived
+default. The first launch therefore moved auth/sessions/logs to the sandbox while the DB
+stayed real, and the app ran ~4 minutes against live data. Measured against a pre-run copy:
+zero deletions, zero message loss, one empty session row added (removed afterwards; DB back
+to 56 sessions / 2710 messages). The near-miss worth noting is that `list_sessions` runs a
+server-side lazy purge that DELETES "Nobody"/"Incognito" sessions older than ten minutes;
+it matched nothing. **Always pass BOTH `ODYSSEUS_DATA_DIR` and an absolute `DATABASE_URL`,
+then verify with `ls -l /proc/<uvicorn-pid>/fd | grep app.db` before interacting.** The
+symptom of a failed isolation is `/api/sessions` returning `[]` under a sandbox-only user.
+
 **2026-07-26: Push-state sweep closed the 07-07 ledger item.** All local branches
 compared against origin: develop and integration were already up; three staged
 branches had never been pushed (`fix/cookbook-hf-gguf-repo-nameerror` #135-adjacent,
