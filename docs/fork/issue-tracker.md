@@ -1,18 +1,35 @@
 # Issue Tracker
 
-All issues for this fork are on GitHub: https://github.com/jdmanring/odysseus/issues
+**Issues live in this repo, not on GitHub: [`issues/`](issues/).** The workbench
+(`jdmanring/odysseus-workbench`) has GitHub Issues **disabled by design** — it stages
+upstream PRs and is not a public contribution target, and a GitHub tracker on it only
+added confusion.
+
+| File | Role |
+|------|------|
+| `issues/issue-export.json` | Source of truth: all 168 issues with bodies, labels, and 113 comment threads |
+| `issues/INDEX.md` | Committed one-line index. A `#N` reference anywhere in these docs resolves here |
+| `issues/README.md` | Full readable render. Generated, **not** committed — `python3 tooling/issues_to_markdown.py` |
+
+These were carried over from the retired `jdmanring/odysseus` before it was deleted.
+**Historical documents still cite `https://github.com/jdmanring/odysseus/issues/N`.**
+Those links are dead — deleting a repo leaves no redirects, unlike a rename or transfer.
+The numbers are unchanged, so resolve them in `issues/INDEX.md`. Those citations are
+deliberately left as written: they are an accurate record of where the work was tracked
+at the time, and rewriting them would falsify the history.
 
 ---
 
 ## Workflow
 
 **Issue first, branch second.** Every piece of work (bugs, features, upstream contributions,
-fork-only changes) starts with a GitHub Issue on `jdmanring/odysseus`. The branch is named
-to match the issue's subject. This is the single source of truth for what work exists,
+fork-only changes) starts with an entry in the local tracker. The branch is named
+to match the entry's subject. This is the single source of truth for what work exists,
 what its status is, and what branch carries the fix.
 
 ```
-1. Create issue on https://github.com/jdmanring/odysseus/issues
+1. Add an entry to docs/fork/issues/issue-export.json (next free number),
+   then run: python3 tooling/issues_to_markdown.py
 2. Determine branch origin:
    - upstream-candidate → branch from upstream-mirror
    - fork-only          → branch from develop
