@@ -104,3 +104,6 @@ gha-creds-*.json
 
 # Local CDP forensics (not committed; value captured as proper tests)
 diagnose_*.py
+
+# Generated from docs/fork/issues/issue-export.json by tooling/issues_to_markdown.py
+docs/fork/issues/README.md

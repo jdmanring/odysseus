@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Render the GitHub issue export into a readable, greppable local tracker.
+
+The workbench fork is moving to jdmanring/odysseus-workbench with Issues
+disabled: it stages upstream PRs and is not a public contribution target, so a
+GitHub issue tracker on it only added confusion. Tracking moves in-repo, which
+also means an issue is versioned alongside the branch that carries its fix.
+
+Source of truth is docs/fork/issues/issue-export.json (full fidelity: bodies,
+comments, labels, timestamps). This renders the human-readable view.
+
+Usage:  python3 tooling/issues_to_markdown.py
+"""
+
+import json
+import pathlib
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+EXPORT = REPO / "docs/fork/issues/issue-export.json"
+OUT = REPO / "docs/fork/issues/README.md"
+
+
+def render(issues: list[dict]) -> str:
+    issues = sorted(issues, key=lambda i: i["number"], reverse=True)
+    open_, closed = [i for i in issues if i["state"] == "OPEN"], [
+        i for i in issues if i["state"] == "CLOSED"]
+
+    lines = [
+        "# Issue tracker (local)",
+        "",
+        f"{len(open_)} open, {len(closed)} closed. Generated from "
+        "`issue-export.json` by `tooling/issues_to_markdown.py`; edit the JSON, "
+        "then regenerate.",
+        "",
+        "These were exported from `jdmanring/odysseus` before the workbench moved "
+        "to a correctly-rooted fork. The old repo is archived and its issue URLs "
+        "still redirect, but this file is now the tracker: the workbench has "
+        "Issues disabled by design.",
+        "",
+        "## Open",
+        "",
+        "| # | Title | Labels |",
+        "|---|-------|--------|",
+    ]
+    for i in open_:
+        labels = ", ".join(l["name"] for l in i.get("labels") or []) or "-"
+        title = i["title"].replace("|", "\\|")
+        lines.append(f"| {i['number']} | [{title}](#issue-{i['number']}) | {labels} |")
+
+    lines += ["", "## Closed", "", "| # | Title |", "|---|-------|"]
+    for i in closed:
+        title = i["title"].replace("|", "\\|")
+        lines.append(f"| {i['number']} | {title} |")
+
+    lines += ["", "---", "", "## Detail", ""]
+    for i in issues:
+        state = "OPEN" if i["state"] == "OPEN" else "CLOSED"
+        labels = ", ".join(l["name"] for l in i.get("labels") or [])
+        lines += [
+            f'<a id="issue-{i["number"]}"></a>',
+            f"### #{i['number']} — {i['title']}",
+            "",
+            f"`{state}`" + (f" · {labels}" if labels else "")
+            + f" · created {i.get('createdAt', '')[:10]}"
+            + (f" · closed {i['closedAt'][:10]}" if i.get("closedAt") else ""),
+            "",
+            (i.get("body") or "_no description_").strip(),
+            "",
+        ]
+        for c in i.get("comments") or []:
+            who = (c.get("author") or {}).get("login", "unknown")
+            when = (c.get("createdAt") or "")[:10]
+            lines += [f"> **comment** ({who}, {when})", "",
+                      "\n".join("> " + ln for ln in
+                                (c.get("body") or "").strip().splitlines()), ""]
+        lines.append("---")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def main() -> None:
+    issues = json.loads(EXPORT.read_text())
+    OUT.write_text(render(issues))
+    n_open = sum(1 for i in issues if i["state"] == "OPEN")
+    print(f"wrote {OUT.relative_to(REPO)}: {len(issues)} issues "
+          f"({n_open} open), {OUT.stat().st_size:,} bytes")
+
+
+if __name__ == "__main__":
+    main()
+    # self-check: every exported issue must appear in the rendered output
+    data = json.loads(EXPORT.read_text())
+    text = OUT.read_text()
+    missing = [i["number"] for i in data if f'id="issue-{i["number"]}"' not in text]
+    assert not missing, f"issues dropped during render: {missing}"
+    print(f"self-check ok: all {len(data)} issues present in the rendered tracker")
