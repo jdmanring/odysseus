@@ -7,8 +7,24 @@ event (likely triggered by the upstream rename) re-rooted the network to the unr
 4-star `arcahyadi/odysseus` repo. Verified not a security issue: no unexpected
 collaborators, deploy keys, or webhooks on the fork.
 
-**Impact:** the fork page mis-attributes the source, and the GitHub web-UI PR flow
-defaults the base repo to `arcahyadi/odysseus` instead of `odysseus-dev/odysseus`.
+**Impact: this BLOCKS the fork's entire purpose. It is not cosmetic.** GitHub scopes
+cross-repository compare, and therefore pull-request creation, to the fork network. A
+PR from `jdmanring/odysseus` to `odysseus-dev/odysseus` cannot be opened at all.
+
+Measured 2026-08-02, read-only:
+
+```sh
+gh api "repos/odysseus-dev/odysseus/compare/dev...jdmanring:develop"   # 404 Not Found
+gh api "repos/arcahyadi/odysseus/compare/main...jdmanring:develop"     # 200, ahead_by 1553
+```
+
+The control proves it is the network, not the history: the two repos DO share an
+ancestor locally (`git merge-base upstream/dev origin/develop` resolves). Corroborating
+evidence: `gh pr list --repo odysseus-dev/odysseus --author jdmanring --state all`
+returns **0** — no PR has ever been filed from this account, because none could be.
+
+The fork page also mis-attributes the source, and the web-UI PR flow defaults the base
+repo to `arcahyadi/odysseus`.
 
 **What only GitHub Support can do** (no API/CLI/settings path exists):
 - **Detach** `jdmanring/odysseus` from its current fork network (makes it a standalone
@@ -43,6 +59,11 @@ gh api repos/jdmanring/odysseus --jq '{fork, parent: .parent.full_name, source: 
 ```
 
 The git remotes are already correct and need no change (`origin` = jdmanring,
-`upstream` = odysseus-dev, push to upstream disabled). PRs staged via `gh` already
-target `odysseus-dev` explicitly, so contribution flow is unaffected meanwhile. Just
-never accept the web UI's default base repo until this is fixed.
+`upstream` = odysseus-dev, push to upstream disabled).
+
+**Correction 2026-08-02:** an earlier version of this document claimed "PRs staged via
+`gh` already target `odysseus-dev` explicitly, so contribution flow is unaffected
+meanwhile." That was asserted, never tested, and it is **wrong** — see the Impact
+section. Targeting the base repo explicitly does not help, because the two repos are in
+different fork networks. Nothing can be filed until the network is fixed or the work
+moves to a fork that is genuinely in upstream's network.
