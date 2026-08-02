@@ -86,7 +86,7 @@ pkgver=0                  # set dynamically from LKG tags — see versioning bel
 pkgrel=1
 pkgdesc="Self-hosted AI workspace — jdmanring fork with native KDE desktop integration"
 arch=('x86_64')
-url="https://github.com/jdmanring/odysseus"
+url="https://github.com/jdmanring/odysseus-workbench"
 license=('MIT')
 depends=(
     'python'
@@ -96,7 +96,7 @@ depends=(
     'lsof'               # used by odysseus-app shutdown hook
 )
 makedepends=('git')
-source=("git+https://github.com/jdmanring/odysseus.git#tag=LKG-LATEST")
+source=("git+https://github.com/jdmanring/odysseus-workbench.git#tag=LKG-LATEST")
 sha256sums=('SKIP')
 ```
 
