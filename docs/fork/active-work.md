@@ -30,6 +30,52 @@ ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysse
   break; no script, CI file or config referenced the old URL (comments only).
 - Old repo deleted and verified 404; the `oldfork` remote removed.
 
+**2026-08-02: UPSTREAM INGEST STARTED — mirror synced, merge NOT done. Read before
+resuming.**
+
+- **DONE and durable: `upstream-mirror` is now `25c9e735` (upstream/dev, 2026-07-30),**
+  advanced 1,957 commits from `68ba51cb` (07-18). This half of the ingest succeeded and
+  is retained.
+- **NOT done: the merge into `integration`.** Attempted and deliberately reverted.
+  `integration` (`c6917250`) and `develop` (`e4003d50`) are untouched.
+- **Restore point:** tags `prengest-20260802-0131/{develop,integration,upstream-mirror}`,
+  pushed to origin, so it survives local disk loss.
+
+**Measured conflict surface (the reason this was not pushed through in one go):**
+1,957 commits but only **185 files changed** upstream — commit count is not conflict
+risk. The fork has touched 598 files; the **overlap is 64 files**. The actual merge
+produced **113 conflicts / 658 conflict hunks**, of which **0 are trivially identical**
+on both sides. Breakdown: 44 add/add, 69 both-modified; by area static 31, tests 24,
+src 20, routes 16. Largest: `static/style.css` 51 hunks, `static/js/emailLibrary.js` 42,
+`static/js/cookbookServe.js` 38, `src/agent_loop.py` 35. Full list:
+`docs/fork/ingest-2026-08-conflict-surface.txt`.
+
+For scale, the 2026-07-07 ingest was 18 conflicts and still shipped a latent
+`ReferenceError` (`_mapHistoryMessages` calling an unimported module) that rendered chat
+history empty and was missed by the static suite. This is ~36x that surface.
+
+**Structural constraint: a merge resolution has NO intermediate commit point.** You
+cannot commit 40 of 113 resolved files; the merge commit needs all of them. So this is an
+atomic job — plan for it to be completed in one focused effort, not squeezed into the end
+of a session.
+
+**Resume procedure** (the merge is fully reproducible; mirror is pinned):
+```
+git checkout -b sync/manual-<ts> integration && git merge upstream-mirror
+git checkout integration -- .env.example README.md .github/workflows/sync-upstream.yml
+```
+then resolve, keeping BOTH sides: the fork patch merged into upstream's version, never
+one side wholesale. Suggested order (cheapest signal first): config/docker → tests →
+routes/src → static. Afterwards: full suite on the staging branch, `git checkout
+integration && git merge --ff-only`, tag `LKG-MANUAL-<date>`, then promote to develop and
+run the suite AND a real in-app pass — the static suite did not catch the last
+regression.
+
+**NOTE: `ai-policy.md` §1 is wrong on one point.** It says a conflicted pipeline run
+"leaves you on the sync/staging-TIMESTAMP branch". It does not — the run cleaned up and
+deleted the staging branch, returning to `integration`. Recreate the merge manually as
+above.
+
 **CI consequences of the migration — THREE OPEN ITEMS, none of them obvious.**
 Repository secrets and Actions state do NOT come across with a fork. Verified on the
 new repo: Actions **enabled**, 11 workflows registered, **zero secrets**.
