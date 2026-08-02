@@ -1,6 +1,6 @@
 # PR Draft: feat/unify-llamacpp-embeddings -> odysseus-dev/odysseus:dev
 
-**Fork issue:** [#TBD](https://github.com/jdmanring/odysseus/issues); create before branching
+**Fork issue:** #TBD (add to `docs/fork/issues/`); create before branching
 **Branch:** `feat/unify-llamacpp-embeddings` (from `upstream-mirror`)
 **Target:** `odysseus-dev/odysseus:dev`
 **Status:** Draft: code complete and green on the Linux host; needs the multi-platform install pass before filing

@@ -1,7 +1,7 @@
 # Issue Draft: feat/skill-quality-signals -> odysseus-dev/odysseus
 
-**Fork issue:** [#87](https://github.com/jdmanring/odysseus/issues/87)
-**Branch:** `jdmanring/odysseus:feat/skill-quality-signals`
+**Fork issue:** [#87](https://github.com/jdmanring/odysseus-workbench/issues/87)
+**Branch:** `jdmanring/odysseus-workbench:feat/skill-quality-signals`
 
 ---
 

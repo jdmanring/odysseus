@@ -1,7 +1,7 @@
 # PR Draft: feat/logging -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/logging`
-**Issue:** [#31](https://github.com/jdmanring/odysseus/issues/31) (fork tracking)
+**Issue:** [#31](https://github.com/jdmanring/odysseus-workbench/issues/31) (fork tracking)
 **Upstream Issues Addressed:**
 - [#3803](https://github.com/odysseus-dev/odysseus/issues/3803); PII in logs, no audit trail for sensitive operations
 - [#3799](https://github.com/odysseus-dev/odysseus/issues/3799); Hardening pass (PII scrubbed from logs)
@@ -156,5 +156,5 @@ Searched merged commits and open issues/PRs on `dev`:
 
 - **File upstream issue first**: draft in `docs/fork/upstream/issue-drafts/feat-logging.md`. Add the issue number to `Fixes #` above before opening the PR.
 - Reference upstream #3803 in the PR summary as the hardening audit that identified the PII and audit logging gaps. Note this PR does not address all items in #3803.
-- Branch: `jdmanring/odysseus:feat/logging` (previously split into feat/logging-core and feat/logging-timing; combined here because callsites are untestable without the infrastructure).
+- Branch: `jdmanring/odysseus-workbench:feat/logging` (previously split into feat/logging-core and feat/logging-timing; combined here because callsites are untestable without the infrastructure).
 - **SearXNG query content moved to DEBUG:** `services/search/providers.py` previously logged `query=query[:80]` at INFO alongside the timing entry. Query content (health conditions, legal situations, personal research) is the same category of PII that upstream #3803 flagged. Fix: the `searxng_http` INFO entry now logs only `elapsed_ms` and `status`; a paired `searxng_http_query` DEBUG entry carries the query text. Query content is available when `ODYSSEUS_DEBUG=1` or `ODYSSEUS_DEBUG_SUBSYSTEMS=services.search.providers`: a conscious opt-in, not an always-on exposure.

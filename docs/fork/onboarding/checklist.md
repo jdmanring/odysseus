@@ -3,9 +3,9 @@
 Use this checklist to verify your understanding of the Odysseus fork workflow and setup.
 
 ## Repository Setup
-- [ ] Cloned the correct repository: `git@github.com:jdmanring/odysseus.git`
+- [ ] Cloned the correct repository: `git@github.com:jdmanring/odysseus-workbench.git`
 - [ ] Verified remotes:
-  - `origin`: `github.com:jdmanring/odysseus.git` (read/write)
+  - `origin`: `github.com:jdmanring/odysseus-workbench.git` (read/write)
   - `upstream`: `github.com:odysseus-dev/odysseus.git` (read-only)
 - [ ] Checked current branch: `git branch -a`
 - [ ] Confirmed you're on an appropriate base branch for your work
@@ -46,7 +46,7 @@ If this is your first time setting up:
 - [ ] Confirmed you can access settings and modify preferences
 
 ## Contribution Readiness
-- [ ] Have a GitHub issue created for your work on `jdmanring/odysseus`
+- [ ] Have a tracking entry for your work in `docs/fork/issues/` (GitHub Issues are disabled on the workbench by design)
 - [ ] Know how to update fork tracking documents when work is ready:
   - PR draft in `docs/fork/upstream/pr-drafts/`
   - `docs/fork/active-work.md`

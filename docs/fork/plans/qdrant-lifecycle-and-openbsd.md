@@ -99,7 +99,7 @@ test covers the launch path**) dedicated launcher tests.
 
 ## Process (fork rules)
 
-Upstream-candidate (makes Odysseus better). Issue first on `jdmanring/odysseus`,
+Upstream-candidate (makes Odysseus better). Issue first on `jdmanring/odysseus-workbench`,
 branch from `upstream-mirror`, implement, cherry-pick to develop; branch stays for
 the upstream PR. Keep the launcher/mode logic Qt-free so it's testable under the
 venv PyQt stub.
