@@ -1,4 +1,4 @@
-# AI Policy: jdmanring/odysseus Fork
+# AI Policy: jdmanring/odysseus-workbench Fork
 
 > **Fork operating rules.** These constraints apply only in this workbench fork.
 > They are stricter than upstream's `CONTRIBUTING.md` in some areas and add rules
