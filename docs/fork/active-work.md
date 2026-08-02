@@ -92,8 +92,26 @@ new repo: Actions **enabled**, 11 workflows registered, **zero secrets**.
    here. (Could not enumerate the package to confirm: the local token lacks
    `read:packages`.) **Lesson: before pushing to an Actions-enabled repo, check what the
    push will TRIGGER — CI/secrets/webhooks are a migration category, like remotes.**
-3. **`sync-upstream.yml` still adds upstream as `pewdiepie-archdaemon/odysseus`**, which
-   works only via GitHub's rename redirect. Should be `odysseus-dev/odysseus`.
+   **RESOLVED 2026-08-02:** disabled via `gh workflow disable 325415795` (state
+   `disabled_manually`). Disabled as a REPO SETTING, not by editing or deleting the
+   workflow file, because the file is upstream's — editing it would create divergence to
+   re-resolve on every ingest merge. Re-enable with `gh workflow enable 325415795
+   --repo jdmanring/odysseus-workbench`. The already-published image was NOT deleted;
+   that needs `delete:packages` scope or a click in the web UI, and it is inert.
+3. ~~**`sync-upstream.yml` still adds upstream as `pewdiepie-archdaemon/odysseus`.**~~
+   **WRONG — retracted 2026-08-02.** The workflow already reads
+   `https://github.com/odysseus-dev/odysseus.git` (line 32); it was corrected in an
+   earlier pass and this entry went stale. The only surviving `pewdiepie-archdaemon`
+   references are in `.github/ISSUE_TEMPLATE/*.yml`, which are upstream's files, resolve
+   through GitHub's rename redirect, and never render here because Issues are disabled.
+   Deliberately NOT edited: divergence for zero benefit. Fixing them is an upstream PR.
+4. **`Sync upstream` disabled 2026-08-02** (`gh workflow disable 325431460`, state
+   `disabled_manually`). It runs on a daily 3am UTC cron and could not have succeeded:
+   `secrets.GH_PAT` does not exist on the workbench (secrets do not transfer with a fork),
+   so it would have failed and mailed every night — and would fail regardless while the
+   ingest merge sits at 113 unresolved conflicts. Re-enable AFTER both are true: the
+   `GH_PAT` secret is recreated, and the ingest merge is resolved. Local manual runs of
+   `tooling/sync-upstreams/` are unaffected and remain the working path.
 
 **Ingest pipeline VERIFIED INTACT after the migration (2026-08-02).** It addresses
 remotes by NAME (`upstream`, `origin`), not URL, so repointing origin changed nothing.
