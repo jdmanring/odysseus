@@ -1,7 +1,7 @@
 # PR Draft: fix/brain-panel-oom
 
 **Branch**: `fix/brain-panel-oom` (from `upstream-mirror`)
-**Issue**: jdmanring/odysseus#TBD (file before submitting)
+**Issue**: jdmanring/odysseus-workbench#TBD (file before submitting)
 **Base**: `upstream-mirror` (latest upstream commit)
 **Status**: Ready to file
 

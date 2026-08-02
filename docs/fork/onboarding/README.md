@@ -1,6 +1,6 @@
 # Odysseus Fork Onboarding Documentation
 
-This document provides an overview of the Odysseus fork (`jdmanring/odysseus`) and serves as a guide for understanding its purpose, structure, and contribution workflow.
+This document provides an overview of the Odysseus fork (`jdmanring/odysseus-workbench`) and serves as a guide for understanding its purpose, structure, and contribution workflow.
 
 ## Purpose of This Fork
 
@@ -36,7 +36,7 @@ This fork is a **contribution workbench**, not a divergent product. Its purpose 
 ## Git Workflow Remotes
 
 This fork uses two remotes:
-- `origin` - `github.com/jdmanring/odysseus` (read/write - development target)
+- `origin` - `github.com/jdmanring/odysseus-workbench` (read/write - development target)
 - `upstream` - `github.com/odysseus-dev/odysseus` (read-only - source project)
 
 **Critical Rules**:
@@ -48,7 +48,7 @@ This fork uses two remotes:
 ## Development Workflow
 
 ### Branch Creation
-1. Create tracking issue on `jdmanring/odysseus`
+1. Create a tracking entry in `docs/fork/issues/` (the workbench has GitHub Issues disabled by design)
 2. Create branch from correct base:
    - Upstream-candidate work: `git checkout -b fix/description upstream-mirror`
    - Fork-only work: `git checkout -b fix/description develop`
@@ -113,13 +113,13 @@ Before considering any work complete:
 
 ## Communication Channels
 
-- Issues and discussions: Use GitHub issues on `jdmanring/odysseus` fork
+- Issues: tracked in-repo at `docs/fork/issues/` (GitHub Issues are disabled on the workbench by design)
 - Upstream coordination: Follow procedures in `docs/fork/ai-policy.md`
 - Documentation updates: Keep `docs/fork/` synchronized with actual workflow
 
 ## Getting Started
 
-1. Clone the fork: `git clone git@github.com:jdmanring/odysseus.git`
+1. Clone the fork: `git clone git@github.com:jdmanring/odysseus-workbench.git`
 2. Set up environment: `cp .env.example .env` and configure as needed
 3. Start development: `docker compose up -d --build` or run `qt_wrapper.py` for native app
 4. Access UI: `http://localhost:7000` (Docker) or native Qt window

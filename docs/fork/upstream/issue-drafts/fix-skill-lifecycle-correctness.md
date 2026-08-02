@@ -1,7 +1,7 @@
 # Issue Draft: fix/skill-lifecycle-correctness -> odysseus-dev/odysseus
 
-**Fork issue:** [#86](https://github.com/jdmanring/odysseus/issues/86)
-**Branch:** `jdmanring/odysseus:fix/skill-lifecycle-correctness`
+**Fork issue:** [#86](https://github.com/jdmanring/odysseus-workbench/issues/86)
+**Branch:** `jdmanring/odysseus-workbench:fix/skill-lifecycle-correctness`
 
 ---
 
