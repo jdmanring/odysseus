@@ -43,7 +43,7 @@ Everything else defaults to upstream-candidate: bug fixes, features, `qt_wrapper
 
 **Never file upstream issues or PRs.** Agents stage work; the human author files. Do not open issues or PRs on `odysseus-dev/odysseus` without explicit per-action authorization. Upstream's CONTRIBUTING.md prohibits agent-filed PRs.
 
-**Issue first, branch second.** No branch exists without a corresponding issue on `jdmanring/odysseus`. Create the issue before creating any branch.
+**Issue first, branch second.** No branch exists without a corresponding entry in the **local** tracker, `docs/fork/issues/` (source of truth: `issue-export.json`; `INDEX.md` is the committed index; regenerate with `python3 tooling/issues_to_markdown.py`). Create the entry before creating any branch. The workbench repo has GitHub Issues **disabled by design**: it stages upstream PRs and is not a public contribution target. Historical docs cite `#N` against the retired `jdmanring/odysseus`; those numbers resolve in the local index.
 
 **Never close issues without verification.** An issue is closed only when the fix is confirmed working, not when you believe you've applied a fix. What "confirmed working" means depends on type: fork-only issues close when the fix lands on `develop`; upstream-candidate issues stay open until the upstream PR is filed (the filed PR is the only active tracker until then). Incorrect closings disrupt workflow tracking and will not be tolerated.
 

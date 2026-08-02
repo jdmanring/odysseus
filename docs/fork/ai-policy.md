@@ -24,8 +24,15 @@ docs) belongs upstream. When in doubt, assume upstream-candidate.
 **No sudo.** If an operation requires elevated privileges, write the command for the
 user to run; do not execute it yourself.
 
-**Issue before branch.** Create the tracking issue on `jdmanring/odysseus` before
-creating any branch. No branch exists without a corresponding issue.
+**Issue before branch.** Create the tracking entry in the **local** tracker
+(`docs/fork/issues/`) before creating any branch. No branch exists without one.
+
+The workbench repo (`jdmanring/odysseus-workbench`) has GitHub Issues **disabled by
+design**: it exists to stage upstream PRs, not to receive public contributions, and a
+GitHub tracker on it only added confusion. `docs/fork/issues/issue-export.json` is the
+source of truth (all 168 issues carried over from the retired `jdmanring/odysseus`,
+with bodies and comment threads); `INDEX.md` is the committed index; regenerate the
+readable view with `python3 tooling/issues_to_markdown.py`.
 
 **Branch when work begins, not when the issue is filed.** Do not pre-stage a
 branch at issue-filing time. A branch created "for later" sits empty, and an
@@ -267,11 +274,14 @@ git cherry-pick <hash2>
 
 ### 5. Creating a New Staging Branch
 
-**First: create the issue.**
+**First: create the tracking entry** in the local tracker. Append an object to
+`docs/fork/issues/issue-export.json` (take the next free number; the highest so far is
+recorded at the top of `INDEX.md`), then regenerate:
 ```bash
-gh issue create --repo jdmanring/odysseus --title "..." --body "..."
-# Note the issue number: the branch must not exist until the issue does
+python3 tooling/issues_to_markdown.py   # rewrites INDEX.md (committed) + README.md (ignored)
 ```
+The branch must not exist until the entry does. GitHub Issues are disabled on the
+workbench by design; do not try `gh issue create` against it.
 
 **Then: create the branch from upstream-mirror (NOT from develop).**
 ```bash
