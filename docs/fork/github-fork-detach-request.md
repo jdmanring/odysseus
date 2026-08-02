@@ -1,5 +1,13 @@
 # GitHub Support request: re-root/detach `jdmanring/odysseus` fork network
 
+> **RESOLVED 2026-08-02 — HISTORICAL RECORD, no action required.** The support ticket was
+> never answered. Rather than keep waiting, the workbench moved to
+> `jdmanring/odysseus-workbench`, forked directly from `odysseus-dev/odysseus` and
+> verified correctly rooted, and `jdmanring/odysseus` was deleted. Everything below
+> describes the retired repo and is kept because it records what happened and, more
+> usefully, what was concluded wrongly along the way. Do not "update" the repo names in
+> this document — it is about the old repo.
+
 **Problem:** `jdmanring/odysseus` shows "forked from `arcahyadi/odysseus`", which is the wrong
 parent. The fork was created from the canonical upstream (`pewdiepie-archdaemon/odysseus`,
 since renamed to `odysseus-dev/odysseus`, 61k+ stars). A fork-network restructuring
