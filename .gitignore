@@ -107,3 +107,6 @@ diagnose_*.py
 
 # Generated from docs/fork/issues/issue-export.json by tooling/issues_to_markdown.py
 docs/fork/issues/README.md
+
+# graphify code-graph build artifact (regenerate: graphify update . --no-cluster --force)
+graphify-out/
