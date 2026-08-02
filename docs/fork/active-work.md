@@ -30,6 +30,33 @@ ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysse
   break; no script, CI file or config referenced the old URL (comments only).
 - Old repo deleted and verified 404; the `oldfork` remote removed.
 
+**CI consequences of the migration — THREE OPEN ITEMS, none of them obvious.**
+Repository secrets and Actions state do NOT come across with a fork. Verified on the
+new repo: Actions **enabled**, 11 workflows registered, **zero secrets**.
+1. **`sync-upstream.yml` cannot authenticate.** It checks out with
+   `token: ${{ secrets.GH_PAT }}`, which no longer exists, so the nightly 3am sync will
+   fail until that secret is recreated on `jdmanring/odysseus-workbench`. A manual local
+   run of the pipeline is unaffected.
+2. **`docker-publish.yml` fired on the migration push and published to GHCR.** Pushing
+   the 109 branches brought `main`/`dev` with them, which is that workflow's trigger; the
+   run completed `build (amd64)`, `build (arm64)` and `merge manifest + tag`, so a
+   multi-arch image was published to `ghcr.io/jdmanring/odysseus-workbench` publicly and
+   unintentionally. It will re-fire on every future push to those branches. This
+   workbench stages PRs and is not a release target, so the workflow should be disabled
+   here. (Could not enumerate the package to confirm: the local token lacks
+   `read:packages`.) **Lesson: before pushing to an Actions-enabled repo, check what the
+   push will TRIGGER — CI/secrets/webhooks are a migration category, like remotes.**
+3. **`sync-upstream.yml` still adds upstream as `pewdiepie-archdaemon/odysseus`**, which
+   works only via GitHub's rename redirect. Should be `odysseus-dev/odysseus`.
+
+**Ingest pipeline VERIFIED INTACT after the migration (2026-08-02).** It addresses
+remotes by NAME (`upstream`, `origin`), not URL, so repointing origin changed nothing.
+Pushes are opt-in behind `--push` (default off). 8/8 unit tests pass. Preflight correctly
+REFUSED to run from `develop` ("Must be on 'integration' branch"), and a full
+`--dry-run` on `integration` exited 0 with all gates green: **4,674 passed / 1 skipped in
+89.6 s**, nothing promoted. (4,674 vs develop's 5,991 is expected — integration carries
+upstream code without the fork's added tests.)
+
 **Governing rules updated, historical records deliberately NOT.** `CLAUDE.md`,
 `docs/fork/ai-policy.md` and `docs/fork/issue-tracker.md` now point at the local tracker.
 The ~320 `github.com/jdmanring/odysseus/issues/N` citations in this file and
