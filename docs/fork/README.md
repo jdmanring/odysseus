@@ -8,7 +8,10 @@ from the upstream project, and for tracking our work as contributors.
 ## What This Fork Is
 
 **Upstream:** `github.com/odysseus-dev/odysseus` (remote: `upstream`)
-**This fork:** `github.com/jdmanring/odysseus` (remote: `origin`)
+**This fork:** `github.com/jdmanring/odysseus-workbench` (remote: `origin`). GitHub Issues
+are disabled on it by design; tracking is in-repo at [`issues/`](issues/). It replaced
+`jdmanring/odysseus` on 2026-08-02, which was mis-rooted onto an unrelated fork network
+and has been deleted.
 
 Odysseus is a self-hosted AI workspace. This fork is a personal AI stack
 on KDE/Artix Linux. The goals are:
