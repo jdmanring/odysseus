@@ -1,6 +1,7 @@
 # Active Work
 
-**2026-08-02: WORKBENCH MIGRATED to `jdmanring/odysseus-workbench` (IN PROGRESS, read this first).**
+**2026-08-02: WORKBENCH MIGRATED to `jdmanring/odysseus-workbench` — COMPLETE. The old
+`jdmanring/odysseus` is DELETED (verified 404).**
 The old fork `jdmanring/odysseus` is mis-rooted: GitHub shows its `parent`/`source` as
 the unrelated `arcahyadi/odysseus` after a fork-network restructuring, and a support
 ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysseus`;
@@ -18,15 +19,26 @@ ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysse
 - Acceptance check: `gh api "repos/odysseus-dev/odysseus/compare/dev...jdmanring:odysseus-workbench:develop"`
   returns `diverged`, 3135 ahead / 1957 behind — the 1957 is exactly the ingest backlog.
 
-**Still to do before the old repo is deleted:**
-1. Set the new fork's default branch to `develop` (currently upstream's `dev`).
-2. Repoint `origin` to the workbench; keep `upstream` read-only with its disabled push URL.
-3. Rewrite the issue-first rules and every `github.com/jdmanring/odysseus/issues/N` link
-   in `CLAUDE.md`, `docs/fork/ai-policy.md`, `docs/fork/issue-tracker.md`, this file and
-   `docs/fork/upstream/pr-status.md` to point at `docs/fork/issues/`.
-   **Deleting the old repo leaves NO redirects** (only renames/transfers redirect), so
-   every such link dies the moment it goes. Rewrite first, delete second.
-4. Then delete `jdmanring/odysseus` once the above is verified.
+**Completed after the above:**
+- Default branch set to `develop`; `origin` repointed to the workbench; `upstream` kept
+  read-only with its disabled push URL.
+- **3 local-only backup branches** (`backup/develop-premsg-rewrite`,
+  `backup/dom-oom-pre-b328e905-drop`, `backup/prerebuild-dom-oom-virtualization`) existed
+  on NO remote at all and were pushed. The workbench now holds more than the old repo did.
+- Final loss test before deletion: **0 commits reachable from the old repo were missing
+  from the workbench**; 0 open PRs there; AUR package verified unpublished so no installs
+  break; no script, CI file or config referenced the old URL (comments only).
+- Old repo deleted and verified 404; the `oldfork` remote removed.
+
+**Governing rules updated, historical records deliberately NOT.** `CLAUDE.md`,
+`docs/fork/ai-policy.md` and `docs/fork/issue-tracker.md` now point at the local tracker.
+The ~320 `github.com/jdmanring/odysseus/issues/N` citations in this file and
+`pr-status.md` are left as written: those links are now dead (deleting a repo leaves no
+redirects, unlike a rename or transfer) but the numbers are unchanged and resolve in
+`docs/fork/issues/INDEX.md`. Rewriting them would falsify an accurate record of where the
+work was tracked at the time. A blanket regex sweep was attempted and reverted — it also
+rewrote documents that are *about* the old repo, making them assert the opposite of the
+truth.
 
 **Do NOT repeat the retracted claim** that the mis-rooting "blocks filing entirely".
 That was a shorthand-resolution artifact, now retracted in
