@@ -83,16 +83,31 @@ untouched.
 
 ## What the lexical half is supported by
 
-**Five fresh corpus pools at pre-registered blend weights pool to 16-3 discordant
-for the production embedding model: p = 0.0044 by exact sign test, about +2
-points R@1.** The lift lands exactly where the mechanism predicts, on stale and
-temporal wording ("switched", "as of", "now"), which is where dense similarity is
-weakest.
+**The lift is confirmed at multiseed.** Blend weight chosen by stratified 5-fold
+CV on train folds only, then held out; five fresh filler pools at those
+pre-registered alphas, not re-tuned, pool to **16-3 discordant (p = 0.0044, exact
+sign test)** for nomic and 20-5 (p = 0.0041) for EmbeddingGemma-300m. The lift
+lands where the mechanism predicts: per-section, essentially all of it is in the
+stale section (0.54 -> 0.67 for gemma), and every other section is unchanged.
+Current facts carry temporal language ("switched", "as of", "now") that lexical
+scoring bridges to now-queries and dense similarity underweights.
 
 An earlier single-pool run read 4-1 discordant, p = 0.375, and was reported as
-directionally-real-but-unproven. The multi-pool study superseded it. Both numbers
-are in `docs/dev/memory-architecture.md` so the record reads forward rather than
-looking quietly revised.
+directionally-real-but-unproven; the multi-pool study superseded it. Both states
+of the evidence are kept in the source rather than the old one being quietly
+dropped.
+
+**One caveat, stated because the benchmark states it.** The effect size is partly
+an artifact of corpus construction: the benchmark's stale items were authored
+with temporal markers. Real memories carry them too, which is why the mechanism
+is expected to transfer, but **the magnitude should not be quoted as a general
+number** and this PR does not quote one. What transfers is the direction and the
+mechanism, not "+2 points R@1".
+
+Source and reproduction: the benchmark is a separate suite of the author's;
+`benchmark/hybrid_dense.py` regenerates the study, and the numbers are recorded
+in its `results/hybrid-dense.md` and `results/score-levers.md` part 5.
+`docs/dev/memory-architecture.md` in this repo carries the same figures.
 
 Two negatives measured alongside, recorded so they do not get re-litigated:
 
