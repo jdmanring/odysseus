@@ -1918,11 +1918,6 @@ function _endpointUrlForTask(task, outputText = '') {
   return `http://${host}:${port}/v1`;
 }
 
-// Force-kill escalation: SIGKILL the tmux pane's owning PID and any children,
-// then nuke the session. Use AFTER the graceful kill when the process is
-// still detected — vLLM sometimes ignores SIGINT during model init, and a
-// stuck CUDA context can survive `tmux kill-session` alone.
-
 // ── Wave animation ──
 
 const _waveFrames = ['▁▂▃', '▂▃▄', '▃▄▅', '▄▅▆', '▅▆▅', '▆▅▄', '▅▄▃', '▄▃▂', '▃▂▁'];
