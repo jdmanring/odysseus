@@ -8,6 +8,7 @@ multi-bubble agent replies. These tests pin the id-based server primitives and
 the precondition that paginated history carries `_db_id`.
 """
 import asyncio
+import atexit
 import importlib
 import os
 import tempfile
@@ -16,9 +17,25 @@ from types import SimpleNamespace
 from core.models import ChatMessage
 
 
+# Each call makes a fresh database; without this they accumulate in /tmp for the
+# life of the machine, which matters where /tmp is a RAM-backed tmpfs.
+_TEMP_DBS = []
+
+
+@atexit.register
+def _remove_temp_dbs():
+    for path in _TEMP_DBS:
+        for p in (path, path + "-wal", path + "-shm", path + "-journal"):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+
 def _make_manager():
     db_fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(db_fd)
+    _TEMP_DBS.append(db_path)
     os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
     import core.database as database
     importlib.reload(database)
