@@ -30,7 +30,9 @@ ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysse
   break; no script, CI file or config referenced the old URL (comments only).
 - Old repo deleted and verified 404; the `oldfork` remote removed.
 
-**2026-08-02: UPSTREAM INGEST — ALL 182 FILES RESOLVED, staged and UNCOMMITTED.**
+**2026-08-02: UPSTREAM INGEST — MERGED AND COMMITTED as `09f86519`, tag
+`ingest-20260802-merged`. NOT promoted to `develop` (conflict-free when it is).
+Tracked at #171.**
 Working branch `sync/ingest-20260802`. **The full working document is
 `docs/fork/ingest-20260802-resume.md` — read that before touching the merge;
 this entry is only the status line.**
@@ -43,8 +45,13 @@ this entry is only the status line.**
   them AFTER this merge commits, never against an uncommitted merge (#131).
 - Gates green: 0 conflicts, `ruff --select F821` clean, `node --check` clean on all 44
   resolved JS files, both loss directions reviewed, orphan scan clear.
-- **Nothing is committed.** `develop` is untouched apart from three fork-only tooling
-  commits (`65e8f3a1`, `508b03ec`, `fa00c29f`, all under #170) landed via a worktree.
+- **The merge is committed on its branch; `develop` has NOT been promoted.** `develop`
+  carries only three fork-only tooling commits (`65e8f3a1`, `508b03ec`, `fa00c29f`,
+  all under #170) landed via a worktree.
+- The issue tracker is deliberately kept BYTE-IDENTICAL on both branches (both carry
+  #170 and #171, in the same list order). `issue-export.json` is a single minified
+  line, so any divergence conflicts as a whole-file clash. Append entries to both
+  sides, or promote before adding more.
 - **Restore points:** tags `preingest-20260802-ee02a5a5/*` and
   `prengest-20260802-0131/*`, pushed to origin.
 - **`git merge --abort` is not fully clean** — it discards the merge's staged NEW files.
