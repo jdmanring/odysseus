@@ -82,6 +82,46 @@ needed porting. Its import hunk was a union minus the superseded `CHROMA_DIR` li
 It is a snapshot of someone else's CLOSED-unmerged upstream PR, it does not match that
 PR's head, and it holds a worktree lock. Same for `test/pr-4661`.
 
+**UPSTREAM-LOSS AUDIT of the ingest — run 2026-08-03, result: ONE real regression.**
+
+The earlier claim that "both loss directions run CLEAN" was WRONG, and the reason
+matters more than the result. `fork_work_loss.py` derived its base from
+`merge-base develop upstream-mirror`; once the ingest is PROMOTED develop contains
+upstream-mirror, so that returns upstream-mirror ITSELF, every upstream line reads
+as base content, and the tool prints a confident zero. The verification was
+structurally incapable of finding anything. It now refuses that state (exit 2) and
+takes `--base/--ours/--result` explicitly. It also died on the first non-UTF-8 byte,
+discarding a whole sweep; it decodes leniently now.
+
+Re-run properly over **1,694 files**: **64 files, 422 dropped upstream lines.**
+Full output kept at `docs/fork/audits/ingest-20260802-upstream-loss.txt`.
+
+Triage — nearly all are DELIBERATE supersessions, and the categories are the fork's
+four standing divergences:
+
+| lines | area | verdict |
+|---|---|---|
+| 65+55+15+8+6+15 | `embedding_lanes`, `chroma_client`, `rag_singleton`, `memory_provider`, `service_health` + tests | ChromaDB -> Qdrant |
+| 33+5 | `cookbook_routes`, `cookbookDownload` | hf_transfer -> aria2c; `test_aria2c_launcher_wiring` ASSERTS these lines absent |
+| 21+7 | `app.py`, diagnostics | stdlib logging -> structlog |
+| 41 | `sessions.js` | upstream's prepend-only history pager; the fork keeps its evicting MessageWindow (recorded decision) |
+| **18** | **`cookbookRunning.js`** | **GENUINE LOSS — fixed in `912d3b08`** |
+
+**The one real regression is the shape to watch for.** Upstream derives a download
+card's provider logo from `task.payload.repo_id`; the merge resolved that hunk to
+the fork's `task.name`. Both sides were plausible, both lines existed in the file,
+and no test named the difference — so neither loss direction nor any suite could
+flag it. It surfaced only because rebasing `feat/aria2c-downloader` forced a second
+diff of the same region against upstream.
+
+**Rerun command (the derived base is WRONG here, always pass refs):**
+
+    IB=$(git merge-base preingest-20260802-ee02a5a5/develop upstream-mirror)
+    git diff --name-only "$IB" 09f86519 \
+      | grep -vE '\.(png|jpg|jpeg|gif|webm|ico|pdf|lock|svg|woff2?|ttf|zip)$' > /tmp/f.txt
+    python3 tooling/merge/fork_work_loss.py --upstream --all \
+      --base "$IB" --ours preingest-20260802-ee02a5a5/develop --result 09f86519 $(cat /tmp/f.txt)
+
 **Rebase sweep, fourth pass — 12 of 15.** Added: `refactor/assets-move` (retracted
 the bogus retire verdict, then rebased properly), `feat/logging`.
 

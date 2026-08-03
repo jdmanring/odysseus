@@ -1,0 +1,556 @@
+
+  .gitignore  (1 upstream-authored lines absent from the merge result)
+      # …except shipped static assets
+
+  README.md  (2 upstream-authored lines absent from the merge result)
+      <img src="docs/odysseus-wordmark.png" alt="Odysseus" width="238">
+      <img src="docs/odysseus-browser.jpg" alt="Odysseus interface">
+
+  app.py  (21 upstream-authored lines absent from the merge result)
+      from core.constants import DATA_DIR
+      _root_logger = logging.getLogger()
+      _root_logger.setLevel(logging.INFO)
+      _formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+      # Clear existing handlers to avoid duplicates
+      for _h in list(_root_logger.handlers):
+      _root_logger.removeHandler(_h)
+      _console_h = logging.StreamHandler()
+      _console_h.setFormatter(_formatter)
+      _root_logger.addHandler(_console_h)
+      _log_dir = os.path.join(DATA_DIR, "logs")
+      os.makedirs(_log_dir, exist_ok=True)
+      _log_file = os.path.join(_log_dir, "app.log")
+      # RotatingFileHandler is not multi-process safe (e.g. if uvicorn is run with --workers N).
+      # Odysseus is single-process by convention, so this is acceptable, but be aware that
+      # concurrent log rotation issues can arise if multiple workers are configured.
+      _file_h = logging.handlers.RotatingFileHandler(
+      _log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+      _file_h.setFormatter(_formatter)
+      _root_logger.addHandler(_file_h)
+      _root_logger.warning(f"Failed to initialize file logging handler (falling back to console-only): {e}")
+
+  docker-compose.gpu-amd.yml  (3 upstream-authored lines absent from the merge result)
+      image: docker.io/chromadb/chroma:latest
+      - "${CHROMADB_BIND:-127.0.0.1}:8100:8000"
+      - chromadb-data:/chroma/chroma
+
+  docker-compose.gpu-nvidia.yml  (3 upstream-authored lines absent from the merge result)
+      image: docker.io/chromadb/chroma:latest
+      - "${CHROMADB_BIND:-127.0.0.1}:8100:8000"
+      - chromadb-data:/chroma/chroma
+
+  docker-compose.yml  (1 upstream-authored lines absent from the merge result)
+      image: docker.io/chromadb/chroma:latest
+
+  docs/setup.md  (5 upstream-authored lines absent from the merge result)
+      Requirements: Python 3.11+. Cookbook also needs `tmux` for background model
+      downloads and serves. The app itself is lightweight; local model serving is the
+      heavy part and depends on the model, runtime, GPU, and VRAM, so small hosts can
+      connect to API or remote model servers instead. Use `--host 0.0.0.0` only when you intentionally want LAN/reverse-proxy access.
+      expose this port directly to the public internet. To build a clickable app wrapper:
+
+  mcp_servers/memory_server.py  (2 upstream-authored lines absent from the merge result)
+      return _text_result(f"Memory added: [{category}] {text} (id: {entry['id'][:8]})")
+      return _text_result(f"Error: Unknown action '{action}'. Use: list, add, edit, delete, search")
+
+  routes/cookbook_output.py  (5 upstream-authored lines absent from the merge result)
+      _FETCHING_ZERO_FILES_RE = re.compile(r"Fetching\s+0\s+files", re.IGNORECASE)
+      "sys.exit(0 if ok and not inc else 1)"
+      def error_aware_output_tail(full_snapshot: str, status: str) -> str:
+      surfaces the actual error context (stack traces, build output). Running and
+      other non-error tasks keep the cheaper 12-line tail to limit the payload on
+
+  routes/cookbook_routes.py  (33 upstream-authored lines absent from the merge result)
+      lines.append(f"python3 -c 'import hf_transfer' 2>/dev/null || {_pip_install_fallback_chain('hf_transfer')}")
+      # LOCAL execution on a native-Windows host never uses tmux (it uses the
+      # detached-process path below), regardless of the UI-supplied platform.
+      if not is_windows and not local_windows and not await _binary_available("tmux", remote, req.ssh_port):
+      # Install hf CLI + optional hf_transfer best-effort. Retries disable
+      # hf_transfer because the Rust parallel path is fast but has been
+      # flaky near the end of very large multi-file downloads.
+      hf_transfer_install = _pip_install_fallback_chain(
+      runner_lines.append(f"\"$ODYSSEUS_PY\" -c 'import hf_transfer' 2>/dev/null || {hf_transfer_install}")
+      runner_lines.append("\"$ODYSSEUS_PY\" -c 'import hf_transfer' 2>/dev/null && export HF_HUB_ENABLE_HF_TRANSFER=1")
+      mw = 4 if req.disable_hf_transfer else 8
+      setup_cmd = None if IS_WINDOWS else f"tmux set-option -g history-limit 100000 2>/dev/null; tmux new-session -d -s {session_id} {shlex.quote(str(wrapper_script))}"
+      # LOCAL Windows: launch the bash wrapper detached; no tmux setup_cmd.
+      local_win = is_windows and not remote
+      capture_cmd = ssh_args + [remote, _remote_tmux_command("capture-pane", "-t", session_id, "-p", "-S", "-2000")]
+      capture_cmd = ["tmux", "capture-pane", "-t", session_id, "-p", "-S", "-2000"]
+      # LOCAL execution on a native-Windows host never uses tmux (detached
+      # process path below), regardless of the UI-supplied platform.
+      if not is_windows and not local_windows and not await _binary_available("tmux", remote, req.ssh_port):
+      runner_lines.append("mkdir -p /tmp/odysseus-tmux 2>/dev/null || true")
+      f"exec > >(tee -a /tmp/odysseus-tmux/{session_id}.log) 2>&1"
+      # LOCAL Windows: launch the bash runner detached (tmux replacement).
+      # LOCAL Windows: launch the bash runner detached; no tmux setup_cmd.
+      logger.exception("HF GGUF file scan failed for %s", repo)
+      """Pick the most useful live HF progress line from a tmux pane."""
+      capture_cmd = ssh_base + [remote, _remote_tmux_command("capture-pane", "-t", session_id, "-p", "-S", "-500")]
+      # LOCAL Windows task: launched as a detached process (no tmux).
+      # Liveness comes from the <session>.pid file, output from the
+      # <session>.log file the wrapper redirects into. No subprocess.
+      capture_cmd = ["tmux", "capture-pane", "-t", session_id, "-p", "-S", "-500"]
+      local_win_task = (not remote) and IS_WINDOWS
+      if is_alive or (local_win_task and full_snapshot):
+      output_tail = error_aware_output_tail(full_snapshot, status)
+
+  routes/diagnostics_routes.py  (2 upstream-authored lines absent from the merge result)
+      """Consolidated degraded-state report for ChromaDB, SearXNG, email,
+      log_file = os.path.join(DATA_DIR, "logs", "app.log")
+
+  routes/history/history_routes.py  (2 upstream-authored lines absent from the merge result)
+      meta = m.metadata if isinstance(m, ChatMessage) else (m.get('metadata') if isinstance(m, dict) else None)
+      session.history = [m for m in session.history if _get_db_id(m) not in msg_ids]
+
+  routes/memory/memory_routes.py  (1 upstream-authored lines absent from the merge result)
+      return {"ok": True, "count": len([m for m in all_mem if m.get("owner") == user])}
+
+  routes/note/note_routes.py  (1 upstream-authored lines absent from the merge result)
+      logger = logging.getLogger(__name__)
+
+  routes/shell_routes.py  (1 upstream-authored lines absent from the merge result)
+      "desc": "Fast model downloads from HuggingFace",
+
+  services/docs/service.py  (2 upstream-authored lines absent from the merge result)
+      from src.constants import CHROMA_DIR
+      def __init__(self, persist_dir: str = CHROMA_DIR):
+
+  services/hwfit/fit.py  (2 upstream-authored lines absent from the merge result)
+      # Default: Q4_K_M (user's stated preference) — kept for single-GPU
+      # and RAM modes where llama.cpp serving is the natural path.
+
+  services/memory/skill_extractor.py  (8 upstream-authored lines absent from the merge result)
+      # Auto-publish gate: if the user has `auto_approve_skills` on, the
+      # newly-extracted skill is created `published` immediately rather
+      # than waiting for the next audit batch. The audit still runs later
+      # and can demote it back to `draft` (or delete) on failure. Default
+      # ON matches the UI label "Auto-approve skills".
+      from routes.prefs_routes import _load_for_user as _load_prefs
+      _prefs = _load_prefs(owner) or {}
+      if _prefs.get("auto_approve_skills", True):
+
+  setup.py  (1 upstream-authored lines absent from the merge result)
+      TTS_CACHE_DIR, GENERATED_IMAGES_DIR, DEEP_RESEARCH_DIR, CHROMA_DIR,
+
+  src/agent_loop.py  (1 upstream-authored lines absent from the merge result)
+      lines.append("These skills are matched to your current request. Each is a "
+
+  src/app_initializer.py  (1 upstream-authored lines absent from the merge result)
+      # `.healthy`, and service_health.chromadb_health() needs a present
+
+  src/chroma_client.py  (15 upstream-authored lines absent from the merge result)
+      # A short connect probe so an unreachable ChromaDB fails fast instead of
+      # blocking on the OS connection timeout (~30-60s, WinError 10060 on Windows),
+      # which otherwise stalls app startup. Tunable via CHROMADB_CONNECT_TIMEOUT.
+      _CONNECT_TIMEOUT = float(os.getenv("CHROMADB_CONNECT_TIMEOUT", "2.0"))
+      def _port_open(host: str, port: int, timeout: float = None) -> bool:
+      """Return True if a TCP connection to host:port succeeds within timeout."""
+      with socket.create_connection((host, port), timeout=timeout or _CONNECT_TIMEOUT):
+      if not _port_open(host, port):
+      f"ChromaDB is not reachable at {host}:{port}. Start the ChromaDB "
+      f"service (e.g. `docker compose up chromadb`) or set CHROMADB_HOST / "
+      f"CHROMADB_PORT to point at a running instance."
+      client = chromadb.HttpClient(host=host, port=port)
+      # Health check before caching — if the port is open but the service isn't
+      # healthy yet (e.g. still starting), don't poison the singleton with a dead
+      # client; leave _client unset so the next call retries.
+
+  src/constants.py  (1 upstream-authored lines absent from the merge result)
+      CHROMA_DIR = os.path.join(DATA_DIR, "chroma")
+
+  src/embedding_lanes.py  (65 upstream-authored lines absent from the merge result)
+      embedding vectors. ChromaDB fixes a collection's dimension on first insert, so
+      def encode(self, texts: Sequence[str]) -> List[List[float]]:
+      vecs = self.client.encode(list(texts), normalize_embeddings=True)
+      def _build_fastembed_client():
+      from src.embeddings import FastEmbedClient
+      def _encode_with_client(client: Any, texts: Sequence[str]) -> List[List[float]]:
+      vecs = client.encode(list(texts), normalize_embeddings=True)
+      def _get_or_reset_collection(chroma_client, name: str, metadata: Dict[str, Any], client: Any):
+      collection = chroma_client.get_collection(name)
+      return chroma_client.get_or_create_collection(name=name, metadata=metadata)
+      current = collection.metadata or {}
+      current.get("embedding_fingerprint") not in (None, metadata["embedding_fingerprint"])
+      or current.get("embedding_dimension") not in (None, metadata["embedding_dimension"])
+      or current.get("embedding_lane") not in (None, metadata["embedding_lane"])
+      "Recreating Chroma collection %s for embedding lane change (%s -> %s)",
+      current.get("embedding_fingerprint"),
+      metadata["embedding_fingerprint"],
+      preserved = {"ids": [], "documents": [], "metadatas": [], "embeddings": []}
+      preserved = collection.get(include=["documents", "metadatas", "embeddings"]) or preserved
+      raise RuntimeError(f"Could not preserve documents before resetting {name}: {e}") from e
+      ids = preserved.get("ids") or []
+      docs = preserved.get("documents") or []
+      metas = preserved.get("metadatas") or []
+      for start in range(0, len(ids), 100):
+      batch_ids = ids[start:start + 100]
+      batch_docs = docs[start:start + 100]
+      batch_metas = metas[start:start + 100]
+      _encode_with_client(client, batch_docs),
+      raise RuntimeError(f"Could not re-embed preserved rows for {name}: {e}") from e
+      chroma_client.delete_collection(name)
+      collection = chroma_client.get_or_create_collection(name=name, metadata=metadata)
+      for batch_ids, batch_docs, batch_metas, embeddings in prepared_batches:
+      logger.warning("Could not write reset collection %s; restoring previous rows: %s", name, e)
+      chroma_client.delete_collection(name)
+      restored = chroma_client.get_or_create_collection(name=name, metadata=current)
+      # chromadb returns embeddings as a numpy ndarray, whose truth value
+      # is ambiguous — `preserved.get("embeddings") or []` and a bare
+      # `if ... and old_embeddings:` both raise ValueError, which aborts
+      # the restore and loses the rows the reset was supposed to keep.
+      # Use explicit None/len checks instead.
+      old_embeddings = preserved.get("embeddings")
+      if ids and docs and len(old_embeddings):
+      for start in range(0, len(ids), 100):
+      batch_ids = ids[start:start + 100]
+      batch_docs = docs[start:start + 100]
+      batch_metas = metas[start:start + 100]
+      batch_embeddings = old_embeddings[start:start + 100]
+      if hasattr(batch_embeddings, "tolist"):
+      batch_embeddings = batch_embeddings.tolist()
+      except Exception as restore_error:
+      logger.warning("Could not restore previous collection %s: %s", name, restore_error)
+      raise RuntimeError(f"Could not write reset collection {name}: {e}") from e
+      logger.info("Re-embedded %s rows after resetting %s", len(ids), name)
+      def _create_lane(chroma_client, base_name: str, lane_name: str, client: Any) -> EmbeddingLane:
+      collection = _get_or_reset_collection(chroma_client, name, metadata, client)
+      from src.chroma_client import get_chroma_client
+      chroma_client = get_chroma_client()
+      lanes.append(_create_lane(chroma_client, base_name, LANE_CUSTOM, custom))
+      fastembed = _build_fastembed_client()
+      lanes.append(_create_lane(chroma_client, base_name, LANE_FASTEMBED, fastembed))
+      logger.warning("FastEmbed lane unavailable for %s: %s", base_name, e)
+      from src.chroma_client import get_chroma_client
+      chroma_client = get_chroma_client()
+      legacy = chroma_client.get_collection(base_name)
+      query_embeddings=lane.encode([query]),
+
+  src/memory_provider.py  (6 upstream-authored lines absent from the merge result)
+      by_id = {m.get("id"): m for m in memories}
+      hits: List[MemorySearchHit] = []
+      for result in self.memory_vector.search(query, k=top_k):
+      if not isinstance(result, dict):
+      memory_id = result.get("memory_id")
+      entry = by_id.get(memory_id) if memory_id else result
+
+  src/memory_vector.py  (4 upstream-authored lines absent from the merge result)
+      if not self._healthy or self.count() == 0:
+      query_embeddings=lane.encode([query]),
+      n_results=min(k, lane.count()),
+      if not self._healthy or self.count() == 0:
+
+  src/model_context.py  (4 upstream-authored lines absent from the merge result)
+      Picks the LONGEST matching key so a short key never shadows a more specific
+      one. Without this, 'o1' (200k) precedes 'o1-mini' (128k) in the table and a
+      first-match return would report o1-mini's window as 200k.
+      if best_key is None or len(key) > len(best_key):
+
+  src/prompt_security.py  (2 upstream-authored lines absent from the merge result)
+      "reference material for the user's direct request. Do not mention this "
+      "wrapper, label, or warning in your answer."
+
+  src/rag_manager.py  (2 upstream-authored lines absent from the merge result)
+      from src.constants import CHROMA_DIR
+      def __init__(self, persist_directory: str = CHROMA_DIR):
+
+  src/rag_singleton.py  (8 upstream-authored lines absent from the merge result)
+      """Lazy ChromaDB-backed VectorRAG initializer.
+      Returns the VectorRAG instance on first successful init, None if ChromaDB
+      isn't reachable / available. Failed init attempts are throttled to once
+      per _RETRY_INTERVAL seconds so a missing ChromaDB doesn't busy-retry on
+      Historical note: this used to be hardcoded to ``return None`` with a
+      comment about chromadb 1.4.1 / pydantic 2.12 being mutually incompatible.
+      That compat issue is resolved in current pinned versions
+      (chromadb 1.5.x + pydantic 2.13.x), so the real initializer is back.
+
+  src/rag_vector.py  (3 upstream-authored lines absent from the merge result)
+      from src.constants import CHROMA_DIR
+      # Tool-internal directories that match DEFAULT_FILE_EXTENSIONS but are never
+      def __init__(self, persist_directory: str = CHROMA_DIR):
+
+  src/service_health.py  (15 upstream-authored lines absent from the merge result)
+      logger = logging.getLogger(__name__)
+      # ── ChromaDB (vector RAG + vector memory) ──
+      def chromadb_health(rag_manager: Any, memory_vector: Any) -> Dict[str, Any]:
+      """Report on the two ChromaDB-backed stores via their `.healthy` flags.
+      Both absent  → disabled (Chroma/embeddings not installed or off).
+      return _svc("chromadb", DISABLED,
+      return _svc("chromadb", OK, "Vector stores healthy.", **meta)
+      return _svc("chromadb", DEGRADED,
+      return _svc("chromadb", DOWN, "Vector stores are unavailable.", **meta)
+      return await asyncio.wait_for(asyncio.to_thread(fn, *args),
+      return _svc(name, DOWN, _detail_for("timeout"), error="timeout")
+      return _svc(name, DOWN, _detail_for(category), error=category)
+      Bounded end-to-end: in-process ChromaDB flags are read synchronously; the
+      # ChromaDB is in-process and synchronous (just reads flags).
+      chroma = chromadb_health(rag_manager, memory_vector)
+
+  src/settings.py  (3 upstream-authored lines absent from the merge result)
+      # "strict"   — apply the provider's strongest filtering level (default;
+      #              keeps unrelated low-quality/spam recommendations out)
+      # "moderate" — provider-default filtering behavior
+
+  src/tool_execution.py  (2 upstream-authored lines absent from the merge result)
+      #   2. Allowlist — only the directories the agent legitimately needs
+      #      (project data/, system tmp). $HOME is NOT on the default list.
+
+  src/tool_index.py  (1 upstream-authored lines absent from the merge result)
+      "manage_memory": "Memory management: list, add, edit, delete, or search persistent memories. For facts about the USER (their name, preferences, where they live). NOT for info about ANOTHER person — addresses, phones, emails belonging to a contact go in manage_contact, not memory.",
+
+  static/js/chat.js  (2 upstream-authored lines absent from the merge result)
+      currentToolBubble.innerHTML = `<div class="agent-thread-dot"></div><div class="agent-thread-header"><span class="agent-thread-icon">${ok ? '\u2713' : '\u2717'}</span><span class="agent-thread-tool">${esc(json.tool)}</span><span class="agent-thread-status">${ok ? 'done' : 'failed'}</span><span class="agent-thread-chevron">\u25B6</span></div><div class="agent-thread-content">${cmdHtml2}${outHtml}${diffHtml}</div>`;
+      const dt = markdownModule.normalizeThinkingMarkup(_streamDisplayText(roundText, { final: docFenceOpened }));
+
+  static/js/cookbook-hwfit.js  (4 upstream-authored lines absent from the merge result)
+      const _short = modelData.name.split('/').pop();
+      const _downloaded = _cachedModelIds && (
+      _cachedModelIds.has(modelData.name)
+      || [..._cachedModelIds].some(id => id === modelData.name || id.endsWith('/' + _short))
+
+  static/js/cookbook.js  (3 upstream-authored lines absent from the merge result)
+      const isGgufLike = model.is_gguf || hasGgufFile || /^Q[2-8]/.test(q) || /^IQ/.test(q) || q === 'GGUF' || _nm.includes('gguf');
+      uiModule.showToast('System dependency install failed: ' + String(reason).slice(0, 300), {
+      // Variant toggle (Pip vs Docker): mirrors the agent/chat mode-toggle
+
+  static/js/cookbookDownload.js  (5 upstream-authored lines absent from the merge result)
+      if (model?.quant) return `*${model.quant}*`;
+      // Large downloads are where hf_transfer most often dies near the end. Use the
+      // plain HuggingFace downloader up front for big model files; it is slower, but
+      // resumes cached partials more reliably.
+      if ((model.required_gb || 0) >= 10 || backend === 'llamacpp') payload.disable_hf_transfer = true;
+
+  static/js/cookbookRunning.js  (18 upstream-authored lines absent from the merge result)
+      return { text: _downloadBadgeText(task.progress), cls: 'cookbook-task-downloading' };
+      const launchedTask = { ...task, sessionId: data.session_id, id: data.session_id, status: 'running' };
+      _soloExpandTaskId = data.session_id;
+      const displayName = _taskDisplayName(task);
+      const logoName = task.type === 'download' ? (task.payload?.repo_id || task.name) : task.name;
+      <span class="cookbook-task-name">${modelLogo(logoName)}${esc(displayName)}</span>
+      <button type="button" class="cookbook-task-start-now" title="Start this queued download now" style="display:${(task.type === 'download' && task.status === 'queued') ? '' : 'none'}"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="8 5 19 12 8 19 8 5"/></svg><span>start now</span></button>
+      <button type="button" class="cookbook-task-menu-btn" title="Actions">&#8942;</button>
+      <div class="cookbook-task-sub"><span class="cookbook-task-session">${esc(task.sessionId)}</span><span class="cookbook-task-uptime" style="display:${((task.type === 'serve' || task.type === 'download') && task.status === 'running') ? '' : 'none'}"></span>${(task.type === 'download') ? `<span class="cookbook-task-dldir" title="Download destination" style="font-size:9px;color:var(--fg-muted);font-family:'Fira Code',monospace;opacity:0.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40ch;">Dir: ${esc(task.payload?.local_dir || '~/.cache/huggingface/hub')}</span>` : ''}</div>
+      <div class="cookbook-output-wrap cookbook-task-collapsible${(_mobileCollapseDefault && !_shouldAutoExpandTaskOutput(task)) ? ' cookbook-task-collapsed' : ''}"><pre class="cookbook-output-pre">${esc(task.output || '')}</pre><button type="button" class="copy-code cookbook-output-copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
+      _updateTask(task.sessionId, { _userStopped: true });
+      body: JSON.stringify({ command: _tmuxCmd(task, `capture-pane -t ${task.sessionId} -p -S -500`), timeout: 15 }),
+      && (lastOutput.includes('DONE') || lastOutput.includes('100%') || lastOutput.includes('/snapshots/') || lastOutput.includes('Download complete') || lastOutput.includes('DOWNLOAD_OK'));
+      && (lastOutput.includes('DOWNLOAD_OK') || lastOutput.includes('/snapshots/'));
+      if (t.status === 'done' && /DOWNLOAD_OK|\/snapshots\//.test(t.output || '')) return false;
+      && String(combinedOutput || '').includes('DOWNLOAD_OK');
+      if (nextStatus && task.status !== nextStatus) {
+      : `${previous ? `${previous}\n` : ''}${tail}`.slice(-5000);
+
+  static/js/cookbookServe.js  (1 upstream-authored lines absent from the merge result)
+      await _fetchCachedModels(false);
+
+  static/js/markdown.js  (7 upstream-authored lines absent from the merge result)
+      // Every restore below passes a function replacer rather than the block string
+      // itself. With a string replacement, `String.replace` reads `$&`, `` $` ``,
+      // `$'` and `$$` in the *replacement* as substitution patterns, so a restored
+      // block containing them is corrupted: `$&` re-inserts the placeholder, `` $` ``
+      // and `$'` splice in the surrounding document, and `$$` collapses to `$`. Those
+      // sequences are ordinary content in fenced code (`perl -pe 's/x/$& y/'`,
+      // `echo "$$USD"`). A function replacer inserts its return value verbatim.
+
+  static/js/modalManager.js  (1 upstream-authored lines absent from the merge result)
+      'compare-model-overlay': { label: 'Compare',  icon: 'M4.5 4h5A1.5 1.5 0 0 1 11 5.5v13A1.5 1.5 0 0 1 9.5 20h-5A1.5 1.5 0 0 1 3 18.5v-13A1.5 1.5 0 0 1 4.5 4ZM15.5 4h5A1.5 1.5 0 0 1 22 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-5a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 15.5 4ZM10 8h4M10 16h4' },
+
+  static/js/sessions.js  (41 upstream-authored lines absent from the merge result)
+      function _addHistoryMessageWithFullRenderer(role, content, modelName, meta) {
+      const marker = document.createComment('history-message');
+      rendered = chatRenderer.addMessage(role, content, modelName, meta);
+      let node = marker.nextSibling;
+      const next = node.nextSibling;
+      return nodes.length ? nodes : (rendered ? [rendered] : []);
+      function _renderHistoryMessage(msg, modelName) {
+      return _addHistoryMessageWithFullRenderer(msg.role, displayContent, modelName, meta);
+      function _installHistoryPager(id, pageInfo, modelName) {
+      if (!box || !pageInfo || !pageInfo.has_more_before) return;
+      offset: Number(pageInfo.offset || 0),
+      limit: Number(pageInfo.limit || _historyPageLimit()),
+      const loadOlder = async () => {
+      if (!_historyPager || _historyPager.loading || _historyPager.done) return;
+      if (_historyPager.sessionId !== currentSessionId) return;
+      if (box.scrollTop > 90) return;
+      const nextOffset = Math.max(0, _historyPager.offset - _historyPager.limit);
+      const nextLimit = _historyPager.offset - nextOffset;
+      const anchor = box.querySelector('.msg, .agent-thread, .gallery-bubble');
+      const beforeHeight = box.scrollHeight;
+      const res = await fetch(_historyUrl(_historyPager.sessionId, { limit: nextLimit, offset: nextOffset }));
+      if (!_historyPager || _historyPager.sessionId !== currentSessionId) return;
+      for (const msg of data.history || []) {
+      if (msg.role !== 'user' && msg.role !== 'assistant') continue;
+      const els = _renderHistoryMessage(msg, _historyPager.modelName);
+      if (Array.isArray(els)) newEls.push(...els);
+      box.insertBefore(el, anchor || box.firstChild);
+      _historyPager.offset = Number(data.offset || nextOffset);
+      _historyPager.done = !data.has_more_before;
+      newEls.forEach(el => el.querySelectorAll('pre code:not(.hljs)').forEach(block => window.hljs.highlightElement(block)));
+      const heightDelta = box.scrollHeight - beforeHeight;
+      console.warn('Failed to load older chat history:', e);
+      if (_historyPager) _historyPager.loading = false;
+      _historyPager.handler = () => {
+      if (box.scrollTop <= 90) loadOlder();
+      box.addEventListener('scroll', _historyPager.handler, { passive: true });
+      const res = await fetch(_historyUrl(id, { limit: _historyPageLimit() }));
+      _renderHistoryMessage(msg, modelName);
+      console.warn('Failed to render history message:', e, msg);
+      if (!isOC && msgHistory.length) {
+      _installHistoryPager(id, pageInfo, modelName);
+
+  static/js/slashCommands.js  (1 upstream-authored lines absent from the merge result)
+      const SETUP_PROVIDER_NAMES = ['deepseek', 'openai', 'openrouter', 'ollama', 'xai', 'anthropic', 'groq', 'gemini', 'opencode-zen', 'opencode-go', 'nvidia'];
+
+  static/js/streamingRenderer.js  (4 upstream-authored lines absent from the merge result)
+      if (hljs) root.querySelectorAll('pre code').forEach((b) => hljs.highlightElement(b));
+      // Render `src` and freeze the nodes before the tail marker. Highlighting happens
+      // here, once, on the detached fragment before the nodes are ever shown.
+      while (holder.firstChild) contentEl.appendChild(holder.firstChild);
+
+  static/js/ui.js  (1 upstream-authored lines absent from the merge result)
+      const cur = parseInt(getComputedStyle(m).zIndex, 10) || 0;
+
+  static/style.css  (3 upstream-authored lines absent from the merge result)
+      margin-right 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
+      background: color-mix(in srgb, var(--panel, var(--bg)) 94%, transparent);
+      .memory-toolbar-btn[data-mode="ai-reply-fast"] {
+
+  tests/helpers/embedding_lanes.py  (6 upstream-authored lines absent from the merge result)
+      def encode(self, texts, normalize_embeddings=True):
+      def encode(self, texts, normalize_embeddings=True):
+      raise RuntimeError("chroma write failed")
+      def patch_chroma(monkeypatch, fake):
+      import src.chroma_client as chroma_client
+      monkeypatch.setattr(chroma_client, "get_chroma_client", lambda: fake)
+
+  tests/test_agent_loop.py  (2 upstream-authored lines absent from the merge result)
+      def test_non_native_path_unaffected(self):
+      # The text-block fallback path still wraps results in a user message.
+
+  tests/test_app_initializer_memory_vector_degraded.py  (5 upstream-authored lines absent from the merge result)
+      object to ``None`` in the ``else`` branch, so service_health.chromadb_health() saw
+      def test_chromadb_health_reports_down_for_unhealthy_vector_store():
+      assert sh.chromadb_health(None, None)["status"] == sh.DISABLED
+      assert sh.chromadb_health(None, store)["status"] == sh.DOWN
+      assert sh.chromadb_health(healthy_rag, store)["status"] == sh.DEGRADED
+
+  tests/test_cookbook_dependency_completion_regression.py  (2 upstream-authored lines absent from the merge result)
+      "const downloadDone = task.type === 'download' "
+      "&& String(combinedOutput || '').includes('DOWNLOAD_OK');"
+
+  tests/test_diagnostics_logs.py  (7 upstream-authored lines absent from the merge result)
+      def _client_with_admin_gate(monkeypatch, gate, tmp_path=None):
+      """Mount the diagnostics router with a mock require_admin and DATA_DIR."""
+      monkeypatch.setattr(diag, "DATA_DIR", str(tmp_path))
+      client = _client_with_admin_gate(monkeypatch, gate, tmp_path)
+      log_dir.mkdir(parents=True, exist_ok=True)
+      log_file = log_dir / "app.log"
+      client = _client_with_admin_gate(monkeypatch, gate, tmp_path)
+
+  tests/test_embedding_lanes.py  (55 upstream-authored lines absent from the merge result)
+      patch_chroma(monkeypatch, fake)
+      def test_build_embedding_lanes_recreates_only_custom_when_fingerprint_changes(monkeypatch):
+      "embedding_fingerprint": "old",
+      fast = fake.get_or_create_collection(
+      "embedding_lane": "fastembed",
+      fast.add(ids=["fast"], embeddings=[[0.0] * 384], documents=["fast"])
+      patch_chroma(monkeypatch, fake)
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "sentence-transformers/all-MiniLM-L6-v2", "local://fastembed"))
+      assert len(fake.collections["odysseus_rag_custom"].rows["old"]["embedding"]) == 1024
+      assert fake.collections["odysseus_rag_fastembed"].count() == 1
+      def test_lane_reset_reembeds_existing_documents_on_fingerprint_change(monkeypatch):
+      "embedding_fingerprint": "old",
+      documents=["existing custom memory"],
+      metadatas=[{"source": "memory"}],
+      patch_chroma(monkeypatch, fake)
+      monkeypatch.setattr(lanes, "_build_custom_client", lambda: FakeEmbedder(768, "nomic", "http://embeddings/v1"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", fail_fastembed)
+      assert "odysseus_memories_custom" in fake.deleted
+      rebuilt = fake.collections["odysseus_memories_custom"]
+      assert rebuilt.get()["ids"] == ["existing-memory"]
+      assert len(rebuilt.rows["existing-memory"]["embedding"]) == 768
+      def test_lane_reset_keeps_existing_collection_when_reembed_fails(monkeypatch):
+      "embedding_fingerprint": "old",
+      documents=["existing custom memory"],
+      metadatas=[{"source": "memory"}],
+      patch_chroma(monkeypatch, fake)
+      monkeypatch.setattr(lanes, "_build_custom_client", lambda: FailingEmbedder(768, "nomic", "http://embeddings/v1"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+      assert "odysseus_memories_custom" not in fake.deleted
+      assert fake.collections["odysseus_memories_custom"].count() == 1
+      assert len(fake.collections["odysseus_memories_custom"].rows["existing-memory"]["embedding"]) == 384
+      def test_lane_reset_keeps_existing_collection_when_preserve_read_fails(monkeypatch):
+      "embedding_fingerprint": "old",
+      documents=["existing custom memory"],
+      metadatas=[{"source": "memory"}],
+      def fail_get(*_args, **_kwargs):
+      raise RuntimeError("chroma read failed")
+      patch_chroma(monkeypatch, fake)
+      monkeypatch.setattr(lanes, "_build_custom_client", lambda: FakeEmbedder(768, "nomic", "http://embeddings/v1"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", fail_fastembed)
+      assert "odysseus_memories_custom" not in fake.deleted
+      assert "odysseus_memories_custom" in fake.collections
+      def test_lane_reset_restores_existing_collection_when_rewrite_fails(monkeypatch):
+      "embedding_fingerprint": "old",
+      documents=["existing custom memory"],
+      metadatas=[{"source": "memory"}],
+      fake.fail_next_add_for["odysseus_memories_custom"] = 1
+      patch_chroma(monkeypatch, fake)
+      monkeypatch.setattr(lanes, "_build_custom_client", lambda: FakeEmbedder(768, "nomic", "http://embeddings/v1"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", fail_fastembed)
+      restored = fake.collections["odysseus_memories_custom"]
+      assert restored.get()["ids"] == ["existing-memory"]
+      assert len(restored.rows["existing-memory"]["embedding"]) == 384
+      patch_chroma(monkeypatch, fake)
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+
+  tests/test_embedding_lanes_legacy.py  (4 upstream-authored lines absent from the merge result)
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", fail_fastembed)
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+
+  tests/test_embedding_lanes_memory.py  (3 upstream-authored lines absent from the merge result)
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+
+  tests/test_embedding_lanes_rag.py  (4 upstream-authored lines absent from the merge result)
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FailingEmbedder(384, "mini", "local://fastembed"))
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+
+  tests/test_embedding_lanes_tool_index.py  (1 upstream-authored lines absent from the merge result)
+      monkeypatch.setattr(lanes, "_build_fastembed_client", lambda: FakeEmbedder(384, "mini", "local://fastembed"))
+
+  tests/test_llm_core_ollama.py  (1 upstream-authored lines absent from the merge result)
+      assert seen["json"]["options"] == {"temperature": 0.2, "num_predict": 7}
+
+  tests/test_memory_extractor_vector_degraded.py  (2 upstream-authored lines absent from the merge result)
+      memory, so the dedup must still fire."""
+      return seeded["id"]  # matches alice's own seeded memory
+
+  tests/test_pr_blocker_audit.py  (2 upstream-authored lines absent from the merge result)
+      assert "--limit LIMIT" in help_text
+      assert "Live mode: max open PRs to fetch/analyze" in help_text
+
+  tests/test_service_health_collect.py  (3 upstream-authored lines absent from the merge result)
+      assert names == {"chromadb", "searxng", "ntfy", "email", "providers"}
+      "chromadb", "searxng", "ntfy", "email", "providers"}
+      net = [s for s in out["services"] if s["name"] != "chromadb"]
+
+  tests/test_session_list_owner_scope.py  (4 upstream-authored lines absent from the merge result)
+      endpoint = next(r.endpoint for r in router.routes
+      and "GET" in getattr(r, "methods", set()))
+      endpoint = next(r.endpoint for r in router.routes
+      and "POST" in getattr(r, "methods", set()))
+
+  tests/test_tool_output_prompt_injection.py  (1 upstream-authored lines absent from the merge result)
+      assert "UNTRUSTED SOURCE DATA" in msg["content"]
+
+======================================================================
+scanned 1694 resolved files
+64 files with dropped upstream lines, 422 lines total
+Each is a CANDIDATE: a deliberate supersession looks identical to a
+mistake here. Read the surrounding hunk before concluding.
