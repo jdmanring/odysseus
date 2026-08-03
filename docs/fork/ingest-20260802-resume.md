@@ -1,8 +1,9 @@
 # Ingest merge 2026-08-02 — resume notes
 
-> **STATUS 2026-08-02: THE MERGE IS COMMITTED.** `09f86519` on
+> **STATUS 2026-08-02: MERGED AND PROMOTED. `develop` is `08252cd3`.** `09f86519` on
 > `sync/ingest-20260802`, parents `ee02a5a5` (old develop) + `25c9e735`
-> (upstream-mirror), tagged `ingest-20260802-merged`. **NOT promoted to `develop`.**
+> (upstream-mirror), tagged `ingest-20260802-merged`, promoted via `08252cd3`.
+> Suite on develop: 6,107 passed / 2 known-stale / 6 skipped. Nothing pushed.
 >
 > Two consequences for anyone using this document now:
 > 1. **The loss checks no longer discover targets on their own.** `fork_work_loss.py`
