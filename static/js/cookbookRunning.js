@@ -2811,7 +2811,7 @@ export function _renderRunningTab() {
   // event but the matching clear only ran on modal-open, so the highlight
   // persisted indefinitely after tasks finished in the background.
   try {
-    const _activeTasks = _loadPrunedTasks().filter(t => t.status === 'running' || t.status === 'queued' || t.status === 'error' || t.status === 'paused');
+    const _activeTasks = _loadPrunedTasks().filter(t => t.status === 'running' || t.status === 'queued' || t.status === 'error');
     if (!_activeTasks.length) _clearCookbookNotif();
   } catch {}
 
@@ -3021,8 +3021,8 @@ export function _renderRunningTab() {
         return;
       }
       if (!await window.styledConfirm(`Clear ${toRemove.length} finished task${toRemove.length === 1 ? '' : 's'} on ${_serverName(host)}?`, { confirmText: 'Clear' })) return;
-      const remaining = allTasks.filter(t => (t.remoteHost || '') !== host || !_canClearTask(t));
       toRemove.forEach(t => _tombstoneTask(t.sessionId));
+      const remaining = allTasks.filter(t => _taskServerKey(t) !== host || !_canClearTask(t));
       _saveTasks(remaining);
       // Fade/slide each finished card out (same exit as the per-card clear)
       // instead of yanking them instantly.
@@ -3170,17 +3170,19 @@ export function _renderRunningTab() {
     const _queuePos = _isDl && task.status === 'queued'
       ? (() => { const all = _loadTasks(); const qs = all.filter(t => t.type === 'download' && t.status === 'queued'); return qs.findIndex(t => t.sessionId === task.sessionId) + 1; })()
       : 0;
+    // Provider logo for a download comes from the repo id, not the task name —
+    // the name is a display label and often has no provider prefix (upstream).
+    const logoName = _isDl ? (task.payload?.repo_id || task.name) : task.name;
 
-    const logoName = task.type === 'download' ? (task.payload?.repo_id || task.name) : task.name;
     el.innerHTML = `
       <div class="cookbook-task-header">
         <span class="cookbook-task-type${(task.status === 'done' && _isDl) ? ' cookbook-task-type-done' : ''}" data-type="${esc(task.type)}">${esc((task.status === 'done' && _isDl) ? 'finished' : task.type)}</span>
-        <span class="cookbook-task-name">${modelLogo(logoName)}${esc(displayName)}</span>
+        <span class="cookbook-task-name">${modelLogo(logoName)}${esc(_taskDisplayName(task))}</span>
         <span class="cookbook-task-indicator"><span class="cookbook-task-wave" style="display:${task.status === 'running' ? '' : 'none'}"></span>${_canLaunchDownloadedTask(task) ? '<button type="button" class="cookbook-task-serve-btn" title="Open in Launch"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Launch</span></button>' : ''}<span class="cookbook-task-check" title="Clear" style="display:${_canClearTask(task) ? '' : 'none'}"><svg class="cookbook-task-check-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#50fa7b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><svg class="cookbook-task-clear-ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span class="cookbook-task-done-label">${esc(_clearPillLabel(task))}</span><span class="cookbook-task-clear-label">clear</span></span></span>
         <button type="button" class="cookbook-task-start-now" title="Start this queued download now" style="display:${(_isDl && task.status === 'queued') ? '' : 'none'}"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="8 5 19 12 8 19 8 5"/></svg><span>start now</span></button>
         <span class="cookbook-task-status ${_bdg.cls}"${_bdgTitle}>${esc(_bdg.text)}</span>
         ${_isDl ? `<span data-dl-auth>${_buildAuthPillHtml(_authStatusForTask(task, _dlState?.authStatus, _dlState?.phase))}</span>` : ''}
-        <button type="button" class="cookbook-task-menu-btn" title="Actions">&#8942;</button>
+        <button class="cookbook-task-menu-btn" title="Actions">&#8942;</button>
       </div>
       <div class="cookbook-task-sub">
         <span class="cookbook-task-session">${esc(task.sessionId)}</span>
@@ -3393,7 +3395,6 @@ export function _renderRunningTab() {
           return;
         }
         document.querySelectorAll('.cookbook-task-dropdown').forEach(d => { if (typeof d._dismiss === 'function') d._dismiss(); else d.remove(); });
-        if (_wasOpen) return;
 
         const dropdown = document.createElement('div');
         dropdown.className = 'cookbook-task-dropdown';
@@ -4469,6 +4470,8 @@ async function _reconnectTask(el, task) {
               const _dlKey = task.payload?.repo_id || task.name;
               const _dlN = _dlRetryCount.get(_dlKey) || 0;
               if (!controller.signal.aborted && !_accessDenied && task.type === 'download' && task.payload && _dlN < _DL_MAX_AUTO_RETRY) {
+                // Auto-retry: kill the dead session and re-launch (resumes from
+                // the cached .incomplete files) after a short delay.
                 _dlRetryCount.set(_dlKey, _dlN + 1);
                 badge.textContent = `retrying (${_dlN + 1}/${_DL_MAX_AUTO_RETRY})…`;
                 badge.className = 'cookbook-task-status cookbook-task-running';
@@ -5246,7 +5249,7 @@ async function _pollBackgroundStatus() {
         if (serveReady && !task._serveReady) {
           updates._serveReady = true;
         }
-        if ((live.status === 'running' || live.status === 'ready') && task.status !== live.status && !serveReady && !completedByOutput && task.status !== 'paused') {
+        if ((live.status === 'running' || live.status === 'ready') && task.status !== live.status && !serveReady && !completedByOutput) {
           updates.status = live.status === 'ready' ? 'ready' : 'running';
         }
         if (live.progress && live.progress !== task.progress) updates.progress = live.progress;
