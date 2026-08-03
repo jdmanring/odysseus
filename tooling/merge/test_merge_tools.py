@@ -30,6 +30,8 @@ RESOLVE = HERE / "resolve_hunks.py"
 CLASSIFY = HERE / "classify_hunks.py"
 LOSS = HERE / "fork_work_loss.py"
 JSORPHAN = HERE / "js_orphan_refs.py"
+REBASE = HERE / "rebase_staged.py"
+SURVEY = HERE / "branch_survey.py"
 
 CONFLICT = """common header
 <<<<<<< HEAD
@@ -292,7 +294,54 @@ upstream only rule that is long enough here
         if "gone" in out:
             fails.append("js_orphan: flagged a name that appears ONLY in a comment")
 
-    for script in (RESOLVE, CLASSIFY, LOSS, JSORPHAN):
+    # ---------------- rebase_staged: the SAFETY properties -------------------
+    with tempfile.TemporaryDirectory() as t:
+        # A repo shaped like a post-ingest fork: `old_mirror` is where the staged
+        # branch was cut, then upstream-mirror moved on (RESET, not ff).
+        env = make_repo(t, "base line that is long enough to be counted\n",
+                        "base line that is long enough to be counted\n",
+                        "base line that is long enough to be counted\nupstream added a line here ok\n",
+                        "base line that is long enough to be counted\n")
+        subprocess.run(["git", "tag", "oldmirror", "develop"], cwd=t, capture_output=True, env=env)
+        subprocess.run(["git", "checkout", "-q", "-b", "fix/staged", "develop"], cwd=t, capture_output=True, env=env)
+        pathlib.Path(t, "g.py").write_text("fork fix line long enough to count here\n")
+        subprocess.run(["git", "add", "-A"], cwd=t, capture_output=True, env=env)
+        subprocess.run(["git", "commit", "-qm", "fork fix"], cwd=t, capture_output=True, env=env)
+        subprocess.run(["git", "checkout", "-q", "develop"], cwd=t, capture_output=True, env=env)
+        before = subprocess.run(["git", "rev-parse", "fix/staged"], cwd=t,
+                                capture_output=True, text=True, env=env).stdout.strip()
+
+        # DRY RUN must move nothing. A tool that rewrites refs when you asked it
+        # to report is unusable on 96 branches.
+        rc, out = run(REBASE, "--old-mirror", "oldmirror", cwd=t, env=env)
+        after = subprocess.run(["git", "rev-parse", "fix/staged"], cwd=t,
+                               capture_output=True, text=True, env=env).stdout.strip()
+        if after != before:
+            fails.append("rebase_staged: DRY RUN moved a branch ref")
+        if "DRY RUN" not in out:
+            fails.append("rebase_staged: dry run not labelled as such")
+
+        # APPLY must move the ref AND leave a rollback.
+        rc, out = run(REBASE, "--old-mirror", "oldmirror", "--apply", cwd=t, env=env)
+        after = subprocess.run(["git", "rev-parse", "fix/staged"], cwd=t,
+                               capture_output=True, text=True, env=env).stdout.strip()
+        roll = subprocess.run(["git", "rev-parse", "refs/prerebase/fix/staged"], cwd=t,
+                              capture_output=True, text=True, env=env).stdout.strip()
+        if after == before:
+            fails.append("rebase_staged: --apply did not move the branch")
+        if roll != before:
+            fails.append("rebase_staged: rollback ref missing or wrong")
+
+        # IDEMPOTENCE: re-running must SKIP, not reclassify. Once rebased, the
+        # branch sits on the new mirror and every size heuristic misreads it --
+        # this regressed once and flagged all 73 rebased branches as fork-only.
+        rc, out = run(REBASE, "--old-mirror", "oldmirror", cwd=t, env=env)
+        if "already on the current mirror" not in out:
+            fails.append("rebase_staged: NOT idempotent — re-run did not skip a rebased branch")
+        if "CLEAN (0)" not in out:
+            fails.append("rebase_staged: re-run tried to rebase an already-rebased branch")
+
+    for script in (RESOLVE, CLASSIFY, LOSS, JSORPHAN, REBASE, SURVEY):
         rc, out = run(script)                                   # no args
         if rc not in (0, 1, 2):
             fails.append(f"{script.name}: unexpected exit {rc} with no args")
