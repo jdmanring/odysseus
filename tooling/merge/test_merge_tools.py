@@ -196,6 +196,30 @@ def main() -> int:
         if "fork helper line" in out:
             fails.append("loss: reported a RE-INDENTED surviving line as lost")
 
+    # ---------------- fork_work_loss: must REFUSE a vacuous scan -------------
+    with tempfile.TemporaryDirectory() as t:
+        # After an ingest is promoted, develop CONTAINS upstream-mirror, so
+        # merge-base returns upstream-mirror itself. Every upstream line then reads
+        # as base content and the scan reports a confident, meaningless zero. That
+        # is how the 2026-08-02 ingest was called clean while it had dropped 18
+        # upstream lines from one file. Refusing is the whole point.
+        env = make_repo(t, "base line that is long enough to be counted\n",
+                        "base line that is long enough to be counted\nfork added a line here ok\n",
+                        "base line that is long enough to be counted\n",
+                        "base line that is long enough to be counted\n")
+        subprocess.run(["git", "branch", "-f", "upstream-mirror", "develop"],
+                       cwd=t, capture_output=True, env=env)
+        rc, out = run(LOSS, "--upstream", cwd=t, env=env)
+        if "REFUSED" not in out:
+            fails.append("loss: did NOT refuse when merge-base == upstream-mirror (vacuous scan)")
+        if rc == 0:
+            fails.append("loss: exited 0 on a vacuous scan — a caller cannot tell it did nothing")
+
+        # ...and explicit refs must still work in that same state.
+        rc, out = run(LOSS, "--upstream", "--base", "develop~1", "f.py", cwd=t, env=env)
+        if "REFUSED" in out:
+            fails.append("loss: refused even with an explicit --base")
+
     # ---------------- classify_hunks: advisory, must never crash -------------
     with tempfile.TemporaryDirectory() as t:
         env = make_repo(t, "base only line long enough to be counted\n",
@@ -258,10 +282,16 @@ upstream only rule that is long enough here
         # how a tested tool gets bypassed mid-merge.
         forkside = "base line that is long enough to count here\n" + "".join(
             f"fork authored line number {i} long enough to count\n" for i in range(9))
+        # Upstream must ACTUALLY advance. If its content equals the base, `git
+        # commit` creates nothing, upstream-mirror stays at the base, and
+        # merge-base == upstream-mirror — which the promoted-ingest guard
+        # correctly refuses. A fixture where upstream never moved is not a
+        # fixture for a merge.
         env = make_repo(t, "base line that is long enough to count here\n",
                         forkside,
-                        "base line that is long enough to count here\n",
-                        "base line that is long enough to count here\n", path="f.py")
+                        "base line that is long enough to count here\nupstream moved this line along\n",
+                        "base line that is long enough to count here\nupstream moved this line along\n",
+                        path="f.py")
         rc, out = run(LOSS, "f.py", cwd=t, env=env)
         if "and 3 more" not in out:
             fails.append("loss: default view no longer caps at 6 with a 'more' note")

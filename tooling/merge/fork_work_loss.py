@@ -41,7 +41,17 @@ SKIP_SUFFIX = (".png", ".jpg", ".jpeg", ".gif", ".ico", ".webm", ".pdf", ".lock"
 
 
 def sh(*a: str) -> str:
-    return subprocess.run(a, capture_output=True, text=True).stdout
+    """Run git and decode leniently.
+
+    `text=True` decodes as strict UTF-8 and raises on the first non-UTF-8 byte, so
+    a single latin-1 or binary blob anywhere in the file list aborts the whole
+    sweep — losing every result already computed. A repo-wide audit must not be
+    killable by one stray byte. Decode with errors="replace": the substituted
+    characters only affect lines that were already undecodable, and those cannot
+    match a comparison anyway.
+    """
+    out = subprocess.run(a, capture_output=True).stdout
+    return out.decode("utf-8", errors="replace")
 
 
 def main() -> int:
@@ -62,10 +72,38 @@ def main() -> int:
     if show_all:
         sys.argv.remove("--all")
 
-    base = sh("git", "merge-base", "develop", "upstream-mirror").strip()
+    # Explicit ref overrides, for auditing an ingest AFTER it is promoted.
+    #   --base <ref>   --ours <ref>   --result <ref>
+    def opt(flag, default=None):
+        if flag in sys.argv:
+            i = sys.argv.index(flag)
+            v = sys.argv[i + 1]
+            del sys.argv[i:i + 2]
+            return v
+        return default
+
+    base_ref = opt("--base")
+    ours_ref = opt("--ours")
+    result_ref = opt("--result")
+
+    base = sh("git", "rev-parse", base_ref).strip() if base_ref else \
+        sh("git", "merge-base", "develop", "upstream-mirror").strip()
     if not base:
         print("no merge base — is upstream-mirror present?")
         return 0
+
+    # THE SILENT-DEGRADATION GUARD. Once an ingest is PROMOTED, develop contains
+    # upstream-mirror, so `merge-base develop upstream-mirror` returns
+    # upstream-mirror ITSELF. Every upstream line then reads as "already in the
+    # base" and this tool reports a confident, meaningless zero. That is how the
+    # 2026-08-02 ingest was declared clean while it had dropped 18 upstream lines
+    # from cookbookRunning.js alone. Refuse rather than reassure.
+    if not base_ref and base == sh("git", "rev-parse", "upstream-mirror").strip():
+        print("REFUSED: merge-base == upstream-mirror, so every upstream line would")
+        print("read as base content and this scan would report a meaningless zero.")
+        print("The merge is already promoted. Pass explicit refs, e.g.:")
+        print("  --base <pre-ingest merge-base> --ours <pre-merge develop> --result <merge commit>")
+        return 2
 
     # Target discovery is the STAGED set. That is correct mid-merge (every merged
     # file is staged against HEAD) but silently yields NOTHING outside one — e.g.
@@ -80,13 +118,15 @@ def main() -> int:
     total_files, total_lines = 0, 0
     for f in targets:
         p = pathlib.Path(f)
-        mine_ref, other_ref = ("upstream-mirror", "develop") if upstream_mode else ("develop", "upstream-mirror")
+        _ours = ours_ref or "develop"
+        mine_ref, other_ref = ("upstream-mirror", _ours) if upstream_mode else (_ours, "upstream-mirror")
         dev = sh("git", "show", f"{mine_ref}:{f}")
         if not dev:
             continue                      # file absent on that side: nothing of theirs to lose
         up = sh("git", "show", f"{other_ref}:{f}")
         bs = sh("git", "show", f"{base}:{f}")
-        cur = p.read_text(errors="replace") if p.is_file() else ""
+        cur = sh("git", "show", f"{result_ref}:{f}") if result_ref else (
+            p.read_text(errors="replace") if p.is_file() else "")
 
         # RELOCATION AWARENESS: upstream moved route modules into subpackages and
         # left the old path as a shim, so `develop:routes/x_routes.py` (a full
