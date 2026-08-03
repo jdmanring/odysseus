@@ -147,7 +147,11 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
         if category:
             memories = [m for m in memories if category in m.get("categories", [m.get("category", "")])]
 
-        relevant = memory_manager.get_relevant_memories(query, memories, threshold=0.05, max_items=20)
+        if memory_vector and memory_vector.healthy:
+            from src.memory_ranking import hybrid_search
+            relevant = [m for _, m in hybrid_search(query, memories, memory_vector, k=20)]
+        else:
+            relevant = memory_manager.get_relevant_memories(query, memories, threshold=0.05, max_items=20)
 
         return {"memories": relevant, "total": len(relevant), "query": query}
 

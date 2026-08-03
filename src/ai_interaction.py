@@ -473,11 +473,15 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         if len(lines) < 2:
             return {"error": "Search needs line 2: query"}
         query = lines[1].strip()
-        memories = _memory_manager.load(owner=owner)
+        memories = [m for m in _memory_manager.load(owner=owner)
+                    if not m.get("superseded_by")]
         query_lower = query.lower()
         exact_results = [m for m in memories if query_lower in (m.get("text", "").lower())]
 
-        if hasattr(_memory_manager, 'get_relevant_memories'):
+        if _memory_vector and hasattr(_memory_vector, 'healthy') and _memory_vector.healthy:
+            from src.memory_ranking import hybrid_search
+            vector_results = [m for _, m in hybrid_search(query, memories, _memory_vector, k=20)]
+        elif hasattr(_memory_manager, 'get_relevant_memories'):
             vector_results = _memory_manager.get_relevant_memories(query, memories, threshold=0.05, max_items=20)
         else:
             vector_results = []

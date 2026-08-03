@@ -239,7 +239,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         _owner, _all_memories, memories, scope_error = _scope_entries()
         if scope_error:
             return _text_result(scope_error)
-        if hasattr(_memory_manager, 'get_relevant_memories'):
+        if _memory_vector and _memory_vector.healthy:
+            from src.memory_ranking import hybrid_search
+            results = [m for _, m in hybrid_search(query, memories, _memory_vector, k=20)]
+        elif hasattr(_memory_manager, 'get_relevant_memories'):
             results = _memory_manager.get_relevant_memories(query, memories, threshold=0.05, max_items=20)
         else:
             query_lower = query.lower()
