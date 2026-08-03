@@ -38,9 +38,16 @@ and a 2-commit branch tries to replay ~1,900 commits. Use
 | `fix/agent-context-budget-discovery` | Confirmed superseded by upstream #4886. Do not file, do not delete. |
 | `refactor/assets-move` | Rebased; 11 MB of unreferenced `.gif` media dropped. The earlier "unfileable, retire" verdict was WRONG and is retracted. |
 | `test/upstream-pr-4661` | Deleted — snapshot of a CLOSED-unmerged upstream PR that did not even match its head. Recoverable at `refs/deleted/`. |
-| `src/model_context.py` | **We are AHEAD of upstream** (basename-weighted key match vs their longest-key). Not yet staged as its own branch. |
+| `fix/model-context-org-prefix` | **NEW branch (#173)**, staged 2026-08-03. We are ahead of upstream: their longest-key rule lets `moonshot` (len 8) beat `kimi-k2` (len 7) by matching the ORG portion of `moonshotai/kimi-k2.6`, budgeting 128k for a model served at 256k. Basename-weighted scoring fixes it. 3 regression tests, the two org-prefix ones mutation-checked against the old implementation. |
+| `fix/dom-oom-virtualization`, `feat/aria2c-downloader` | Re-converged 2026-08-03 (`9f415298`, `8e1c18a8`). Guard #131 caught `static/app.js` and `static/js/cookbookRunning.js` lagging develop. Both green. |
 
-**Also unfiled:** PR draft for #172.
+**PR drafts:** #172 written (`pr-drafts/feat-memory-hybrid-recall.md`). #173 not yet.
+
+**Do not file #172 from an old checkout.** The branch gained two commits after the
+first cut: `b4f546bd` wires the three remaining recall paths (the module docstring
+claimed all four and the branch delivered one), and `b8730071` corrects the
+lexical-term benchmark to the current record. The superseded number (4-1,
+p=0.375) reads as a weak result; the actual one is 16-3, p = 0.0044.
 
 Full analysis: `docs/fork/upstream-review-20260803.md`.
 
