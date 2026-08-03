@@ -135,12 +135,34 @@ double and strips `:free` / `:extended` suffixes, so a key matching the org pref
 cannot outrank one matching the actual model name (`anthropic/claude-…`). Strictly
 better; upstream-candidate.
 
-**Convergent evidence:** upstream and this fork independently wrote near-identical
-analyses of the `String.replace` `$&`/`` $` ``/`$'`/`$$` substitution trap, down to
-the same worked examples (`echo "$$USD"`). Two parties reaching the same fix
-separately is the strongest signal available that the fix is right — and it is a
-reason to prefer *their* wording when merging, since theirs is the one their
-reviewers already accepted.
+**RETRACTED — there was no convergence, and the original claim here was false.**
+
+This section previously read: "upstream and this fork independently wrote
+near-identical analyses of the `String.replace` `$&` substitution trap … two parties
+reaching the same fix separately is the strongest signal available that the fix is
+right." That was wrong in both directions, and self-flattering, which is why it
+needed challenging rather than repeating.
+
+What actually happened, from history:
+- The fork's ONE function-replacer site came from **upstream PR #4681**
+  ("preserve URLs inside inline code spans", 2026-06-22), ingested earlier. The
+  duplicates `e812a292` / `b94cd795` are the mis-rooted fork's own copies of that
+  same upstream commit. The fork discovered nothing here.
+- Upstream extended the fix to all five restore sites in **#5768** (`57831220`,
+  2026-07-30), which arrived with THIS ingest.
+- The merge resolved that region to the fork's side, keeping 1 site and dropping 4.
+  `test_markdown_rendering_js` caught it, and the "independent" comment written
+  during triage was authored with upstream's #5768 text present in the same file.
+
+So it is upstream's analysis twice over, restated in our words. The correct
+conclusion is the opposite of the one drawn: **prefer upstream's comment verbatim**,
+because it is the original and because keeping our paraphrase creates diff noise at
+every future ingest for no gain.
+
+**The generalisable lesson is about the claim, not the code.** "We reached the same
+answer independently" is a claim about provenance, and provenance is checkable with
+`git log -S` in about a minute. It was asserted from impression instead — the same
+failure this document criticises elsewhere, committed in the document itself.
 
 **Supersession risk by branch** (overlap between a branch's files and files upstream
 changed) — full scan in the session record. Highest: `feat/memory-qdrant-nomic`
