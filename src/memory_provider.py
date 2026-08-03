@@ -163,6 +163,12 @@ class NativeMemoryProvider(MemoryProvider):
 
         if self._vector_available():
             self.memory_vector.add(entry["id"], entry["text"])
+            from src.memory_supersede import on_write
+            supersede = on_write(self.memory_manager, self.memory_vector, entry)
+            if supersede["superseded"] or supersede["candidates"]:
+                record = self._to_record(entry)
+                record.metadata["supersede"] = supersede
+                return record
 
         return self._to_record(entry)
 
@@ -174,28 +180,47 @@ class NativeMemoryProvider(MemoryProvider):
         top_k: int = 5,
     ) -> List[MemorySearchHit]:
         memories = self.memory_manager.load(owner=owner)
-        by_id = {m.get("id"): m for m in memories}
 
         if self._vector_available():
-            hits: List[MemorySearchHit] = []
-            for result in self.memory_vector.search(query, k=top_k):
-                if not isinstance(result, dict):
+            # Dense + BM25 fusion (one shared implementation for every recall
+            # path); superseded entries are filtered inside hybrid_search.
+            from src.memory_ranking import hybrid_search
+            try:
+                rows = self.memory_vector.search(query, k=min(top_k * 3, 20))
+            except Exception:
+                rows = []
+            scored = hybrid_search(query, memories, self.memory_vector,
+                                   k=top_k, vector_rows=rows)
+            hits = [
+                MemorySearchHit(
+                    memory=self._to_record(entry),
+                    provider_id=self.provider_id,
+                    score=round(score, 4),
+                )
+                for score, entry in scored
+                if owner is None or entry.get("owner") == owner
+            ]
+            # Legacy-row salvage: a stale index can return rows that are full
+            # entries (id/text, no memory_id) with no JSON counterpart. They
+            # carried real user data before, so they still surface after the
+            # fused hits rather than silently vanishing.
+            known = {m.get("id") for m in memories}
+            for r in rows:
+                if not isinstance(r, dict) or "memory_id" in r:
                     continue
-                memory_id = result.get("memory_id")
-                entry = by_id.get(memory_id) if memory_id else result
-                if not entry:
+                if not r.get("id") or r["id"] in known:
                     continue
-                if owner is not None and entry.get("owner") != owner:
+                if owner is not None and r.get("owner") != owner:
                     continue
                 hits.append(
                     MemorySearchHit(
-                        memory=self._to_record(entry),
+                        memory=self._to_record(r),
                         provider_id=self.provider_id,
-                        score=result.get("score"),
+                        score=r.get("score"),
                     )
                 )
             if hits:
-                return hits
+                return hits[:top_k]
 
         fallback = self.memory_manager.get_relevant_memories(
             query,

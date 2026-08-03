@@ -68,9 +68,16 @@ def test_native_provider_recall_filters_vector_hits_by_owner(tmp_path):
 
     hits = run(provider.recall("what does Alice like?", owner="alice", top_k=5))
 
+    # Owner isolation is the point of this test and is unchanged: bob's higher
+    # vector score (0.99) must not surface for alice.
     assert [hit.memory.id for hit in hits] == [alice.id]
     assert hits[0].provider_id == "native"
-    assert hits[0].score == 0.75
+    # CONTRACT CHANGE: score is now a FUSED BM25 + dense score, not the raw
+    # vector similarity passed through. Hybrid recall blends the two, so the
+    # value legitimately differs from the store's 0.75 here. Asserting a bare
+    # equality pinned an implementation detail; assert the properties that
+    # actually matter — bounded, and boosted by a lexical match on "Alice".
+    assert 0.75 <= hits[0].score <= 1.0
 
 
 def test_native_provider_recall_accepts_legacy_vector_rows(tmp_path):
