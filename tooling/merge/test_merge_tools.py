@@ -123,6 +123,33 @@ def main() -> int:
         if "<<<<<<<" in got or ">>>>>>>" in got or "=======" in got:
             fails.append("resolve: left conflict markers behind")
 
+    # ---------------- resolve_hunks: union keeps BOTH sides ------------------
+    with tempfile.TemporaryDirectory() as t:
+        # Rebasing a staged fork branch onto a moved upstream produces add/add
+        # hunks: upstream added bookkeeping where the fork added cleanup. Either
+        # single-side choice silently drops a feature, so 'u' must keep both.
+        f = pathlib.Path(t, "u.py"); f.write_text(CONFLICT)
+        rc, out = run(RESOLVE, str(f), "u,u")
+        got = f.read_text()
+        if rc != 0:
+            fails.append(f"resolve: union spec failed: {out[:120]}")
+        for must in ("ours line one", "theirs line one", "ours line two", "theirs line two"):
+            if must not in got:
+                fails.append(f"resolve: union dropped {must!r}")
+        # Guarded: if union is broken one side is ABSENT, and a bare .index()
+        # would raise and abort the whole battery instead of reporting a failure.
+        # A battery that dies mid-run silently skips every check after it.
+        if "ours line one" in got and "theirs line one" in got:
+            if got.index("ours line one") > got.index("theirs line one"):
+                fails.append("resolve: union put THEIRS before OURS")
+        if "<<<<<<<" in got or ">>>>>>>" in got:
+            fails.append("resolve: union left conflict markers")
+
+        f.write_text(CONFLICT)
+        rc, out = run(RESOLVE, str(f), "u,x")
+        if rc == 0 or "REFUSED" not in out:
+            fails.append("resolve: accepted an invalid token alongside 'u'")
+
     # ---------------- fork_work_loss: false negatives are the danger ---------
     with tempfile.TemporaryDirectory() as t:
         # fork adds a line; merge result drops it => MUST be caught

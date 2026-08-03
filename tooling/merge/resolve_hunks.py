@@ -3,7 +3,8 @@
 
 Usage:  resolve_hunks.py <file> <spec>
         spec = comma-separated per-hunk choices, 1-based, in hunk order.
-               'o' = keep our side, 't' = keep their side.
+               'o' = keep our side, 't' = keep their side,
+               'u' = UNION, both sides, ours first.
                e.g. "o,t,o" for a 3-hunk file.
 
 Refuses to write unless the spec length matches the hunk count exactly -- a
@@ -34,14 +35,20 @@ def main() -> int:
     if len(hunks) != len(spec):
         print(f"REFUSED: {path} has {len(hunks)} hunks, spec has {len(spec)}")
         return 1
-    if any(c not in ("o", "t") for c in spec):
-        print("REFUSED: spec entries must be 'o' or 't'")
+    if any(c not in ("o", "t", "u") for c in spec):
+        print("REFUSED: spec entries must be 'o', 't' or 'u'")
         return 1
 
     out, last = [], 0
     for m, choice in zip(hunks, spec):
         out.append(text[last : m.start()])
-        out.append(m.group("ours") if choice == "o" else m.group("theirs"))
+        # UNION is the common shape when rebasing a staged fork branch onto a
+        # moved upstream: both sides ADDED at one spot (upstream bookkeeping,
+        # fork cleanup), so either choice silently drops a feature.
+        if choice == "u":
+            out.append(m.group("ours") + m.group("theirs"))
+        else:
+            out.append(m.group("ours") if choice == "o" else m.group("theirs"))
         last = m.end()
     out.append(text[last:])
     result = "".join(out)
