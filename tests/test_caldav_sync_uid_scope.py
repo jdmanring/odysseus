@@ -6,7 +6,6 @@ that user A's calendar already held, the query returned A's row and the sync
 reassigned its calendar_id to B's calendar — stealing A's event. The lookup
 must be scoped to the calendar being synced.
 """
-import tempfile
 import uuid
 from datetime import datetime
 
@@ -18,8 +17,9 @@ from sqlalchemy.pool import NullPool
 import core.database as cdb
 from core.database import CalendarEvent, CalendarCal
 from src.caldav_sync import _find_existing_event
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(f"sqlite:///{_TMPDB.name}", connect_args={"check_same_thread": False}, poolclass=NullPool)
 cdb.Base.metadata.create_all(_ENGINE)
 _TS = sessionmaker(bind=_ENGINE, autoflush=False, autocommit=False)

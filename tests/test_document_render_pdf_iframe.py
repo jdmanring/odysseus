@@ -1,7 +1,6 @@
 """Regression tests for the document PDF preview framing headers and PyMuPDF dependency handling."""
 
 import builtins
-import tempfile
 import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -15,6 +14,7 @@ import core.database as cdb
 import routes.document_routes as droutes
 from core.database import Document
 from core.middleware import SecurityHeadersMiddleware
+from tests.helpers.sqlite_db import temp_db_file
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ async def test_unrelated_paths_keep_strict_policy():
 def test_db(monkeypatch):
     """Create a temporary SQLite database and patch routes.document_routes.SessionLocal."""
     import os
-    tmpdb = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmpdb = temp_db_file()
     tmpdb.close()
     engine = create_engine(
         f"sqlite:///{tmpdb.name}",

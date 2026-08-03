@@ -12,7 +12,6 @@ permissive than the reader.
 """
 
 import json
-import tempfile
 
 import pytest
 from sqlalchemy import create_engine
@@ -26,8 +25,9 @@ clear_fake_database_modules()
 import core.database as cdb
 from core.database import ScheduledTask
 from src.tools.system import do_manage_tasks
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

@@ -7,7 +7,6 @@ tool to fall back to its default 14-day window.
 
 import json
 import sys
-import tempfile
 import uuid
 
 import pytest
@@ -20,8 +19,9 @@ from tests.helpers.import_state import clear_fake_database_modules
 clear_fake_database_modules()
 
 import core.database as cdb
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

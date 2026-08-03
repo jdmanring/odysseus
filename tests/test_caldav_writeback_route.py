@@ -9,7 +9,6 @@ hang in some environments; a direct call with a minimal fake request keeps the
 same coverage and completes reliably.
 """
 
-import tempfile
 import uuid
 from types import SimpleNamespace
 
@@ -23,8 +22,9 @@ import routes.calendar_routes as croutes
 import src.caldav_sync as csync
 from core.database import CalendarCal
 from routes.calendar_routes import EventCreate
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

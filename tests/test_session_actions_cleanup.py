@@ -7,7 +7,6 @@ turn, leaving the browser pointed at a session id that no longer exists.
 import asyncio
 from datetime import timedelta
 import sys
-import tempfile
 import uuid
 
 import pytest
@@ -23,10 +22,11 @@ from sqlalchemy.pool import NullPool
 import core.database as cdb
 from core.database import ChatMessage as DbMessage, Session as DbSession, utcnow_naive
 import src.session_actions as session_actions
+from tests.helpers.sqlite_db import temp_db_file
 
 
 def _make_session_factory():
-    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp = temp_db_file()
     tmp.close()
     engine = create_engine(
         f"sqlite:///{tmp.name}",

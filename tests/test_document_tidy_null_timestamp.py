@@ -6,7 +6,6 @@ compared None against a datetime and raised TypeError, aborting the entire
 tidy run. The sort key is now total-order safe.
 """
 import asyncio
-import tempfile
 import uuid
 from datetime import datetime
 
@@ -17,11 +16,12 @@ from sqlalchemy.pool import NullPool
 
 import core.database as cdb
 from core.database import Document
+from tests.helpers.sqlite_db import temp_db_file
 
 
 @pytest.fixture
 def db_factory(monkeypatch):
-    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp = temp_db_file()
     engine = create_engine(f"sqlite:///{tmp.name}", connect_args={"check_same_thread": False}, poolclass=NullPool)
     cdb.Base.metadata.create_all(engine)
     TS = sessionmaker(bind=engine, autoflush=False, autocommit=False)

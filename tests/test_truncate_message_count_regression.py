@@ -10,12 +10,12 @@ decide whether to lazily hydrate from the DB, so an inflated count is a latent
 correctness hazard.
 """
 import os
-import tempfile
+
+from tests.helpers.sqlite_db import temp_db_path
 
 
 def _make_manager():
-    db_fd, db_path = tempfile.mkstemp(suffix=".db")
-    os.close(db_fd)
+    db_path = temp_db_path()
     os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
 
     # Import after DATABASE_URL is set so the engine binds to the temp DB.

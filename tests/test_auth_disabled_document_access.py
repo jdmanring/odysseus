@@ -14,7 +14,6 @@ test_document_session_owner_scope.py) so coverage lands on the real
 closures without spinning up middleware.
 """
 
-import tempfile
 import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -34,8 +33,9 @@ import routes.document_routes as droutes
 from core.database import Document
 from core.database import Session as DbSession
 from routes.document_helpers import _verify_doc_owner, _owner_session_filter
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

@@ -14,7 +14,6 @@ maps the principal URL to its events collection and pulls the event. No live
 Google account is required.
 """
 import sys
-import tempfile
 import types
 from datetime import datetime, timedelta
 
@@ -26,8 +25,9 @@ from sqlalchemy.pool import NullPool
 import core.database as cdb
 from core.database import CalendarCal, CalendarEvent
 from src import caldav_sync
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},
