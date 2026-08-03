@@ -190,6 +190,26 @@ class TestLookupKnown:
     def test_gpt4_base(self):
         assert _lookup_known("gpt-4") == 8192
 
+    def test_org_prefix_does_not_beat_model_name(self):
+        """A key matching only the org must lose to one matching the model.
+
+        'moonshot' (len 8) is a substring of the org 'moonshotai', so a plain
+        longest-key rule picks it over 'kimi-k2' (len 7) and budgets 128k for a
+        model served at 256k. Under-budgeting silently truncates context, where
+        over-budgeting at least surfaces as a 400 from the endpoint.
+        """
+        assert _lookup_known("moonshotai/kimi-k2.6") == 262144
+        assert _lookup_known("moonshotai/kimi-k2-instruct") == 262144
+
+    def test_org_prefix_fix_preserves_bare_and_unrelated_ids(self):
+        """The scoring change must not move ids that were already correct."""
+        assert _lookup_known("kimi-k2") == 262144
+        assert _lookup_known("nvidia/llama-3.1-nemotron-70b") == 131072
+
+    def test_full_name_match_still_counts_when_basename_misses(self):
+        """A key present only in the org portion is still better than nothing."""
+        assert _lookup_known("moonshotai/some-unlisted-model") == 128000
+
 
 class _FakeResp:
     def __init__(self, payload, ok=True):
