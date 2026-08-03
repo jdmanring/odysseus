@@ -58,10 +58,18 @@ dry-run by default).
   not file". Upstream shipped the same lazy-probe idea as #4886 with a known-table
   fast path (`_proxy_catalog_context`). Effort was spent rebasing a retired branch
   because the tracker was not read first.
-- `refactor/assets-move` — pr-status.md still says "Ready to file", which is now
-  STALE. It moves `docs/* -> assets/*`; upstream has since consolidated into
-  `docs/` and ships no `assets/` directory, so the branch inverts their layout and
-  is unfileable as written. Retire or re-scope.
+- ~~`refactor/assets-move` — unfileable, retire.~~ **RETRACTED 2026-08-03, that
+  claim was wrong.** The reasoning was "upstream consolidated into `docs/`, so the
+  branch inverts their layout". Checked properly: `assets/` did NOT exist at the
+  merge base, upstream never had it, and **the fork created it** — `develop` ships
+  15 files under `assets/` and its README already points at
+  `assets/odysseus-wordmark.png`. So upstream consolidated nothing; the branch is an
+  ordinary refactor PROPOSING `assets/`, exactly as it always was, and its work is
+  already on develop. It needs REBASING like any other staged branch, not retiring.
+  The error came from reading `git rev-list upstream-mirror..<branch>` on an
+  UN-REBASED branch, which returns ~1,900 unrelated commits — the "what this branch
+  does" sample was another contributor's commit about vision timeouts. Always scope
+  an un-rebased branch against the OLD mirror tag.
 
 **Rebase sweep, third pass — 10 of 15 conflicts resolved.** Added since the second
 pass: `feat/memory-qdrant-nomic` (7 commits, F821 clean, 69 tests green). It hit the
