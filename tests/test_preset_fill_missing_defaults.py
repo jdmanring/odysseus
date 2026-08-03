@@ -10,13 +10,13 @@ filling them back in is safe.
 """
 import json
 import os
-import tempfile
 
 from src.preset_manager import PresetManager
+from tests.helpers.temp_cleanup import temp_dir
 
 
 def _write_presets(data: dict) -> str:
-    d = tempfile.mkdtemp()
+    d = temp_dir(prefix="odysseus-presets-test-")
     with open(os.path.join(d, "presets.json"), "w", encoding="utf-8") as f:
         json.dump(data, f)
     return d

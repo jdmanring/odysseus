@@ -12,11 +12,11 @@ Functions covered:
 import imaplib
 import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from tests.helpers.temp_cleanup import temp_dir
 
-_TMP = Path(tempfile.mkdtemp(prefix="odysseus-imap-leak-fixes-"))
+_TMP = Path(temp_dir(prefix="odysseus-imap-leak-fixes-"))
 os.environ.setdefault("DATA_DIR", str(_TMP))
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{_TMP / 'app.db'}")
 

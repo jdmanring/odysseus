@@ -12,7 +12,6 @@ the get_workspace tool, no-leak across calls, and the admin-gated browse route.
 """
 import json
 import os
-import tempfile
 from types import SimpleNamespace
 
 import pytest
@@ -34,10 +33,19 @@ def _block(tool, content=""):
 
 
 @pytest.fixture
-def ws():
-    d = tempfile.mkdtemp()
+def ws(tmp_path):
+    d = str(tmp_path / "ws")
+    os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "a.txt"), "w") as f:
         f.write("x")
+    return d
+
+
+@pytest.fixture
+def outside(tmp_path):
+    """A directory that is NOT inside `ws`, for the confinement assertions."""
+    d = str(tmp_path / "outside")
+    os.makedirs(d, exist_ok=True)
     return d
 
 
@@ -51,11 +59,10 @@ def admin(monkeypatch):
 
 # ── the resolver helper ────────────────────────────────────────────────
 
-def test_resolver_confines(ws):
+def test_resolver_confines(ws, outside):
     real = os.path.realpath(os.path.join(ws, "a.txt"))
     assert _resolve_tool_path_in_workspace(ws, "a.txt") == real          # relative
     assert _resolve_tool_path_in_workspace(ws, os.path.join(ws, "a.txt")) == real  # abs inside
-    outside = tempfile.mkdtemp()
     with pytest.raises(ValueError):                                       # abs outside
         _resolve_tool_path_in_workspace(ws, os.path.join(outside, "x.txt"))
     with pytest.raises(ValueError):                                       # parent escape
@@ -70,7 +77,7 @@ def test_resolver_blocks_sensitive_inside_workspace(ws):
 
 # ── the central binding: the safety net ─────────────────────────────────
 
-def test_active_binding_confines_shared_resolvers(ws):
+def test_active_binding_confines_shared_resolvers(ws, outside):
     """ANY tool resolving paths through the shared helpers is confined while the
     binding is active, without doing anything workspace-specific itself. This is
     what stops a newly added tool from accidentally ignoring the workspace."""
@@ -96,7 +103,7 @@ def test_no_binding_uses_default_roots():
 # ── end-to-end via execute_tool_block (sets + resets the binding) ───────
 
 @pytest.mark.asyncio
-async def test_read_write_edit_confined_e2e(ws, admin):
+async def test_read_write_edit_confined_e2e(ws, admin, outside):
     _, r = await execute_tool_block(_block("write_file", "note.txt\nhello"), owner="a", workspace=ws)
     assert r["exit_code"] == 0 and os.path.isfile(os.path.join(ws, "note.txt"))
     _, r = await execute_tool_block(_block("read_file", "note.txt"), owner="a", workspace=ws)
@@ -113,7 +120,6 @@ async def test_read_write_edit_confined_e2e(ws, admin):
         assert f.read() == "baz bar"
 
     # outside the workspace is rejected, and nothing is created
-    outside = tempfile.mkdtemp()
     of = os.path.join(outside, "secret.txt")
     with open(of, "w") as f:
         f.write("nope")
@@ -126,7 +132,7 @@ async def test_read_write_edit_confined_e2e(ws, admin):
 
 
 @pytest.mark.asyncio
-async def test_apply_patch_confined_e2e(ws, admin):
+async def test_apply_patch_confined_e2e(ws, admin, outside):
     with open(os.path.join(ws, "patchme.txt"), "w") as f:
         f.write("alpha\nbeta\ngamma\n")
     patch = """*** Begin Patch
@@ -147,7 +153,6 @@ async def test_apply_patch_confined_e2e(ws, admin):
     with open(os.path.join(ws, "added.txt")) as f:
         assert f.read() == "new file\n"
 
-    outside = tempfile.mkdtemp()
     outside_file = os.path.join(outside, "x.txt")
     with open(outside_file, "w") as f:
         f.write("x\n")
@@ -187,12 +192,11 @@ async def test_todowrite_persists_session_list(tmp_path, monkeypatch, admin):
 
 
 @pytest.mark.asyncio
-async def test_grep_and_ls_confined_e2e(ws, admin):
+async def test_grep_and_ls_confined_e2e(ws, admin, outside):
     with open(os.path.join(ws, "doc.txt"), "w") as f:
         f.write("hello workspace\n")
     _, r = await execute_tool_block(_block("grep", json.dumps({"pattern": "hello"})), owner="a", workspace=ws)
     assert r["exit_code"] == 0 and "doc.txt" in r["output"]
-    outside = tempfile.mkdtemp()
     _, r = await execute_tool_block(_block("grep", json.dumps({"pattern": "x", "path": outside})), owner="a", workspace=ws)
     assert r["exit_code"] == 1 and "outside the workspace" in r["error"]
     _, r = await execute_tool_block(_block("ls", ""), owner="a", workspace=ws)
@@ -202,7 +206,7 @@ async def test_grep_and_ls_confined_e2e(ws, admin):
 
 
 @pytest.mark.asyncio
-async def test_glob_confined_e2e(ws, admin):
+async def test_glob_confined_e2e(ws, admin, outside):
     """glob's literal fast-path must stay inside the workspace. A pattern with
     ../ or an absolute path outside the root would otherwise leak the existence
     and full path of arbitrary host files (an oracle), even though read_file
@@ -213,7 +217,6 @@ async def test_glob_confined_e2e(ws, admin):
     assert r["exit_code"] == 0 and "found.py" in r["output"]
 
     # a secret outside the workspace must not be discoverable via glob
-    outside = tempfile.mkdtemp()
     secret = os.path.join(outside, "secret.txt")
     with open(secret, "w") as f:
         f.write("nope")
