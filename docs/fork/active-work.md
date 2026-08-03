@@ -82,7 +82,35 @@ needed porting. Its import hunk was a union minus the superseded `CHROMA_DIR` li
 It is a snapshot of someone else's CLOSED-unmerged upstream PR, it does not match that
 PR's head, and it holds a worktree lock. Same for `test/pr-4661`.
 
-**3 conflicts still open:** `feat/logging` (structlog vs upstream stdlib logging, plus
+**Rebase sweep, fourth pass — 12 of 15.** Added: `refactor/assets-move` (retracted
+the bogus retire verdict, then rebased properly), `feat/logging`.
+
+`feat/logging` is the reference example of the RELOCATION rule: upstream moved
+`routes/note_routes.py` into `routes/note/` and left a shim. Resolving the old path
+to the shim is correct but NOT sufficient — the branch's structlog + ntfy-timing
+change was authored against the old path and had to be PORTED into the canonical
+module, or it disappears with no conflict and no failing test. Two other hunks
+needed partial resolutions no o/t/u spec can express: upstream's adaptive poll
+interval PLUS the fork's `_t0` timing line (a union emits two sleeps), and
+upstream's `Any` import minus `import logging` (measured on the branch: `logging.`
+used 0 times, `Any` 4).
+
+**`verify_rebase.py` — run it after every rebase.** Compares the branch's patch
+before and after; across 80 branches it flagged 3, of which one was a real find no
+test could make (a comment reading "chromadb may not be initialised" on the branch
+that replaces chromadb). KNOWN LIMIT: it matches line TEXT, not path, so a line
+ported into a different file still reads OK — which is right for relocations and
+wrong if a line lands somewhere it should not. Pair it with the tests.
+
+**`refactor/assets-move` carries a PRE-EXISTING defect, not rebase damage:** its
+commit adds 5 unreferenced `.gif` files totalling 11 MB (chat/compare/document/
+notes/research), present on no other ref. Upstream ships referenced `.webm`
+equivalents. As written the branch fails upstream's own `test_docs_no_orphan_images`
+guard and would add 11 MB of dead weight. Decide: drop the gifs, reference them, or
+do not file. Its commit message says "no functional change", which is inconsistent
+with adding 11 MB of unused media.
+
+**3 conflicts still open (unchanged):** `feat/logging` (structlog vs upstream stdlib logging, plus
 a `note_routes` relocation shim), `fix/dom-oom-virtualization` (`sessions.js`),
 `feat/aria2c-downloader` (38 commits, `cookbookRunning.js`).
 
