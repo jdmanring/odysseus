@@ -44,7 +44,7 @@ already upstream, **1,175 are genuinely ours, 634 of those touch app code**.
 `integration` had NO unique app work (all 37 unique commits were sync plumbing), so it
 was reset to `upstream-mirror`.
 
-## Progress: 180 of 182 files resolved, 2 remain
+## Progress: ALL 182 files resolved, merged, and promoted
 
 Resolved by class:
 - **57** — no fork commit ever touched them, so our side was pure stale upstream. Rule:
@@ -79,25 +79,31 @@ to correct it — check any remaining `routes/*_routes.py` against `routes/<name
 
 ## Another trap: a nicer-looking fork string can be load-bearing elsewhere
 
-`src/prompt_security.py` — ours had a differently-worded injection guard ("EXTERNAL DATA";
-"better-worded" was the original claim here and the bench does NOT support it — see the
-guard-eval TODO section, where the fork's wording measured no better than upstream's),
-but `src/llm_core.py:1566` does `content.startswith("UNTRUSTED SOURCE DATA\n")` and
-`tests/test_llm_core_sanitize_tool_calls.py` asserts the same. Took THEIRS for both the
-module and `tests/test_tool_output_prompt_injection.py`. Grep the merged tree for any
-string literal before preferring our wording.
+`src/prompt_security.py` — ours had a differently-worded injection guard ("EXTERNAL DATA"),
+and `src/llm_core.py` (~line 1536, NOT 1566 as first recorded) does
+`content.startswith("UNTRUSTED SOURCE DATA\n")`, which our header does not match.
+
+**This section originally concluded "took THEIRS for the module and the tests". That was
+REVERSED during the failure triage and the FORK's header is what shipped.** Two reasons,
+both in the failures section: the fork's header fixes two observed regressions that the
+guard bench never measured, and the `llm_core` check is an OR whose second clause
+(`"<<<UNTRUSTED_SOURCE_DATA>>>" in content`) does match, so nothing was load-bearing on
+the first clause. Verified on develop: detection returns True.
+
+The generalisable half stands: **grep the merged tree for a string literal before
+preferring either side's wording** — that is how the coupling was found at all. What does
+NOT stand is stopping at the first grep hit; reading only the line this section pointed at
+would have produced a confident wrong conclusion twice over.
 
 ## Remaining work
 
-**All 182 files are resolved.** Nothing is conflicted; the merge is staged and uncommitted.
-Re-derive rather than trusting this line, which has gone stale roughly every session:
+**Nothing.** All 182 files resolved, merged (`09f86519`) and promoted to `develop`
+(`08252cd3`). Suite on develop in the real environment: **6,107 passed / 2 failed /
+6 skipped**, from 51 failures when triage began.
 
-    git diff --name-only --diff-filter=U          # expect empty
-    echo "$(( 182 - $(git diff --name-only --diff-filter=U | wc -l) )) of 182 resolved"
-
-What is left is the **31 remaining test failures**, all merge-introduced (`develop`
-baseline is 0). Triage and disposition are in the failures section below. Full suite at
-this point: **31 failed / 6,084 passed / 6 skipped**, from 51 when triage began.
+The 2 remaining are `test_staged_branch_convergence` and are NOT defects — see the
+failures section. Next action is re-converging the staged PR branches (#131), which
+clears them. Nothing has been pushed; `origin` still holds the pre-ingest state.
 
 Gate status, all re-run with every file resolved:
 - `node --check` on all 44 resolved JS files — clean
