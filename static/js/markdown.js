@@ -758,30 +758,39 @@ export function mdToHtml(src, opts) {
   // Remove empty paragraphs
   s = s.replace(/<p><\/p>/g, '');
 
+  // EVERY restore below uses a FUNCTION replacer, and that is load-bearing.
+  // String.replace treats `$&`, `` $` ``, `$'`, `$1` and `$$` in the *replacement*
+  // as substitution patterns, so a restored block containing them is corrupted:
+  // `$&` re-inserts the placeholder, `` $` `` and `$'` splice in the surrounding
+  // document, and `$$` collapses to a single `$`. That mangles ordinary shell and
+  // template snippets (`git log --format=%h`, `echo "$$USD"`, `${VAR}`). A function
+  // replacer inserts its return value verbatim, with no pattern interpretation.
+  //
+  // Only the inline-code site had this; the other four took a plain string and
+  // silently corrupted fenced code and mermaid blocks.
+
   // CRITICAL: Restore allowed HTML blocks first
   allowedHtmlBlocks.forEach((block, index) => {
-    s = s.replace(`___ALLOWED_HTML_${index}___`, block);
+    s = s.replace(`___ALLOWED_HTML_${index}___`, () => block);
   });
 
   // Restore math blocks
   mathBlocks.forEach((block, index) => {
-    s = s.replace(`___MATH_BLOCK_${index}___`, block);
+    s = s.replace(`___MATH_BLOCK_${index}___`, () => block);
   });
 
   // Restore mermaid diagram blocks
   mermaidBlocks.forEach((block, index) => {
-    s = s.replace(`___MERMAID_BLOCK_${index}___`, block);
+    s = s.replace(`___MERMAID_BLOCK_${index}___`, () => block);
   });
 
   // CRITICAL: Restore code blocks at the end
   codeBlocks.forEach((block, index) => {
-    s = s.replace(`___CODE_BLOCK_${index}___`, block);
+    s = s.replace(`___CODE_BLOCK_${index}___`, () => block);
   });
 
   // Restore inline code spans last, so placeholders carried inside restored
-  // <a>/allowed-HTML blocks are resolved too. The function replacer keeps the
-  // escaped code literal — e.g. a shell snippet like `echo $1` is not treated
-  // as a regex back-reference.
+  // <a>/allowed-HTML blocks are resolved too.
   inlineCodeBlocks.forEach((block, index) => {
     s = s.replace(`___INLINE_CODE_${index}___`, () => block);
   });

@@ -668,10 +668,15 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             raise HTTPException(403, "Admin only")
         body = await request.json()
         current = _load_settings()
+        # Per-key validation for numeric settings: coerce to int and clamp to a
+        # sane range so a bad value can't disable the agent or let it run away.
         _INT_RANGES = {
             "agent_max_rounds": (1, 200),
-            "agent_max_tool_calls": (0, 1000),
+            "agent_max_tool_calls": (0, 1000),  # 0 = unlimited
         }
+        # Fork: audit which settings actually changed (structlog `settings_changed`).
+        # Upstream has no such logging, so its side of the hunk drops this decl while
+        # the uses below survive in auto-merged code -> NameError on every save.
         changes = {}
         for key in DEFAULT_SETTINGS:
             if key not in body:

@@ -235,6 +235,39 @@ def _resolve_tool_path(raw_path: str) -> str:
     )
 
 
+def _resolve_tool_path_in_workspace(workspace: str, raw_path: str) -> str:
+    """Confine a model-supplied path to the active workspace.
+
+    Layered on top of upstream's path policy: the workspace is the allowed
+    root (relative paths resolve under it; paths that escape it are rejected),
+    and the sensitive-file deny list (.ssh, .gnupg, id_rsa, …) still applies
+    inside it. When no workspace is set, callers use _resolve_tool_path (the
+    default data/tmp allowlist) instead.
+    """
+    if raw_path is None or not str(raw_path).strip():
+        raise ValueError("path is required")
+    base = os.path.realpath(workspace)
+    expanded = os.path.expanduser(str(raw_path).strip())
+    candidate = expanded if os.path.isabs(expanded) else os.path.join(base, expanded)
+    resolved = os.path.realpath(candidate)
+    if _is_sensitive_path(resolved):
+        raise ValueError(
+            f"path '{raw_path}' is inside a sensitive directory "
+            f"(e.g. .ssh, .gnupg) or matches a sensitive filename"
+        )
+    if resolved != base:
+        # normcase so containment holds on case-insensitive filesystems
+        # (Windows, default macOS): it lowercases on Windows and is a no-op on
+        # POSIX. commonpath raises ValueError across Windows drives (C: vs D:)
+        # or mixed abs/rel — both mean "outside", so the except rejects them.
+        nbase = os.path.normcase(base)
+        try:
+            if os.path.commonpath([os.path.normcase(resolved), nbase]) != nbase:
+                raise ValueError
+        except ValueError:
+            raise ValueError(f"path '{raw_path}' is outside the workspace ({workspace})")
+    return resolved
+
 
 
 # ---------------------------------------------------------------------------
@@ -663,6 +696,12 @@ async def _execute_tool_block_impl(
     # happened to emit.
     policy_names = email_tool_policy_names(tool)
 
+    # The block/disable gates below must match every policy-equivalent
+    # spelling of the tool name (bare email names alias their mcp__email__
+    # form — see email_tool_policy_names), not just the spelling the model
+    # happened to emit.
+    policy_names = email_tool_policy_names(tool)
+
     # Misformatted tool call detection: model put JSON inside ```python``` (or
     # similar) without naming the tool. Common with MiniMax-style outputs.
     # Return a helpful error so the model retries with the correct format.
@@ -763,6 +802,11 @@ async def _execute_tool_block_impl(
         first_line = content.split(chr(10))[0][:80]
         desc = f"{tool}: {first_line}"
         result = await _direct_fallback(tool, content, progress_cb=progress_cb) \
+            or {"error": f"{tool}: execution failed", "exit_code": 1}
+    elif tool in ("apply_patch", "todowrite"):
+        first_line = content.split(chr(10))[0][:80]
+        desc = f"{tool}: {first_line}" if first_line else tool
+        result = await _direct_fallback(tool, content, session_id=session_id, owner=owner) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
     elif tool == "manage_bg_jobs":
         # Inspect/kill detached `bash` jobs; needs session_id to scope to chat.

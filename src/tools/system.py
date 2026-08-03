@@ -102,11 +102,17 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
             proc = args.get("steps") or []
         if not proc and not args.get("body_extra") and not args.get("solution"):
             return {"error": "procedure (or solution body) is required", "exit_code": 1}
-        # Explicit status from the caller always wins. When not specified,
-        # default to draft so the audit pipeline can test and promote.
+        # Same auto-publish gate as the extractor path — when the user
+        # has auto_approve_skills on and the caller didn't pin an explicit
+        # status, publish immediately. Audit later demotes/removes on fail.
         _status_arg = args.get("status")
         if not _status_arg:
-            _status_arg = "draft"
+            try:
+                from routes.prefs_routes import _load_for_user as _load_prefs
+                _prefs = _load_prefs(owner) or {}
+                _status_arg = "published" if _prefs.get("auto_approve_skills", True) else "draft"
+            except Exception:
+                _status_arg = "draft"
         entry = sm.add_skill(
             name=args.get("name"),
             description=(args.get("description") or args.get("title") or "").strip(),
@@ -274,7 +280,30 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
+    if not args.get("action") and any(args.get(k) is not None for k in ("task", "description", "schedule", "time", "day_of_week")):
+        args["action"] = "create"
+    if args.get("task") and not args.get("name"):
+        args["name"] = args["task"]
+    if args.get("task") and not args.get("prompt"):
+        args["prompt"] = args["task"]
     action = args.get("action", "list")
+    if args.get("description") and not args.get("prompt"):
+        args["prompt"] = args["description"]
+    if args.get("time") and not args.get("scheduled_time"):
+        args["scheduled_time"] = args["time"]
+    if args.get("day_of_week") is not None and args.get("scheduled_day") is None:
+        day = str(args.get("day_of_week")).strip().lower()
+        days = {
+            "monday": 0, "mon": 0,
+            "tuesday": 1, "tue": 1, "tues": 1,
+            "wednesday": 2, "wed": 2,
+            "thursday": 3, "thu": 3, "thur": 3, "thurs": 3,
+            "friday": 4, "fri": 4,
+            "saturday": 5, "sat": 5,
+            "sunday": 6, "sun": 6,
+        }
+        if day in days:
+            args["scheduled_day"] = days[day]
     db = SessionLocal()
     try:
         if action == "list":
@@ -282,21 +311,21 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
             if owner:
                 q = q.filter(ScheduledTask.owner == owner)
             tasks = q.order_by(ScheduledTask.created_at.desc()).all()
-            task_list = []
-            for t in tasks:
-                task_list.append({
-                    "id": t.id, "name": t.name, "status": t.status,
-                    "task_type": t.task_type or "llm",
-                    "action": t.action,
-                    "trigger_type": t.trigger_type or "schedule",
-                    "schedule": t.schedule,
-                    "trigger_event": t.trigger_event,
-                    "trigger_count": t.trigger_count,
-                    "next_run": t.next_run.isoformat() + "Z" if t.next_run else None,
-                    "last_run": t.last_run.isoformat() + "Z" if t.last_run else None,
-                    "run_count": t.run_count or 0,
-                })
-            return {"response": f"Found {len(task_list)} tasks", "tasks": task_list, "exit_code": 0}
+            if not tasks:
+                return {"response": "No scheduled tasks found.", "exit_code": 0}
+
+            lines = [f"Found {len(tasks)} tasks:"]
+            for idx, t in enumerate(tasks, 1):
+                bits = [t.status or "unknown"]
+                if t.schedule:
+                    bits.append(str(t.schedule))
+                if t.scheduled_time:
+                    bits.append(str(t.scheduled_time))
+                if t.next_run:
+                    bits.append(f"next {t.next_run.isoformat()}Z")
+                detail = ", ".join(bits)
+                lines.append(f"{idx}. {t.name} ({t.id}) — {detail}")
+            return {"response": "\n".join(lines), "exit_code": 0}
 
         elif action == "create":
             task_type = args.get("task_type", "llm")
