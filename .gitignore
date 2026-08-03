@@ -78,6 +78,18 @@ output.txt.txt
 # …except shipped demo assets and icons in assets/.
 !assets/*
 
+# …except shipped demo assets in docs/ that the README links to.
+!docs/*.jpg
+!docs/*.jpeg
+!docs/*.png
+!docs/*.gif
+!docs/*.webp
+# …and curated docs/ subfolder assets (e.g. accessibility before/after shots).
+!docs/**/*.png
+!docs/**/*.jpg
+!docs/**/*.gif
+!docs/**/*.webp
+
 # Reports and temp files
 reports/
 tasks/
@@ -110,3 +122,12 @@ docs/fork/issues/README.md
 
 # graphify code-graph build artifact (regenerate: graphify update . --no-cluster --force)
 graphify-out/
+
+# Local GUI-verification evidence. Screenshots here become TRACKED only when a
+# PR draft or doc references them by filename (see tests/test_docs_no_orphan_images.py,
+# which fails on any unreferenced image under docs/). A blanket `git add -A` swept
+# five unreferenced BSD-bench captures into the 2026-08-02 ingest merge; this keeps
+# that from recurring while leaving the files on disk. Force-add when a draft cites one.
+docs/fork/screenshots/*.png
+!docs/fork/screenshots/aria2c.png
+!docs/fork/screenshots/qt-native-linux-app.png

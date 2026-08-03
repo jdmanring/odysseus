@@ -13,6 +13,9 @@ from sqlalchemy.orm import declarative_base, declared_attr, relationship, sessio
 from src.runtime_paths import get_app_root
 from core.platform_compat import safe_chmod, IS_WINDOWS
 
+from src.runtime_paths import get_app_root
+from core.platform_compat import safe_chmod, IS_WINDOWS
+
 logger = logging.getLogger(__name__)
 
 # Create base class for declarative models
