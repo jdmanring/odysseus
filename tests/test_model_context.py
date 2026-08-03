@@ -159,7 +159,7 @@ class TestLookupKnown:
         assert _lookup_known("gpt-4o") == 128000
 
     def test_deepseek_r1(self):
-        assert _lookup_known("deepseek-r1") == 64000
+        assert _lookup_known("deepseek-r1") == 128000
 
     def test_gemini_pro(self):
         assert _lookup_known("gemini-2.5-pro") == 1048576
@@ -170,12 +170,12 @@ class TestLookupKnown:
     def test_namespaced_model(self):
         """Models prefixed with provider/ should still match."""
         result = _lookup_known("openrouter/deepseek-r1")
-        assert result == 64000
+        assert result == 128000
 
     def test_model_with_tag(self):
         """Models with :free or :extended suffixes should still match."""
         result = _lookup_known("deepseek-r1:free")
-        assert result == 64000
+        assert result == 128000
 
     def test_o1_mini_not_shadowed_by_o1(self):
         """'o1' (200k) precedes 'o1-mini' (128k) in the table; longest match wins."""
@@ -189,6 +189,26 @@ class TestLookupKnown:
 
     def test_gpt4_base(self):
         assert _lookup_known("gpt-4") == 8192
+
+    def test_org_prefix_does_not_beat_model_name(self):
+        """A key matching only the org must lose to one matching the model.
+
+        'moonshot' (len 8) is a substring of the org 'moonshotai', so a plain
+        longest-key rule picks it over 'kimi-k2' (len 7) and budgets 128k for a
+        model served at 256k. Under-budgeting silently truncates context, where
+        over-budgeting at least surfaces as a 400 from the endpoint.
+        """
+        assert _lookup_known("moonshotai/kimi-k2.6") == 262144
+        assert _lookup_known("moonshotai/kimi-k2-instruct") == 262144
+
+    def test_org_prefix_fix_preserves_bare_and_unrelated_ids(self):
+        """The scoring change must not move ids that were already correct."""
+        assert _lookup_known("kimi-k2") == 262144
+        assert _lookup_known("nvidia/llama-3.1-nemotron-70b") == 131072
+
+    def test_full_name_match_still_counts_when_basename_misses(self):
+        """A key present only in the org portion is still better than nothing."""
+        assert _lookup_known("moonshotai/some-unlisted-model") == 128000
 
 
 class _FakeResp:
