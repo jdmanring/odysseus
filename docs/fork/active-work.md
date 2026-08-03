@@ -30,6 +30,49 @@ ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysse
   break; no script, CI file or config referenced the old URL (comments only).
 - Old repo deleted and verified 404; the `oldfork` remote removed.
 
+**2026-08-02 (after promotion): STAGED-BRANCH REBASE SWEEP — 78 of 96 done, 10 left.**
+
+`upstream-mirror` is RESET by the pipeline, not fast-forwarded, so every staged
+branch sat on the old mirror. Tools: `tooling/merge/branch_survey.py` (what is
+already landed, by patch-id) and `tooling/merge/rebase_staged.py` (batch rebase,
+dry-run by default).
+
+- **73 batch-rebased clean**, plus the 5-branch `static/js/chat.js` cluster resolved
+  by hand (`continue-btn-weakref`, `dom-oom-streaming-throttle`,
+  `qtwebengine-oilpan-gc`, `agent-gc-catchup`, `hljs-deferred-highlight`), each
+  verified with `node --check` and its own test file.
+- **Rollback: `refs/prerebase/<branch>`, 78 refs, PUSHED to origin.** Restore with
+  `git update-ref refs/heads/<b> refs/prerebase/<b>`. Note these are custom refs,
+  so they do NOT show in `git branch` — the 2026-07-07 sweep used
+  `backup/prerebase__*` branches, which are more discoverable. `origin` also still
+  holds all 114 pre-rebase branch tips as a second backup.
+- **Rebased branches are NOT pushed**, matching the 2026-07-07 precedent.
+- **0 RETIRE**: upstream shipped an equivalent for none of these.
+
+**10 conflicts left:** `style.css` x2 (`css-render-perf`, `gpu-compositor-flicker`),
+`sessions.js` (`dom-oom-virtualization`), `cookbookRunning.js` (`aria2c-downloader`,
+38 commits), `rag_vector.py` (`memory-qdrant-nomic`), `model_context.py`
+(`agent-context-budget-discovery`), `logging`, `chat-column-width-pref`,
+`assets-move`, `upstream-pr-4661`.
+
+**Three traps, each measured after it bit — read before resuming:**
+1. Use the OLD mirror tag as the rebase base, never `merge-base` against the new
+   one. The mirror is reset, so merge-base is an ancient ancestor: a 2-commit
+   branch tried to replay 1,923 commits and conflicted instantly.
+2. **Apply a resolution spec PER STEP, not per branch.** A rebase replays several
+   commits; only the FIRST conflict is usually add/add (`u`). Later ones are the
+   fork's own edits to the block it just added, where `t` must win. Using `u`
+   throughout left `perf/agent-gc-catchup` with 4 GC blocks (develop has 3) and a
+   stale intermediate version — caught only by that branch's own tests.
+3. Fork-only branches (`fork/*`, `feat/merge-tooling`, `feat/upstream-sync-pipeline`,
+   `feat/verify-memory-stack`, `test/staged-branch-convergence-guard`) are cut from
+   `develop` and must NEVER be rebased onto the mirror.
+
+**FILING BLOCKER, unresolved:** every staged branch carries `Co-Authored-By: Claude`
+trailers, and `develop` has 1,454 such commits. Upstream's CONTRIBUTING.md prohibits
+agent-filed PRs. Decide whether to scrub during rebase (rewrites 96 branches) before
+filing anything.
+
 **2026-08-02: UPSTREAM INGEST — DONE AND PROMOTED. `develop` is `08252cd3`.**
 Tracked at #171. Merge commit `09f86519` (tag `ingest-20260802-merged`), promoted
 via `08252cd3` with no conflicts.
