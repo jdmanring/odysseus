@@ -12,7 +12,6 @@ minimal fake request keeps the same real coverage (handler + DB + owner routing)
 while completing reliably everywhere.
 """
 
-import tempfile
 import uuid
 from types import SimpleNamespace
 
@@ -31,8 +30,9 @@ from core.database import Document
 from core.database import Session as DbSession
 from routes.document_helpers import DocumentPatch
 from src.agent_tools.document_tools import set_active_document, get_active_document
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

@@ -1,6 +1,5 @@
 """Task chaining must not cross owner boundaries."""
 
-import tempfile
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -17,8 +16,9 @@ clear_fake_database_modules()
 import core.database as cdb
 import routes.task_routes as task_routes
 from core.database import ScheduledTask
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

@@ -5,7 +5,6 @@ string. Real provider multimodal blocks follow the durable attachment
 contract: readable text plus stable attachment metadata is persisted, while
 raw inline media bytes are omitted.
 """
-import tempfile
 import uuid
 
 import pytest
@@ -16,8 +15,9 @@ from sqlalchemy.pool import NullPool
 import core.database as cdb
 from core.database import Session as DbSession
 from core.models import ChatMessage
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

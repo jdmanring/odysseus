@@ -4,7 +4,6 @@ Regression for the enrichment query at routes/session_routes.py:265 which
 previously fetched rows for all owners on every GET /api/sessions call.
 """
 import sys
-import tempfile
 import types
 import uuid
 from datetime import timedelta
@@ -17,8 +16,9 @@ from sqlalchemy.pool import NullPool
 import core.database as cdb
 from core.database import ChatMessage as DbMessage
 from core.database import Session as DbSession
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

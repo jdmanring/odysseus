@@ -4,7 +4,6 @@ When AUTH_ENABLED=false, get_current_user returns None and gallery routes should
 stay all-visible. When AUTH_ENABLED=true and no current user resolves, the same
 None means an anonymous caller and gallery queries must fail closed.
 """
-import tempfile
 import uuid
 
 import pytest
@@ -15,8 +14,9 @@ from sqlalchemy.pool import NullPool
 import core.database as cdb
 from core.database import GalleryImage
 from routes.gallery_helpers import _owner_filter
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(f"sqlite:///{_TMPDB.name}", connect_args={"check_same_thread": False}, poolclass=NullPool)
 cdb.Base.metadata.create_all(_ENGINE)
 _TS = sessionmaker(bind=_ENGINE, autoflush=False, autocommit=False)

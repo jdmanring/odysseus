@@ -7,7 +7,6 @@ over-matched models that merely share the suffix. The sibling name filter
 already uses a wildcard-escaped contains match.
 """
 import sys
-import tempfile
 import types
 import uuid
 
@@ -18,8 +17,9 @@ from sqlalchemy.pool import NullPool
 
 import core.database as cdb
 from core.database import Session as DbSession
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},

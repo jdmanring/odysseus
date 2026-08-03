@@ -12,7 +12,6 @@ pure DB logic; `_sync_blocking` itself needs a live CalDAV client) and asserts a
 local-origin event survives while a server-origin one with a vanished UID does
 not.
 """
-import tempfile
 from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine
@@ -21,8 +20,9 @@ from sqlalchemy.pool import NullPool
 
 import core.database as cdb
 from core.database import CalendarEvent, CalendarCal
+from tests.helpers.sqlite_db import temp_db_file
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_TMPDB = temp_db_file()
 _ENGINE = create_engine(
     f"sqlite:///{_TMPDB.name}",
     connect_args={"check_same_thread": False},
