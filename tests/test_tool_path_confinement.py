@@ -301,3 +301,39 @@ async def test_write_file_dispatch_blocks_cron(monkeypatch):
     )
     assert "outside the allowed roots" in (result.get("error") or "")
     assert result.get("exit_code") == 1
+
+# ── default-root policy (adopted from upstream 2026-08-03) ──────────────────
+
+def test_home_is_not_a_default_root():
+    """$HOME must NOT be on the default allowlist.
+
+    The fork previously added it unconditionally, reasoning that admins need to
+    read project files on their own machine. Upstream's model supersedes that:
+    when a workspace is active the agent is confined to IT instead of this list,
+    so pointing the agent at a folder grants full access there — anywhere on
+    disk, including under $HOME. The default list only governs the case where no
+    workspace has been chosen and the agent has no stated scope.
+    """
+    import os
+    from src.tool_execution import _tool_path_roots
+
+    home = os.path.realpath(os.path.expanduser("~"))
+    roots = [os.path.realpath(r) for r in _tool_path_roots()]
+    assert home not in roots, (
+        f"$HOME is on the default allowlist: {roots}. A workspace grants access "
+        "where it is actually needed; the default must stay narrow."
+    )
+
+
+def test_workspace_under_home_still_grants_access():
+    """The tightened default must cost NO capability once a workspace is set."""
+    import os
+    import tempfile
+    from src.tool_execution import _resolve_tool_path_in_workspace
+
+    with tempfile.TemporaryDirectory(dir=os.path.expanduser("~")) as ws:
+        target = os.path.join(ws, "notes.md")
+        with open(target, "w") as fh:
+            fh.write("x")
+        resolved = _resolve_tool_path_in_workspace(ws, "notes.md")
+        assert os.path.realpath(resolved) == os.path.realpath(target)
