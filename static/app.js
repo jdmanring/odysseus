@@ -262,6 +262,50 @@ async function _createDirectChatFromPreferredModel() {
   return false;
 }
 
+async function _hasUsableChatModel() {
+  try {
+    const pending = sessionModule?.getPendingChat?.();
+    if (pending && pending.url && pending.modelId) return true;
+  } catch (_) {}
+  try {
+    const current = sessionModule?.getSessions?.()
+      ?.find(s => s.id === sessionModule?.getCurrentSessionId?.());
+    if (current && current.endpoint_url && current.model) return true;
+  } catch (_) {}
+  const dc = await _refreshDefaultChat();
+  if (dc && dc.endpoint_url && dc.model) return true;
+  try {
+    const items = window.modelsModule?.getCachedItems?.() || [];
+    if (items.some(item => !item.offline && ((item.models || []).length || (item.models_extra || []).length))) {
+      return true;
+    }
+  } catch (_) {}
+  try {
+    const res = await fetch(`${API_BASE}/api/models?background=false`, { credentials: 'same-origin' });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return (data.items || []).some(item => !item.offline && ((item.models || []).length || (item.models_extra || []).length));
+  } catch (_) {
+    return false;
+  }
+}
+
+async function _syncWelcomeModelHint() {
+  const tip = document.getElementById('welcome-tip');
+  const sub = document.getElementById('welcome-sub');
+  if (!tip && !sub) return;
+  const hasModel = await _hasUsableChatModel();
+  if (hasModel) {
+    if (sub && !sub.dataset.researchOrigText) sub.textContent = 'New chat ready.';
+    if (tip) tip.textContent = 'Pick a model if you want, or just type.';
+  } else {
+    if (sub && !sub.dataset.researchOrigText) {
+      sub.innerHTML = 'Welcome, <span class="setup-trigger-link" style="color:var(--accent,var(--red));font-weight:600;cursor:pointer;text-decoration:underline;" title="Click to launch setup">type /setup</span> to get started.';
+    }
+    if (tip) tip.textContent = 'Add an AI endpoint from Settings in the sidebar, or paste an endpoint/API key into the chat.';
+  }
+}
+
 // ============================================
 // EVENT LISTENERS INITIALIZATION
 // ============================================
@@ -4438,6 +4482,23 @@ function startOdysseusApp() {
       }
     }, delay);
   };
+
+  // Non-critical startup work must not compete with first paint, chat send, or
+  // chat switching. Panels load their own data when opened; these are only warmups.
+  _syncWelcomeModelHint().catch(() => {});
+  runNonCriticalStartup(() => {
+    modelsModule.refreshModels(false).then(() => {
+      try { sessionModule.updateModelPicker(); } catch (_) {}
+      _syncWelcomeModelHint().catch(() => {});
+    }).catch(() => {});
+  }, 3500);
+  runNonCriticalStartup(() => modelsModule.refreshProviders(), 6500);
+  runNonCriticalStartup(() => ragModule.loadPersonalDocs(), 9000);
+  runNonCriticalStartup(() => memoryModule.loadMemories(), 12000);
+  
+  // Ensure proper initial state
+  voiceRecorderModule.init();
+  if (censorModule) censorModule.init();
 
   // Non-critical startup work must not compete with first paint, chat send, or
   // chat switching. Panels load their own data when opened; these are only warmups.
