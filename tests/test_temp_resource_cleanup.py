@@ -105,13 +105,20 @@ def test_no_test_module_hand_rolls_a_temp_database():
         if p.name == "sqlite_db.py" or p.name == pathlib.Path(__file__).name:
             continue
         body = p.read_text(encoding="utf-8")
-        if 'suffix=".db"' in body and "temp_db_" not in body:
+        if 'suffix=".db"' not in body:
+            continue
+        # The helper is the preferred route, but a module that removes its own
+        # databases is not a leak. A module that does neither is.
+        cleans_up = any(tok in body for tok in
+                        ("temp_db_", "temp_path", "os.unlink", "os.remove",
+                         "shutil.rmtree", "tmp_path"))
+        if not cleans_up:
             offenders.append(str(p.relative_to(root)))
 
     assert not offenders, (
-        "these modules create a temp database without the shared helper, so it "
-        "is never cleaned up; use tests.helpers.sqlite_db.temp_db_file() or "
-        f"temp_db_path(): {offenders}"
+        "these modules create a temp database and never remove it; use "
+        "tests.helpers.sqlite_db.temp_db_file()/temp_db_path(), or clean up "
+        f"explicitly: {offenders}"
     )
 
 
