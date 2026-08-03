@@ -97,10 +97,22 @@ Measured on that exact pattern — clean quadratic growth:
 | 800 | 57.2 ms |
 | 1600 | 241.7 ms |
 
-Model output is untrusted input. Filing this branch as-is would regress a security
-fix upstream had just landed in the same file, and their CodeQL
-(`py/polynomial-redos`) would likely flag it in review. **Rework the pattern to
-upstream's open/close split before filing.**
+Model output is untrusted input. Filing this branch as-is would have regressed a
+security fix upstream had just landed in the same file, and their CodeQL
+(`py/polynomial-redos`) would likely have flagged it in review.
+
+**DONE 2026-08-03.** Reworked onto upstream's own `_iter_delimited` helper rather
+than a parallel scanner, so there is one implementation to audit. Measured after:
+
+| openers | before | after |
+|---|---|---|
+| 400 | 15.8 ms | 0.067 ms |
+| 1600 | 244.0 ms | 0.245 ms |
+| 3200 | 947.7 ms | 0.489 ms |
+
+16x input: 237x time before, 13.6x after. Parse results identical on well-formed
+input. Also closes the stale-closer hole `_iter_delimited` documents (15.4 ms ->
+0.062 ms). Four regression tests, mutation-checked.
 
 ### SSRF: one guard, many callers
 
