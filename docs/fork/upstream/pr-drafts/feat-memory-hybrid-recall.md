@@ -34,10 +34,11 @@ new memory contradicts an old one. "prefers dark mode" written in March and
 "switched to light mode" written in July both sit in the store at comparable
 similarity to "what theme do they use", and which one surfaces is arbitrary.
 
-**Four recall paths, two ranking schemes.** Chat context injection, the agent's
-recall tool, the MCP memory server, and the memory search API all answer "which
-memories are relevant to this query" and do not agree. The same query against the
-same store can return a different ordering depending on which entry point asked.
+**Every recall path answers differently.** Chat context injection hand-rolled a
+binary-tf BM25; the agent's recall tool, the MCP memory server and the memory
+search API used a keyword-category heuristic or vector-only ranking. Three
+schemes for one question, so the same query against the same store returns a
+different ordering depending on which entry point asked.
 
 ### What this changes
 
@@ -55,11 +56,17 @@ rather than left to compete at read time. Superseded entries are filtered inside
 `hybrid_search`, so every recall path gets the behaviour from one place rather
 than each caller remembering to filter.
 
-**3. One ranking implementation for all four recall paths.** `hybrid_search` is
-wired into `NativeMemoryProvider`, `ai_interaction`'s recall tool, the MCP memory
-server, and the memory search route. Each is guarded on a healthy vector store
-and falls back to `get_relevant_memories` exactly as before when there is none,
-so a deployment without a vector store sees no behaviour change at all.
+**3. One ranking implementation.** `hybrid_search` is wired into
+`NativeMemoryProvider`, `ai_interaction`'s recall tool, the MCP memory server,
+and the memory search route. Each is guarded on a healthy vector store and falls
+back to `get_relevant_memories` exactly as before when there is none, so a
+deployment without a vector store sees no behaviour change at all.
+
+The chat hot path is deliberately **not** rewritten onto it. It keeps its own
+tokenizer and category boosts, which are live-tested, and shares the fusion shape
+and the superseded filter. Fusion weights (0.55 dense / 0.40 lexical / 0.05
+recency tiebreak) are the chat path's own values, so the shared implementation
+starts from what was already in production rather than from a guess.
 
 Supersede results ride back on the returned record's `metadata["supersede"]`
 (`superseded` and `candidates`), so a caller that wants to surface or undo the
