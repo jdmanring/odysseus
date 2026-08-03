@@ -1,7 +1,19 @@
 # Ingest merge 2026-08-02 — resume notes
 
-Branch `sync/ingest-20260802` (merge of `upstream-mirror` into a branch off `develop`),
-uncommitted, mid-merge. `develop` is untouched. Restore tags:
+> **STATUS 2026-08-02: THE MERGE IS COMMITTED.** `09f86519` on
+> `sync/ingest-20260802`, parents `ee02a5a5` (old develop) + `25c9e735`
+> (upstream-mirror), tagged `ingest-20260802-merged`. **NOT promoted to `develop`.**
+>
+> Two consequences for anyone using this document now:
+> 1. **The loss checks no longer discover targets on their own.** `fork_work_loss.py`
+>    and `js_orphan_refs.py` find files via the STAGED set, which is empty after a
+>    commit. Pass paths explicitly, or diff against the tag. An empty scan post-commit
+>    means "nothing was looked at", not "nothing is wrong".
+> 2. **`git merge --abort` no longer applies** — there is no merge in progress. To back
+>    out, reset to `preingest-20260802-ee02a5a5/develop`.
+
+Branch `sync/ingest-20260802` (merge of `upstream-mirror` into a branch off `develop`).
+`develop` is untouched by the ingest itself. Restore tags:
 `preingest-20260802-ee02a5a5/{develop,integration,upstream-mirror}` and the earlier
 `prengest-20260802-0131/*`.
 
