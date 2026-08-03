@@ -74,32 +74,35 @@ untouched.
 
 ---
 
-## What the lexical half is and is not supported by
+## What the lexical half is supported by
 
-Stating this plainly rather than letting a reviewer find it: **the benchmark
-behind the BM25 term is not statistically significant.** The dense+BM25 study was
-**4-1 discordant, p = 0.375** by exact binomial. It is directionally consistent
-with the mechanism (the lexical term lifts the stale and temporal cases dense
-similarity underweights: "switched", "as of", "now") and every discordant pair
-went the same way, but five pairs cannot establish an effect and this PR does not
-claim one.
+**Five fresh corpus pools at pre-registered blend weights pool to 16-3 discordant
+for the production embedding model: p = 0.0044 by exact sign test, about +2
+points R@1.** The lift lands exactly where the mechanism predicts, on stale and
+temporal wording ("switched", "as of", "now"), which is where dense similarity is
+weakest.
 
-The argument for merging it anyway is cost, not proven lift:
+An earlier single-pool run read 4-1 discordant, p = 0.375, and was reported as
+directionally-real-but-unproven. The multi-pool study superseded it. Both numbers
+are in `docs/dev/memory-architecture.md` so the record reads forward rather than
+looking quietly revised.
 
-- BM25 here is arithmetic over text already in memory. **No new dependency, no
-  index, no service, no model.** The infrastructure cost of being wrong is zero.
-- The fallback is unchanged. A deployment without a vector store takes the
-  identical code path it takes today.
-- The consolidation (four paths, one ranking) stands on its own regardless of
-  whether the lexical term helps. If the BM25 weight were set to zero tomorrow,
-  the "same query ranks differently per entry point" defect stays fixed.
+Two negatives measured alongside, recorded so they do not get re-litigated:
 
-Weights are per-call, so a path with live-tested values keeps them and a reviewer
-who wants the lexical term dialled down can do it without touching the fusion.
+- Widening the Matryoshka truncation past 256 dims buys nothing (R@1 flat from
+  128 to 768 at 140-query resolution).
+- Stock cross-encoder rerankers *hurt* memory-shaped retrieval
+  (`bge-reranker-base` 11-30 against dense order, p = 0.004). The rerank headroom
+  is real (recall@10 = 0.971) but harvesting it needs a domain-tuned reranker.
 
-If upstream wants a powered benchmark before taking the ranking change, the
-consolidation and the supersede work can be filed separately and the fusion
-weight left at dense-only. Say the word and it will be re-cut that way.
+Cost, separately from lift: BM25 here is arithmetic over text already in memory.
+No new dependency, no index, no service, no model, sub-millisecond at
+memory-store scale. Weights are per-call, so a path with live-tested values keeps
+them.
+
+The consolidation stands independently of all of this. If the BM25 weight were
+set to zero tomorrow, the "same query ranks differently depending on which entry
+point asked" defect stays fixed.
 
 ---
 
