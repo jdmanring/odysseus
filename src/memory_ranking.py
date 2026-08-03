@@ -7,12 +7,13 @@ used a keyword-category heuristic — the same query could rank the same
 memories three different ways.
 
 The fusion shape (dense similarity + BM25 + small recency tiebreaker) is
-the deployed chat-path scheme; the benchmark's dense+BM25 study found the
-lexical term directionally lifts exactly the stale/temporal cases dense
-similarity underweights ("switched", "as of", "now"), unproven at
-benchmark scale (4-1 discordant, p=0.375) but deployable at zero
-infrastructure cost. Weights are per-call so the chat path keeps its
-live-tested values.
+the deployed chat-path scheme. The lexical term lifts exactly the cases
+dense similarity underweights, stale and temporal wording ("switched",
+"as of", "now"): five fresh corpus pools at pre-registered blend weights
+pool to 16-3 discordant for the production model (p = 0.0044, exact sign
+test; about +2 points R@1). An earlier single-pool run read 4-1 / p=0.375
+and was reported as unproven; the multi-pool study superseded it.
+Weights are per-call so the chat path keeps its live-tested values.
 
 Superseded entries (see memory_supersede) are filtered here, so no fused
 path can resurface a fact that has been replaced.
