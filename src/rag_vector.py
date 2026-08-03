@@ -14,6 +14,9 @@ import numpy as np
 from typing import List, Dict, Any, Optional, Set
 
 from src.constants import QDRANT_STORAGE_DIR
+# Directory-walk pruning is single-sourced in src.index_walk so the vector and
+# keyword indexers apply the same hidden/junk policy and cannot drift (#5559).
+from src.index_walk import prune_index_dirs, is_indexable_file
 from pathlib import Path
 
 from src.embedding_lanes import (
@@ -497,8 +500,15 @@ class VectorRAG:
         failed = 0
 
         try:
-            for root, _, files in os.walk(directory):
+            for root, dirs, files in os.walk(directory):
+                # Prune in place so os.walk never descends into hidden or junk
+                # directories (#5559), via the shared index_walk policy. The
+                # passed-in root is exempt: a user who deliberately targets a
+                # hidden directory gets it.
+                prune_index_dirs(dirs)
                 for fname in files:
+                    if not is_indexable_file(fname):
+                        continue
                     fpath = os.path.join(root, fname)
                     ext = Path(fname).suffix.lower()
                     if ext not in file_extensions:

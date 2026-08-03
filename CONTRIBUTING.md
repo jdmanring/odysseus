@@ -36,7 +36,7 @@ If you cannot test on a platform, say so in the PR description.
 Docker is the recommended path for normal testing:
 
 ```bash
-git clone https://github.com/pewdiepie-archdaemon/odysseus.git
+git clone https://github.com/odysseus-dev/odysseus.git
 cd odysseus
 cp .env.example .env
 docker compose up -d --build

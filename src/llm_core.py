@@ -1011,7 +1011,7 @@ def _provider_headers(provider: str, headers: Optional[Dict] = None) -> Dict[str
     if isinstance(headers, dict):
         h.update(headers)
     if provider == "openrouter":
-        h.setdefault("HTTP-Referer", "https://github.com/pewdiepie-archdaemon/odysseus")
+        h.setdefault("HTTP-Referer", "https://github.com/odysseus-dev/odysseus")
         h.setdefault("X-OpenRouter-Title", "Odysseus")
     if provider == "copilot":
         # Ensure the Copilot-required headers are present even when the caller
@@ -1071,6 +1071,31 @@ def _provider_label(url: str) -> str:
         # discovery (see ModelDiscovery._fingerprint_provider); this stays neutral.
         return "local endpoint"
     return host or "provider"
+
+
+def _is_openai_hosted_chat_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url or "")
+    except Exception:
+        return False
+    path = (parsed.path or "").rstrip("/")
+    return _host_match(url, "openai.com") and path.endswith("/chat/completions")
+
+
+def _model_disallows_reasoning_effort_with_chat_tools(model: str) -> bool:
+    """OpenAI GPT 5.x variants reject reasoning_effort + tools on chat completions."""
+    m = (model or "").strip().lower()
+    return bool(re.match(r"^(?:openai/)?gpt-5(?:[.\-]\d+)?(?:[-_:].*)?$", m))
+
+
+def _scrub_openai_chat_tool_reasoning(payload: Dict, target_url: str, model: str) -> None:
+    if not payload.get("tools"):
+        return
+    if not _is_openai_hosted_chat_url(target_url):
+        return
+    if not _model_disallows_reasoning_effort_with_chat_tools(model):
+        return
+    payload["reasoning_effort"] = "none"
 
 
 def _normalize_chatgpt_subscription_url(url: str) -> str:
@@ -1261,15 +1286,27 @@ def _anthropic_rejects_temperature(model: str) -> bool:
         return False
     # `(?<![a-z])` anchors "opus" to a word boundary so a substring match like
     # `oct-opus`/`octopus-4-8` can't be read as Opus (it would otherwise strip
-    # temperature). Cap the minor at 1-2 digits and forbid a trailing digit so a
-    # dated id like `claude-opus-4-20250514` (Opus 4.0) parses as major-only (no
-    # minor match, kept) instead of reading the date `20250514` as a giant minor
-    # that would falsely test >= 4.7. Dated 4.7+ snapshots (`claude-opus-4-7-
-    # 20260201`) keep their explicit minor and are still matched.
-    match = re.search(r"(?<![a-z])opus[-_]?(\d+)[-_.](\d{1,2})(?!\d)", model.lower())
+    # temperature). Both version components are capped at 1-2 digits and forbid a
+    # trailing digit, so an 8-digit date can never be read as a version number:
+    # `claude-opus-4-20250514` (Opus 4.0) parses as major-only rather than reading
+    # `20250514` as a giant minor, and `claude-3-opus-20240229` (legacy Claude 3
+    # Opus, date directly after "opus-") fails to match at all rather than reading
+    # the date as a giant major. Dated 4.7+ snapshots (`claude-opus-4-7-20260201`)
+    # keep their explicit minor and are still matched.
+    #
+    # The minor is optional and a missing minor reads as `.0`, so major-only ids
+    # like `claude-opus-5` are correctly treated as >= 4.7 (issue #5753). Without
+    # this, every Opus 5 call kept `temperature` and failed with HTTP 400 — visible
+    # only on paths that pass a temperature, e.g. scheduled tasks inheriting
+    # `stream_agent_loop`'s 0.3 default, which returned empty responses.
+    match = re.search(
+        r"(?<![a-z])opus[-_]?(\d{1,2})(?!\d)(?:[-_.](\d{1,2})(?!\d))?", model.lower()
+    )
     if not match:
         return False
-    return (int(match.group(1)), int(match.group(2))) >= (4, 7)
+    major = int(match.group(1))
+    minor = int(match.group(2)) if match.group(2) else 0
+    return (major, minor) >= (4, 7)
 
 # Reasoning effort level sent to Mistral thinking-capable models. Mistral's
 # API accepts "high", "medium", "low", "none" — see
@@ -2264,6 +2301,7 @@ async def _stream_llm_inner(url: str, model: str, messages: List[Dict], temperat
             payload["think"] = False
         _apply_local_cache_affinity(payload, url, session_id)
         _apply_local_generation_stability(payload, target_url, model)
+        _scrub_openai_chat_tool_reasoning(payload, target_url, model)
         h = _provider_headers(provider, headers)
         if provider == "copilot":
             from src.copilot import apply_request_headers
@@ -2726,7 +2764,7 @@ async def _stream_llm_inner(url: str, model: str, messages: List[Dict], temperat
                                                         content = "<think>" + content
                                                     _first_content_sent = True
                                                     yield f'data: {json.dumps({"delta": content})}\n\n'
-                                        # Native tool calls — accumulate across chunks.
+                                        # Native tool calls — accumulate across chunks
                                         for tc in delta.get("tool_calls") or []:
                                             if tc is None:
                                                 continue

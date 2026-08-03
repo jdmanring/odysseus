@@ -16,7 +16,123 @@ from src.database import McpServer, SessionLocal
 
 from src.runtime_paths import get_app_root
 
+from src.runtime_paths import get_app_root
+
 logger = structlog.get_logger(__name__)
+
+def _format_mcp_connection_error(name: str, command: str = "", args: Optional[List[str]] = None, error: Exception = None) -> str:
+    """Return a user-actionable MCP connection error message."""
+    args = args or []
+    raw_error = str(error) if error else "Unknown error"
+    command_line = " ".join([command or "", *args]).strip()
+    lower_command = command_line.lower()
+
+    if "@playwright/mcp" in lower_command:
+        return (
+            f"{raw_error}\n\n"
+            "Browser MCP could not start. On fresh installs, cache the Playwright MCP package once before connecting:\n\n"
+            "npx -y @playwright/mcp@latest --version\n\n"
+            "Then restart Odysseus and reconnect the Browser MCP server."
+        )
+
+    return raw_error
+
+
+# Caps for rendering untrusted MCP tool schemas into the agent prompt (issue #2660).
+# MCP servers are third-party/user-added, so field names and parameter counts are
+# untrusted input — bound them so an odd or hostile schema cannot distort the prompt.
+_MCP_PARAM_MAX = 12   # max params rendered per tool
+_MCP_TOKEN_MAX = 40   # max chars per rendered name / type token
+_MCP_HINT_MAX = 300   # total-length backstop for the whole hint
+
+
+def _sanitize_schema_token(value: Any, limit: int = _MCP_TOKEN_MAX) -> str:
+    """Make an untrusted JSON-Schema token safe to splice into the prompt.
+
+    Replaces control chars / newlines with a space, collapses whitespace, and
+    length-caps the result, so a weird field name or type cannot inject newlines
+    or run on. Normal short identifiers pass through unchanged.
+    """
+    text = re.sub(r"[\x00-\x1f\x7f]+", " ", str(value))
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > limit:
+        text = text[:limit].rstrip() + "…"
+    return text
+
+
+def _format_mcp_params(input_schema: Any) -> str:
+    """Render an MCP tool's JSON-Schema inputs as a compact prompt hint.
+
+    Without this the agent only sees a tool's name + description and has to
+    guess its arguments (issue #2509). Produces e.g.
+    ` Args (JSON): {"path": string (required), "limit": integer}` — names,
+    coarse types, and required-ness, kept short so it stays prompt-friendly.
+    Returns "" when there are no parameters.
+
+    MCP servers are third-party, so names/types are sanitized and the parameter
+    count + total length are capped (issue #2660); normal schemas are unaffected.
+    """
+    if not isinstance(input_schema, dict):
+        return ""
+    props = input_schema.get("properties")
+    if not isinstance(props, dict) or not props:
+        return ""
+    required = set(input_schema.get("required") or [])
+    parts = []
+    for pname, pinfo in list(props.items())[:_MCP_PARAM_MAX]:
+        pinfo = pinfo if isinstance(pinfo, dict) else {}
+        ptype = pinfo.get("type") or "any"
+        if isinstance(ptype, list):
+            ptype = "|".join(str(x) for x in ptype)
+        tag = f'"{_sanitize_schema_token(pname)}": {_sanitize_schema_token(ptype)}'
+        if pname in required:
+            tag += " (required)"
+        parts.append(tag)
+    extra = len(props) - len(parts)
+    if extra > 0:
+        parts.append(f"…+{extra} more")
+    hint = " Args (JSON): {" + ", ".join(parts) + "}"
+    if len(hint) > _MCP_HINT_MAX:
+        hint = hint[:_MCP_HINT_MAX - 1].rstrip() + "…"
+    return hint
+
+
+# Tool-name prefixes that denote a read-only/inspection operation. Used to
+# classify MCP tools for plan mode when the server provides no readOnlyHint.
+# These are PREFIXES, not whole words (matched via str.startswith below), so a
+# stem like "summar" intentionally covers "summarise"/"summarize"/"summary".
+_MCP_READONLY_VERBS = (
+    "list", "get", "read", "search", "fetch", "query", "find", "describe",
+    "show", "view", "lookup", "count", "status", "info", "inspect", "summar",
+)
+
+
+def mcp_tool_is_readonly(tool: Dict) -> bool:
+    """Classify an MCP tool as safe (non-mutating) for plan mode.
+
+    Prefer the server's own annotations (readOnlyHint / destructiveHint). When
+    absent, fall back to a tool-name verb heuristic, and FAIL CLOSED (treat as
+    write) for anything that doesn't clearly read — plan mode must not run a
+    write tool just because its intent is ambiguous.
+    """
+    ann = tool.get("annotations")
+    # annotations may be a dict or a pydantic model
+    read_hint = None
+    destructive = None
+    if ann is not None:
+        if isinstance(ann, dict):
+            read_hint = ann.get("readOnlyHint")
+            destructive = ann.get("destructiveHint")
+        else:
+            read_hint = getattr(ann, "readOnlyHint", None)
+            destructive = getattr(ann, "destructiveHint", None)
+    if read_hint is True:
+        return True
+    if read_hint is False or destructive is True:
+        return False
+    # No usable hint — heuristic on the tool name's leading verb.
+    name = (tool.get("name") or "").lower()
+    return name.startswith(_MCP_READONLY_VERBS)
 
 def _format_mcp_connection_error(name: str, command: str = "", args: Optional[List[str]] = None, error: Exception = None) -> str:
     """Return a user-actionable MCP connection error message."""

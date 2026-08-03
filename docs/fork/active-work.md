@@ -30,16 +30,31 @@ ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysse
   break; no script, CI file or config referenced the old URL (comments only).
 - Old repo deleted and verified 404; the `oldfork` remote removed.
 
-**2026-08-02: UPSTREAM INGEST STARTED — mirror synced, merge NOT done. Read before
-resuming.**
+**2026-08-02: UPSTREAM INGEST — ALL 182 FILES RESOLVED, staged and UNCOMMITTED.**
+Working branch `sync/ingest-20260802`. **The full working document is
+`docs/fork/ingest-20260802-resume.md` — read that before touching the merge;
+this entry is only the status line.**
 
-- **DONE and durable: `upstream-mirror` is now `25c9e735` (upstream/dev, 2026-07-30),**
-  advanced 1,957 commits from `68ba51cb` (07-18). This half of the ingest succeeded and
-  is retained.
-- **NOT done: the merge into `integration`.** Attempted and deliberately reverted.
-  `integration` (`c6917250`) and `develop` (`e4003d50`) are untouched.
-- **Restore point:** tags `prengest-20260802-0131/{develop,integration,upstream-mirror}`,
-  pushed to origin, so it survives local disk loss.
+- Suite: **6,107 passed / 2 failed / 6 skipped.** `develop`'s baseline is 0 failures, so
+  every failure was merge-introduced; triage took them 51 -> 2.
+- The 2 remaining are `test_staged_branch_convergence` and are **NOT defects**: they
+  assert staged upstream-PR branches still match `develop`'s copy of shared files, and
+  the ingest changed those files, so the branches are stale by definition. Re-converge
+  them AFTER this merge commits, never against an uncommitted merge (#131).
+- Gates green: 0 conflicts, `ruff --select F821` clean, `node --check` clean on all 44
+  resolved JS files, both loss directions reviewed, orphan scan clear.
+- **Nothing is committed.** `develop` is untouched apart from three fork-only tooling
+  commits (`65e8f3a1`, `508b03ec`, `fa00c29f`, all under #170) landed via a worktree.
+- **Restore points:** tags `preingest-20260802-ee02a5a5/*` and
+  `prengest-20260802-0131/*`, pushed to origin.
+- **`git merge --abort` is not fully clean** — it discards the merge's staged NEW files.
+  A copy of the resume doc lives outside the repo at
+  `~/Projects/odysseus-merge-kit-backup/`; refresh it before any abort.
+
+**The conflict-surface numbers below are the PRE-MERGE ESTIMATE and were wrong.** They
+are kept as the record of what was predicted, not as current state: the estimate said
+113 conflicts / 64-file overlap; the real merge was **182 conflicted files**. Treat
+pre-merge conflict estimates as a lower bound.
 
 **Measured conflict surface (the reason this was not pushed through in one go):**
 1,957 commits but only **185 files changed** upstream — commit count is not conflict
@@ -433,3 +448,39 @@ full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
 - **`tooling/mem-probe.py`** is fork tooling (develop-only by design); it depends
   on the Qt wrapper (port 9222) and would ship with the wrapper feature if offered
   upstream.
+
+## Scoping note: extend OAuth beyond Google email (2026-08-02)
+
+Surfaced while resolving `routes/email_routes.py` in the upstream ingest — upstream
+added Google OAuth there (`oauth_provider`, `oauth_access_token`,
+`_get_valid_google_token()` with refresh). Worth surveying where else it applies,
+because app passwords are being retired industry-wide: Microsoft has been removing
+basic auth for Exchange Online and Google dropped "less secure apps". A
+password-only integration is a slowly-expiring asset.
+
+**Where OAuth exists today (measured, not assumed):** Google only, in
+`routes/email_helpers.py`, `routes/email_routes.py`, `routes/note/note_routes.py`.
+
+**Candidates, roughly in order of value:**
+
+1. **Outlook / Office 365 email — the biggest gap.** `docs/email-outlook.md` states
+   plainly that accounts "currently use IMAP and SMTP with username/password". There
+   is NO Microsoft OAuth anywhere in the tree (no `graph.microsoft`, no
+   `login.microsoftonline`, no `MICROSOFT_OAUTH`). This is the one most likely to
+   break on its own as Microsoft tightens basic auth, and the fork already carries an
+   Outlook doc, so the interest is established.
+2. **CalDAV / CardDAV** — `routes/calendar_routes.py`, `routes/contacts/contacts_routes.py`,
+   `src/caldav_sync.py` authenticate with passwords. Google Calendar and Contacts both
+   support OAuth over the same token plumbing the email path now has.
+3. **Remaining password surfaces:** `smtp_password` (5 files), `imap_password` (3).
+   Confirm none are left behind once a provider moves to OAuth, or accounts end up
+   half-migrated.
+
+**Why this is cheap-ish:** the token storage, refresh and encrypted-secret plumbing
+already exist from upstream's Google work — a second provider is mostly a client
+registration, a different authorize/token URL pair, and scope strings. It is not a
+from-scratch build.
+
+**Upstream-candidate**, not fork-only: this improves Odysseus generally. File it as an
+issue in `docs/fork/issues/` before starting, per the issue-first rule, and branch from
+`upstream-mirror`.
