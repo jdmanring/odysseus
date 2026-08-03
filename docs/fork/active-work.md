@@ -105,7 +105,7 @@ four standing divergences:
 | 33+5 | `cookbook_routes`, `cookbookDownload` | hf_transfer -> aria2c; `test_aria2c_launcher_wiring` ASSERTS these lines absent |
 | 21+7 | `app.py`, diagnostics | stdlib logging -> structlog |
 | 41 | `sessions.js` | upstream's prepend-only history pager; the fork keeps its evicting MessageWindow (recorded decision) |
-| **18** | **`cookbookRunning.js`** | **GENUINE LOSS — fixed in `912d3b08`** |
+| **18** | **`cookbookRunning.js`** | **GENUINE LOSS — fixed in `77f62ac7`** |
 
 **The one real regression is the shape to watch for.** Upstream derives a download
 card's provider logo from `task.payload.repo_id`; the merge resolved that hunk to
@@ -117,10 +117,10 @@ diff of the same region against upstream.
 **Rerun command (the derived base is WRONG here, always pass refs):**
 
     IB=$(git merge-base preingest-20260802-ee02a5a5/develop upstream-mirror)
-    git diff --name-only "$IB" 09f86519 \
+    git diff --name-only "$IB" b2e97adb \
       | grep -vE '\.(png|jpg|jpeg|gif|webm|ico|pdf|lock|svg|woff2?|ttf|zip)$' > /tmp/f.txt
     python3 tooling/merge/fork_work_loss.py --upstream --all \
-      --base "$IB" --ours preingest-20260802-ee02a5a5/develop --result 09f86519 $(cat /tmp/f.txt)
+      --base "$IB" --ours preingest-20260802-ee02a5a5/develop --result b2e97adb $(cat /tmp/f.txt)
 
 **Rebase sweep, fourth pass — 12 of 15.** Added: `refactor/assets-move` (retracted
 the bogus retire verdict, then rebased properly), `feat/logging`.
@@ -190,9 +190,9 @@ trailers, and `develop` has 1,454 such commits. Upstream's CONTRIBUTING.md prohi
 agent-filed PRs. Decide whether to scrub during rebase (rewrites 96 branches) before
 filing anything.
 
-**2026-08-02: UPSTREAM INGEST — DONE AND PROMOTED. `develop` is `08252cd3`.**
-Tracked at #171. Merge commit `09f86519` (tag `ingest-20260802-merged`), promoted
-via `08252cd3` with no conflicts.
+**2026-08-02: UPSTREAM INGEST — DONE AND PROMOTED. `develop` is `c0aee28d`.**
+Tracked at #171. Merge commit `b2e97adb` (tag `ingest-20260802-merged`), promoted
+via `c0aee28d` with no conflicts.
 Working branch `sync/ingest-20260802`. **The full working document is
 `docs/fork/ingest-20260802-resume.md` — read that before touching the merge;
 this entry is only the status line.**
@@ -224,7 +224,7 @@ this entry is only the status line.**
   entries into a 5,900-line diff.
 - **Never `git add -A` a merge.** During the final gate it swept five untracked local
   BSD screenshots into the merge commit; they came from neither parent.
-  `tests/test_docs_no_orphan_images.py` caught it, fixed in `46547db9`. Stage
+  `tests/test_docs_no_orphan_images.py` caught it, fixed in `0cda81c3`. Stage
   explicitly — a 182-file staging area cannot be eyeballed.
 - **Restore points:** tags `preingest-20260802-ee02a5a5/*` and
   `prengest-20260802-0131/*`, pushed to origin.

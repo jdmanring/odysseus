@@ -6,7 +6,7 @@
 
 | # | State | Title |
 |---|-------|-------|
-| 171 | open | Upstream ingest 2026-08-02 — 182 conflicted files, merged as 09f86519 |
+| 171 | open | Upstream ingest 2026-08-02 — 182 conflicted files, merged as b2e97adb |
 | 170 | closed | Land the ingest merge tooling on develop (an aborted merge currently destroys it) |
 | 169 | closed | Edit/regenerate/fork derive keep_count from DOM index, not DB position → wrong truncation/fork point (pre-existing; make id-based) |
 | 168 | closed | Streaming text-only fast path: renders ~~strikethrough~~ literally + ships a per-message debug console.log |

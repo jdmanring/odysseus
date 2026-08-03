@@ -1,8 +1,8 @@
 # Ingest merge 2026-08-02 — resume notes
 
-> **STATUS 2026-08-02: MERGED AND PROMOTED. `develop` is `08252cd3`.** `09f86519` on
+> **STATUS 2026-08-02: MERGED AND PROMOTED. `develop` is `c0aee28d`.** `b2e97adb` on
 > `sync/ingest-20260802`, parents `ee02a5a5` (old develop) + `25c9e735`
-> (upstream-mirror), tagged `ingest-20260802-merged`, promoted via `08252cd3`.
+> (upstream-mirror), tagged `ingest-20260802-merged`, promoted via `c0aee28d`.
 > Suite on develop: 6,107 passed / 2 known-stale / 6 skipped. Nothing pushed.
 >
 > Two consequences for anyone using this document now:
@@ -23,7 +23,7 @@ Branch `sync/ingest-20260802` (merge of `upstream-mirror` into a branch off `dev
 > merge's own survival kit, and they are now handled differently:
 >
 > - **`tooling/merge/`** (four tools + battery) — SAFE. Landed on `develop` in
->   `65e8f3a1` as fork-only work under #170, via a `git worktree` off `develop`
+>   `355f58cf` as fork-only work under #170, via a `git worktree` off `develop`
 >   (a branch switch is impossible mid-merge). Verify:
 >   `git cat-file -e develop:tooling/merge/resolve_hunks.py` now succeeds; before
 >   that commit it failed.
@@ -97,8 +97,8 @@ would have produced a confident wrong conclusion twice over.
 
 ## Remaining work
 
-**Nothing.** All 182 files resolved, merged (`09f86519`) and promoted to `develop`
-(`08252cd3`). Suite on develop in the real environment: **6,107 passed / 2 failed /
+**Nothing.** All 182 files resolved, merged (`b2e97adb`) and promoted to `develop`
+(`c0aee28d`). Suite on develop in the real environment: **6,107 passed / 2 failed /
 6 skipped**, from 51 failures when triage began.
 
 The 2 remaining are `test_staged_branch_convergence` and are NOT defects — see the
