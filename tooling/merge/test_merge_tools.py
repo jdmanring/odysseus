@@ -182,6 +182,65 @@ def main() -> int:
         if rc != 0:
             fails.append("classify: crashed on a missing file")
 
+    # ---------------- classify: add/add must be called UNION, not a side --------
+    with tempfile.TemporaryDirectory() as t:
+        # Both sides add DIFFERENT non-base content at the same spot. Choosing
+        # either side silently drops the other's feature, so the tool must refuse
+        # to suggest o/t here. This is the style.css failure mode: a fork theme
+        # rule and an unrelated upstream widget landing at one offset.
+        addadd = """base line that is long enough to count here
+<<<<<<< HEAD
+fork only rule that is long enough to count
+=======
+upstream only rule that is long enough here
+>>>>>>> upstream-mirror
+"""
+        env = make_repo(t, "base line that is long enough to count here\n",
+                        "base line that is long enough to count here\nfork only rule that is long enough to count\n",
+                        "base line that is long enough to count here\nupstream only rule that is long enough here\n",
+                        addadd, path="c.py")
+        rc, out = run(CLASSIFY, "c.py", cwd=t, env=env)
+        if "UNION" not in out:
+            fails.append("classify: add/add hunk NOT flagged UNION (an o/t pick would drop a feature)")
+
+    with tempfile.TemporaryDirectory() as t:
+        # Only ONE side has non-base content -> that side moved last, and the tool
+        # must still commit to it rather than punting everything to REVIEW.
+        onesided = """base line that is long enough to count here
+<<<<<<< HEAD
+base line that is long enough to count here
+=======
+upstream only rule that is long enough here
+>>>>>>> upstream-mirror
+"""
+        env = make_repo(t, "base line that is long enough to count here\n",
+                        "base line that is long enough to count here\n",
+                        "base line that is long enough to count here\nupstream only rule that is long enough here\n",
+                        onesided, path="c.py")
+        rc, out = run(CLASSIFY, "c.py", cwd=t, env=env)
+        if "UNION" in out:
+            fails.append("classify: one-sided change wrongly flagged UNION (false positive)")
+
+    # ---------------- fork_work_loss --all: no silent truncation ----------------
+    with tempfile.TemporaryDirectory() as t:
+        # 9 dropped lines: the default view caps at 6, --all must show every one.
+        # Without --all the obvious move is to hand-roll the same query, which is
+        # how a tested tool gets bypassed mid-merge.
+        forkside = "base line that is long enough to count here\n" + "".join(
+            f"fork authored line number {i} long enough to count\n" for i in range(9))
+        env = make_repo(t, "base line that is long enough to count here\n",
+                        forkside,
+                        "base line that is long enough to count here\n",
+                        "base line that is long enough to count here\n", path="f.py")
+        rc, out = run(LOSS, "f.py", cwd=t, env=env)
+        if "and 3 more" not in out:
+            fails.append("loss: default view no longer caps at 6 with a 'more' note")
+        rc, out = run(LOSS, "--all", "f.py", cwd=t, env=env)
+        if "more" in out.split("=====")[0]:
+            fails.append("loss: --all still truncated the list")
+        if sum(f"number {i} " in out for i in range(9)) != 9:
+            fails.append("loss: --all did not print every dropped line")
+
     # ---------------- js_orphan_refs: must catch a real orphan, and stay quiet --
     with tempfile.TemporaryDirectory() as t:
         dev = ("const keep = 1;\nlet gone = 2;\nfunction f(){ return keep + gone; }\n")
