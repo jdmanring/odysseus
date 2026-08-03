@@ -197,10 +197,13 @@ _QWEN_BARE_MARKER_RE = re.compile(
 # Pattern 6: <longcat_tool_call> blocks (Meituan LongCat — official JSON format)
 # {"name": "fn_name", "arguments": {"key": "val"}}
 # Non-JSON content (tag-pair format seen in partial captures) is stripped but not executed.
-_LONGCAT_TOOL_CALL_RE = re.compile(
-    r"<longcat_tool_call>\s*([\s\S]*?)\s*</longcat_tool_call>",
-    re.IGNORECASE,
-)
+# Split delimiters, scanned forward-only via _iter_delimited: a lazy
+# `<open>([\s\S]*?)</close>` under finditer retries from every opener and rescans
+# to end-of-string, which is O(n^2) on attacker-controlled "many openers, no
+# closer" model output (CodeQL py/polynomial-redos). Same treatment as the XML
+# invoke/parameter and args-brace delimiters above.
+_LONGCAT_OPEN_RE = re.compile(r"<longcat_tool_call>\s*", re.IGNORECASE)
+_LONGCAT_CLOSE_RE = re.compile(r"\s*</longcat_tool_call>", re.IGNORECASE)
 
 # Pattern 5: DeepSeek DSML markup leaking into content. When deepseek
 # models can't emit structured tool_calls (e.g. we sent no tool schemas
@@ -1440,8 +1443,9 @@ def parse_tool_blocks(text: str, skip_fenced: bool = False) -> List[ToolBlock]:
 
     # Pattern 4e: <longcat_tool_call> blocks (Meituan LongCat — JSON format only)
     if not blocks:
-        for m in _LONGCAT_TOOL_CALL_RE.finditer(text):
-            block = _parse_longcat_tool_call(m.group(1))
+        for _s, _is, _ie, _e in _iter_delimited(
+                text, _LONGCAT_OPEN_RE, _LONGCAT_CLOSE_RE):
+            block = _parse_longcat_tool_call(text[_is:_ie])
             if block:
                 blocks.append(block)
 
@@ -1495,7 +1499,12 @@ def strip_tool_blocks(text: str, skip_fenced: bool = False) -> str:
     cleaned = _strip_raw_openai_tool_call_json(cleaned)
     cleaned = _QWEN_ROLE_MARKER_RE.sub('', cleaned)
     cleaned = _QWEN_BARE_MARKER_RE.sub(' ', cleaned)
-    cleaned = _LONGCAT_TOOL_CALL_RE.sub('', cleaned)
+    # Strip via the same forward-only scan, rebuilt right-to-left so earlier
+    # spans stay valid. `.sub()` would reintroduce the quadratic pattern.
+    _lc_spans = [(s, e) for s, _i0, _i1, e in
+                 _iter_delimited(cleaned, _LONGCAT_OPEN_RE, _LONGCAT_CLOSE_RE)]
+    for _s, _e in reversed(_lc_spans):
+        cleaned = cleaned[:_s] + cleaned[_e:]
     if not skip_fenced:
         raw_web_json = _parse_raw_web_json_lookup(cleaned)
         if raw_web_json:
