@@ -49,6 +49,31 @@ dry-run by default).
 - **Rebased branches are NOT pushed**, matching the 2026-07-07 precedent.
 - **0 RETIRE**: upstream shipped an equivalent for none of these.
 
+**Rebase sweep, second pass (8 of 15 conflicts resolved):**
+`chat.js` cluster x5, `css-render-perf`, `gpu-compositor-flicker`,
+`chat-column-width-pref` — each verified by its own tests.
+
+**2 must NOT be rebased, and pr-status.md already said so — CHECK IT FIRST:**
+- `fix/agent-context-budget-discovery` — pr-status.md: "Superseded by upstream; do
+  not file". Upstream shipped the same lazy-probe idea as #4886 with a known-table
+  fast path (`_proxy_catalog_context`). Effort was spent rebasing a retired branch
+  because the tracker was not read first.
+- `refactor/assets-move` — pr-status.md still says "Ready to file", which is now
+  STALE. It moves `docs/* -> assets/*`; upstream has since consolidated into
+  `docs/` and ships no `assets/` directory, so the branch inverts their layout and
+  is unfileable as written. Retire or re-scope.
+
+**5 conflicts still open:** `aria2c-downloader` (38 commits, `cookbookRunning.js`),
+`memory-qdrant-nomic` (`rag_vector.py`), `dom-oom-virtualization` (`sessions.js`),
+`feat/logging` (3 files), `test/upstream-pr-4661` (3 files).
+
+**A CSS resolution can pass every test while being structurally broken.**
+`fix/css-render-perf` came out of the rebase at brace depth 1 — an appended
+reduced-motion block had swallowed a media query's closing brace — and all 14 of
+its own tests still passed, because source-assertion tests grep for declarations
+and cannot see brace depth. Always check `text.count("{") == text.count("}")` on
+style.css after any resolution.
+
 **10 conflicts left:** `style.css` x2 (`css-render-perf`, `gpu-compositor-flicker`),
 `sessions.js` (`dom-oom-virtualization`), `cookbookRunning.js` (`aria2c-downloader`,
 38 commits), `rag_vector.py` (`memory-qdrant-nomic`), `model_context.py`
