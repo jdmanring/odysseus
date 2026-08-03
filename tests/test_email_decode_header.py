@@ -11,10 +11,10 @@ so one bad message could take down the whole inbox render / poller loop.
 These pin the fallback so a bogus charset degrades gracefully to utf-8.
 """
 import os
-import tempfile
 from pathlib import Path
+from tests.helpers.temp_cleanup import temp_dir
 
-_tmp_data = Path(tempfile.mkdtemp(prefix="odysseus_decode_hdr_"))
+_tmp_data = Path(temp_dir(prefix="odysseus_decode_hdr_"))
 os.environ.setdefault("DATA_DIR", str(_tmp_data))
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{_tmp_data / 'app.db'}")
 

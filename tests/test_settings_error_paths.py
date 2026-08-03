@@ -8,11 +8,11 @@ that was previously uncaught and would crash the app.
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
+from tests.helpers.temp_cleanup import temp_dir
 
-_TMP = Path(tempfile.mkdtemp(prefix="odysseus-settings-test-"))
+_TMP = Path(temp_dir(prefix="odysseus-settings-test-"))
 os.environ.setdefault("DATA_DIR", str(_TMP))
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{_TMP / 'app.db'}")
 

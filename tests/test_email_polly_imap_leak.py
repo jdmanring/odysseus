@@ -36,9 +36,9 @@ Pre-fix the assertion fails because the `except` branch never reaches
 
 import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
+from tests.helpers.temp_cleanup import temp_dir
 
 
 # Point every data-dir-using dependency (core.database, secret_storage,
@@ -48,7 +48,7 @@ from unittest.mock import MagicMock
 # which doesn't exist on bare CI machines, and our test would fail
 # with `OperationalError: unable to open database file` long before
 # the leak regression had a chance to fire.
-_TMP_DATA = Path(tempfile.mkdtemp(prefix="odysseus-email-polly-leak-"))
+_TMP_DATA = Path(temp_dir(prefix="odysseus-email-polly-leak-"))
 os.environ.setdefault("DATA_DIR", str(_TMP_DATA))
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{_TMP_DATA / 'app.db'}")
 
