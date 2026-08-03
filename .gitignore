@@ -78,6 +78,18 @@ output.txt.txt
 # …except shipped demo assets and icons in assets/.
 !assets/*
 
+# …except shipped demo assets in docs/ that the README links to.
+!docs/*.jpg
+!docs/*.jpeg
+!docs/*.png
+!docs/*.gif
+!docs/*.webp
+# …and curated docs/ subfolder assets (e.g. accessibility before/after shots).
+!docs/**/*.png
+!docs/**/*.jpg
+!docs/**/*.gif
+!docs/**/*.webp
+
 # Reports and temp files
 reports/
 tasks/

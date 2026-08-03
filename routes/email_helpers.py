@@ -160,12 +160,131 @@ def _smtp_security_mode(cfg: dict) -> str:
     return "ssl"
 
 
+class EmailNotConfiguredError(RuntimeError):
+    """Raised when an IMAP operation is attempted on an account that has no
+    inbox configured (e.g. a send-only / SMTP-only account).
+
+    Subclasses RuntimeError so existing broad ``except Exception`` handlers
+    keep working; callers that want to treat "no inbox" as an empty result
+    rather than a failure can catch this type specifically.
+    """
+
+
+def _xoauth2_raw(user: str, access_token: str) -> str:
+    """The SASL XOAUTH2 initial-response string (unencoded).
+
+    Both smtplib.SMTP.auth() and imaplib.IMAP4.authenticate() base64-encode
+    the value their callback returns, so callers pass this raw form — never
+    pre-encoded — to avoid double base64.
+    """
+    return f"user={user}\x01auth=Bearer {access_token}\x01\x01"
+
+
+def _xoauth2_bytes(user: str, access_token: str) -> bytes:
+    """Raw XOAUTH2 bytes for imaplib's authenticate() callback."""
+    return _xoauth2_raw(user, access_token).encode()
+
+
+def make_oauth_state(account_id: str, owner: str) -> str:
+    """Return an HMAC-signed, base64-encoded OAuth state token.
+
+    Encodes account_id + owner + a random nonce, signed with the app secret
+    so the callback can validate that the flow was initiated by an
+    authenticated, owning user (CSRF / state-forgery protection).
+    """
+    import hmac as _hmac, hashlib as _hl, secrets as _sec
+    from src.secret_storage import _load_or_create_key
+    nonce = _sec.token_hex(16)
+    payload = json.dumps({"a": account_id, "o": owner, "n": nonce}, separators=(",", ":"))
+    sig = _hmac.new(_load_or_create_key(), payload.encode(), _hl.sha256).hexdigest()
+    return base64.urlsafe_b64encode(f"{payload}|{sig}".encode()).decode()
+
+
+def verify_oauth_state(state: str) -> dict | None:
+    """Verify an OAuth state token's HMAC signature.
+
+    Returns the decoded payload dict ({"a", "o", "n"}) on success, or None if
+    the token is malformed, tampered, or signed with a different key.
+    """
+    import hmac as _hmac, hashlib as _hl
+    from src.secret_storage import _load_or_create_key
+    try:
+        decoded = base64.urlsafe_b64decode(state.encode()).decode()
+        payload, sig = decoded.rsplit("|", 1)
+        expected = _hmac.new(_load_or_create_key(), payload.encode(), _hl.sha256).hexdigest()
+        if not _hmac.compare_digest(sig, expected):
+            return None
+        return json.loads(payload)
+    except Exception:
+        return None
+
+
+def _refresh_google_token(account_id: str) -> str | None:
+    """Exchange the stored refresh token for a new access token and persist it."""
+    import httpx
+    from core.database import SessionLocal as _SL, EmailAccount as _EA
+    from src.secret_storage import encrypt as _enc, decrypt as _dec
+    client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+    client_secret = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
+    if not client_id or not client_secret:
+        return None
+    db = _SL()
+    try:
+        row = db.get(_EA, account_id)
+        if not row or not row.oauth_refresh_token:
+            return None
+        refresh_token = _dec(row.oauth_refresh_token or "")
+        if not refresh_token:
+            return None
+        resp = httpx.post("https://oauth2.googleapis.com/token", data={
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        access_token = data["access_token"]
+        row.oauth_access_token = _enc(access_token)
+        row.oauth_token_expiry = str(int(time.time()) + data.get("expires_in", 3600))
+        db.commit()
+        return access_token
+    except Exception:
+        logger.warning(f"Google token refresh failed for account {account_id}")
+        return None
+    finally:
+        db.close()
+
+
+def _get_valid_google_token(account_id: str, cfg: dict) -> str | None:
+    """Return a valid Google access token, refreshing if expired or missing."""
+    from src.secret_storage import decrypt as _dec
+    access_token = _dec(cfg.get("oauth_access_token") or "")
+    expiry_str = cfg.get("oauth_token_expiry") or ""
+    if access_token and expiry_str:
+        try:
+            if int(expiry_str) - 60 > time.time():
+                return access_token
+        except (ValueError, TypeError):
+            pass
+    return _refresh_google_token(account_id)
+
+
+def _smtp_security_mode(cfg: dict) -> str:
+    raw = str(cfg.get("smtp_security") or "").strip().lower()
+    if raw in {"ssl", "starttls", "none"}:
+        return raw
+    port = int(cfg.get("smtp_port") or 465)
+    if port == 587:
+        return "starttls"
+    return "ssl"
+
+
 def _send_smtp_message(cfg: dict, from_addr: str, recipients: list[str], message: str | bytes, timeout: int = 30) -> None:
     """Send through SMTP using the configured transport security mode."""
     import structlog as _structlog
     import time as _time
     _log = _structlog.get_logger(__name__)
-
     host = cfg["smtp_host"]
     port = int(cfg.get("smtp_port") or 465)
     user = cfg.get("smtp_user") or ""
@@ -239,6 +358,38 @@ def _friendly_email_auth_error(protocol: str, host: str, error: object) -> str:
     return raw[:200]
 
 
+def _friendly_email_auth_error(protocol: str, host: str, error: object) -> str:
+    """Return a clearer setup error for known provider auth policies."""
+    raw = str(error or "")
+    lower = raw.lower()
+    host_lower = (host or "").lower()
+    microsoft_host = any(
+        marker in host_lower
+        for marker in (
+            "outlook.office365.com",
+            "smtp.office365.com",
+            "office365.com",
+            "outlook.com",
+            "hotmail.com",
+            "live.com",
+        )
+    )
+    microsoft_basic_auth_failure = (
+        "5.7.139" in lower
+        or "basic authentication is disabled" in lower
+        or ("authenticate failed" in lower and microsoft_host)
+        or ("authentication unsuccessful" in lower and microsoft_host)
+    )
+    if microsoft_basic_auth_failure:
+        return (
+            "Microsoft no longer accepts normal mailbox passwords for "
+            "Outlook/Office 365 IMAP/SMTP in most accounts. Odysseus "
+            "does not support Microsoft OAuth/Graph mail yet, so Outlook "
+            "accounts cannot be added with this password form."
+        )
+    return raw[:200]
+
+
 def _strip_think(text: str) -> str:
     """Email-flavored think strip — thin wrapper over the central helper.
 
@@ -261,6 +412,7 @@ import re as _re_reply
 # serves replies and summaries (any fenced final-output block).
 _REPLY_OPEN_RE = _re_reply.compile(r"<<<\s*(?:REPLY|SUMMARY|OUTPUT)\s*>>+", _re_reply.I)
 _REPLY_CLOSE_RE = _re_reply.compile(r"<<<\s*END\s*>>+", _re_reply.I)
+_REPLY_ROLE_MARKER_RE = _re_reply.compile(r"</?\|(?:assistant|assistan|user|system|tool)\|>?|</\|end\|>?", _re_reply.I)
 
 
 def _extract_reply(text: str) -> str:
@@ -287,6 +439,7 @@ def _extract_reply(text: str) -> str:
     # Drop any stray/duplicate marker tokens, then strip think markup.
     t = _REPLY_OPEN_RE.sub("", t)
     t = _REPLY_CLOSE_RE.sub("", t)
+    t = _REPLY_ROLE_MARKER_RE.sub("", t)
     return _strip_think(t).strip()
 
 
@@ -1050,7 +1203,14 @@ def _coerce_imap_timeout_seconds(raw: str | None) -> int:
 _IMAP_TIMEOUT_SECONDS = _coerce_imap_timeout_seconds(os.environ.get("ODYSSEUS_IMAP_TIMEOUT_SECONDS"))
 
 
-def _open_imap_connection(host: str, port: int, *, starttls: bool, timeout: int = _IMAP_TIMEOUT_SECONDS):
+def _open_imap_connection(
+    host: str,
+    port: int,
+    *,
+    starttls: bool,
+    timeout: int = _IMAP_TIMEOUT_SECONDS,
+    ssl_context=None,
+):
     """Open an IMAP connection using the configured security mode."""
     import time as _time
     _t0 = _time.monotonic()
@@ -1058,7 +1218,10 @@ def _open_imap_connection(host: str, port: int, *, starttls: bool, timeout: int 
     if starttls:
         conn = imaplib.IMAP4(host, port, timeout=timeout)
         try:
-            conn.starttls()
+            if ssl_context:
+                conn.starttls(ssl_context=ssl_context)
+            else:
+                conn.starttls()
         except Exception:
             # Don't leak the open plain socket if the STARTTLS upgrade is
             # rejected; close it before propagating. (#3174)
@@ -1068,7 +1231,8 @@ def _open_imap_connection(host: str, port: int, *, starttls: bool, timeout: int 
                 pass
             raise
     elif port == 993:
-        conn = imaplib.IMAP4_SSL(host, port, timeout=timeout)
+        kwargs = {"ssl_context": ssl_context} if ssl_context else {}
+        conn = imaplib.IMAP4_SSL(host, port, timeout=timeout, **kwargs)
     else:
         conn = imaplib.IMAP4(host, port, timeout=timeout)
     try:
