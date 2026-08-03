@@ -1,0 +1,77 @@
+branch                                        hit  own  overlapping files
+feat/memory-qdrant-nomic                       13   47  app.py docker-compose.gpu-amd.yml docker-compose.gpu-nvidia.yml …
+feat/aria2c-downloader                          8   14  routes/cookbook_helpers.py routes/cookbook_routes.py routes/shell_routes.py …
+feat/logging                                    7   20  app.py requirements.txt routes/email_helpers.py …
+fix/dom-oom-virtualization                      6    9  static/app.js static/index.html static/js/chat.js …
+feat/longcat-provider                           6    8  routes/model_routes.py src/agent_loop.py src/llm_core.py …
+fix/skill-lifecycle-correctness                 3    6  routes/skills_routes.py src/agent_loop.py src/tools/system.py
+fix/basicsr-python314-compat                    3    4  routes/cookbook_helpers.py routes/cookbook_routes.py routes/shell_routes.py
+fix/vllm-desktop-serve-resilience               3    3  routes/cookbook_helpers.py routes/cookbook_routes.py static/js/cookbook-diagnosis.js
+fix/truncate-fork-by-msg-id                     3    3  core/session_manager.py routes/history/history_routes.py static/js/chat.js
+fix/timer-visibility-gating                     3    3  static/js/emailInbox.js static/js/modalManager.js static/js/tasks.js
+fix/memory-panel-listener-leak                  3    3  static/js/memory.js static/js/modalManager.js static/style.css
+perf/hljs-deferred-highlight                    2    4  static/js/chat.js static/js/chatRenderer.js
+fix/hwfit-scan-honesty                          2    4  static/js/cookbook-hwfit.js static/js/cookbook.js
+feat/chat-column-width-pref                     2    3  static/index.html static/style.css
+perf/image-lazy-decode                          2    2  static/js/document.js static/js/gallery.js
+fix/tasks-clock-repaint                         2    2  static/js/tasks.js static/style.css
+fix/notes-quick-idle-quiescence                 2    2  static/js/ui.js static/style.css
+fix/longcat-tool-parsing                        2    2  src/agent_loop.py src/tool_parsing.py
+fix/chat-stick-to-bottom                        2    2  static/js/ui.js static/style.css
+feat/thinking-overlay                           2    2  static/js/chat.js static/style.css
+refactor/assets-move                            1   16  README.md
+_fix                                            1   16  README.md
+fix/renderer-hang-watchdog                      1    7  static/index.html
+feat/qt-native-macos-app                        1    7  requirements.txt
+feat/qt-native-linux-app                        1    7  static/index.html
+perf/qt-psi-graduated-reclaim                   1    6  static/index.html
+perf/renderer-memory-reclaim                    1    5  static/index.html
+fix/gguf-quality-scored                         1    3  routes/cookbook_routes.py
+perf/mcp-lazy-connect                           1    2  src/builtin_mcp.py
+fix/skill-extraction-threshold                  1    2  routes/chat_helpers.py
+fix/research-orbit-quiescence                   1    2  static/style.css
+fix/provider-logo-ordering                      1    2  static/index.html
+fix/model-downloaded-detection                  1    2  static/js/cookbook-hwfit.js
+fix/declare-magic-docx-test-deps                1    2  requirements.txt
+feat/nvidia-nim-support                         1    2  routes/model_routes.py
+feat/gh-cli-detection                           1    2  src/agent_loop.py
+test/upstream-pr-4366                           1    1  src/tool_index.py
+perf/tool-bubble-inplace                        1    1  static/js/chat.js
+perf/streaming-final-render                     1    1  static/js/chat.js
+perf/smooth-typing                              1    1  static/js/ui.js
+perf/round-finalize-inplace                     1    1  static/js/chat.js
+perf/rewrite-streaming-renderer                 1    1  static/js/chat.js
+perf/rendertail-raf-throttle                    1    1  static/js/chat.js
+perf/gc-micro-improvements                      1    1  static/js/markdown.js
+perf/editor-undo-compress                       1    1  static/js/galleryEditor.js
+perf/agent-gc-catchup                           1    1  static/js/chat.js
+perf/agent-finalize-in-place                    1    1  static/js/chat.js
+fix/tool-code-pycall-parsing                    1    1  src/tool_parsing.py
+fix/tool-bubble-timer-leak                      1    1  static/js/chat.js
+fix/streamingtts-scope                          1    1  static/js/chat.js
+fix/stream-429-backoff                          1    1  src/llm_core.py
+fix/spinner-orphan-leak                         1    1  static/js/spinner.js
+fix/skill-agent-prompt-language                 1    1  src/agent_loop.py
+fix/sigcache-lru-bound                          1    1  static/js/document.js
+fix/searxng-json-docs                           1    1  .env.example
+fix/qtwebengine-oilpan-gc                       1    1  static/js/chat.js
+fix/pytest-timeout-dependency                   1    1  requirements.txt
+fix/provider-picker-alpha-sort                  1    1  static/js/admin.js
+fix/nvidia-native-tool-calling                  1    1  src/agent_loop.py
+fix/modal-zpromote-reduced-motion-oom           1    1  static/js/ui.js
+fix/memory-list-scroll-oom                      1    1  static/style.css
+fix/history-route-shadow                        1    1  routes/session_routes.py
+fix/gpu-compositor-flicker                      1    1  static/style.css
+fix/editor-empty-save-guard                     1    1  static/js/galleryEditor.js
+fix/dom-oom-streaming-throttle                  1    1  static/js/chat.js
+fix/css-render-perf                             1    1  static/style.css
+fix/css-contain-paint-transparent-rendering     1    1  static/style.css
+fix/cookbook-hf-gguf-repo-nameerror             1    1  routes/cookbook_routes.py
+fix/continue-btn-weakref                        1    1  static/js/chat.js
+fix/brain-panel-oom                             1    1  static/style.css
+fix/api-token-utcnow-deprecated                 1    1  app.py
+fix/api-hosts-provider-gaps                     1    1  src/agent_loop.py
+fix/agent-tool-budget                           1    1  src/settings.py
+
+14 branch(es) touch NO file upstream changed — no supersession risk:
+  feat/qt-native-windows-app, feat/qt-native-freebsd-app, feat/skill-quality-signals, perf/rendertail-text-only-path, perf/gc-rendertail-instrumentation, fix/untrusted-tool-result-header, fix/theme-reduced-motion, fix/sqlalchemy-orm-declarative-import, fix/settings-shortcut-resurrection, fix/editor-redo-shortcut, feat/qt-native-openbsd-app, feat/catppuccin-theme, feat/asset-cache-busters, feat/ai-documentation-system

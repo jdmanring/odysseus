@@ -1,0 +1,52 @@
+TOTAL non-merge commits: 1882
+
+BY TYPE
+    860  (none)
+    823  fix
+     57  feat
+     38  refactor
+     35  test
+     30  docs
+     22  chore
+     11  ci
+      3  perf
+      3  security
+
+TOP SCOPES (conventional-commit scope in parens)
+     54  cookbook
+     40  tests
+     32  security
+     31  agent
+     26  email
+     21  chat
+     21  ui
+     18  auth
+     17  llm
+     16  calendar
+     15  search
+     15  hwfit
+     14  models
+     13  routes
+     13  tools
+     13  memory
+     12  mcp
+     11  research
+      8  skills
+      8  docker
+      8  tasks
+      8  gallery
+      7  sessions
+      7  deps
+      5  markdown
+      5  setup
+      5  notes
+      5  settings
+      5  caldav
+      4  ci
+
+UNTYPED subjects: 860 (older upstream style, pre-convention)
+    9297bed5b add ODYSSEUS_TTS_CACHE_MAX_BYTES environment variable to docker-compos
+    2e631ad81 improve cache size calculation by filtering file types
+    d183fe545 add test for cache eviction handling unlink errors gracefully
+    9914651cc improve cache eviction logic to handle file access errors and ensure s
+    46905ab9b added ODYSSEUS_TTS_CACHE_MAX_BYTES env variable to docker compose file

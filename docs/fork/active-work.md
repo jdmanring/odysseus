@@ -82,6 +82,27 @@ needed porting. Its import hunk was a union minus the superseded `CHROMA_DIR` li
 It is a snapshot of someone else's CLOSED-unmerged upstream PR, it does not match that
 PR's head, and it holds a worktree lock. Same for `test/pr-4661`.
 
+**UPSTREAM REVIEW of all 1,957 ingested commits — `docs/fork/upstream-review-20260803.md`.**
+1,882 non-merge commits: 823 fix / 57 feat / 3 perf / 3 security, with `security` the
+third-largest scope (32). A hardening release, not a feature release.
+
+**The one ACTIONABLE finding, and it blocks a staged branch:** upstream shipped four
+ReDoS fixes; the technique (`d62eba42`) splits lazy `<tag>([\s\S]*?)</tag>` patterns
+into forward-only OPEN/CLOSE regexes because `finditer` on "many openers, no closer"
+model output is O(n^2). **`fix/longcat-tool-parsing` reintroduces exactly that shape
+in exactly that file** (`tool_parsing.py:1443`). Measured on the real pattern:
+200 openers 4 ms, 400 16 ms, 800 57 ms, 1600 242 ms — clean quadratic. Model output
+is untrusted. Rework before filing; upstream's CodeQL would flag it.
+
+Also: **we are AHEAD of upstream** on `src/model_context.py` known-model matching
+(we weight basename matches and strip `:free`/`:extended`; they take longest key) —
+file it. Upstream's `$HOME` allowlist tightening superseded ours and was adopted
+(`91c31113`). Security fixes verified intact, not assumed: 8 `check_outbound_url`
+callers on both sides, 43 SSRF tests green.
+
+Supporting data: `docs/fork/audits/ingest-20260802-upstream-commit-survey.txt`,
+`…-supersession-scan.txt`.
+
 **UPSTREAM-LOSS AUDIT of the ingest — run 2026-08-03, result: ONE real regression.**
 
 The earlier claim that "both loss directions run CLEAN" was WRONG, and the reason
