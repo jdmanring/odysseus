@@ -30,9 +30,9 @@ ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysse
   break; no script, CI file or config referenced the old URL (comments only).
 - Old repo deleted and verified 404; the `oldfork` remote removed.
 
-**2026-08-02: UPSTREAM INGEST — MERGED AND COMMITTED as `09f86519`, tag
-`ingest-20260802-merged`. NOT promoted to `develop` (conflict-free when it is).
-Tracked at #171.**
+**2026-08-02: UPSTREAM INGEST — DONE AND PROMOTED. `develop` is `08252cd3`.**
+Tracked at #171. Merge commit `09f86519` (tag `ingest-20260802-merged`), promoted
+via `08252cd3` with no conflicts.
 Working branch `sync/ingest-20260802`. **The full working document is
 `docs/fork/ingest-20260802-resume.md` — read that before touching the merge;
 this entry is only the status line.**
@@ -45,13 +45,27 @@ this entry is only the status line.**
   them AFTER this merge commits, never against an uncommitted merge (#131).
 - Gates green: 0 conflicts, `ruff --select F821` clean, `node --check` clean on all 44
   resolved JS files, both loss directions reviewed, orphan scan clear.
-- **The merge is committed on its branch; `develop` has NOT been promoted.** `develop`
-  carries only three fork-only tooling commits (`65e8f3a1`, `508b03ec`, `fa00c29f`,
-  all under #170) landed via a worktree.
-- The issue tracker is deliberately kept BYTE-IDENTICAL on both branches (both carry
-  #170 and #171, in the same list order). `issue-export.json` is a single minified
-  line, so any divergence conflicts as a whole-file clash. Append entries to both
-  sides, or promote before adding more.
+- **Promoted.** Suite on `develop` in the real environment (venv + .env present):
+  **6,107 passed / 2 failed / 6 skipped**, identical to the ingest branch.
+- **Next: re-converge the staged upstream-PR branches (#131).** That clears the last
+  2 failures. It could not be done earlier — re-converging against an uncommitted
+  merge would have had to be redone once `develop` moved.
+- **Restore points:** `prepromote-20260802-16d6d580` (develop immediately before the
+  promotion), `ingest-20260802-merged`, `preingest-20260802-ee02a5a5/*`.
+- `integration` is untouched and still equals `upstream-mirror`; it was not on the
+  path for this ingest and carries no LKG tag for it.
+- **Nothing has been pushed.** `origin` still has the pre-ingest state.
+
+**Two mechanics that bit during this ingest — worth knowing before the next one:**
+- `docs/fork/issues/issue-export.json` is a SINGLE MINIFIED LINE, so two branches each
+  appending an entry conflict as a whole-file clash. Keep it byte-identical across
+  branches (same entries AND same list order) or promote before adding more. Write it
+  back with `separators=(",", ":"), sort_keys=True`; `indent=2` reformats all ~170
+  entries into a 5,900-line diff.
+- **Never `git add -A` a merge.** During the final gate it swept five untracked local
+  BSD screenshots into the merge commit; they came from neither parent.
+  `tests/test_docs_no_orphan_images.py` caught it, fixed in `46547db9`. Stage
+  explicitly — a 182-file staging area cannot be eyeballed.
 - **Restore points:** tags `preingest-20260802-ee02a5a5/*` and
   `prengest-20260802-0131/*`, pushed to origin.
 - **`git merge --abort` is not fully clean** — it discards the merge's staged NEW files.
