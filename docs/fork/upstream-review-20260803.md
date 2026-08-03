@@ -172,6 +172,77 @@ signal, not a verdict; each was rebased and its own tests pass.
 
 ---
 
+## 5. The 952 untyped commits — where upstream actually worked
+
+Reading 952 subject lines produces a confident summary of nothing. Grouping by
+touched path answers the question that matters: did upstream work where our staged
+branches and our divergences live? Full data:
+`docs/fork/audits/ingest-20260802-untyped-commit-areas.txt`.
+
+| area | file-touches |
+|---|---|
+| static | 1030 |
+| tests | 447 |
+| src | 398 |
+| routes | 331 |
+| (root) | 125 |
+| services | 67 |
+
+Most-touched files: `static/style.css` **251**, `static/js/emailLibrary.js` 89,
+`static/js/cookbook.js` 60, `static/index.html` 57, `static/js/cookbookServe.js` 50,
+`src/agent_loop.py` 42, `routes/cookbook_routes.py` 39, `static/js/chat.js` 34,
+`static/js/cookbookRunning.js` 32.
+
+**That list is almost exactly our worst conflict list.** style.css (60 hunks),
+cookbookServe.js (41), agent_loop.py (44), chat.js, cookbookRunning.js — the five
+files that consumed most of this merge are five of upstream's six busiest. The
+conflict volume was not bad luck; it is structural, and it will recur every ingest
+for as long as the fork carries divergences in those files.
+
+The actionable consequence: **prioritise upstreaming the divergences that sit in
+upstream's busiest files**, because those are what convert a quiet ingest into a
+182-file one. By that metric the ranking is style.css work first, then the cookbook
+JS trio, then agent_loop.
+
+---
+
+## 6. MemoryProvider — VERIFIED, and it splits our biggest branch
+
+Upstream shipped `feat(memory): add provider interface` — `src/memory_provider.py`,
+320 lines: a `MemoryProvider` ABC, a `NativeMemoryProvider`, and a registry.
+
+**Correction to an earlier claim in this review's own drafting:** it was asserted
+that `feat/memory-qdrant-nomic` "replaces ChromaDB wholesale and ignores upstream's
+interface, so implementing the interface would make it fileable". That was wrong.
+The branch already modifies `src/memory_provider.py` and works INSIDE
+`NativeMemoryProvider`, enhancing `remember()` and `recall()`. The vector backend
+swap sits a layer below, at `memory_vector`.
+
+The real opportunity is SPLITTING the branch, and it is verified rather than argued.
+Two of its three concerns are backend-independent:
+
+- `src/memory_ranking.py` (BM25 + dense hybrid fusion) — 0 qdrant/chroma references
+- `src/memory_supersede.py` (write-time supersede) — 0 references
+- `src/memory.py` (keyword-fallback filtering of superseded entries) — 0 references
+
+They depend only on `memory_vector.search`, whose signature and documented contract
+are **identical** on both backends:
+`def search(self, query: str, k: int = 8) -> List[Dict]` returning
+`{"memory_id": str, "score": float}`.
+
+**Empirical proof, not inference.** Those files were checked out onto a pure
+`upstream-mirror` tree (ChromaDB, no Qdrant anywhere) and the suite run:
+
+    16/16  tests/test_memory_ranking.py + tests/test_memory_supersede.py
+    109/109  full `-k memory` selection
+
+So the hybrid-recall and supersede work is a self-contained upstream PR that needs
+none of the Qdrant migration. File it separately; it is far likelier to be accepted
+than a backend swap, and it removes the fork's best memory work from the divergence
+surface.
+
+---
+
 ## 4. What we should do differently
 
 **Verify a fix is still needed before rebasing it.** `fix/agent-context-budget-discovery`

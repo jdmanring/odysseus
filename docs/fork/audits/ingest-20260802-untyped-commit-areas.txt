@@ -1,0 +1,44 @@
+untyped commits: 952
+
+BY TOP-LEVEL AREA
+    1030  static
+     447  tests
+     398  src
+     331  routes
+     125  (root)
+      67  services
+      50  scripts
+      30  core
+      26  docs
+      20  integrations
+      12  mcp_servers
+       9  companion
+       7  docker
+       4  .github
+
+MOST-TOUCHED FILES (where upstream concentrated)
+    251  static/style.css
+     89  static/js/emailLibrary.js
+     60  static/js/cookbook.js
+     57  static/index.html
+     50  static/js/cookbookServe.js
+     42  src/agent_loop.py
+     39  routes/cookbook_routes.py
+     34  static/js/chat.js
+     32  static/js/cookbookRunning.js
+     31  routes/model_routes.py
+     29  static/js/document.js
+     28  static/js/settings.js
+     27  routes/email_routes.py
+     27  static/js/tasks.js
+     26  static/js/cookbook-hwfit.js
+     26  README.md
+     25  routes/cookbook_helpers.py
+     24  app.py
+     23  routes/chat_routes.py
+     23  src/llm_core.py
+     23  src/task_scheduler.py
+     22  src/tool_index.py
+     22  static/app.js
+     20  static/js/emailInbox.js
+     20  src/tool_implementations.py
