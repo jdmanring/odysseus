@@ -54,6 +54,14 @@ def main() -> int:
     if upstream_mode:
         sys.argv.remove("--upstream")
 
+    # Print EVERY dropped line instead of the first 6. The cap keeps a whole-merge
+    # sweep readable, but once you are porting a specific file you need the full
+    # list -- and without this flag the obvious move is to hand-roll the same query
+    # in a throwaway script, which is how a tested tool gets bypassed.
+    show_all = "--all" in sys.argv
+    if show_all:
+        sys.argv.remove("--all")
+
     base = sh("git", "merge-base", "develop", "upstream-mirror").strip()
     if not base:
         print("no merge base — is upstream-mirror present?")
@@ -114,10 +122,11 @@ def main() -> int:
             total_lines += len(lost)
             label = "upstream-authored" if upstream_mode else "fork-authored"
             print(f"\n  {f}  ({len(lost)} {label} lines absent from the merge result)")
-            for s in lost[:6]:
-                print(f"      {s[:104]}")
-            if len(lost) > 6:
-                print(f"      ... and {len(lost)-6} more")
+            shown = lost if show_all else lost[:6]
+            for s in shown:
+                print(f"      {s if show_all else s[:104]}")
+            if len(lost) > len(shown):
+                print(f"      ... and {len(lost)-len(shown)} more (--all to list every line)")
 
     print(f"\n{'='*70}")
     print(f"scanned {len(targets)} resolved files")

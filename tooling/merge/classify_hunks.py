@@ -80,7 +80,36 @@ def main() -> int:
             elif ts_ and t_in_base == len(ts_) and o_in_base < len(os_):
                 spec.append("o"); notes.append(f"{i}: o  theirs all-in-base, ours has new content -> fork moved last")
             else:
-                spec.append("?"); notes.append(f"{i}: ?  both changed -> REVIEW")
+                # "Both changed" lumps together two situations that need OPPOSITE
+                # handling, and calling them all REVIEW hid that. Compare each
+                # side's UNIQUE lines against the base:
+                #   both sides have unique non-base lines -> both ADDED different
+                #     things here. Neither supersedes the other and choosing either
+                #     side silently drops a feature. This must be a UNION/port.
+                #   only one side does -> that side moved last.
+                # Measured on static/style.css, where several hunks had the fork
+                # adding theme rules while upstream added an unrelated widget at
+                # the same offset. A plain o/t choice loses one of them.
+                o_new = [l for l in set(os_) - set(ts_) if l not in base_lines]
+                t_new = [l for l in set(ts_) - set(os_) if l not in base_lines]
+                if o_new and t_new:
+                    # KNOWN FALSE POSITIVE, common in CSS: when one side merely
+                    # EXTENDS a selector list, the line changes from `X {` to
+                    # `X,` + `Y {`, so a line-level diff sees unique lines on both
+                    # sides while that side is a strict superset. Read the hunk: if
+                    # one side's selectors contain all of the other's, take it
+                    # rather than porting. Measured on static/style.css hunks
+                    # 8/9/10/13/18/25.
+                    spec.append("?"); notes.append(
+                        f"{i}: ?  UNION — both sides added non-base content "
+                        f"(fork {len(o_new)}, upstream {len(t_new)}); porting required, o/t drops one"
+                        " [check first for a selector-list superset]")
+                elif o_new:
+                    spec.append("o"); notes.append(f"{i}: o  only ours has non-base content -> fork moved last")
+                elif t_new:
+                    spec.append("t"); notes.append(f"{i}: t  only theirs has non-base content -> upstream moved last")
+                else:
+                    spec.append("?"); notes.append(f"{i}: ?  both changed, neither adds non-base content -> REVIEW")
 
     print(f"{f}: {len(spec)} hunks")
     for n in notes:
