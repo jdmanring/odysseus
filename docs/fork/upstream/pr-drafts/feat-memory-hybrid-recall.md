@@ -3,8 +3,8 @@
 **Branch:** `feat/memory-hybrid-recall`
 **Issue:** #172 (fork tracking, `docs/fork/issues/INDEX.md`)
 **Status:** Ready to file
-**Base:** cut from `upstream-mirror`, two commits (`514c54a1`, `b4f546bd`),
-10 files, +614/-16
+**Base:** cut from `upstream-mirror`, three commits (`514c54a1`, `b4f546bd`,
+`b8730071`), 10 files, +615/-16
 
 ---
 
