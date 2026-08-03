@@ -32,6 +32,7 @@ LOSS = HERE / "fork_work_loss.py"
 JSORPHAN = HERE / "js_orphan_refs.py"
 REBASE = HERE / "rebase_staged.py"
 SURVEY = HERE / "branch_survey.py"
+SCRUB = HERE / "scrub_attribution.py"
 
 CONFLICT = """common header
 <<<<<<< HEAD
@@ -341,7 +342,65 @@ upstream only rule that is long enough here
         if "CLEAN (0)" not in out:
             fails.append("rebase_staged: re-run tried to rebase an already-rebased branch")
 
-    for script in (RESOLVE, CLASSIFY, LOSS, JSORPHAN, REBASE, SURVEY):
+    # ---------------- scrub_attribution: content must NEVER change -----------
+    with tempfile.TemporaryDirectory() as t:
+        env = dict(os.environ, GIT_AUTHOR_NAME="A", GIT_AUTHOR_EMAIL="a@a",
+                   GIT_COMMITTER_NAME="C", GIT_COMMITTER_EMAIL="c@c")
+        subprocess.run(["git", "init", "-q", "-b", "develop", t], capture_output=True)
+        f = pathlib.Path(t, "x.py"); f.write_text("one\n")
+        subprocess.run(["git", "add", "-A"], cwd=t, capture_output=True, env=env)
+        subprocess.run(["git", "commit", "-qm", "base"], cwd=t, capture_output=True, env=env)
+        subprocess.run(["git", "tag", "mirror"], cwd=t, capture_output=True, env=env)
+        subprocess.run(["git", "checkout", "-q", "-b", "fix/x"], cwd=t, capture_output=True, env=env)
+        f.write_text("one\ntwo\n")
+        subprocess.run(["git", "add", "-A"], cwd=t, capture_output=True, env=env)
+        subprocess.run(["git", "commit", "-qm",
+                        "fix: real subject\n\nBody line stays.\n\n"
+                        "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"],
+                       cwd=t, capture_output=True, env=env)
+        before_tree = subprocess.run(["git", "rev-parse", "fix/x^{tree}"], cwd=t,
+                                     capture_output=True, text=True, env=env).stdout.strip()
+        before_tip = subprocess.run(["git", "rev-parse", "fix/x"], cwd=t,
+                                    capture_output=True, text=True, env=env).stdout.strip()
+        before_date = subprocess.run(["git", "log", "-1", "--format=%aI", "fix/x"], cwd=t,
+                                     capture_output=True, text=True, env=env).stdout.strip()
+
+        rc, out = run(SCRUB, "--base", "mirror", cwd=t, env=env)
+        after = subprocess.run(["git", "rev-parse", "fix/x"], cwd=t,
+                               capture_output=True, text=True, env=env).stdout.strip()
+        if after != before_tip:
+            fails.append("scrub: DRY RUN moved a branch ref")
+
+        rc, out = run(SCRUB, "--base", "mirror", "--apply", "--verify", cwd=t, env=env)
+        msg = subprocess.run(["git", "log", "-1", "--format=%B", "fix/x"], cwd=t,
+                             capture_output=True, text=True, env=env).stdout
+        tree = subprocess.run(["git", "rev-parse", "fix/x^{tree}"], cwd=t,
+                              capture_output=True, text=True, env=env).stdout.strip()
+        date = subprocess.run(["git", "log", "-1", "--format=%aI", "fix/x"], cwd=t,
+                              capture_output=True, text=True, env=env).stdout.strip()
+        roll = subprocess.run(["git", "rev-parse", "refs/prescrub/fix/x"], cwd=t,
+                              capture_output=True, text=True, env=env).stdout.strip()
+
+        if tree != before_tree:
+            fails.append("scrub: CONTENT CHANGED — tree differs after scrubbing a message")
+        if "Co-Authored-By" in msg or "anthropic" in msg.lower():
+            fails.append("scrub: left an AI attribution trailer behind")
+        if "fix: real subject" not in msg or "Body line stays." not in msg:
+            fails.append("scrub: destroyed the real commit message")
+        if date != before_date:
+            fails.append("scrub: author date not preserved")
+        if roll != before_tip:
+            fails.append("scrub: rollback ref missing or wrong")
+
+        # An already-merged branch must be refused: rewriting it rewrites pushed
+        # history. This is the guard that a plain ancestor check does NOT provide.
+        subprocess.run(["git", "checkout", "-q", "develop"], cwd=t, capture_output=True, env=env)
+        subprocess.run(["git", "merge", "-q", "--no-edit", "fix/x"], cwd=t, capture_output=True, env=env)
+        rc, out = run(SCRUB, "--base", "mirror", "--apply", "fix/x", cwd=t, env=env)
+        if "already merged" not in out:
+            fails.append("scrub: did NOT refuse a branch already merged into develop")
+
+    for script in (RESOLVE, CLASSIFY, LOSS, JSORPHAN, REBASE, SURVEY, SCRUB):
         rc, out = run(script)                                   # no args
         if rc not in (0, 1, 2):
             fails.append(f"{script.name}: unexpected exit {rc} with no args")
