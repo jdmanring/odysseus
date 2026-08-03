@@ -8,6 +8,44 @@ per-action authorization. Agents stage; you file.**
 
 ---
 
+## ⚠ 2026-08-03: rebase state after the 1,957-commit upstream ingest
+
+**This supersedes the 2026-07-07 section below. Read this one first.**
+
+`upstream-mirror` advanced to `25c9e735` (upstream/dev, 2026-07-30). The merge into
+`develop` was 182 conflicted files — see `docs/fork/ingest-20260802-resume.md`.
+
+**All staged branches were rebased onto the new `upstream-mirror`: 81 done,
+0 superseded-to-empty.** Rollback for every one at `refs/prerebase/<branch>`,
+**pushed to origin**. Restore with
+`git update-ref refs/heads/<b> refs/prerebase/<b>`.
+
+Tooling: `tooling/merge/branch_survey.py` (what is already landed, by patch-id),
+`tooling/merge/rebase_staged.py` (batch rebase, dry-run by default),
+`tooling/merge/verify_rebase.py` (did the rebase keep the branch's own work).
+
+**Rebase the OLD mirror tag, never `merge-base`.** `upstream-mirror` is RESET, not
+fast-forwarded, so `merge-base <branch> upstream-mirror` returns an ancient ancestor
+and a 2-commit branch tries to replay ~1,900 commits. Use
+`--onto upstream-mirror prengest-20260802-0131/upstream-mirror`.
+
+### Status changes you must know before filing anything
+
+| branch | change |
+|---|---|
+| `fix/longcat-tool-parsing` | **NOT the same branch as the row below.** Reworked 2026-08-03: its lazy `<longcat_tool_call>([\s\S]*?)</...>` under `finditer` was O(n^2) on untrusted model output — the exact ReDoS shape upstream had just eliminated in that file (#4704/#4877/#4941/#4943). Now on upstream's `_iter_delimited`; 3200 openers 947.7 ms -> 0.489 ms. 4 regression tests. |
+| `feat/memory-hybrid-recall` | **NEW branch (#172)**, split out of `feat/memory-qdrant-nomic`. Backend-independent half — hybrid BM25+dense recall + write-time supersede. 109/109 on a pure upstream ChromaDB tree. File THIS rather than the Qdrant branch. Declares a contract change: `MemorySearchHit.score` is now fused, not raw vector similarity. |
+| `fix/agent-context-budget-discovery` | Confirmed superseded by upstream #4886. Do not file, do not delete. |
+| `refactor/assets-move` | Rebased; 11 MB of unreferenced `.gif` media dropped. The earlier "unfileable, retire" verdict was WRONG and is retracted. |
+| `test/upstream-pr-4661` | Deleted — snapshot of a CLOSED-unmerged upstream PR that did not even match its head. Recoverable at `refs/deleted/`. |
+| `src/model_context.py` | **We are AHEAD of upstream** (basename-weighted key match vs their longest-key). Not yet staged as its own branch. |
+
+**Also unfiled:** PR draft for #172.
+
+Full analysis: `docs/fork/upstream-review-20260803.md`.
+
+---
+
 ## ⚠ 2026-07-07: rebase state after the 320-commit upstream ingest
 
 `upstream-mirror` advanced to `c67deaa6` (`#5283`), including a module-extraction
