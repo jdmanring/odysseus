@@ -72,7 +72,7 @@ All fix commits are on `develop` and cherry-picked to `feat/aria2c-downloader`
 ### D5. "Finished before finished": loose success markers
 - **Symptom:** card said done mid-download; state scrambled after renderer crash-reloads.
 - **Cause:** success judged from `/snapshots/` and per-file `Download complete` markers; aria2c prints **both from its first progress tick** (`[*] Saving to: .../snapshots/...`). Three sites trusted them: the dead-session reconnect heuristic, the `_strongDone` finalizer, and the `_selfHealStaleTasks` skip-guard (which also permanently blocked recovery of a wrongly-done task). Tasks adopted from server state carry no `use_aria2c` flag, so payload-only gating was insufficient.
-- **Fix:** `bef1ecfa`/`bef1e1ca` (reconnect path), then `7bfe963e` (all sites, via `_isAria2cRun()` = payload flag OR output fingerprint `[*] Using aria2c:`). aria2c success now requires the `DOWNLOAD_OK` exit sentinel everywhere; loose markers remain only for hf-CLI output, which has no sentinel.
+- **Fix:** `bef1e1ca` (reconnect path), then `7bfe963e` (all sites, via `_isAria2cRun()` = payload flag OR output fingerprint `[*] Using aria2c:`). aria2c success now requires the `DOWNLOAD_OK` exit sentinel everywhere; loose markers remain only for hf-CLI output, which has no sentinel.
 - **Verified:** code-audited (subagent adversarial audit, P1-1/P1-2) + guard test. Not yet exercised by a live crash-reload cycle.
 
 ### D6. Renderer SIGSEGV: idle purge during active download

@@ -174,3 +174,24 @@ Update `docs/fork/upstream/pr-status.md` with the rebase state, any supersession
 found, and the branches whose status changed. That document is what PRs are filed
 from; an ingest that does not update it leaves the next filing pass working from
 a stale map.
+
+**Then sweep for the claims the promotion just falsified.** Adding new text is the
+easy half; the failure mode is the sentence that was true when written and was
+never revisited. Six of them were found this way on 2026-08-03, including two
+saying the day's ingest was "not yet promoted to `develop`" hours after it was:
+
+```bash
+grep -rn "not yet\|NOT yet\|still pending\|nothing pushed\|is currently\|pending ingest" \
+  docs/fork/*.md docs/fork/upstream/*.md
+```
+
+Every hit is a claim with a date attached. Check it against git rather than
+against memory -- `git merge-base --is-ancestor <ref> develop`, `git cat-file -e
+<ref>:<path>`, `ls` for a draft asserted to be missing -- and either confirm it
+or rewrite it in the past tense with the verification named. A status doc is the
+first thing the next session trusts, so a stale one costs more than stale prose
+anywhere else.
+
+Two of the six contradicted their own paragraph (a "nothing pushed" note about a
+commit that had shipped), which is what long append-only entries produce: correct
+the whole entry, not the sentence you arrived at.
