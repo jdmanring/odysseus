@@ -18,7 +18,7 @@
 **Status**: Not yet submittable; the draft body needs a full rewrite at file time (plan
 Part 5). Independent architecture, authored nine days before #4661 opened. **#4661 and
 #4998 were both closed unmerged on 2026-07-23** (in a bulk action that closed 461 PRs
-in 30 seconds), so this is not competing with live work: **issue #4644 is still open and
+in 30 seconds -- evidence in tracker #181; **fork-internal context, not PR body text**), so this is not competing with live work: **issue #4644 is still open and
 nothing merged addresses it.**
 
 ---
