@@ -1,0 +1,13 @@
+# Committed 2026-08-03: the post-ingest checklist tells others to run god-nodes,
+# which fired this file's DEFER trigger ("needs to be shared"). Without it a clone
+# rebuilds a venv-dominated graph SILENTLY -- venv/ alone was 29,830 of this repo's
+# 31,594 py/js files (94%), so an unfiltered ranking is dependency internals.
+# Editing this file requires deleting graphify-out/ (not just `update`): exclusions
+# apply on a fresh build only, and `update` refuses a rebuild yielding fewer nodes.
+static/lib/
+tests/bench/vendor/
+venv/
+data/
+docs/
+node_modules/
+.git/
