@@ -25,10 +25,16 @@ right-hand column, not hypothetical.
 ## 1. Rebase the staged branches
 
 ```bash
-python3 tooling/merge/branch_survey.py          # what is already landed, by patch-id
-python3 tooling/merge/rebase_staged.py --dry-run
-python3 tooling/merge/rebase_staged.py
+# Tag the mirror BEFORE the pipeline resets it -- there is no way to recover it after.
+git tag preingest-$(date +%Y%m%d-%H%M)/upstream-mirror upstream-mirror
+
+python3 tooling/merge/branch_survey.py                      # what already landed, by patch-id
+python3 tooling/merge/rebase_staged.py --old-mirror <tag>   # DRY RUN by default
+python3 tooling/merge/rebase_staged.py --old-mirror <tag> --apply
 ```
+
+`--old-mirror` is mandatory and there is no `--dry-run`: omitting `--apply` *is*
+the dry run. The tool refuses to infer the old mirror, deliberately.
 
 **Rebase onto the OLD mirror tag, never `merge-base`.** `upstream-mirror` is
 RESET by the pipeline, not fast-forwarded, so `merge-base <branch> upstream-mirror`
