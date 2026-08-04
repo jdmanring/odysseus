@@ -1,31 +1,23 @@
 # Upstream Issue Draft: fix-slash-memory-category-escape
 
-> **⚠ NOT FILE-READY -- CENTRAL CLAIM FALSIFIED 2026-08-04.**
-> Four independent reviewers checked this. `category` **is** validated on the
-> `POST /api/memory/add` path (`src/request_models.py:42-47` coerces anything
-> outside a 7-value allowlist to `fact`), so the reproduction below DOES NOT
-> FIRE. The `:410` citation is the import *suggestions* payload, which never
-> persists. The real unvalidated writes are `PUT /api/memory/{id}`
-> (`routes/memory/memory_routes.py:512`, raw `Form`, and missing the
-> `require_privilege` guard that `/add` has) and `mcp_servers/memory_server.py:161`.
-> "Sole output path" is also false (`_eggRender` at `slashCommands.js:5319` is a
-> second sink), and "single-user, local-first" is false (real multi-user auth;
-> it is *owner-scoped*, which is the correct reason severity stays low).
-> Do not file until rewritten against verified evidence.
-
-
 **File on:** `odysseus-dev/odysseus`
 **Related PR draft:** `docs/fork/upstream/pr-drafts/fix-slash-memory-category-escape.md`
 **Branch:** `fix/slash-memory-category-escape`
-**Type:** Bug / Security (XSS)
+**Type:** Hardening (defence in depth)
 
-*Line numbers are against `upstream/dev` at `fb8c391a`.*
+*Line numbers against `upstream/dev` at `fb8c391a`.*
+
+*Rewritten 2026-08-04. The first version reported this as an XSS with a
+reproduction that does not fire, because it claimed `category` was unvalidated
+server-side when `POST /api/memory/add` does validate it. The genuinely
+unvalidated write paths are reported separately in
+`fix-memory-category-validation.md`, which is the fix worth taking first.*
 
 ---
 
 ## Title
 
-`[Slash commands] Memory 'category' reaches slashReply()'s innerHTML unescaped`
+`[Slash commands] Four fields reach slashReply()'s innerHTML unescaped`
 
 ---
 
@@ -36,77 +28,51 @@
 **Problem:**
 
 `slashReply()` (`static/js/slashCommands.js:308`) assigns its argument to
-`body.innerHTML`. It is the single output path for every slash command --
-roughly 150 call sites across ~70 functions -- so each caller is an HTML sink.
-
-Almost every one of them escapes correctly with `ctx.esc(...)`. Two do not, and
-they are the two that render the memory store:
+`body.innerHTML`. Callers that render data into it escape with `ctx.esc(...)`,
+and four leave exactly one field raw next to escaped neighbours:
 
 ```js
-// _cmdMemoryList
-const lines = mems.slice(0, 40).map(m => `[${m.category||'fact'}] ${m.id.slice(0,8)} — ${ctx.esc(m.text)}`);
-
-// _cmdMemorySearch
+// _cmdMemoryList / _cmdMemorySearch -- m.text escaped, m.category beside it not
 const lines = mems.map(m => `[${m.category||'fact'}] ${ctx.esc(m.text)}`);
+
+// _cmdSearch -- name and snippet escaped on the lines above; sid raw, in an attribute
+return `<a href="#${sid}" ...>${name}</a>  ${snippet}`;
+
+// _cmdSessionList -- s.name escaped, s.id not
+return `${ctx.esc(s.name || 'Untitled')} <span ...>${s.id.slice(0,8)}</span>${current}`;
 ```
 
-`m.text` is escaped. `m.category` immediately beside it is not.
+**Is it exploitable today? No, and that is worth stating up front:**
 
-**Why `category` is not trusted input:**
+- `category` is coerced to a seven-value allowlist by `MemoryAddRequest`
+  (`src/request_models.py:42-47`).
+- `sid` and `s.id` are `uuid.uuid4()` (`routes/session_routes.py:426, 920`).
 
-It is never constrained to a fixed set on the server.
+So this is a hardening report, not an incident. Two reasons it is still worth
+taking:
 
-| site | value |
-|---|---|
-| `routes/memory/memory_routes.py:96` | `category=form.get("category", "fact")` - free-form form field |
-| `routes/memory/memory_routes.py:410` | `item.get("category") or "fact"` - taken from an LLM-generated JSON array during memory import |
-| `routes/memory/memory_routes.py:80` | returned to the client verbatim |
+1. The escaping convention in this file is per-field, so a field left out stays
+   invisible until something upstream of it changes. That is not hypothetical:
+   `category` was unconstrained on `PUT /api/memory/{id}` and on the MCP `add`
+   path (filed separately) while these four sites were raw.
+2. `_cmdSearch` is an **attribute** context, where the missing escape covers the
+   double quote that ends the attribute -- a different and worse failure mode
+   than the text contexts.
 
-Two routes therefore influence what reaches `innerHTML`: a direct API call, and
-any imported or extracted memory whose category the model writes. The second is
-the one worth caring about, because it means content from an ingested document
-can reach a DOM sink without the user typing anything.
+Memory is owner-scoped (`_verify_memory_owner` 404s on mismatch), so even with a
+hostile value stored it renders only for the account that stored it. Self-XSS,
+low severity.
 
-**Reproduction:**
-
-```
-POST /api/memory/add   text=hello   category=<img src=x onerror=alert(1)>
-```
-
-then run `/memory` in the chat input. The payload is inserted as markup rather
-than shown as text. `/memory search hello` takes the same path.
-
-**Severity, stated honestly:**
-
-Modest. It needs a memory entry to already carry a hostile category, and the
-application is single-user and local-first, so this is not
-stored-XSS-to-account-takeover. It is reported because it is an unescaped sink
-directly beside an escaped one, in a file where the escaping convention is
-otherwise followed, and because the import path makes it reachable without user
-action.
-
-**Note on scope:** `_cmdSessionInfo` (`static/js/slashCommands.js:1173`) has the
-same shape -- three fields interpolated raw beside three escaped ones. Those
-values are server-generated (uuid, timestamp, count) so no injection route was
-found, but the fix is the same one line each.
-
-`_cmdMcp` is **not** affected and should stay as it is: it builds its line
-unescaped and then escapes the whole line at the join, which is the more robust
-of the two patterns in this file.
+**A related sink, not covered here:** `_eggRender` (`:5314`) is a second,
+independent `innerHTML` bubble sink with 10 callers, and the hwfit probe writes
+streamed response fields into `bodyEl.innerHTML` (`:5636, :5655, :5671`) with
+some fields escaped and some not. Flagging rather than silently scoping out --
+happy to file separately if useful.
 
 **Proposed fix:**
 
-Wrap the fields with `ctx.esc(...)`, matching every other field in the same
-template, plus source-assertion guards in the style of the existing `*_js.py`
-tests -- including one asserting that `slashReply` is still an `innerHTML` sink,
-so the guards cannot silently end up guarding nothing.
-
-**Related, not fixed here:** `uiModule.esc` (`static/js/ui.js:786`) is
-`(s || '').replace(...)`, which throws on a number. `static/js/skills.js:19`
-already works around it with `String(s ?? '')` despite the canonical helper's
-docstring telling other modules to defer to it. Coercing it is a one-word change
-but alters rendering for every falsy caller (`esc(0)` would render `0` rather
-than an empty string), so it needs its own call-site audit rather than riding
-along with a security fix.
+Wrap the four fields with `ctx.esc(...)`, matching their neighbours, plus a
+guard that fails on any `${...}` reading a property without `esc()` in the
+affected functions -- so a newly added field is caught, not only the known ones.
 
 **Willing to submit a PR:** yes, branch is ready.

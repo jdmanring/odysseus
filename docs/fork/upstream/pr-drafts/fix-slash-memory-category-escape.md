@@ -1,113 +1,78 @@
 # PR Draft: fix/slash-memory-category-escape -> odysseus-dev/odysseus:dev
 
-> **⚠ NOT FILE-READY -- CENTRAL CLAIM FALSIFIED 2026-08-04.**
-> Four independent reviewers checked this. `category` **is** validated on the
-> `POST /api/memory/add` path (`src/request_models.py:42-47` coerces anything
-> outside a 7-value allowlist to `fact`), so the reproduction below DOES NOT
-> FIRE. The `:410` citation is the import *suggestions* payload, which never
-> persists. The real unvalidated writes are `PUT /api/memory/{id}`
-> (`routes/memory/memory_routes.py:512`, raw `Form`, and missing the
-> `require_privilege` guard that `/add` has) and `mcp_servers/memory_server.py:161`.
-> "Sole output path" is also false (`_eggRender` at `slashCommands.js:5319` is a
-> second sink), and "single-user, local-first" is false (real multi-user auth;
-> it is *owner-scoped*, which is the correct reason severity stays low).
-> Do not file until rewritten against verified evidence.
-
-
 **Branch:** `fix/slash-memory-category-escape`
-**Issue:** #182 (fork tracking, `docs/fork/issues/INDEX.md`)
-**Status:** Ready to file
-**Base:** cut from `upstream-mirror`, one commit
+**Issue:** #182 (fork tracking)
+**Status:** Ready to file. **File `fix/memory-category-validation` (#184) first** -- that is the root cause; this is the output-side half.
+**Base:** cut from `upstream-mirror`, two commits
 
-*Fork-internal note, not PR body text: found by running the composition in
-`docs/fork/post-ingest-checklist.md` step 6 - `god-nodes` ranked `slashReply`
-at 69 edges, `find_referencing_symbols` showed 31 lines against ~150
-references (fan-in, so worth reading), and reading it showed the sink.*
+*Rewritten 2026-08-04. The first version claimed `category` was never validated
+server-side and shipped a reproduction that does not fire; four independent
+reviews falsified it. Everything below was re-verified line by line against
+`upstream-mirror` (`fb8c391a`). Nothing between the `---` markers is
+fork-internal -- the tooling note that used to sit here has been removed.*
 
 ---
 
 ## Title
 
-`fix(slash): escape memory category before it reaches the innerHTML sink`
+`fix(slash): escape interpolated values in slash-command output`
 
 ---
 
 ## Summary
 
-### Problem
+`slashReply()` (`static/js/slashCommands.js:308`) assigns its argument to
+`body.innerHTML`. Most callers that build HTML escape their fields with
+`ctx.esc(...)`. Four did not, each leaving one field raw beside escaped
+neighbours:
 
-`slashReply()` (`static/js/slashCommands.js`) assigns its argument to
-`body.innerHTML`. It is the single output path for every slash command --
-roughly 150 call sites across ~70 functions -- so every caller is an HTML sink.
+| function | field | context |
+|---|---|---|
+| `_cmdMemoryList` | `m.category` | text inside `<pre>` |
+| `_cmdMemorySearch` | `m.category` | text inside `<pre>` |
+| `_cmdSearch` | `sid` | **`href` attribute** |
+| `_cmdSessionList` | `s.id` | text |
 
-Nearly all of them escape correctly with `ctx.esc(...)`. Two miss one field,
-and they are the two that render the memory store:
+`_cmdSessionInfo` interpolated three server-generated fields raw as well, and is
+fixed the same way.
 
-```js
-// _cmdMemoryList
-const lines = mems.slice(0, 40).map(m => `[${m.category||'fact'}] ${m.id.slice(0,8)} — ${ctx.esc(m.text)}`);
+This is defence in depth, not an exploit report. None of the four is reachable
+with a hostile value on a stock `dev` today:
 
-// _cmdMemorySearch
-const lines = mems.map(m => `[${m.category||'fact'}] ${ctx.esc(m.text)}`);
-```
+- `category` is coerced to a seven-value allowlist by `MemoryAddRequest`
+  (`src/request_models.py:42-47`) on `POST /api/memory/add`. It was **not**
+  constrained on `PUT /api/memory/{id}` or on the MCP `add` action; that is the
+  companion PR (`fix/memory-category-validation`) and it is the real fix.
+- `sid` and `s.id` are `uuid.uuid4()` server-side.
 
-`m.text` is escaped. `m.category` immediately beside it is not.
+So: these are the fields that would carry an injection if any upstream path
+stopped constraining them, and one of those paths was in fact unconstrained
+until the companion PR. Memory is owner-scoped (`_verify_memory_owner`), so even
+then the payload renders only for the account that stored it -- self-XSS, low
+severity.
 
-### Why `category` is not trusted input
+## Deliberately unchanged
 
-It is never constrained to an enum on the server:
-
-| site | value |
-|---|---|
-| `routes/memory/memory_routes.py:96` | `category=form.get("category", "fact")` - free-form form field |
-| `routes/memory/memory_routes.py:410` | `item.get("category") or "fact"` - from an LLM-generated JSON array on memory import |
-| `routes/memory/memory_routes.py:80` | returned to the client verbatim |
-
-So the value reaching `innerHTML` is influenced by two routes: a direct API
-call, and any imported or extracted memory whose category the model writes.
-The second is the one that matters, because it means document content can
-reach a DOM sink without the user typing anything.
-
-### On severity
-
-Modest, and worth stating plainly rather than inflating. It needs a memory
-entry to already carry a hostile category, and the application is single-user
-and local-first, so this is not stored-XSS-to-account-takeover. It is an
-unescaped sink two characters away from an escaped one, in the field next to a
-field that is escaped, and the fix is the call the neighbour already makes.
-
-## The fix
-
-Wrap both with `ctx.esc(...)`, matching every other field in the same template.
-
-`_cmdSessionInfo` had the same shape -- three fields interpolated raw beside
-three escaped ones -- and is fixed the same way in the same commit. The numeric
-ones go through `String(...)` first because `uiModule.esc` is
-`(s || '').replace(...)`, which throws on a number.
-
-`_cmdMcp` is deliberately left alone. It builds its line unescaped and then
-escapes the whole line at the join, which is the more robust of the two
-patterns in this file. One of the guards locks that in as the shape the
-per-field sites should converge on if they are ever rewritten.
+`_cmdMcp` builds its line unescaped and escapes once at the join
+(`lines.map(line => ctx.esc(line))`). That is correct; left alone.
 
 ## Tests
 
-`tests/test_slash_reply_escaping_js.py`, six source-assertion checks matching
-the convention of the other `*_js.py` tests in this suite. They include a check
-that `slashReply` is still an `innerHTML` sink, so if that ever changes the
-suite says so rather than leaving the other five guarding nothing.
+`tests/test_slash_reply_escaping_js.py` -- computed-property checks rather than
+string comparisons. They parse each guarded function body and fail on any
+`${...}` that reads a property without `esc()`, so a **newly added** unescaped
+field fails too. An enumerated list of known field names cannot do that.
 
-Verified by mutation: reverting either escape call fails the suite (2 tests).
+The first version asserted four exact source literals were present. A review
+built a variant with three live XSS holes that passed all six of them -- the
+literals survived inside a function nothing called -- while three harmless
+reformats broke the suite. They tested the formatter. After the rewrite,
+verified: adding an unescaped field fails, the dead-code variant fails, `||`
+spacing does not.
 
-Full suite on the branch: **4,795 passed, 1 skipped, 0 failed.**
-
-## Not included
-
-- **`uiModule.esc` does not coerce.** `(s || '').replace(...)` throws on a
-  number, and the local copy in `static/js/skills.js` already uses the more
-  robust `String(s ?? '')`. Changing the canonical one is a behaviour change
-  for every caller (`esc(0)` would render `0` rather than an empty string), so
-  it needs its own analysis and its own PR rather than riding along here.
-  No live crash was found: the one call site that looked like it passed a
-  number, `esc(pcount)` in `cookbook-hwfit.js`, receives `parameter_count`,
-  which is a string like `"168B"`.
+Known ceiling: these read source rather than executing it, because `ui.js`
+raises `ReferenceError: HTMLInputElement is not defined` on a bare `node`
+import. 39 of this repo's 49 `*_js.py` tests do execute under `node`, and that
+is the better instrument -- feed a breakout payload through the template and
+assert on rendered output, as `tests/test_calendar_css_url_escape_js.py` does.
+Happy to do it that way if you would rather have the harness change first.
