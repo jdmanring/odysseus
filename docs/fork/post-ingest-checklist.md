@@ -8,16 +8,18 @@ Run this after an upstream ingest merge lands on `develop`. Fork-only.
 > successful. See #180, where exactly that happened and only a rejected push
 > prevented it from overwriting the real branch.
 >
-> **Running the pipeline itself:** `docs/dev/git-branch-workflow.md` says to check
-> out `integration` first, but `integration` does not contain
-> `tooling/sync-upstreams/upstream_ingest_pipeline.py`, and the script resolves the
-> repo from `__file__` so it cannot be run from outside the tree. Until #180 is
-> fixed: `git checkout integration`, then
-> `git show develop:tooling/sync-upstreams/upstream_ingest_pipeline.py >
-> tooling/sync-upstreams/upstream_ingest_pipeline.py`, run it, then delete the
-> untracked copy before switching back. Note also that `_restore_protected_files`
-> is dormant for the same reason, so **check the four `PROTECTED_FILES` by hand**
-> if upstream touched any of them.
+> **Running the pipeline itself:** follow `docs/dev/git-branch-workflow.md` as
+> written. The workaround that used to live here is obsolete as of the 2026-08-03
+> re-baseline (`104118b6`): `integration` now carries
+> `tooling/sync-upstreams/upstream_ingest_pipeline.py` byte-identical to
+> `develop`'s, plus all four `PROTECTED_FILES`, so `_restore_protected_files` is
+> live again rather than checking out from a ref that lacks them and being
+> swallowed by `check=False`. Confirm before trusting it, since it is a property
+> of a branch and not of this file:
+>
+> ```bash
+> git cat-file -e integration:tooling/sync-upstreams/upstream_ingest_pipeline.py
+> ```
 
 The pipeline itself (`docs/dev/git-branch-workflow.md`) covers getting upstream's
 commits onto `integration` and then `develop`. This covers what has to happen
@@ -61,7 +63,7 @@ returns an ancient ancestor:
 git rebase --onto upstream-mirror <old-mirror-tag> <branch>
 ```
 
-Rollbacks land at `refs/prerebase/<branch>`. **Push them** — a rollback that only
+Rollbacks land at `refs/prerebase/<branch>`. **Push them** -- a rollback that only
 exists locally is not a rollback.
 
 ## 2. Verify no work was lost
@@ -75,7 +77,7 @@ resolution, `<` only in the old series. On a stale branch the `<` list is mostly
 inherited upstream commits, not losses.
 
 Do **not** diff added-line sets against the current mirror. A pre-rebase branch
-was built on the old mirror, so every upstream commit since reads as a "loss" —
+was built on the old mirror, so every upstream commit since reads as a "loss" --
 this produced ~3,100 identical false hits across three branches, and the
 identicalness is the tell.
 
@@ -118,14 +120,14 @@ graphify update . --no-cluster --force && graphify god-nodes
 **Why here:** a large external merge changes which symbols the codebase leans on,
 and no point query reports that. Measured after the 1,957-commit ingest: 21,148
 nodes, 49,727 edges, 15 s. The top hub was `parse_tool_blocks()` at **135 edges**
-— the same function hardened against ReDoS that week. That is a risk ranking for
+-- the same function hardened against ReDoS that week. That is a risk ranking for
 what to test hardest next, and it cost 15 seconds.
 
 Three things that make the difference between a finding and a false finding:
 
 - **`.graphifyignore` must exist before the build.** It is committed, so a fresh
   clone is fine. `venv/` alone was 29,830 of this repo's 31,594 py/js files (94%)
-  — unfiltered, the ranking is dependency internals. Editing it requires deleting
+  -- unfiltered, the ranking is dependency internals. Editing it requires deleting
   `graphify-out/`, not just `update`: exclusions apply on a fresh build only.
 - **Verify by node count, not exit status.** `update` silently refuses a rebuild
   yielding fewer nodes than the last one, so an ignore-file edit can look applied
@@ -135,7 +137,7 @@ Three things that make the difference between a finding and a false finding:
   worth writing. `_buildEditor()` scored 82 edges with zero test files, which
   reads as a gap; it is a 659-line DOM constructor with **one** caller
   (`openEditor`, already wrapped in `try/catch` with a user-visible error), so
-  its edges are the widgets it builds. Contrast `llm_call_async()` — 12 lines,
+  its edges are the widgets it builds. Contrast `llm_call_async()` -- 12 lines,
   97 edges, ~40 callers across 27 files. Pre-filter on edges over function
   length: high degree on a short function is fan-in by construction.
 - **A zero may also mean the test convention differs.** The frontend is covered
@@ -147,7 +149,7 @@ Three things that make the difference between a finding and a false finding:
 Then hand each hub you care about to the semantic index
 (`mcp__serena__find_referencing_symbols`) for its **caller set**. The graph ranks
 and cannot say who calls what; the index returns callers and cannot rank. Act on
-the caller set, never on the degree count — a high degree says a symbol matters,
+the caller set, never on the degree count -- a high degree says a symbol matters,
 not what it does.
 
 ## 7. Full suite, and check what it leaked
@@ -160,7 +162,7 @@ echo "leaked: $((after-before))"
 ```
 
 `/tmp` is a RAM-backed tmpfs on this machine. When it filled, 10 Playwright tests
-failed with `Page.goto: Page crashed` and `ERROR at setup` — indistinguishable
+failed with `Page.goto: Page crashed` and `ERROR at setup` -- indistinguishable
 from a code regression, and two of them were the tests whose job is catching a bad
 merge resolution. Before blaming a Playwright failure on the diff, run
 `df -h /tmp` and check for orphaned `/tmp/.org.chromium.Chromium.*` files from
