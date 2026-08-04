@@ -105,6 +105,13 @@ Fails when a PR draft names a source file its branch does not contain. Treat hit
 as leads: a cross-repo citation and a future-tense proposal both read as claims
 to a text matcher.
 
+**Read the coverage line, not just the problem count.** It reports `checked N of
+M` and lists every draft it skipped and why. That exists because the count used
+to be bare: "83 drafts, 0 problems" read as full coverage while 16 of 99 were
+never examined, and widening the header match to the spellings actually in use
+(`**Branch**:`, `Branch:`) took it to 94 and immediately surfaced four hits that
+the silence had been hiding. A skip is fine; an invisible skip is not.
+
 ## 5. Convergence guard
 
 ```bash
@@ -184,8 +191,15 @@ saying the day's ingest was "not yet promoted to `develop`" hours after it was:
 
 ```bash
 grep -rn "not yet\|NOT yet\|still pending\|nothing pushed\|is currently\|pending ingest" \
-  docs/fork/*.md docs/fork/upstream/*.md
+  docs/fork/ --include="*.md" | grep -v "docs/fork/issues/README.md"
 ```
+
+Pass the **directory**, not `docs/fork/*.md`. The glob expands to files, which
+makes `-r` inert and silently limits the sweep to 32 of 225 fork docs -- every
+PR draft, issue draft and runbook is in a subdirectory. That mistake shipped in
+the first version of this step and is exactly the kind of thing it exists to
+catch. `issues/README.md` is generated from `issue-export.json`; edit the JSON
+and regenerate rather than acting on a hit there.
 
 Every hit is a claim with a date attached. Check it against git rather than
 against memory -- `git merge-base --is-ancestor <ref> develop`, `git cat-file -e

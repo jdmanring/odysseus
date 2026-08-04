@@ -1,5 +1,7 @@
 # feat(chat): render the Thinking indicator as a zero-footprint sticky overlay
 
+**Branch:** `feat/thinking-overlay`
+
 ## Problem
 
 The live "Thinking" indicator is an in-flow `.msg` appended to `#chat-history`. Every show, replace (tool-aware label changes), and remove moves the document's bottom edge: the layout shifts, scroll position churns, and when the real reply arrives the box vanishes from flow and the content jumps again.
