@@ -17,7 +17,7 @@
 
 ## Why one PR
 
-The timing callsites added throughout the codebase (`timed_operation()`, `structlog.get_logger()`) are direct callers of the infrastructure introduced in the same commit. Splitting into two PRs leaves one half untest-able in isolation: the infrastructure PR would have no callers so you cannot verify timing output; the callsite PR would import from files that don't exist until the first PR lands. The smallest unit that can be installed, started, and verified end-to-end is the combination; and that is what this PR provides.
+The logging callsites added throughout the codebase (`structlog.get_logger()`, the request-context binding, the redaction processors) are direct callers of the infrastructure introduced in the same commit. Splitting into two PRs leaves one half untest-able in isolation: the infrastructure PR would have no callers so you cannot verify timing output; the callsite PR would import from files that don't exist until the first PR lands. The smallest unit that can be installed, started, and verified end-to-end is the combination; and that is what this PR provides.
 
 ---
 
@@ -42,7 +42,6 @@ Replace stdlib `logging` initialisation with [structlog](https://www.structlog.o
 - `src/logging_config.py`: processor pipeline: contextvars binding, sensitive data redaction, JSON file output + text console output, per-subsystem debug control via `ODYSSEUS_DEBUG_SUBSYSTEMS`
 - `src/log_context.py`: `contextvars`-based request correlation (request_id, session_key, user_id); bind once in middleware, available in every log call
 - `src/log_redaction.py`: key-name-based sensitive data redaction (Sentry-style denylist); matches exact key names, never scans string values
-- `src/log_timing.py`: `timed_operation()` context manager for critical-path operations
 
 ## Infrastructure Changes
 
@@ -93,7 +92,7 @@ Structured timing added to all major network I/O paths. Logs at INFO only when a
 
 ## Files Changed
 
-**New files (4):** `src/logging_config.py`, `src/log_context.py`, `src/log_redaction.py`, `src/log_timing.py`
+**New files (3):** `src/logging_config.py`, `src/log_context.py`, `src/log_redaction.py`
 
 **New dependencies (1):** `requirements.txt`: added `structlog`
 
