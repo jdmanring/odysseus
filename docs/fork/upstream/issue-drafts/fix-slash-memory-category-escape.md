@@ -11,13 +11,17 @@
 reproduction that does not fire, because it claimed `category` was unvalidated
 server-side when `POST /api/memory/add` does validate it. The genuinely
 unvalidated write paths are reported separately in
-`fix-memory-category-validation.md`, which is the fix worth taking first.*
+`fix-memory-category-validation.md`.*
+
+*Revised again the same day (#187): writing the regression guard as an
+executing test rather than a source scan surfaced 18 further raw fields beyond
+the four originally reported, so the count in the title changed from four to 26.*
 
 ---
 
 ## Title
 
-`[Slash commands] Four fields reach slashReply()'s innerHTML unescaped`
+`[Slash commands] 26 fields reach slashReply()'s innerHTML unescaped`
 
 ---
 
@@ -28,8 +32,8 @@ unvalidated write paths are reported separately in
 **Problem:**
 
 `slashReply()` (`static/js/slashCommands.js:308`) assigns its argument to
-`body.innerHTML`. Callers that render data into it escape with `ctx.esc(...)`,
-and four leave exactly one field raw next to escaped neighbours:
+`body.innerHTML`. Callers that render data into it escape with `ctx.esc(...)`.
+Several leave a field raw next to escaped neighbours:
 
 ```js
 // _cmdMemoryList / _cmdMemorySearch -- m.text escaped, m.category beside it not
@@ -42,11 +46,27 @@ return `<a href="#${sid}" ...>${name}</a>  ${snippet}`;
 return `${ctx.esc(s.name || 'Untitled')} <span ...>${s.id.slice(0,8)}</span>${current}`;
 ```
 
+Those four were found by reading. Rewriting the regression guard so that it
+**executes** each template with a hostile object, rather than pattern-matching
+the source, then found 18 more -- almost all server-returned status and error
+text rendered straight into a reply:
+
+```js
+slashReply(`Endpoint was not saved: ${data.detail || 'connection failed'}`);
+slashReply(`Auto-sort skipped: ${data.reason || 'No sessions to sort'}`);
+slashReply(`${config.label} sign-in failed (${result.error || 'denied'}).`);
+slashReply(`Opening ${place} - ${action} (code ${start.user_code}). Waiting...`);
+```
+
+plus the `/db stats` counters, the compaction summary, and the command-help
+table (`cmdDef.help`, `subDef.help`, aliases).
+
 **Is it exploitable today? No, and that is worth stating up front:**
 
 - `category` is coerced to a seven-value allowlist by `MemoryAddRequest`
   (`src/request_models.py:42-47`).
 - `sid` and `s.id` are `uuid.uuid4()` (`routes/session_routes.py:426, 920`).
+- The remainder are server-generated or come from a static provider table.
 
 So this is a hardening report, not an incident. Two reasons it is still worth
 taking:
@@ -71,8 +91,16 @@ happy to file separately if useful.
 
 **Proposed fix:**
 
-Wrap the four fields with `ctx.esc(...)`, matching their neighbours, plus a
-guard that fails on any `${...}` reading a property without `esc()` in the
-affected functions -- so a newly added field is caught, not only the known ones.
+Wrap the fields with `ctx.esc(...)`, matching their neighbours, plus a guard
+that renders each template with a hostile object and fails on any value that
+reaches the output without passing through `esc()`.
+
+A source-scanning guard is not enough here, and that is worth stating because it
+was the first thing tried. A regex that treated an interpolation as safe when it
+contained no `.`, or contained `esc(`, `.join(` or `.length`, passed seven live
+variants -- including the original defect written as `${m['category']}`, since
+bracket notation has no dot. Scoping by "template contains a tag" fails for the
+same reason: the defect line has no markup, because `slashReply()` supplies the
+surrounding `<pre>`.
 
 **Willing to submit a PR:** yes, branch is ready.
