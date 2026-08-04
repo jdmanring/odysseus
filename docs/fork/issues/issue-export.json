@@ -6255,7 +6255,7 @@
   "url": null
  },
  {
-  "body": "## Problem\n\n`slashReply()` (`static/js/slashCommands.js:309`) assigns its argument to\n`body.innerHTML`. It is the single output path for every slash command -- about\n150 call sites across ~70 functions -- so every one of them is an HTML sink.\n\nNearly all of them escape correctly with `ctx.esc(...)`. Two do not, and they\nrender the memory store:\n\n```js\n// _cmdMemoryList  (~line 1578)\nconst lines = mems.slice(0, 40).map(m => `[${m.category||'fact'}] ${m.id.slice(0,8)} - ${ctx.esc(m.text)}`);\nslashReply(`<pre>${lines.join('\\n')}</pre>`);\n\n// _cmdMemorySearch (~line 1643)\nconst lines = mems.map(m => `[${m.category||'fact'}] ${ctx.esc(m.text)}`);\n```\n\n`m.text` is escaped; `m.category` beside it is not.\n\n## Why category is not trusted input\n\nIt is never constrained to an enum anywhere on the server:\n\n| site | value |\n|---|---|\n| `routes/memory/memory_routes.py:96` | `category=form.get(\"category\", \"fact\")` -- free-form form field |\n| `routes/memory/memory_routes.py:422` | `item.get(\"category\") or \"fact\"` -- from an LLM-generated JSON array on memory import |\n| `routes/memory/memory_routes.py:80` | returned to the client verbatim |\n\nSo the value reaching `innerHTML` is attacker-influenced by two routes: a direct\nAPI call, and any imported or extracted memory whose category the model writes.\nThe second matters more -- it means document content can reach a DOM sink\nwithout the user typing anything.\n\n## Severity\n\nModest. It needs a memory entry to already exist with a hostile category, and\nthe app is single-user and local-first. It is not a stored-XSS-to-account-takeover.\nIt is still an unescaped sink two characters away from an escaped one, and the\nfix is the escape call the neighbouring field already uses.\n\n## Fix\n\nWrap both with `ctx.esc(...)`, matching every other field in the same template.\nAdd a source-assertion guard, since the surrounding convention is what failed\nhere and a guard is what keeps it from drifting back.\n\n## How it was found\n\n`graphify god-nodes` ranked `slashReply` at 69 edges;\n`find_referencing_symbols` showed 31 lines against ~150 references, i.e. fan-in,\nwhich made it worth reading. Reading it showed the `innerHTML` sink. See\n`docs/fork/post-ingest-checklist.md` step 6.\n",
+  "body": "## Problem\n\n*Line numbers are against `upstream-mirror` (what a maintainer reads), not\n`develop`, where fork additions shift them.*\n\n`slashReply()` (`static/js/slashCommands.js:308`) assigns its argument to\n`body.innerHTML`. It is the single output path for every slash command -- about\n150 call sites across ~70 functions -- so every one of them is an HTML sink.\n\nNearly all of them escape correctly with `ctx.esc(...)`. Two do not, and they\nrender the memory store:\n\n```js\n// _cmdMemoryList  (~line 1578)\nconst lines = mems.slice(0, 40).map(m => `[${m.category||'fact'}] ${m.id.slice(0,8)} - ${ctx.esc(m.text)}`);\nslashReply(`<pre>${lines.join('\\n')}</pre>`);\n\n// _cmdMemorySearch (~line 1643)\nconst lines = mems.map(m => `[${m.category||'fact'}] ${ctx.esc(m.text)}`);\n```\n\n`m.text` is escaped; `m.category` beside it is not.\n\n## Why category is not trusted input\n\nIt is never constrained to an enum anywhere on the server:\n\n| site | value |\n|---|---|\n| `routes/memory/memory_routes.py:96` | `category=form.get(\"category\", \"fact\")` -- free-form form field |\n| `routes/memory/memory_routes.py:410` | `item.get(\"category\") or \"fact\"` -- from an LLM-generated JSON array on memory import |\n| `routes/memory/memory_routes.py:80` | returned to the client verbatim |\n\nSo the value reaching `innerHTML` is attacker-influenced by two routes: a direct\nAPI call, and any imported or extracted memory whose category the model writes.\nThe second matters more -- it means document content can reach a DOM sink\nwithout the user typing anything.\n\n## Severity\n\nModest. It needs a memory entry to already exist with a hostile category, and\nthe app is single-user and local-first. It is not a stored-XSS-to-account-takeover.\nIt is still an unescaped sink two characters away from an escaped one, and the\nfix is the escape call the neighbouring field already uses.\n\n## Fix\n\nWrap both with `ctx.esc(...)`, matching every other field in the same template.\nAdd a source-assertion guard, since the surrounding convention is what failed\nhere and a guard is what keeps it from drifting back.\n\n## How it was found\n\n`graphify god-nodes` ranked `slashReply` at 69 edges;\n`find_referencing_symbols` showed 31 lines against ~150 references, i.e. fan-in,\nwhich made it worth reading. Reading it showed the `innerHTML` sink. See\n`docs/fork/post-ingest-checklist.md` step 6.\n",
   "closedAt": null,
   "comments": [],
   "createdAt": "2026-08-03T22:10:00Z",
@@ -6276,6 +6276,30 @@
   "number": 182,
   "state": "OPEN",
   "title": "XSS: slashReply() innerHTML sink renders memory `category` unescaped in /memory list and /memory search",
+  "url": null
+ },
+ {
+  "body": "## Problem\n\n*Line numbers are against `upstream-mirror`, not `develop` (where `esc` is at\n`ui.js:860` and `esc(pcount)` at `cookbook-hwfit.js:1500`).*\n\n`uiModule.esc()` (`static/js/ui.js:786`) is the canonical HTML-escape helper:\n\n```js\nexport function esc(s) {\n  return (s || '').replace(/[&<>\"']/g, (m) => _ESC_MAP[m]);\n}\n```\n\n`(s || '')` does not coerce. Passing a number reaches `Number.prototype.replace`,\nwhich does not exist, so `esc(5)` throws `TypeError`. The docstring calls this\nthe canonical implementation and tells other modules to use it instead of local\ncopies -- but the local copy in `static/js/skills.js:19` is the more robust one:\n\n```js\nfunction esc(s) { return uiModule.esc(String(s ?? '')); }\n```\n\nSo the module that was told to defer to the canonical helper is the one working\naround its defect.\n\n## Why this is not folded into #182\n\nFixing it is one word, but it is a behaviour change for every caller, not a\nbug fix. `(0 || '')` is `''` while `String(0 ?? '')` is `'0'`, so any site that\ncurrently relies on falsy values rendering as empty would start rendering `0`\nand `false`. That needs its own audit of the call sites, which is why #182\nwraps its two numeric fields in `String(...)` locally instead.\n\n## Current exposure: latent, not live\n\nNo crashing call site was found. The one that looked like it passed a number,\n`esc(pcount)` in `static/js/cookbook-hwfit.js:1426`, receives\n`m.parameter_count`, which is a string like `\"168B\"` (see\n`scripts/add_hwfit_models.py:38`). The `cookbookServe.js` sites pass\n`m.size || '0 KB'`, also strings.\n\nSo this is a trap for the next caller, not a present fault. Recording it so the\nnext person who passes a count to `esc` does not have to rediscover it.\n\n## Suggested fix\n\nCoerce, and audit the falsy-rendering change:\n\n```js\nexport function esc(s) {\n  return String(s ?? '').replace(/[&<>\"']/g, (m) => _ESC_MAP[m]);\n}\n```\n\nThen remove the `String()` workaround in `skills.js` and the two in\n`slashCommands.js` from #182.\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-08-03T23:05:00Z",
+  "labels": [
+   {
+    "color": "0e8a16",
+    "description": "",
+    "id": "",
+    "name": "upstream-candidate"
+   },
+   {
+    "color": "fbca04",
+    "description": "",
+    "id": "",
+    "name": "latent"
+   }
+  ],
+  "number": 183,
+  "state": "OPEN",
+  "title": "uiModule.esc() does not coerce, so it throws on a number; skills.js already works around it",
   "url": null
  }
 ]

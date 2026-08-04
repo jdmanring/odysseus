@@ -46,7 +46,7 @@ It is never constrained to an enum on the server:
 | site | value |
 |---|---|
 | `routes/memory/memory_routes.py:96` | `category=form.get("category", "fact")` - free-form form field |
-| `routes/memory/memory_routes.py:422` | `item.get("category") or "fact"` - from an LLM-generated JSON array on memory import |
+| `routes/memory/memory_routes.py:410` | `item.get("category") or "fact"` - from an LLM-generated JSON array on memory import |
 | `routes/memory/memory_routes.py:80` | returned to the client verbatim |
 
 So the value reaching `innerHTML` is influenced by two routes: a direct API
