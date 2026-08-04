@@ -28,6 +28,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 STAGED_BRANCH = "fix/dom-oom-virtualization"
 NAMEERROR_BRANCH = "fix/chat-stream-web-intent-nameerror"
 ARIA2C_BRANCH = "feat/aria2c-downloader"
+TRUNCATE_BRANCH = "fix/truncate-fork-by-msg-id"
 
 # (staged branch, repo-relative path, whole-line comment prefix)
 CONVERGED_FILES = [
@@ -43,6 +44,12 @@ CONVERGED_FILES = [
     (STAGED_BRANCH, "tests/bench/mock_llm.py", "#"),
     (STAGED_BRANCH, "tests/test_chat_history_longsession_playwright.py", "#"),
     (NAMEERROR_BRANCH, "tests/test_routes_defined_names.py", "#"),
+    # This module does not exist upstream, so its temp-db cleanup is written
+    # self-contained rather than through tests/helpers/temp_cleanup.py: the
+    # staged branch must stay independently fileable and cannot depend on the
+    # unfiled helper (#174). That leaves two cleanup mechanisms on develop, so
+    # guard the pair against drifting apart.
+    (TRUNCATE_BRANCH, "tests/test_truncate_fork_by_msg_id.py", "#"),
     # aria2c branch (issue #146 rebuild): wholesale copies of develop's files.
     # routes/cookbook_routes.py is deliberately NOT listed — the branch version
     # legitimately differs in code (no basicsr calls; carries the stacked
