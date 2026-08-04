@@ -16,8 +16,10 @@
 **Issue**: jdmanring/odysseus#2
 **Upstream issue**: file before filing PR
 **Status**: Not yet submittable; the draft body needs a full rewrite at file time (plan
-Part 5). Independent architecture, authored nine days before #4661 opened; #4661 is
-parallel work on the same problem (plan Part 1.2).
+Part 5). Independent architecture, authored nine days before #4661 opened. **#4661 and
+#4998 were both closed unmerged on 2026-07-23** (in a bulk action that closed 461 PRs
+in 30 seconds), so this is not competing with live work: **issue #4644 is still open and
+nothing merged addresses it.**
 
 ---
 
@@ -147,11 +149,39 @@ reason) rather than fails until it lands.
 
 ## Measured evidence (comparison matrix)
 
-Source: `tests/bench/` harness, published artifact `tests/bench/results/bench.{json,md}`
-(5 kept repeats, Chromium 148 headless; #4661's trim/reload vendored faithfully from its
-commit `27f35e1c` as `tests/bench/vendor/trimChatHistory_4661.js`, provenance-guarded by
-`tests/test_bench_vendor_4661.py`). Worst-case column n=5000 messages; full curve
-(250/1000/2000/5000) in the artifact.
+**The benchmark is NOT in this PR, and these paths are not in this diff.** It lives in
+the fork's public workbench, because vendoring a Playwright harness and a copy of
+#4661's own code into a bug-fix PR would be a large and odd payload. Everything below
+is runnable and checkable there:
+
+| what | where |
+|---|---|
+| harness | [`tests/bench/chat_history_bench.py`](https://github.com/jdmanring/odysseus-workbench/blob/develop/tests/bench/chat_history_bench.py) |
+| published artifact | [`tests/bench/results/bench.md`](https://github.com/jdmanring/odysseus-workbench/blob/develop/tests/bench/results/bench.md) (+ `bench.json`, raw per-run) |
+| #4661 arm, vendored | [`tests/bench/vendor/trimChatHistory_4661.js`](https://github.com/jdmanring/odysseus-workbench/blob/develop/tests/bench/vendor/trimChatHistory_4661.js) |
+| integrity guard | [`tests/test_bench_vendor_4661.py`](https://github.com/jdmanring/odysseus-workbench/blob/develop/tests/test_bench_vendor_4661.py) |
+
+**Why a closed PR appears in the table at all.** Not to win an argument with it -
+#4661 is closed and its author is not the audience here. It is in the table because
+"why not just do what #4661 did?" is the first question anyone who saw that PR will
+ask, and the answer is measurable rather than rhetorical: its approach defers the
+initial render, which is a different thing from removing nodes, so DOM count at the top
+of history is unchanged from the unpatched baseline. The row that proves THIS PR works
+is the baseline column, not the #4661 column.
+
+**On the fidelity of that arm.** It is
+extracted from commit `27f35e1c` (`_trimChatHistoryDOM` + `_loadOlderMessages`),
+verbatim except for three marked harness adapters (renderer, fetch, session id) that
+replace app modules the bench page does not have. Every constant and every
+teardown/removal line is the PR's own. The guard file asserts that specifically -
+`MAX_CHAT_DOM_NODES = 150`, the keepFloor expression, the teardown lines, the removal
+loop shape - and pins the whole file by sha256, so you can fetch `27f35e1c`, diff, and
+confirm nothing was altered rather than taking our word for it. If the adaptation looks
+unfair, that file is the thing to challenge and it is one diff away.
+
+5 kept repeats, Chromium 148 headless. Worst-case column n=5000 messages; full curve
+(250/1000/2000/5000) in the artifact. Reproduce:
+`python tests/bench/chat_history_bench.py`.
 
 | Axis (n=5000) | Unpatched baseline | #4661 | This PR (`MessageWindow`) |
 |---|---|---|---|

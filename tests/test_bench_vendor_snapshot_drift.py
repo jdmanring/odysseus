@@ -67,14 +67,14 @@ def test_snapshot_matches_live_chat_history():
 # tests/bench/results/bench.md (generated 2026-07-25). These are OTHER PEOPLE'S
 # code, measured to compare against ours, so their integrity is the load-bearing
 # claim in any citation of those results.
+# The #4661 arm has its own guard file, tests/test_bench_vendor_4661.py, which
+# pins the PR's constants and teardown lines semantically as well as by hash.
+# #4998 has no such file -- it is vendored byte-for-byte, so a hash plus the
+# provenance header is the whole check.
 VENDORED_UPSTREAM = {
-    "trimChatHistory_4661.js": (
-        "ae8af6113b3eec96ab5b6654c2b4a0120e1785d466f72f705ec98b55896bfa92",
-        "27f35e1c1303ec9732bae68e8c32c14ebd3e82a6",   # upstream PR #4661
-    ),
     "chatVirtualizer_4998.js": (
         "73d55d25725713f03d4781b76ba709702a36eac650ef5c3d658fefc1b15011d0",
-        None,                                          # upstream PR #4998, vendored byte-for-byte
+        None,                                          # upstream PR #4998
     ),
 }
 

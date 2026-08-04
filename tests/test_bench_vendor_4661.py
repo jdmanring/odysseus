@@ -5,6 +5,12 @@ tests/bench/vendor/trimChatHistory_4661.js is an extraction of upstream PR
 harness adapters (renderer/fetch/session). If the PR's constants or removal/
 teardown logic drift in the vendor, the benchmark measures a strawman -- these
 checks pin the load-bearing lines to the PR's own.
+
+The semantic checks below are the primary guard: they name the specific lines
+that must survive, so a meaningful edit fails while benign reformatting does not.
+The whole-file hash added alongside them covers the rest of the file -- the parts
+no assertion names -- because "we benchmarked your code" only lands if the reader
+can verify we did not alter it anywhere.
 """
 import pathlib
 
@@ -49,3 +55,24 @@ def test_no_fork_logic_leaked_in():
     # machinery may appear.
     for token in ("_pruneTop", "_estFold", "_updateTopSpacer", "BIDI_", "chIdx"):
         assert token not in SRC, token
+
+
+# sha256 of the vendored arm as benchmarked for tests/bench/results/bench.md.
+# The semantic checks above pin the lines that matter; this covers everything
+# else. A deliberate re-vendor updates this AND re-runs the benchmark.
+VENDOR_SHA256 = "ae8af6113b3eec96ab5b6654c2b4a0120e1785d466f72f705ec98b55896bfa92"
+
+
+def test_vendor_is_byte_identical_to_what_was_benchmarked():
+    import hashlib
+
+    actual = hashlib.sha256(
+        (ROOT / "tests/bench/vendor/trimChatHistory_4661.js").read_bytes()
+    ).hexdigest()
+    assert actual == VENDOR_SHA256, (
+        "trimChatHistory_4661.js changed since the published benchmark ran.\n"
+        f"  expected {VENDOR_SHA256}\n  actual   {actual}\n"
+        "bench.md compares OUR implementation against this one. Editing it "
+        "invalidates the comparison. Re-vendor from commit 27f35e1c, update this "
+        "hash, and re-run tests/bench/chat_history_bench.py."
+    )
