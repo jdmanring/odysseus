@@ -37,12 +37,28 @@ Running just the 20 affected database modules leaves 22 files behind per run.
 
 **Reproduction:**
 
+Run the suite against a **private `TMPDIR`** and count what is left in it. A
+before/after delta on the shared `/tmp` is not reliable: on a busy machine other
+processes create and remove entries during the run, and this measurement was in
+fact contaminated that way before being redone in isolation.
+
 ```
-before=$(ls -1U /tmp | grep -c '^tmp.*\.db$')
-python -m pytest tests/ -q --ignore=tests/bench
-after=$(ls -1U /tmp | grep -c '^tmp.*\.db$')
-echo "leaked: $((after-before))"
+T=$(mktemp -d)
+TMPDIR="$T" python -m pytest tests/ -q --ignore=tests/bench
+ls -1U "$T" | grep -c '^tmp.*\.db$'          # temp databases
+ls -1U "$T" | grep '^tmp' | grep -vc '\.db$'  # temp directories
+ls -1U "$T" | grep '^odysseus' | grep -vc '^odysseus-tmux'  # data dirs
+rm -rf "$T"
 ```
+
+Two entries always survive and are **not** leaks: `pytest-of-james/` is pytest's
+own `tmp_path` factory, which prunes to the last few runs by design, and
+`odysseus-tmux/` is created by production code for tmux sessions, so it is
+excluded above rather than counted.
+
+The data-dir prefixes are inconsistent in the suite -- three sites use
+`odysseus_` and seven use `odysseus-` -- so match on `odysseus` and subtract the
+one production directory. Matching only the underscore reports 2 instead of 8.
 
 Same for directories with `grep '^tmp' | grep -v '\.db$'`.
 
