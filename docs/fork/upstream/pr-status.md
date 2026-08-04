@@ -44,7 +44,17 @@ and a 2-commit branch tries to replay ~1,900 commits. Use
 | `fix/test-temp-db-leak` | **NEW branch (#174)**, staged 2026-08-03. The suite never removes its temp databases or directories: 3,790 orphaned .db (2.06 GB) and 67,496 orphaned dirs accumulated since 2026-07-19, filling a RAM-backed /tmp until 10 Playwright tests failed with "Page crashed" and read as a code regression. Full-suite leak 29/23/8 -> 0/0/0. Defect is upstream's (files byte-identical to `upstream-mirror`); origin is upstream #2930, which scoped cleanup out of a proving slice. PR + issue drafts written. |
 | `fix/truncate-fork-by-msg-id` | Gained `d75a4acc`: the module's own temp-db leak, the ONLY fork-authored one of 37. Written self-contained so the branch stays independently fileable; now under #131's convergence guard. |
 
-**PR drafts:** #172 and #174 written (#174 also has an upstream issue draft). #173 not yet.
+| `fix/session-route-test-flake` | **NEW branch (#175)**, staged 2026-08-03. Module-global `APIRouter` accumulates a route per `setup_session_routes()` call, so the test's `next(...)` picks an earlier test's endpoint bound to an empty mock. Fixed on develop by `670ee643` on **2026-07-22** and never staged; found by checking a claim written into the #174 draft. Reproduced twice on clean `upstream-mirror`: 1 failed/69 passed -> 70 passed. |
+| `test/css-and-path-confinement-guards` | **NEW branch (#176)**, staged 2026-08-03. Structural guard for style.css (source-assertion tests cannot see brace depth; a broken file passed all 14) and allowlist guards for `src/tool_execution.py`. 30 passed on an unmodified tree. |
+
+**Unstaged-work audit, 2026-08-03.** 3,019 develop commits, 45 on no staged
+branch by patch-id, 39 of those fork-management. Of the remaining 6, two were
+genuine unstaged contributions (now #176) and four restore upstream's own code
+that the ingest merge dropped, so there is nothing to send back. Method:
+`git log --no-merges -p | git patch-id --stable` in batch mode, two processes.
+Re-run it after any large ingest.
+
+**PR drafts:** #172, #174, #175 written (#174 also has an upstream issue draft). #173 and #176 not yet.
 
 **Do not file #172 from an old checkout.** The branch gained two commits after the
 first cut: `b4f546bd` wires the three remaining recall paths (the module docstring
