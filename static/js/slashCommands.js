@@ -1176,11 +1176,11 @@ async function _cmdSessionInfo(args, ctx) {
   const s = sessions.find(ss => ss.id === ctx.sid);
   if (!s) { slashReply('Session not found'); return true; }
   slashReply(`<pre>Session: ${ctx.esc(s.name || 'Untitled')}
-ID:      ${s.id}
+ID:      ${ctx.esc(s.id)}
 Model:   ${ctx.esc(s.model || '?')}
 Folder:  ${ctx.esc(s.folder || '(none)')}
-Messages: ${s.message_count || '?'}
-Created: ${s.created_at || '?'}</pre>`);
+Messages: ${ctx.esc(String(s.message_count || '?'))}
+Created: ${ctx.esc(String(s.created_at || '?'))}</pre>`);
   return true;
 }
 
@@ -1569,7 +1569,7 @@ async function _cmdMemoryList(args, ctx) {
   const data = await res.json();
   const mems = data.memory || [];
   if (!mems.length) { slashReply('No memories stored'); return true; }
-  const lines = mems.slice(0, 40).map(m => `[${m.category||'fact'}] ${m.id.slice(0,8)} — ${ctx.esc(m.text)}`);
+  const lines = mems.slice(0, 40).map(m => `[${ctx.esc(m.category||'fact')}] ${ctx.esc(m.id.slice(0,8))} — ${ctx.esc(m.text)}`);
   if (mems.length > 40) lines.push(`... and ${mems.length - 40} more`);
   slashReply(`<pre>${lines.join('\n')}</pre>`);
   return true;
@@ -1635,7 +1635,7 @@ async function _cmdMemorySearch(args, ctx) {
   const data = await res.json();
   const mems = data.memories || [];
   if (!mems.length) { await typewriterReply(`No memories matching "${ctx.esc(query)}"`); return true; }
-  const lines = mems.map(m => `[${m.category||'fact'}] ${ctx.esc(m.text)}`);
+  const lines = mems.map(m => `[${ctx.esc(m.category||'fact')}] ${ctx.esc(m.text)}`);
   slashReply(`<pre>${lines.join('\n')}</pre>`);
   return true;
 }
