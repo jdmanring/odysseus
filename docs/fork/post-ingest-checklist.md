@@ -184,6 +184,30 @@ found, and the branches whose status changed. That document is what PRs are file
 from; an ingest that does not update it leaves the next filing pass working from
 a stale map.
 
+**Check cited commits for REACHABILITY, not existence.** `git cat-file -e <sha>`
+answers "does this object exist", which is not the property a doc claim needs. A
+rebase leaves the old commit as a loose object, so a citation like "branch X
+gained `abc1234`" passes an existence check while the SHA is on no branch at all.
+Ask the right question:
+
+```bash
+git merge-base --is-ancestor <sha> <branch>          # is it actually on that branch
+git for-each-ref --contains <sha> --format='%(refname)'   # what reaches it at all
+```
+
+Measured 2026-08-04 across 318 distinct SHAs cited in `docs/fork/`: 173 on a
+branch, 37 held only by `refs/prerebase`/`refs/salvage`, and **104 reachable
+from no ref whatsoever** -- loose objects that `git gc` prunes once they pass
+`gc.pruneExpire` (two weeks; most dated from June). Those citations were weeks
+from becoming unresolvable.
+
+They are now pinned at `refs/docsha/<short-sha>` and pushed. That is the cheap
+fix: the record stays resolvable without rewriting 104 citations, and the
+rewrite would have been churn since the work itself is present under post-rebase
+SHAs. **Re-run the scan after any rebase sweep** -- a sweep rewrites every branch
+it touches and orphans every SHA the docs cited for them, all at once. Do not
+delete `refs/docsha/*`; it is load-bearing for the provenance record.
+
 **Then sweep for the claims the promotion just falsified.** Adding new text is the
 easy half; the failure mode is the sentence that was true when written and was
 never revisited. Six of them were found this way on 2026-08-03, including two

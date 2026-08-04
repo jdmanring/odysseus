@@ -24,10 +24,22 @@ The 1,957-commit ingest below took `upstream-mirror` to `25c9e735`
 (upstream/dev, 2026-07-30). The merge into
 `develop` was 182 conflicted files — see `docs/fork/ingest-20260802-resume.md`.
 
-**All staged branches were rebased onto the new `upstream-mirror`: 81 done,
-0 superseded-to-empty.** Rollback for every one at `refs/prerebase/<branch>`,
-**pushed to origin**. Restore with
-`git update-ref refs/heads/<b> refs/prerebase/<b>`.
+**The staged branches were rebased onto the mirror as it stood at `25c9e735`
+(2026-08-02), 0 superseded-to-empty.** Read that carefully: they are NOT on the
+current mirror. Verified 2026-08-04 -- only 4 refs descend from `fb8c391a`
+(`develop`, `integration`, `upstream-mirror`, `fix/slash-memory-category-escape`);
+the other 96 staged branches still fork at `25c9e735`. The 2026-08-03 ingest was
+2 commits, so the gap is small, but "rebased onto the new upstream-mirror"
+claimed a currency they do not have.
+
+Rollback for every one at `refs/prerebase/<branch>` (86) and
+`refs/prerebase2/<branch>` (3), **all 89 pushed to origin** -- the 3
+`prerebase2` refs were local-only until 2026-08-04, while this document said
+they were safe. Restore with `git update-ref refs/heads/<b> refs/prerebase/<b>`.
+
+Count the refs rather than trusting a number in prose:
+`git for-each-ref refs/prerebase refs/prerebase2 | wc -l` against
+`git ls-remote origin 'refs/prerebase*' | wc -l`.
 
 Tooling: `tooling/merge/branch_survey.py` (what is already landed, by patch-id),
 `tooling/merge/rebase_staged.py` (batch rebase, dry-run by default),
@@ -50,7 +62,7 @@ and a 2-commit branch tries to replay ~1,900 commits. Use
 | `fix/model-context-org-prefix` | **NEW branch (#173)**, staged 2026-08-03. We are ahead of upstream: their longest-key rule lets `moonshot` (len 8) beat `kimi-k2` (len 7) by matching the ORG portion of `moonshotai/kimi-k2.6`, budgeting 128k for a model served at 256k. Basename-weighted scoring fixes it. 3 regression tests, the two org-prefix ones mutation-checked against the old implementation. |
 | `fix/dom-oom-virtualization`, `feat/aria2c-downloader` | Re-converged 2026-08-03 (`9f415298`, `8e1c18a8`). Guard #131 caught `static/app.js` and `static/js/cookbookRunning.js` lagging develop. Both green. |
 | `fix/test-temp-db-leak` | **NEW branch (#174)**, staged 2026-08-03. The suite never removes its temp databases or directories: a full suite run leaks 29 databases, 23 directories and 8 data dirs, none removed; the branch leaks 0/0/0. Filled a RAM-backed /tmp until 10 Playwright tests failed with "Page crashed" and read as a code regression. **The accumulated counts first reported here (3,790 / 67,496) were withdrawn 2026-08-03: 98% of the directory figure was another project's artifacts on the same host.** Defect is upstream's (files byte-identical to `upstream-mirror`); origin is upstream #2930, which scoped cleanup out of a proving slice. PR + issue drafts written. |
-| `fix/truncate-fork-by-msg-id` | Gained `d75a4acc`: the module's own temp-db leak, the ONLY fork-authored one of 37. Written self-contained so the branch stays independently fileable; now under #131's convergence guard. |
+| `fix/truncate-fork-by-msg-id` | Gained the commit now at `9ffeba0c` (cited here as `d75a4acc` until 2026-08-04; that SHA is the pre-rebase original and survives only at `refs/salvage/truncate-tempdb-fix`, on no branch -- same patch-id `01a3f374`, so the work is present): the module's own temp-db leak, the ONLY fork-authored one of 37. Written self-contained so the branch stays independently fileable; now under #131's convergence guard. |
 | `fix/slash-memory-category-escape` | **NEW branch (#182)**, staged 2026-08-03. `slashReply()` assigns to `body.innerHTML` and is the only output path for every slash command (~150 call sites), and the two that render the memory store escape every field except `category`. That field is never enum-constrained: free-form form value, written by the model on memory import, returned verbatim. Severity is modest and the draft says so -- single-user, local-first, needs a hostile entry to exist already -- but it is an unescaped sink beside an escaped one. `_cmdSessionInfo` had the same shape and is fixed with it; `_cmdMcp` is left alone because escaping at the join is the better pattern, and a guard locks that in. 6 source-assertion guards, mutation-checked. Found by the post-ingest code-graph re-rank: `god-nodes` ranked `slashReply` high, `find_referencing_symbols` showed the degree was fan-in, reading it showed the sink. |
 | `fix/session-route-test-flake` | **NEW branch (#175)**, staged 2026-08-03. Module-global `APIRouter` accumulates a route per `setup_session_routes()` call, so the test's `next(...)` picks an earlier test's endpoint bound to an empty mock. Fixed on develop by `670ee643` on **2026-07-22** and never staged; found by checking a claim written into the #174 draft. Reproduced twice on clean `upstream-mirror`: 1 failed/69 passed -> 70 passed. |
 | `test/css-and-path-confinement-guards` | **NEW branch (#176)**, staged 2026-08-03. Structural guard for style.css (source-assertion tests cannot see brace depth; a broken file passed all 14) and allowlist guards for `src/tool_execution.py`. 30 passed on an unmodified tree. |

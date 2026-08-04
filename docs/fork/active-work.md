@@ -30,7 +30,7 @@ ticket has gone unanswered for weeks. New fork created from `odysseus-dev/odysse
   break; no script, CI file or config referenced the old URL (comments only).
 - Old repo deleted and verified 404; the `oldfork` remote removed.
 
-**2026-08-02 (after promotion): STAGED-BRANCH REBASE SWEEP — 78 of 96 done, 10 left.**
+**2026-08-02 (after promotion): STAGED-BRANCH REBASE SWEEP.** (The figures once recorded here -- "78 of 96 done, 10 left" -- do not add up and disagreed with pr-status.md's "81 done" for the same sweep. Superseded 2026-08-04 by counted refs: 89 rollback refs exist, 86 in `refs/prerebase` and 3 in `refs/prerebase2`.)
 
 `upstream-mirror` is RESET by the pipeline, not fast-forwarded, so every staged
 branch sat on the old mirror. Tools: `tooling/merge/branch_survey.py` (what is
@@ -41,7 +41,7 @@ dry-run by default).
   by hand (`continue-btn-weakref`, `dom-oom-streaming-throttle`,
   `qtwebengine-oilpan-gc`, `agent-gc-catchup`, `hljs-deferred-highlight`), each
   verified with `node --check` and its own test file.
-- **Rollback: `refs/prerebase/<branch>`, 78 refs, PUSHED to origin.** Restore with
+- **Rollback: `refs/prerebase/<branch>` (86) and `refs/prerebase2/<branch>` (3), 89 refs, all pushed to origin as of 2026-08-04** -- the 3 `prerebase2` refs were local-only before that, while this line already claimed they were pushed. Restore with
   `git update-ref refs/heads/<b> refs/prerebase/<b>`. Note these are custom refs,
   so they do NOT show in `git branch` — the 2026-07-07 sweep used
   `backup/prerebase__*` branches, which are more discoverable. `origin` also still
