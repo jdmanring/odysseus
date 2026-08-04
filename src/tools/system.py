@@ -711,7 +711,9 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         # Try to parse JSON; fall back to raw text.
         try:
             payload = resp.json()
-            preview = json.dumps(payload, indent=2, default=str)
+            # Compact: this preview is spent against the 4000-char cap below,
+            # so indentation would displace response data the model needs.
+            preview = json.dumps(payload, separators=(",", ":"), default=str)
             if len(preview) > 4000:
                 preview = preview[:4000] + "\n... (truncated)"
         except Exception:

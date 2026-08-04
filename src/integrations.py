@@ -472,7 +472,7 @@ async def execute_api_call(
         if "application/json" in content_type:
             try:
                 data = response.json()
-                full = json.dumps(data, indent=2, ensure_ascii=False)
+                full = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
                 if len(full) > 12000:
                     if isinstance(data, list):
                         # Binary-search for the largest prefix such that the
@@ -484,17 +484,18 @@ async def execute_api_call(
                             "shown_items": 0,
                         }
                         # Overhead: the sentinel appears as an extra array element.
-                        # Add a conservative padding for the separating comma,
-                        # newline, and indentation characters (~6 chars).
+                        # Padding covers the separating comma and brackets. The
+                        # encoding is compact (see below), so this budget buys
+                        # items rather than indentation.
                         sentinel_overhead = len(
-                            json.dumps(sentinel_placeholder, indent=2, ensure_ascii=False)
+                            json.dumps(sentinel_placeholder, separators=(",", ":"), ensure_ascii=False)
                         ) + 6
                         budget = 12000 - sentinel_overhead
                         lo, hi = 0, len(data)
                         while lo < hi:
                             mid = (lo + hi + 1) // 2
                             candidate = json.dumps(
-                                data[:mid], indent=2, ensure_ascii=False
+                                data[:mid], separators=(",", ":"), ensure_ascii=False
                             )
                             if len(candidate) < budget:
                                 lo = mid
@@ -506,7 +507,8 @@ async def execute_api_call(
                             "shown_items": lo,
                         }
                         formatted = json.dumps(
-                            data[:lo] + [sentinel], indent=2, ensure_ascii=False
+                            data[:lo] + [sentinel], separators=(",", ":"),
+                            ensure_ascii=False
                         )
                     elif isinstance(data, dict):
                         # Truncate dict entries until the result fits, then add
@@ -516,7 +518,7 @@ async def execute_api_call(
                         for k, v in data.items():
                             candidate = json.dumps(
                                 {**kept, k: v, "_truncated": True},
-                                indent=2,
+                                separators=(",", ":"),
                                 ensure_ascii=False,
                             )
                             if len(candidate) <= DICT_LIMIT:
@@ -524,7 +526,8 @@ async def execute_api_call(
                             else:
                                 break
                         formatted = json.dumps(
-                            {**kept, "_truncated": True}, indent=2, ensure_ascii=False
+                            {**kept, "_truncated": True}, separators=(",", ":"),
+                            ensure_ascii=False
                         )
                     else:
                         total = len(full)

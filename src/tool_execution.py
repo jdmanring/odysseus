@@ -1084,7 +1084,13 @@ def format_tool_result(description: str, result: Dict) -> str:
     extra = {k: v for k, v in result.items() if k not in _FORMATTER_HANDLED_KEYS}
     if extra:
         try:
-            extra_json = json.dumps(extra, indent=2, default=str, ensure_ascii=False)
+            # Compact separators, not indent=2: this string is spent against
+            # the cap below, so every space of indentation displaces real data.
+            # Measured on a 40-event calendar payload: 9905 chars pretty vs
+            # 6937 compact, i.e. pretty-printing alone pushed it past the cap
+            # and truncated the events mid-object. Same JSON either way.
+            extra_json = json.dumps(extra, separators=(",", ":"),
+                                    default=str, ensure_ascii=False)
             # Cap to avoid blowing the context window on huge payloads.
             if len(extra_json) > 8000:
                 extra_json = extra_json[:8000] + f"\n... (truncated, {len(extra_json)} chars total)"
