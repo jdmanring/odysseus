@@ -484,7 +484,7 @@ escaping guard -- failed to the first attack this one tried.
 | # | Finding | Status |
 |---|---------|--------|
 | #185 | 76 staged branches diverged from the remote; the 2026-08-02 rebase exists only locally | Open. Needs authorization (rewrites 76 refs). |
-| #186 | #184 guards 2 of 7 write paths, misses `add_entry`; allowlist exists 4x and one copy disagrees; one vacuous test | **Fixed** (`bd3036ab`). Stays open until the PR is filed. |
+| #186 | #184 guards 2 of 7 write paths, misses `add_entry`; allowlist exists 4x and one copy disagrees; one vacuous test | **Fixed** (`bd3036ab`), promoted to develop as `aad72366`. The promotion was missed on the first pass and caught by a Serena query returning empty for `coerce_category` on develop. Stays open until the PR is filed. |
 | #187 | The rewritten escaping guard passes 7 live XSS variants, including the original defect verbatim | **Fixed** (`6234e1f8`); the executing guard also found 18 more raw fields. Stays open until the PR is filed. |
 | #188 | Retracted false claims still in commit `91679c3c`'s message, which is public PR content | **Fixed**: messages rewritten (`73d092f0`, `51768c6d`). Local only; publishing is #185. |
 | #189 | Three more decorative guards, plus a live defect in `draft_file_claims.py` | **Partly fixed** (`55a60277`). Hedge scoping corrected and the missing tests added; the issue's own "6 paths in 2 drafts" figure does not reproduce, the fix recovers one. The two temp-file scanners are on `fix/test-temp-db-leak` and are NOT fixed. |
