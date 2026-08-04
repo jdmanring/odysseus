@@ -57,9 +57,14 @@ def main() -> int:
         ]
 
     rows = []
+    no_base = []
     for b in branches:
         base = sh("git", "merge-base", b, "upstream-mirror").strip()
         if not base:
+            # Shares no history with the mirror. Zero of 99 branches today, but
+            # a silent drop here removes a staged contribution from the very
+            # inventory that decides what gets filed. Report, never swallow.
+            no_base.append(b)
             continue
         own = len(sh("git", "rev-list", f"{base}..{b}").split())
         if own == 0:
@@ -85,6 +90,11 @@ def main() -> int:
     for v in ("REBASE", "LANDED", "RETIRE", "EMPTY"):
         n = sum(1 for r in rows if r[4] == v)
         print(f"  {v:<8} {n}")
+    if no_base:
+        print(f"\n  {len(no_base)} branch(es) share no history with upstream-mirror and were")
+        print("  NOT surveyed -- investigate before trusting this list as complete:")
+        for b in no_base:
+            print(f"      {b}")
     print("\nVerdicts are CANDIDATES. RETIRE means upstream shipped an equivalent")
     print("patch, which can also mean they shipped a WORSE one -- read before deleting.")
     return 0
