@@ -39,14 +39,30 @@ def branch_of(text: str) -> str | None:
     return m.group(1) if m else None
 
 
+# A hedge disqualifies the CLAUSE it sits in, not the whole line. Scoping it to
+# the line dropped real claims that happened to share a line with a hedge --
+# measured at 6 source paths across 2 drafts, silently reported as clean, which
+# is the same "0 problems while blind" failure this module exists to prevent.
+_CLAUSE_RE = re.compile(r"\([^()]*\)|[^;()]+|[;()]")
+
+
+def _clauses(line: str) -> list[str]:
+    """Split a line into parenthesised groups and semicolon-separated clauses."""
+    return [c for c in _CLAUSE_RE.findall(line) if c.strip(" ;()")]
+
+
 def asserted_paths(text: str) -> set[str]:
     """Paths the draft presents as its own, hedges and linked citations removed."""
     out: set[str] = set()
     for line in text.split("\n"):
-        if any(h in line.lower() for h in HEDGE):
-            continue
+        # Citations are matched on the whole line: a markdown link contains
+        # parentheses, so clause-splitting would tear the URL off the path and
+        # the citation would read as a claim.
         cited = set(LINKED_RE.findall(line))
-        out.update(p for p in PATH_RE.findall(line) if p not in cited)
+        for clause in _clauses(line):
+            if any(h in clause.lower() for h in HEDGE):
+                continue
+            out.update(p for p in PATH_RE.findall(clause) if p not in cited)
     return out
 
 

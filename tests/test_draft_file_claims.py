@@ -81,3 +81,45 @@ def test_non_source_extensions_are_ignored():
 def test_paths_are_collected_across_lines():
     text = "Adds `src/a.py`.\n\nAlso `static/js/b.js`.\n"
     assert asserted_paths(text) == {"src/a.py", "static/js/b.js"}
+
+
+# --- hedge scoping ------------------------------------------------------------
+#
+# There was a test for the LINKED_RE same-line case and no equivalent for HEDGE,
+# and the two were handled asymmetrically: citations were subtracted per path
+# while a hedge skipped the whole line. Measured against the real drafts, that
+# dropped 6 source paths across 2 of them.
+
+def test_a_claim_and_a_hedge_on_the_same_line_are_separated():
+    text = "Adds `src/real.py`; a test `tests/test_x.py` can be added later."
+    assert asserted_paths(text) == {"src/real.py"}
+
+
+def test_a_hedge_inside_parentheses_does_not_disqualify_the_line():
+    text = "Adds `src/real.py` (previously also listed `src/old.py`)."
+    assert asserted_paths(text) == {"src/real.py"}
+
+
+def test_a_hedge_alone_still_disqualifies_its_own_claim():
+    assert asserted_paths("A test `tests/test_x.py` can be added later.") == set()
+
+
+def test_hedges_are_scoped_per_clause_not_per_document():
+    """Pins the property the tool's correctness argument rests on.
+
+    Three mutations passed the previous suite: scanning hedges document-wide,
+    scanning citations document-wide, and keeping only the first claim per line.
+    Every fixture was single-line or hedge-free, so nothing held the line.
+    """
+    text = (
+        "## Summary\n"
+        "A test `tests/test_later.py` can be added later.\n"
+        "\n"
+        "Adds `src/real.py` and `src/other.py`.\n"
+    )
+    assert asserted_paths(text) == {"src/real.py", "src/other.py"}
+
+
+def test_multiple_claims_on_one_line_are_all_kept():
+    text = "Adds `src/a.py`, `src/b.py` and `src/c.py`."
+    assert asserted_paths(text) == {"src/a.py", "src/b.py", "src/c.py"}
