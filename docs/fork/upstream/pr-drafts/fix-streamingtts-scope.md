@@ -1,5 +1,12 @@
 # PR Draft: fix/streamingtts-scope -> odysseus-dev/odysseus:dev
 
+> **Note before filing (2026-08-03).** `develop` fixed this on 2026-06-21 in
+> `02e8ed48` by declaring `var streamingTTS` (function-scoped, so the `catch`
+> can reach it) rather than hoisting a `let`. **Upstream still has `const`**, so
+> the bug is real there and this PR remains valid — but the premise "declared
+> inside the try block" describes upstream, not develop.
+
+
 **Branch:** `fix/streamingtts-scope`
 **Status:** Ready to file
 **Base:** cut from `upstream-mirror`, 1 file, +3/-2

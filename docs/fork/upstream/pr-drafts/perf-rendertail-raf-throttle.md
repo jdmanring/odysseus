@@ -1,5 +1,15 @@
 # PR Draft: perf/rendertail-raf-throttle -> odysseus-dev/odysseus:dev
 
+> **Note before filing (2026-08-03).** `develop` already throttles, by a
+> different mechanism: `_throttledRenderStream` uses a 16 ms interval
+> (`_RENDER_INTERVAL`, from `02e8ed48`, 2026-06-21) rather than
+> `requestAnimationFrame`. Both target 60 fps and `finalize()` covers the
+> trailing edge in each, so this is an alternative implementation rather than a
+> missing one. The rAF version's advantage is frame alignment: it cannot render
+> twice within one frame and it runs when the browser is about to paint. Say so
+> in the PR, because a reviewer who checks will find the interval version.
+
+
 **Branch:** `perf/rendertail-raf-throttle`
 **Status:** Ready to file
 **Base:** cut from `upstream-mirror`, 1 file, +12/-2

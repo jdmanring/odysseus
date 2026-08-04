@@ -1,5 +1,17 @@
 # PR Draft: fix/css-contain-paint-transparent-rendering -> odysseus-dev/odysseus:dev
 
+> **Note before filing (2026-08-03).** `develop` has since moved PAST this
+> branch's `.sidebar` half. A deliberate iteration on 2026-06-24 (`e9e5010d`)
+> removed `contain` from `.sidebar` entirely and added `background: var(--bg)` to
+> `chat-container` instead; `.chat-history` kept `contain: layout style`
+> (`3f15dbb8`). So develop is not missing this work, it superseded half of it,
+> and this branch's test fails there by design.
+>
+> Upstream never had `contain` on `.sidebar` at all, so the `.sidebar` half of
+> this PR is a *narrowing that upstream does not need*. Consider filing only the
+> `.chat-history` half, or re-cutting the branch against develop's final state.
+
+
 **Branch:** `fix/css-contain-paint-transparent-rendering`
 **Status:** Ready to file
 **Base:** cut from `upstream-mirror`, 2 files, +91
