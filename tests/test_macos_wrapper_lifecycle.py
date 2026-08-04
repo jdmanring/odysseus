@@ -37,11 +37,24 @@ def test_close_event_hides_unless_quitting():
     # Real quit path: accept so the window closes and quit proceeds.
     assert "if self._quitting:" in ce
     assert "event.accept()" in ce
-    # Red-button path: hide + ignore (veto the close, keep the app alive).
-    assert "self.hide()" in ce
+    # Red-button path: hide + ignore (veto the close, keep the app alive). The
+    # hide moved into _hide_to_dock(), which adds the bounded retry that defeats
+    # macOS's exit-fullscreen animation; assert the delegation here and the hide
+    # itself in the helper, rather than pinning a call that has moved.
+    assert "self._hide_to_dock()" in ce
     assert "event.ignore()" in ce
     # The accept must be gated by _quitting, before the hide branch.
-    assert ce.index("event.accept()") < ce.index("self.hide()")
+    assert ce.index("event.accept()") < ce.index("self._hide_to_dock()")
+
+
+def test_hide_to_dock_actually_hides():
+    """The delegation above is only meaningful if the helper still hides."""
+    helper = _method("_hide_to_dock")
+    assert "self.hide()" in helper
+    assert "_last_hide_ts" in helper, (
+        "the reopen handler needs the hide timestamp to tell a deliberate "
+        "red-button hide from a later Dock-click reopen"
+    )
 
 
 def test_explicit_quit_action_binds_deterministically():
