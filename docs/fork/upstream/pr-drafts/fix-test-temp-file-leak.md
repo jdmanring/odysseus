@@ -132,5 +132,14 @@ transcription fails`), merged, is the same defect shape in the STT path.
 
 `test_list_sessions_excludes_other_users_sessions` passes alone and fails when
 run beside its sibling modules, on `upstream-mirror` with and without this
-change. It is a test-isolation defect, not caused by this PR, and it is reported
-separately rather than folded in here.
+change. Not caused by this PR.
+
+Root cause: `routes/session_routes.py` defines a module-global `APIRouter`, so
+every `setup_session_routes()` call in the suite appends another `/api/sessions`
+route to it, and the test's `next(...)` picks an earlier test's endpoint bound to
+a different mock. Taking the last-registered match fixes it.
+
+That fix is a separate PR rather than folded in here, because it touches a
+different file for a different reason. Reproduced on a clean `upstream-mirror`
+(twice, with `/tmp` empty, so it is not the exhaustion described above): 1 failed
+/ 69 passed without it, 70 passed with it.
