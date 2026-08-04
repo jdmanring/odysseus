@@ -54,7 +54,39 @@ that the ingest merge dropped, so there is nothing to send back. Method:
 `git log --no-merges -p | git patch-id --stable` in batch mode, two processes.
 Re-run it after any large ingest.
 
-**PR drafts:** #172, #174, #175 written (#174 also has an upstream issue draft). #173 and #176 not yet.
+### Staged-branch inventory, 2026-08-03 (post-ingest)
+
+105 non-trunk branches. **91 are rebased onto the current `upstream-mirror`**
+(under 60 commits each); 14 carry ~1,845 inherited upstream commits and are
+fork-only (`fork/`, `backup/`, `sync/`, `preingest`), so they are not filing
+candidates. **None of the 91 has been superseded by the ingest** — no staged
+branch's commits are already in upstream by patch-id.
+
+**Draft coverage: 58 of 91 have a PR draft, 33 do not.** The 33 are listed in
+`docs/fork/issues/` #177. Two are covered under a different filename
+(`fix/gguf-quality-scored` -> `feat-gguf-discovery.md`,
+`fix/test-temp-db-leak` -> `fix-test-temp-file-leak.md`).
+
+**Two defects found by this inventory and fixed:**
+
+* `fix/longcat-tool-parsing` was **contaminated**. Commit `3140c28f` (2026-08-03,
+  the ReDoS rework) swept `src/memory.py`, `src/memory_ranking.py`,
+  `src/memory_supersede.py` and their tests into the branch via a blanket add.
+  Filing it would have shipped the whole memory feature to upstream under a
+  security-fix title. Rewritten as `c06406fe`: 4 files, all LongCat, 16 passed.
+  Contaminated version preserved at `refs/salvage/longcat-contaminated`.
+* `_fix` — a stray local-only branch, a duplicate of the contaminated LongCat
+  file set, created the same day. Deleted.
+
+A scan of the other 89 rebased branches for the same leakage found none.
+`feat/logging` touches `src/chroma_client.py` legitimately (it instruments
+network I/O paths).
+
+**Method:** `git log --no-merges -p | git patch-id --stable` per side, two
+processes. Re-run after every ingest; the naive per-commit form would be ~95,000
+subprocesses on this repo.
+
+**PR drafts:** #172, #173, #174, #175 written (#174 also has an upstream issue draft). #176 not yet.
 
 **Do not file #172 from an old checkout.** The branch gained two commits after the
 first cut: `b4f546bd` wires the three remaining recall paths (the module docstring
