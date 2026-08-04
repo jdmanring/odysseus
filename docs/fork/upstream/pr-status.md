@@ -129,7 +129,7 @@ processes. Re-run after every ingest; the naive per-commit form would be ~95,000
 subprocesses on this repo. This audit is step 3 of
 `docs/fork/post-ingest-checklist.md`, which carries all seven post-merge checks.
 
-**PR drafts:** #172, #173, #174, #175 written (#174 also has an upstream issue draft). #176 not yet.
+**PR drafts:** #172, #173, #174, #175, #176 and #182 written. #174 and #182 also have upstream issue drafts (`docs/fork/upstream/issue-drafts/`).
 
 **Do not file #172 from an old checkout.** The branch gained two commits after the
 first cut: `b4f546bd` wires the three remaining recall paths (the module docstring
