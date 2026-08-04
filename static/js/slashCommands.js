@@ -692,7 +692,7 @@ async function connectDetectedSetupEndpoint(detected) {
       setupSpinner.destroy();
       spinnerDiv.remove();
       setupMode = 'endpoint-provider-first';
-      await typewriterReply(`Endpoint was not saved: ${data.detail || 'connection failed'}`);
+      await typewriterReply(`Endpoint was not saved: ${uiModule.esc(data.detail || 'connection failed')}`);
       return;
     }
 
@@ -744,7 +744,7 @@ async function handleSetupInput(input) {
     } else {
       pendingSetupProvider = paired.provider;
       setupMode = 'endpoint-key-for-provider';
-      await _setupReply(`Paste your ${paired.provider.name} API key now.`);
+      await _setupReply(`Paste your ${uiModule.esc(paired.provider.name)} API key now.`);
     }
     return;
   }
@@ -805,7 +805,7 @@ async function handleSetupWizard(mode, input) {
     _addMessage('user', provider.name);
     pendingSetupProvider = provider;
     setupMode = 'endpoint-key-for-provider';
-    await _setupReply(`Paste your ${provider.name} API key.`);
+    await _setupReply(`Paste your ${uiModule.esc(provider.name)} API key.`);
     return;
   }
 
@@ -1107,7 +1107,7 @@ async function _cmdSessionFork(args, ctx) {
     const data = await res.json();
     await sessionModule.loadSessions();
     await sessionModule.selectSession(data.id);
-    await typewriterReply(`Forked session (${data.kept || 0} messages)`);
+    await typewriterReply(`Forked session (${uiModule.esc(data.kept || 0)} messages)`);
   } else { slashReply('Fork failed'); }
   return true;
 }
@@ -1161,10 +1161,10 @@ async function _cmdSessionSort(args, ctx) {
     await sessionModule.loadSessions();
     // Handle skipped status
     if (data.status === 'skipped') {
-      await typewriterReply(`Auto-sort skipped: ${data.reason || 'No sessions to sort'}`);
+      await typewriterReply(`Auto-sort skipped: ${uiModule.esc(data.reason || 'No sessions to sort')}`);
     } else {
-      const del_msg = data.deleted_empty ? ` (${data.deleted_empty} empty deleted)` : '';
-      await typewriterReply(`Sorted ${data.updated || 0} sessions into ${data.folders?.length || 0} folders${del_msg}`);
+      const del_msg = data.deleted_empty ? ` (${uiModule.esc(data.deleted_empty)} empty deleted)` : '';
+      await typewriterReply(`Sorted ${uiModule.esc(data.updated || 0)} sessions into ${uiModule.esc(data.folders?.length || 0)} folders${del_msg}`);
     }
   } else { slashReply('Auto-sort failed'); }
   return true;
@@ -1675,7 +1675,7 @@ async function _cmdSkills(args, ctx) {
     const skills = Array.isArray(data.skills) ? data.skills : [];
     if (!skills.length) { slashReply(`No skills found for "${ctx.esc(query)}".`); return true; }
     const lines = skills.map(s =>
-      ctx.esc(`/${s.name || s.id || ''}`.padEnd(24)) + ctx.esc(s.description || '')
+      ctx.esc(`/${uiModule.esc(s.name || s.id || '')}`.padEnd(24)) + ctx.esc(s.description || '')
     );
     slashReply(`<pre>${lines.join('\n')}</pre>`);
     return true;
@@ -1847,7 +1847,7 @@ async function _cmdEvent(args, ctx) {
     body: JSON.stringify(body),
   });
   if (res.ok) {
-    await typewriterReply(`Event: ${ctx.esc(parsed.rest)} — ${start.toLocaleString()}`);
+    await typewriterReply(`Event: ${ctx.esc(parsed.rest)} — ${uiModule.esc(start.toLocaleString())}`);
   } else {
     const err = await res.text().catch(() => '');
     slashReply(`Failed to create event${err ? `: ${ctx.esc(err.slice(0,200))}` : ''}`);
@@ -1909,7 +1909,7 @@ async function _cmdRagAdd(args, ctx) {
   });
   if (res.ok) {
     const data = await res.json();
-    await typewriterReply(`Indexed "${ctx.esc(dir)}" (${data.indexed_count || 0} files)`);
+    await typewriterReply(`Indexed "${ctx.esc(dir)}" (${uiModule.esc(data.indexed_count || 0)} files)`);
   } else { slashReply('Failed to add directory'); }
   return true;
 }
@@ -1990,11 +1990,11 @@ async function _cmdStats(args, ctx) {
   const res = await fetch(`${API_BASE}/api/db/stats`, { credentials: 'same-origin' });
   if (res.ok) {
     const d = await res.json();
-    slashReply(`<pre>Sessions:  ${d.sessions || '?'}
-Messages:  ${d.messages || '?'}
-Memories:  ${d.memories || '?'}
-Documents: ${d.documents || '?'}
-Uploads:   ${d.uploads || '?'}</pre>`);
+    slashReply(`<pre>Sessions:  ${uiModule.esc(d.sessions || '?')}
+Messages:  ${uiModule.esc(d.messages || '?')}
+Memories:  ${uiModule.esc(d.memories || '?')}
+Documents: ${uiModule.esc(d.documents || '?')}
+Uploads:   ${uiModule.esc(d.uploads || '?')}</pre>`);
   } else { slashReply('Failed to fetch stats'); }
   return true;
 }
@@ -2067,7 +2067,7 @@ async function _cmdCompact(args, ctx) {
   compactSpinner.destroy();
   if (res.ok) {
     const d = await res.json();
-    slashReply(`Conversation compacted. Summarized ${d.summarized || 0} older messages, kept ${d.kept || 0} recent messages.`);
+    slashReply(`Conversation compacted. Summarized ${uiModule.esc(d.summarized || 0)} older messages, kept ${uiModule.esc(d.kept || 0)} recent messages.`);
     if (sessionModule?.selectSession) await sessionModule.selectSession(ctx.sid);
   } else {
     let detail = 'Compaction failed';
@@ -5037,7 +5037,7 @@ async function _setupProviderDeviceFlow(providerKey) {
     await _setupReply('Provider not recognised.');
     return;
   }
-  await _setupReply(`Starting ${config.label} sign-in...`);
+  await _setupReply(`Starting ${uiModule.esc(config.label)} sign-in...`);
   try {
     const result = await runProviderDeviceFlow(providerKey, {
       onStart: async ({ start, authUrl }) => {
@@ -5053,7 +5053,7 @@ async function _setupProviderDeviceFlow(providerKey) {
           );
           return;
         }
-        await _setupReply(`Opening ${place} - ${action} (code ${start.user_code}). Waiting...`);
+        await _setupReply(`Opening ${uiModule.esc(place)} - ${uiModule.esc(action)} (code ${uiModule.esc(start.user_code)}). Waiting...`);
       },
       openWindow: (url) => {
         if (providerKey === 'chatgpt-subscription') return;
@@ -5062,16 +5062,16 @@ async function _setupProviderDeviceFlow(providerKey) {
     });
     if (result.status === 'authorized') {
       const n = ((result.endpoint && result.endpoint.models) || []).length;
-      await _setupReply(`Connected - ${n} ${config.label} model${n !== 1 ? 's' : ''} available.`);
+      await _setupReply(`Connected - ${uiModule.esc(n)} ${uiModule.esc(config.label)} model${n !== 1 ? 's' : ''} available.`);
       if (modelsModule) modelsModule.refreshModels(true);
       return;
     }
     if (result.status === 'failed') {
-      await _setupReply(`${config.label} sign-in failed (${result.error || 'denied'}).`);
+      await _setupReply(`${uiModule.esc(config.label)} sign-in failed (${uiModule.esc(result.error || 'denied')}).`);
       return;
     }
     if (result.status === 'expired') {
-      await _setupReply(`${config.label} sign-in expired - run /setup ${providerKey} again.`);
+      await _setupReply(`${uiModule.esc(config.label)} sign-in expired - run /setup ${uiModule.esc(providerKey)} again.`);
       return;
     }
   } catch (e) {
@@ -5105,7 +5105,7 @@ async function _cmdSetup(args, ctx) {
       // backticks for the inline code instead of <code> + &lt;&gt;.
       const _slug = (topic || '').toLowerCase();
       await _setupReply(
-        `Paste your ${provider.name} API key, or run \`/setup ${_slug} <api-key>\` to set it in one step.`
+        `Paste your ${uiModule.esc(provider.name)} API key, or run \`/setup ${uiModule.esc(_slug)} <api-key>\` to set it in one step.`
       );
     }
     return true;
@@ -5247,7 +5247,7 @@ async function _cmdShortcuts(args, ctx) {
     ['Shift+Enter', 'New line'],
   ];
   const maxKey = Math.max(...entries.map(e => e[0].length));
-  const lines = entries.map(([key, desc]) => `  ${key.padEnd(maxKey + 2)}${desc}`);
+  const lines = entries.map(([key, desc]) => `  ${uiModule.esc(key.padEnd(maxKey + 2))}${uiModule.esc(desc)}`);
   const body = await typewriterReply('Keyboard shortcuts:');
   const pre = document.createElement('pre');
   pre.style.lineHeight = '1.7';
@@ -6303,7 +6303,7 @@ async function handleSlashCommand(input) {
           _showUser();
           if (wantsHelp) {
             const usage = subDef.usage || `/${leg.parent} ${leg.sub}`;
-            slashReply(`<pre>${usage}\n${subDef.help || 'No help available.'}</pre>`);
+            slashReply(`<pre>${uiModule.esc(usage)}\n${uiModule.esc(subDef.help || 'No help available.')}</pre>`);
             return true;
           }
           return await subDef.handler(args, ctx);
@@ -6312,7 +6312,7 @@ async function handleSlashCommand(input) {
         _showUser();
         if (wantsHelp) {
           const usage = cmdDef.usage || `/${cmdKey}`;
-          slashReply(`<pre>${usage}\n${cmdDef.help || 'No help available.'}</pre>`);
+          slashReply(`<pre>${uiModule.esc(usage)}\n${uiModule.esc(cmdDef.help || 'No help available.')}</pre>`);
           return true;
         }
         return await cmdDef.handler(args, ctx);
@@ -6326,8 +6326,8 @@ async function handleSlashCommand(input) {
       if (cmdDef.subs) {
         // Show help for the whole group
         if (wantsHelp && !args.filter(a => a !== '--help' && a !== '-h').length) {
-          let lines = [`${cmdDef.help || cmdKey}`];
-          if (cmdDef.alias && cmdDef.alias.length) lines[0] += ` (aliases: ${cmdDef.alias.map(a => '/'+a).join(', ')})`;
+          let lines = [`${uiModule.esc(cmdDef.help || cmdKey)}`];
+          if (cmdDef.alias && cmdDef.alias.length) lines[0] += ` (aliases: ${cmdDef.alias.map(a => '/' + uiModule.esc(a)).join(', ')})`;
           lines.push('');
           for (const [sub, sDef] of Object.entries(cmdDef.subs)) {
             if (sub.startsWith('_')) continue; // skip internal subs like _show
@@ -6348,7 +6348,7 @@ async function handleSlashCommand(input) {
           // Help for specific subcommand
           if (wantsHelp || subArgs.includes('--help') || subArgs.includes('-h')) {
             const usage = subDef.usage || `/${cmdKey} ${subKey}`;
-            slashReply(`<pre>${usage}\n${subDef.help || 'No help available.'}</pre>`);
+            slashReply(`<pre>${uiModule.esc(usage)}\n${uiModule.esc(subDef.help || 'No help available.')}</pre>`);
             return true;
           }
           return await subDef.handler(subArgs, ctx);
@@ -6372,7 +6372,7 @@ async function handleSlashCommand(input) {
       // Flat command (no subs)
       if (wantsHelp) {
         const usage = cmdDef.usage || `/${cmdKey}`;
-        slashReply(`<pre>${usage}\n${cmdDef.help || 'No help available.'}</pre>`);
+        slashReply(`<pre>${uiModule.esc(usage)}\n${uiModule.esc(cmdDef.help || 'No help available.')}</pre>`);
         return true;
       }
       return await cmdDef.handler(args, ctx);
