@@ -1,5 +1,17 @@
 # PR Draft: fix/workspace-shell-access -> odysseus-dev/odysseus:dev
 
+> **BRANCH RETIRED (2026-08-03).** `fix/workspace-shell-access` (#47) no longer
+> exists; the fix is **folded into `develop`** (commit `d8c7fa21`) and
+> `tests/test_workspace_web_search_tools.py` passes there.
+>
+> It was held pending upstream PR **#4366**, which would have pinned
+> bash/python/web_search/web_fetch/read_file/write_file/edit_file to
+> ALWAYS_AVAILABLE system-wide. **#4366 is CLOSED and did not merge** (verified
+> 2026-08-03), so the fork fix is once again the only one, and this is worth
+> filing rather than waiting. To file: recreate a clean branch from
+> `upstream-mirror`.
+
+
 **Branch:** `fix/workspace-shell-access`
 **Issue:** [#47](https://github.com/jdmanring/odysseus/issues/47) (fork tracking, open, bash/python verified; web_search unverified)
 **Status:** Single clean commit. File upstream issue first, fill in `Fixes #___`, then open PR.

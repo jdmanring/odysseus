@@ -1,5 +1,17 @@
 # PR Draft: fix/chat-auto-scroll-threshold
 
+> **SUPERSEDED (2026-08-03).** `fix/chat-auto-scroll-threshold` (#49) no longer
+> exists. Its adaptive-threshold approach was **replaced**, not extended, by
+> `fix/chat-stick-to-bottom` (#104): a threshold cannot distinguish "the follow
+> lerp is lagging a growing stream" from "the user scrolled away", so any value
+> either breaks following or makes it unescapable. #104 replaces the inference
+> with an explicit direction-driven `isPinned` flag.
+>
+> Note that `docs/fork/active-work.md` still describes #104 as **stacking on**
+> #49. That was true when both existed; it is not now. File #104 standalone.
+> This draft is kept as the record of the approach that was tried first.
+
+
 **Title:** fix(ui): adaptive threshold for chat auto-scroll drift guard
 
 **Branch:** `fix/chat-auto-scroll-threshold` -> `odysseus-dev/odysseus:dev`

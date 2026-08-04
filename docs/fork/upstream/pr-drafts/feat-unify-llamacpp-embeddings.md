@@ -1,5 +1,14 @@
 # PR Draft: feat/unify-llamacpp-embeddings -> odysseus-dev/odysseus:dev
 
+> **BRANCH RETIRED (2026-08-03).** `feat/unify-llamacpp-embeddings` no longer
+> exists locally or on origin. The work is **on `develop`** (`src/embeddings.py`
+> carries the llama.cpp embedder; `llamacpp_embed_loaded` is its load log line).
+> It was never filed because it still needs the multi-platform install
+> verification named below. To file: recreate a clean branch from
+> `upstream-mirror`, then finish that verification. This draft is kept as the
+> record of what the change does and why.
+
+
 **Fork issue:** #TBD (add to `docs/fork/issues/`); create before branching
 **Branch:** `feat/unify-llamacpp-embeddings` (from `upstream-mirror`)
 **Target:** `odysseus-dev/odysseus:dev`

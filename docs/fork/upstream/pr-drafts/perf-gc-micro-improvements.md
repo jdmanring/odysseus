@@ -77,28 +77,25 @@ export function checkBackgroundStream(sessionId) {
 
 ## Files changed
 
-- `static/js/markdown.js`: squashOutsideCode fast path (+5 −1 lines)
-- `static/js/chat.js`: 7 highlightElement -> deferHighlightAll; purge on session switch (+3 −18 lines)
+- `static/js/markdown.js`: squashOutsideCode fast path (+8 -1 lines)
 - `tests/test_markdown_squash_js.py`: new file, 3 tests
-- `tests/test_chat_hljs_defer_js.py`: new file, 3 tests
-- `tests/test_chat_gc_hint_js.py`: +1 test
+
+**2 files, +35/-1.** This draft previously also listed `static/js/chat.js`, `tests/test_chat_hljs_defer_js.py` and `tests/test_chat_gc_hint_js.py`. That work
+was split out into `perf/hljs-deferred-highlight` (the deferHighlightAll
+migration) and `fix/qtwebengine-oilpan-gc` (the GC hint), each with its own draft,
+and this branch was narrowed to the markdown fast path alone. The file list was
+not narrowed with it; corrected 2026-08-03.
 
 ## Tests
 
-6 new static-analysis tests across 3 files:
+**3 passed**, measured 2026-08-03:
 
 **`tests/test_markdown_squash_js.py`** (new, 3 tests):
 - `test_squash_fast_path_on_no_backticks`: `includes('```')` guard present
 - `test_squash_fast_path_precedes_split`: fast path before `split()` call
 - `test_squash_code_fence_path_preserved`: split+join path still present
 
-**`tests/test_chat_hljs_defer_js.py`** (new, 3 tests):
-- `test_no_direct_highlight_element_calls`: `window.hljs.highlightElement` absent
-- `test_hljs_defer_import_present`: `import { deferHighlightAll` present
-- `test_defer_highlight_all_call_count`: >= 8 `deferHighlightAll(` calls
 
-**`tests/test_chat_gc_hint_js.py`** (+1 test):
-- `test_check_background_stream_purges_stale`: `_purgeStaleBackgroundStreams()` at top of `checkBackgroundStream`
 
 ## Target branch
 
