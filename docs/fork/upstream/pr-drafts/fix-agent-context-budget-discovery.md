@@ -2,7 +2,13 @@
 
 **Branch:** `fix/agent-context-budget-discovery`
 **Issue:** [#54](https://github.com/jdmanring/odysseus/issues/54) (fork tracking)
-**Status:** Ready to file
+**Status:** **SUPERSEDED - DO NOT FILE.** Upstream shipped this as **#4886**
+(with #4909), which pins the lazy-probe behaviour system-wide. Confirmed during
+the 2026-08-02 ingest; `pr-status.md` has carried "do not file, do not delete"
+since, while this draft still said "Ready to file" - corrected 2026-08-03.
+The branch is kept, not deleted, as the record of the fork's independent
+derivation. It also conflicts on rebase (`src/model_context.py`) and is
+deliberately not being rebased.
 
 ---
 
