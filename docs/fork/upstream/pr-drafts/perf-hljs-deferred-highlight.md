@@ -21,7 +21,7 @@ synchronously highlighting **every** `pre > code` element in a container,
 including ones far outside the viewport.
 
 Highlighting is a parse plus a DOM rewrite per block. Doing it for off-screen
-blocks is work whose result nobody sees until they scroll, if ever — and it lands
+blocks is work whose result nobody sees until they scroll, if ever - and it lands
 synchronously on the main thread at the worst moments.
 
 Four of the seven sites highlight blocks that are typically far off-screen:

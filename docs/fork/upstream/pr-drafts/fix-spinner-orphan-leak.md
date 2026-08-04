@@ -16,7 +16,7 @@
 
 ### Problem
 
-All three animated spinners run a continuous loop — whirlpool and sinewave via
+All three animated spinners run a continuous loop - whirlpool and sinewave via
 `requestAnimationFrame`, ASCII via `setInterval`. Nothing stops them if the
 element never reaches the document, or if the panel holding it closes.
 
@@ -36,8 +36,8 @@ two of them are wrong in ways that only show up in specific layouts:
 
 | check | why it fails |
 |---|---|
-| `offsetParent` | `null` for a **visible** element inside a `position: fixed` overlay — would kill spinners in every modal |
-| `isConnected` | stays `true` for `display: none` — would not stop a hidden spinner at all |
+| `offsetParent` | `null` for a **visible** element inside a `position: fixed` overlay - would kill spinners in every modal |
+| `isConnected` | stays `true` for `display: none` - would not stop a hidden spinner at all |
 | **`getClientRects().length`** | true only for rendered elements, and correct under `position: fixed` |
 
 `getClientRects().length` is the one that answers the actual question: does this

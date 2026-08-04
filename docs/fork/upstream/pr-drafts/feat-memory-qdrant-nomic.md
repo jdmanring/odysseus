@@ -1,7 +1,7 @@
 # PR Draft: feat/memory-qdrant-nomic -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/memory-qdrant-nomic`
-**Status:** **HOLD** — do not file until `feat/memory-hybrid-recall` (#172) is
+**Status:** **HOLD** - do not file until `feat/memory-hybrid-recall` (#172) is
 filed and its reception is known. This branch stacks on it.
 **Base:** cut from `upstream-mirror`, 11 commits
 
@@ -24,10 +24,10 @@ It swaps a dependency that upstream chose. A maintainer can reasonably decline i
 while accepting every other memory improvement, and that is exactly why the
 backend-independent half was split out first:
 
-- `feat/memory-hybrid-recall` (#172) — hybrid BM25 + dense recall and write-time
+- `feat/memory-hybrid-recall` (#172) - hybrid BM25 + dense recall and write-time
   supersede, **zero `qdrant`/`chroma` references**, verified green on a pure
   upstream ChromaDB tree
-- this branch — the backend swap, which stacks on it
+- this branch - the backend swap, which stacks on it
 
 Filing the swap first would put the fork's best memory work behind a dependency
 argument. Filing it *at all* only makes sense once #172 has landed or been

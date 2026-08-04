@@ -21,7 +21,7 @@ rendering paths that both depend on the element **not** being isolated:
 
 **1. Frosted sidebar.** `.sidebar` + `body.theme-frosted`'s `backdrop-filter`.
 Paint containment composites the sidebar into its own GPU layer, so
-`backdrop-filter` samples *that layer* — which is empty — instead of the
+`backdrop-filter` samples *that layer* - which is empty - instead of the
 composited scene behind the sidebar. The blur silently fails or renders wrong.
 
 **2. Transparent chat area.** `.chat-history` is transparent with
@@ -37,7 +37,7 @@ they read as theme bugs rather than a containment side effect.
 
 Use `contain: layout style` on both elements.
 
-This keeps the reason containment was added — style-recalculation scoping — while
+This keeps the reason containment was added - style-recalculation scoping - while
 dropping the paint isolation and the independent compositor layer that cause the
 two faults. It is a narrowing, not a removal.
 

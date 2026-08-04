@@ -16,7 +16,7 @@
 
 ### Problem
 
-Each editor undo snapshot holds a full-canvas `ImageData` — four bytes per pixel,
+Each editor undo snapshot holds a full-canvas `ImageData` - four bytes per pixel,
 uncompressed, per step. The undo stack therefore grows in raw bitmap terms, which
 on a large canvas is tens of megabytes for a handful of edits.
 
@@ -45,7 +45,7 @@ The skip is deliberate and worth explaining, because it is the more meaningful
 test. `tests/test_editor_undo_compression_integration.py` exercises the **real
 codec path in a real browser** over CDP: `getImageData` -> gzip -> gunzip -> new
 `ImageData` -> `putImageData` -> `getImageData`, asserting **byte-identical
-pixels** for three cases chosen to break it — photo noise, **partial alpha** (the
+pixels** for three cases chosen to break it - photo noise, **partial alpha** (the
 PNG-premultiply danger case above), and a fully transparent layer.
 
 It skips when no CDP endpoint is available, and the branch gates the live-session

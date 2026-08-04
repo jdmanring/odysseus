@@ -16,8 +16,8 @@
 
 ### Problem
 
-Seven canvas background effects — synapse, rain, constellations, perlin-flow,
-petals, sparkles, embers — repaint under the whole UI **every animation frame**
+Seven canvas background effects - synapse, rain, constellations, perlin-flow,
+petals, sparkles, embers - repaint under the whole UI **every animation frame**
 and ignore the OS reduce-motion request entirely.
 
 This is an accessibility defect first: a user who has asked the system to reduce
@@ -38,7 +38,7 @@ survives; only the animation stops.
 One choke point matters here: the login page routes through the same function, so
 gating there covers it without a second code path to keep in sync.
 
-The media query is **live** — toggling the OS setting re-applies without a
+The media query is **live** - toggling the OS setting re-applies without a
 reload, which is the behaviour a user testing the setting expects.
 
 ---

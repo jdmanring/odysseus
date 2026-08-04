@@ -21,7 +21,7 @@ every 5-7 ms. Each call allocates a holder div **and a full markdown-parsed DOM
 subtree** (`innerHTML = render(tailText)`), which is discarded immediately after
 the tail nodes are updated in place.
 
-That is 150-200 ephemeral DOM trees per second handed to Oilpan — the primary
+That is 150-200 ephemeral DOM trees per second handed to Oilpan - the primary
 ongoing GC pressure source during streaming, and the work is thrown away by
 construction.
 

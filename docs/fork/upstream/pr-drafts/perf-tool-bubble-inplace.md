@@ -17,8 +17,8 @@
 ### Problem
 
 When a tool call completes, the handler replaced the tool bubble's entire
-`innerHTML`. That detaches the whole subtree — header, icon, wave animation,
-elapsed timer, content — to change what is mostly a status icon and remove two
+`innerHTML`. That detaches the whole subtree - header, icon, wave animation,
+elapsed timer, content - to change what is mostly a status icon and remove two
 spans.
 
 One detached subtree per tool call, and an agent turn can make many.
@@ -48,7 +48,7 @@ changes; the tests pin the order.
 
 **11 passed**, measured 2026-08-03. The static tests lock all four element refs
 being cached at the right point, and that the completion handler patches rather
-than replacing — including a guard that the old full-`innerHTML` replace has not
+than replacing - including a guard that the old full-`innerHTML` replace has not
 returned.
 
 One of those assertions was **corrected in this branch**:

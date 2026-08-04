@@ -1,7 +1,7 @@
 # PR Draft: perf/gc-rendertail-instrumentation -> odysseus-dev/odysseus:dev
 
 **Branch:** `perf/gc-rendertail-instrumentation`
-**Status:** Ready to file — **file BEFORE `perf/rendertail-raf-throttle`**
+**Status:** Ready to file - **file BEFORE `perf/rendertail-raf-throttle`**
 **Base:** cut from `upstream-mirror`, 2 files, +75
 
 ---
@@ -19,7 +19,7 @@
 `renderTail()` fires once per SSE token and allocates a holder div on each call,
 so the number of calls **is** a direct measure of DOM allocation pressure during
 streaming. Today that number is invisible, which means any claim about streaming
-allocation — including the companion rAF-throttle change — rests on reasoning
+allocation - including the companion rAF-throttle change - rests on reasoning
 rather than measurement.
 
 This branch adds the counter (`_rtCalls`), logged in `finalize()`. A working rAF
@@ -52,5 +52,5 @@ the zero-guard.
 
 ## Scope
 
-`static/js/streamingRenderer.js` (+9) and one test file (+66). Logging only — no
+`static/js/streamingRenderer.js` (+9) and one test file (+66). Logging only - no
 behaviour change to rendering.

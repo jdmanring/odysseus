@@ -1,7 +1,7 @@
 # PR Draft: feat/qt-native-windows-app -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/qt-native-windows-app`
-**Status:** Ready to file — **stacks on `feat/qt-native-linux-app`**, file that first
+**Status:** Ready to file - **stacks on `feat/qt-native-linux-app`**, file that first
 **Base:** cut from `upstream-mirror`, 9 files, +2044/-11
 
 ---
@@ -21,7 +21,7 @@ Odysseus as a native Windows app, hardened to parity with the Linux
 
 **Dark title bar.** The caption bar is painted by DWM, not Qt, and defaults to
 light. Qt 6 does not opt windows into dark mode, and Odysseus themes
-independently of the Windows light/dark setting — so a dark in-app theme sat
+independently of the Windows light/dark setting - so a dark in-app theme sat
 under a bright frame.
 
 Fixed with `DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE)` via ctypes
@@ -29,7 +29,7 @@ after the window is shown, keyed off **the Odysseus theme's own luminance** so
 the frame tracks the theme the user actually sees rather than the OS setting.
 Attribute 20 (Win10 20H1+/Win11) with a fallback to 19 (older Win10).
 
-**The native call is fully guarded** — any failure leaves the default light
+**The native call is fully guarded** - any failure leaves the default light
 frame. A cosmetic improvement must not be able to break window creation, so the
 worst case is the current appearance rather than an error.
 

@@ -20,7 +20,7 @@ direction: the UI claims something the system cannot deliver.
 ### 1. "Fit" rated models that cannot run at all
 
 Fit has only ever meant *fits your VRAM*. So the scan rated a research checkpoint
-— `Qwen3DSparkModel`, for which **no inference code exists anywhere** — as
+ -  `Qwen3DSparkModel`, for which **no inference code exists anywhere** - as
 `PERFECT`, and let the user download it and launch it into a guaranteed engine
 rejection.
 
@@ -31,13 +31,13 @@ servability gate so a model no engine can load is never rated runnable.
 
 The filter was applied **server-side only**, and client-synthesized Ollama rows
 (all `Q4_K_M`) were concatenated *after* filtering. So "only Q6" still returned
-`Q4_K_M` rows — a filter that silently does not filter part of its own result set.
+`Q4_K_M` rows - a filter that silently does not filter part of its own result set.
 Ollama rows now pass the same exact-tier filter.
 
 ### 3. Column sort ran the entire fetch pipeline
 
 A sort click ran localStorage parse, a ~2500-row render, a server refetch, and a
-second full render — for a **pure in-memory table operation**. Reported as
+second full render - for a **pure in-memory table operation**. Reported as
 "tremendous lag" on the Score column.
 
 The sort block is extracted to `_sortHwfitModels()`, and the click handler calls

@@ -21,7 +21,7 @@ failure, and typed `repo` where the variable is `repo_id`.
 
 So **the graceful-degradation path itself raises `NameError`**. `GET
 /api/cookbook/hf-gguf-files` returns 500 precisely when the Hugging Face API call
-fails — the one situation the handler was added to survive. The happy path is
+fails - the one situation the handler was added to survive. The happy path is
 unaffected, which is why it was not noticed: the bug only executes when something
 else has already gone wrong.
 
@@ -39,7 +39,7 @@ in `routes/`**:
 - implicit module globals (`__file__` and friends) allowed
 
 It walks each module's symbol table and flags any name that is read but never
-bound — catching exactly this class of defect statically, including in branches
+bound - catching exactly this class of defect statically, including in branches
 that never run under test.
 
 **Red-verified on the pre-fix file**: the guard fails against the original
@@ -49,7 +49,7 @@ that never run under test.
 
 ## Verification
 
-**60 passed, 2 skipped**, measured 2026-08-03 — that is the guard running across
+**60 passed, 2 skipped**, measured 2026-08-03 - that is the guard running across
 every module in `routes/`, so the coverage claim is the test count itself.
 
 ---

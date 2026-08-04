@@ -21,7 +21,7 @@ The chat renders in a monospace font by default, so the hard-coded
 at 63**.
 
 That is narrow by typographic convention. Line-length guidance for readability
-generally lands in the 66-80 character range, and 63 sits below it — while the
+generally lands in the 66-80 character range, and 63 sits below it - while the
 user's window is usually much wider, so the constraint is not coming from the
 display.
 
@@ -36,7 +36,7 @@ Persisted in `localStorage` and applied live as a `--chat-max-user` CSS variable
 that `.chat-history`'s `--chat-max` falls back from.
 
 Applied in the head boot script as well, for the same no-flash reason as the
-existing ui-scale preference — **whose pattern this mirrors exactly**, so it adds
+existing ui-scale preference - **whose pattern this mirrors exactly**, so it adds
 a preference without adding a mechanism.
 
 ### Default unchanged

@@ -18,7 +18,7 @@
 
 `const streamingTTS` is declared **inside** the `try` block and referenced in the
 `catch`. A `const` is scoped to the block it is declared in, so the reference
-throws `ReferenceError` — and it throws *inside the error handler*, on every
+throws `ReferenceError` - and it throws *inside the error handler*, on every
 stream failure: 503, network drop, user abort.
 
 The second-order effect is the damaging one. The `ReferenceError` aborts the
@@ -40,9 +40,9 @@ The branch carries **no test file**, which should be stated rather than glossed:
 the fix is a two-line scope correction and the failure was identified from
 production logs rather than a reproduction.
 
-A regression test is straightforward if wanted — a static guard that the
+A regression test is straightforward if wanted - a static guard that the
 declaration precedes the `try`, in the same shape as the suite's other
-source-assertion tests — and can be added before merge on request.
+source-assertion tests - and can be added before merge on request.
 
 ---
 

@@ -1,7 +1,7 @@
 # PR Draft: feat/qt-native-openbsd-app -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/qt-native-openbsd-app`
-**Status:** Ready to file — **stacks on `feat/qt-native-linux-app` and
+**Status:** Ready to file - **stacks on `feat/qt-native-linux-app` and
 `feat/qt-native-freebsd-app`**, file both first
 **Base:** cut from `upstream-mirror`, 1 file, +94
 
@@ -25,7 +25,7 @@ instructs the user to install from ports:
 pkg_add qt6-qtwebengine py3-pyqt6-webengine
 ```
 
-**amd64 and aarch64 only** — QtWebEngine is not available for other OpenBSD
+**amd64 and aarch64 only** - QtWebEngine is not available for other OpenBSD
 architectures, and the script says so rather than failing obscurely partway
 through.
 
@@ -48,7 +48,7 @@ that is not there.
 
 **No test files**, stated plainly: the branch is a single install script.
 
-It was **bench-verified on OpenBSD** — the app builds, launches and runs, with
+It was **bench-verified on OpenBSD** - the app builds, launches and runs, with
 the provisioning notes (`py3-qt6webengine`, `--system-site-packages`,
 `py3-python-multipart`) recorded in the fork's platform documentation.
 

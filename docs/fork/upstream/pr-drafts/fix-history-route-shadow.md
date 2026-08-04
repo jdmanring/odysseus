@@ -37,7 +37,7 @@ reads as though it pages.
 
 Remove the shadowing route. `get_session_history` already serves the no-limit
 case through its own fallback, returning the **identical** `{role, content,
-metadata}` shape — that is `ChatMessage.to_dict()` on both sides — so it fully
+metadata}` shape - that is `ChatMessage.to_dict()` on both sides - so it fully
 subsumes the removed handler.
 
 The no-limit callers (`documentLibrary`, session copy/export) are unaffected;
@@ -60,7 +60,7 @@ already exercised by the existing history tests. The shape equivalence
 by a new assertion.
 
 If a test is wanted before merge, the natural one asserts that exactly one route
-answers `GET /api/history/{sid}` and that it accepts `limit`/`offset` — say so
+answers `GET /api/history/{sid}` and that it accepts `limit`/`offset` - say so
 and it will be added.
 
 ---

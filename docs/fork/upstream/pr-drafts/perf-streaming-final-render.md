@@ -18,7 +18,7 @@
 
 When a stream completes, the `[DONE]` handler re-renders the whole message via
 `innerHTML`. For a response with no thinking blocks, no sources and no findings,
-**the streaming renderer already holds exactly the correct final content** — so
+**the streaming renderer already holds exactly the correct final content** - so
 that re-render rebuilds identical markup and detaches the entire subtree it just
 replaced.
 
@@ -34,7 +34,7 @@ and discarding a copy of it.
 
 **Four guard conditions** decide "plain" (no thinking blocks, no sources, no
 findings, and the renderer present). Any of them failing takes the existing
-full-rerender path, unchanged — the sources/findings rendering is not touched by
+full-rerender path, unchanged - the sources/findings rendering is not touched by
 this PR.
 
 **Degraded mode preserved:** if `_streamRenderer` is absent, the full re-render
@@ -47,7 +47,7 @@ on the fast path.
 
 **7 passed**, measured 2026-08-03. The static tests pin all four guard
 conditions, that `finalize()` is called before the null, that children are moved
-before `stream-content` is removed (order matters — the reverse loses them), the
+before `stream-content` is removed (order matters - the reverse loses them), the
 degraded-mode fallback, and that the existing full-rerender path is unchanged.
 
 ---

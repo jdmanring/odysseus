@@ -8,7 +8,7 @@
 
 ## Title
 
-`fix(chat): direction-based stick-to-bottom — follow reliably, release on one wheel notch`
+`fix(chat): direction-based stick-to-bottom - follow reliably, release on one wheel notch`
 
 ---
 
@@ -25,7 +25,7 @@ intent was inferred from distance-to-bottom, which cannot distinguish
 Both look like *far from the bottom*. So the threshold is unwinnable:
 
 - large enough to absorb lerp lag (`max(300, 1.5 viewports)`) makes follow
-  reliable but **unescapable** — a wheel notch moves less than the slack, and the
+  reliable but **unescapable** - a wheel notch moves less than the slack, and the
   next content growth re-pins
 - tight enough to release on a wheel notch **breaks following** mid-stream
 
@@ -36,11 +36,11 @@ submit and never cleared, it was a dead gate.
 
 Replace the inference with an explicit `isPinned` intent flag driven by scroll
 **direction**, which is unambiguous: *content growth never decreases `scrollTop`
-— only the user scrolling up does.*
+ -  only the user scrolling up does.*
 
 - **Unpin** on upward movement more than `REPIN_DISTANCE` (60px) off the bottom.
-  The epsilon keeps prune/eviction scroll compensation — which lands back at the
-  bottom — from reading as user intent.
+  The epsilon keeps prune/eviction scroll compensation - which lands back at the
+  bottom - from reading as user intent.
 - **Unpin immediately on wheel-up.** The wheel event fires *before* the scroll
   event, which wins the same-frame race against a growth re-pin.
 - **Re-pin** when the user returns within 60px of the bottom. Direction-based

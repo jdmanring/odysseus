@@ -1,7 +1,7 @@
 # PR Draft: perf/qt-psi-graduated-reclaim -> odysseus-dev/odysseus:dev
 
 **Branch:** `perf/qt-psi-graduated-reclaim`
-**Status:** Ready to file — **stacks on `feat/qt-native-linux-app`**, file that first
+**Status:** Ready to file - **stacks on `feat/qt-native-linux-app`**, file that first
 **Base:** cut from `upstream-mirror`, 11 files, +2011/-11
 
 **Supersedes `perf/renderer-memory-reclaim`**, which was a strict subset (zero
@@ -29,7 +29,7 @@ supposed to bound it **did nothing**. Measured live over CDP:
 
 The wrapper's idle, periodic and focus-loss triggers were all calling the
 no-op, while `gc()` touched only the ~43 MB JS pool. So the renderer reached 5+
-GB with panels open and nothing in the code was obviously wrong — the API being
+GB with panels open and nothing in the code was obviously wrong - the API being
 called simply has no effect in this embedder.
 
 That is the core finding, and it was only reachable by measuring both calls
@@ -51,15 +51,15 @@ Two further corrections that are easy to get wrong and are worth reviewing:
   move, so a walk-away filled RAM. A repeating sustained-idle timer bounds memory
   regardless of whether the user returns.
 - **The idle threshold must be a real away-gap.** At 3 s it fired during ordinary
-  reading pauses, and the purge blocks the renderer ~1 s — landing on a click, or
+  reading pauses, and the purge blocks the renderer ~1 s - landing on a click, or
   dropping a mid-drag mouseup, left Chromium's left-button state stuck. Default
   is now 60 s, the W3C/WICG Idle Detection API's own minimum for calling a user
   idle, rather than a guessed number.
 
 ### Why the PSI core was extracted
 
-`qt_psi.py` pulls the PSI detection logic — parse, level mapping, the three-arm
-notify FSM, meminfo reads, the daemon monitor and event cell — out of
+`qt_psi.py` pulls the PSI detection logic - parse, level mapping, the three-arm
+notify FSM, meminfo reads, the daemon monitor and event cell - out of
 `qt_wrapper.py`. None of it needed Qt, but living beside module-level PyQt
 imports made it **unimportable in the server venv**, so its tests were not
 running. Extraction is what makes the detection logic testable at all.

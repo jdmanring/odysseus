@@ -34,7 +34,7 @@ decode near-viewport and off the main thread.
 
 - gallery **main** grids are already lazy
 - chat images are DOM-virtualized, so they are already bounded
-- focus, detail and lightbox images stay **eager** — lazy there would defer the
+- focus, detail and lightbox images stay **eager** - lazy there would defer the
   image the user just clicked, which is the one image that must not wait. That
   exclusion is guarded by a test rather than left to convention.
 

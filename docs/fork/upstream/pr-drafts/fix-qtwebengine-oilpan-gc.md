@@ -16,7 +16,7 @@
 
 ### Problem
 
-Embedded Chromium environments — PyQt, Electron, native wrappers — **do not
+Embedded Chromium environments - PyQt, Electron, native wrappers - **do not
 receive the OS memory-pressure signals** that prompt a regular browser to collect.
 So the garbage produced by a long streaming response can sit uncollected for far
 longer than it would in a tab, and the host process holds the memory.
@@ -33,7 +33,7 @@ Hint a GC after a response completes, feature-detected so it is a no-op where
 **The `_gcPending` guard is the substance.** An async major GC
 (`gc({ type: 'major', execution: 'async' })`) runs incrementally over 3-6
 seconds. Without a guard, a user who sends another message inside that window
-stacks a second cycle on top of the first — turning a memory optimisation into
+stacks a second cycle on top of the first - turning a memory optimisation into
 competing incremental collections during the next response, which is worse than
 doing nothing.
 

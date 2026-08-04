@@ -1,7 +1,7 @@
 # PR Draft: feat/qt-native-freebsd-app -> odysseus-dev/odysseus:dev
 
 **Branch:** `feat/qt-native-freebsd-app`
-**Status:** Ready to file — **stacks on `feat/qt-native-linux-app`**, file that first
+**Status:** Ready to file - **stacks on `feat/qt-native-linux-app`**, file that first
 **Base:** cut from `upstream-mirror`, 3 files, +272
 
 ---
@@ -26,12 +26,12 @@ actually install.
 - `tooling/verify_memory_stack.py`, run at install time, so a broken memory stack
   is reported during install rather than discovered later as silently degraded
   recall.
-- `pkill`/`pgrep` `FileNotFoundError` guards in `qt_wrapper.py` — those binaries
+- `pkill`/`pgrep` `FileNotFoundError` guards in `qt_wrapper.py` - those binaries
   are not where the Linux path assumes.
 
 ### A limitation stated in the branch rather than hidden
 
-**`fastembed` does not work on FreeBSD** — a numpy pin conflicting with
+**`fastembed` does not work on FreeBSD** - a numpy pin conflicting with
 `py-rust-stemmers` and `mmh3` source builds. Memory runs **keyword-only** there.
 
 That is documented in the build script rather than left for a user to discover
@@ -40,7 +40,7 @@ thing from one that does not.
 
 ### Also in this branch
 
-`fix(install): ASCII-only verifier output` — the em-dash in the verifier's output
+`fix(install): ASCII-only verifier output` - the em-dash in the verifier's output
 mangled on the Windows console. Install-time output has to survive every console
 it might be read on.
 

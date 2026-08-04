@@ -27,7 +27,7 @@ The chain is four unremarkable things that only combine under reduce-motion:
    z-index write starts a 10µs transition.**
 2. The modal auto-promote `MutationObserver` guards against re-entry by
    comparing the **computed** `z-index` with what it just wrote.
-3. During a transition, the computed value stays at the stylesheet value — so
+3. During a transition, the computed value stays at the stylesheet value - so
    the guard never matches.
 4. The observer storm runs as **microtasks**, and document time is frozen while
    the microtask queue drains, so the 10µs transition never completes.
@@ -55,7 +55,7 @@ renderer crash.
 Diagnosed on the macOS Tahoe bench with Reduce Motion enabled:
 `Debugger.pause` caught `_promote`/observer as the busy stack, and a `[PMV]`
 trace showed the computed value pinned at `cur=260` while the internal
-`_zCounter` climbed freely — the guard comparing two values that could never
+`_zCounter` climbed freely - the guard comparing two values that could never
 converge.
 
 After the fix, Cookbook opens on that bench and renderer RSS is stable.

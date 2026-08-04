@@ -16,8 +16,8 @@
 
 ### Problem
 
-The downloaded check was reimplemented inline at **every render site** — the
-downloaded dot, the card greying, the serve gate, the row re-mark — with rules
+The downloaded check was reimplemented inline at **every render site** - the
+downloaded dot, the card greying, the serve gate, the row re-mark - with rules
 that had drifted apart. Most matched on the catalog name only, so a model held on
 disk under a community quant's name did not register as downloaded at some
 surfaces and did at others.
@@ -33,7 +33,7 @@ appears, which is the only thing that keeps this from re-fragmenting.
 
 **2. Base-name matching for discovered quants.** Discovered catalog models carry
 no `gguf_sources`, so a community quant shares only the base name with the
-catalog entry — `leafspark/Llama-3.2-11B-Vision-Instruct-GGUF`,
+catalog entry - `leafspark/Llama-3.2-11B-Vision-Instruct-GGUF`,
 `nvidia/Qwen3-30B-A3B-NVFP4`, `org/Model-AWQ-4bit`. A quant/format-stripped
 base-name fallback makes those register. **Verified against the real on-disk
 download set**, with a length floor and distinct-base tests guarding against
