@@ -1,14 +1,13 @@
 """The test suite must not leave its temp files or directories behind in /tmp.
 
-Every temp database was created with ``delete=False`` and never unlinked, by 20
-test modules and the shared helper. On a developer machine that is a slow leak;
-on one where /tmp is a RAM-backed tmpfs it is a real resource loss, and it was
-measured at 3,790 files / 2.06 GB accumulated over two weeks, which starved the
-Playwright suite of memory until unrelated tests began failing with
-"Page crashed".
+Every temp database is created with ``delete=False`` and never unlinked, by 20
+test modules and the shared helper: 29 databases per full-suite run, growing
+without bound. On a developer machine that is a slow leak; where /tmp is a
+RAM-backed tmpfs it is real memory loss, and it starved the Playwright suite
+until unrelated tests began failing with "Page crashed".
 
-Measured the same day: 67,496 orphaned directories from module-level mkdtemp,
-which dwarfed the database count.
+Directories leak the same way and are not cleaned either: 23 per full-suite
+run, from 8 module-level mkdtemp sites and 3 in-test allocations.
 
 These tests pin the properties that keep it fixed: allocation registers the
 path, cleanup removes the file (with its sqlite sidecars) or the whole directory
@@ -123,7 +122,7 @@ def test_no_test_module_hand_rolls_a_temp_database():
 
 
 def test_temp_dir_is_registered_and_removed_with_its_contents():
-    """Directory leaks dwarfed the database leak: 67,496 orphaned dirs."""
+    """Directories leak the same way: 23 per full-suite run, never removed."""
     d = temp_cleanup.temp_dir(prefix="odysseus-cleanup-test-")
     temp_cleanup._TEMP_PATHS.remove(d)
     with open(os.path.join(d, "a.txt"), "w") as fh:

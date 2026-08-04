@@ -19,16 +19,20 @@
 ### Problem
 
 The suite creates file-backed sqlite databases and temp directories and removes
-neither. Measured on one developer machine over about two weeks of running it:
+neither.
 
-| resource | count | source |
+**Per full-suite run** (`tests/`, excluding `tests/bench`), which is the
+reproducible figure:
+
+| resource | leaked per run | source |
 |---|---|---|
-| `tmp*.db` | 3,790 (2.06 GB) | 20 modules + `tests/helpers/sqlite_db.py` |
-| `tmp*/` directories | 67,496 | 8 module-level `mkdtemp`, 3 in-test |
-| `odysseus_*` data dirs | 282 | module-level `mkdtemp` with a prefix |
+| `tmp*.db` | 29 | 20 modules + `tests/helpers/sqlite_db.py` |
+| `tmp*/` directories | 23 | 8 module-level `mkdtemp`, 3 in-test |
+| `odysseus_*` data dirs | 8 | module-level `mkdtemp` with a prefix |
 
-Those counts are one machine's usage pattern, not a claim about anyone else's.
-The per-run figures below are the reproducible part.
+Nothing removes any of them, so the count grows without bound across runs.
+
+These are per-run and reproducible with the command below.
 
 ### Why it is worth fixing
 
