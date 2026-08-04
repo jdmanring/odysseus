@@ -130,10 +130,19 @@ Three things that make the difference between a finding and a false finding:
 - **Verify by node count, not exit status.** `update` silently refuses a rebuild
   yielding fewer nodes than the last one, so an ignore-file edit can look applied
   while you query the old graph.
-- **A zero in the coverage check may mean the convention differs.**
-  `_buildEditor()` (82 edges) showed zero test files; six editor test files exist
-  and assert `galleryEditor.js` by source text rather than naming the symbol.
-  Read the tests before reporting a zero.
+- **Get the caller count before calling a zero a coverage inversion.** Degree is
+  undirected, so it conflates fan-in with fan-out and only fan-in makes a test
+  worth writing. `_buildEditor()` scored 82 edges with zero test files, which
+  reads as a gap; it is a 659-line DOM constructor with **one** caller
+  (`openEditor`, already wrapped in `try/catch` with a user-visible error), so
+  its edges are the widgets it builds. Contrast `llm_call_async()` — 12 lines,
+  97 edges, ~40 callers across 27 files. Pre-filter on edges over function
+  length: high degree on a short function is fan-in by construction.
+- **A zero may also mean the test convention differs.** The frontend is covered
+  by source-assertion `*_js.py` tests that assert file text rather than naming
+  the symbol, so a name-count zero is not evidence of absence. Two test files
+  assert `galleryEditor.js` (six have `editor` in the filename, but four cover
+  other editors). Read the tests before reporting a zero.
 
 Then hand each hub you care about to the semantic index
 (`mcp__serena__find_referencing_symbols`) for its **caller set**. The graph ranks
