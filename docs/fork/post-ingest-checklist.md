@@ -2,6 +2,17 @@
 
 Run this after an upstream ingest merge lands on `develop`. Fork-only.
 
+> **Running the pipeline itself:** `docs/dev/git-branch-workflow.md` says to check
+> out `integration` first, but `integration` does not contain
+> `tooling/sync-upstreams/upstream_ingest_pipeline.py`, and the script resolves the
+> repo from `__file__` so it cannot be run from outside the tree. Until #180 is
+> fixed: `git checkout integration`, then
+> `git show develop:tooling/sync-upstreams/upstream_ingest_pipeline.py >
+> tooling/sync-upstreams/upstream_ingest_pipeline.py`, run it, then delete the
+> untracked copy before switching back. Note also that `_restore_protected_files`
+> is dormant for the same reason, so **check the four `PROTECTED_FILES` by hand**
+> if upstream touched any of them.
+
 The pipeline itself (`docs/dev/git-branch-workflow.md`) covers getting upstream's
 commits onto `integration` and then `develop`. This covers what has to happen
 *after* that, to the ~100 staged contribution branches and the records that
