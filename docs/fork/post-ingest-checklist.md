@@ -2,6 +2,12 @@
 
 Run this after an upstream ingest merge lands on `develop`. Fork-only.
 
+> **Before anything: `git fetch origin && git checkout integration && git reset
+> --hard origin/integration`.** A local `integration` that has drifted from origin
+> will let the pipeline promote onto the wrong base, and the result looks
+> successful. See #180, where exactly that happened and only a rejected push
+> prevented it from overwriting the real branch.
+>
 > **Running the pipeline itself:** `docs/dev/git-branch-workflow.md` says to check
 > out `integration` first, but `integration` does not contain
 > `tooling/sync-upstreams/upstream_ingest_pipeline.py`, and the script resolves the
