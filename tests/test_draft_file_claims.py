@@ -33,6 +33,14 @@ def test_branch_header_unbolded():
     assert branch_of("Branch: `fix/a-thing`") == "fix/a-thing"
 
 
+def test_branch_header_is_found_below_a_title():
+    # Every other fixture here puts the header on line 1, so dropping re.M from
+    # BRANCH_RE passed all of them -- while returning None for all 99 real
+    # drafts, which start with a title. That is the exact "0 problems" failure
+    # this module exists to prevent, reproduced by its own test suite.
+    assert branch_of("# PR Draft: fix/a-thing\n\n**Branch:** `fix/a-thing`\n") == "fix/a-thing"
+
+
 def test_branch_header_absent_is_none():
     # Must be None rather than a guess: the caller reports it as a named skip.
     assert branch_of("# A draft with no header\n\nSome prose.") is None
