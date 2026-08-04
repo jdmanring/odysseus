@@ -99,7 +99,8 @@ network I/O paths).
 
 **Method:** `git log --no-merges -p | git patch-id --stable` per side, two
 processes. Re-run after every ingest; the naive per-commit form would be ~95,000
-subprocesses on this repo.
+subprocesses on this repo. This audit is step 3 of
+`docs/fork/post-ingest-checklist.md`, which carries all seven post-merge checks.
 
 **PR drafts:** #172, #173, #174, #175 written (#174 also has an upstream issue draft). #176 not yet.
 
