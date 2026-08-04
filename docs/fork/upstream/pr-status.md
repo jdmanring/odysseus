@@ -61,6 +61,25 @@ that the ingest merge dropped, so there is nothing to send back. Method:
 `git log --no-merges -p | git patch-id --stable` in batch mode, two processes.
 Re-run it after any large ingest.
 
+### Supersession verdicts expire
+
+A branch marked "superseded by upstream PR #N" is only superseded while #N is
+open or merged. **When #N closes unmerged, our branch becomes the only fix and
+should be filed.** Verified 2026-08-03 against every such claim here:
+
+| cited | state | consequence |
+|---|---|---|
+| #1629 | MERGED | supersession holds |
+| #2418 | **CLOSED** | `fix/streamingtts-scope` is fileable again — corrected above |
+| #2930 | MERGED | holds (it is the origin of #174's helper) |
+| #4661 | **CLOSED** | already recorded: the fork's memory implementation is the only one |
+| #5290 | MERGED | holds |
+| #4886 | is an ISSUE, not a PR, CLOSED, titled "Wrong context_length from OpenRouter endpoint" | the citation for `fix/agent-context-budget-discovery` **needs re-deriving**; the lazy-probe behaviour IS in the mirror (17 hits in `agent_loop.py`), so the conclusion may be right and the reference wrong |
+
+Re-run this check after every ingest. `gh pr view <n> --repo odysseus-dev/odysseus
+--json state` settles each one in a second, and a stale verdict costs a
+contribution that upstream never received.
+
 ### Staged-branch inventory, 2026-08-03 (post-ingest)
 
 105 non-trunk branches. **91 are rebased onto the current `upstream-mirror`**
@@ -180,7 +199,7 @@ been pushed (`fix/cookbook-hf-gguf-repo-nameerror`, `fix/history-route-shadow`,
 | `fix/pytest-timeout-dependency` | [#6](https://github.com/jdmanring/odysseus/issues/6) | Bug | Ready to file; see pr-drafts/ |
 | `fix/searxng-json-docs` | [#8](https://github.com/jdmanring/odysseus/issues/8) | Bug/Docs | Ready to file: see pr-drafts/ |
 | `fix/basicsr-python314-compat` | [#9](https://github.com/jdmanring/odysseus/issues/9) | Bug | Ready to file: single squashed commit. PR #3741 covers the Serve panel only; this PR also covers the Dependencies tab (`shell_routes.py`) and adds inline POSIX abort. File upstream issue first (draft in issue-drafts/). See pr-drafts/ |
-| `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Bug | Superseded: upstream PR #2418 makes the same hoist fix, also restores abort message rendering (broader scope), and has a test. Do not file. Delete branch once #2418 merges into upstream-mirror. |
+| `fix/streamingtts-scope` | [#11](https://github.com/jdmanring/odysseus/issues/11) | Bug | **FILE IT — the supersession expired.** Upstream PR #2418 (same hoist fix) is **CLOSED, not merged** (verified 2026-08-03), and `upstream-mirror` still carries `const streamingTTS` inside the try block. Our fix is again the only one. The earlier "superseded, do not file" verdict was correct while #2418 was open and became wrong when it closed. Delete branch once #2418 merges into upstream-mirror. |
 | `refactor/assets-move` | [#19](https://github.com/jdmanring/odysseus/issues/19) | Refactor | Ready to file; see pr-drafts/ |
 | `fix/tool-result-role` | [#4](https://github.com/jdmanring/odysseus/issues/4) | Bug | **Do not file: superseded by upstream #1629, branch deleted (2026-06-18).** #1629 wraps tool results via `untrusted_context_message()` as guarded `role: user` messages, so they stay inline and never collapse into `system_parts` (verified on develop). The fork's code path is dead. Draft marked SUPERSEDED. |
 | `fix/dom-oom-virtualization` | [#2](https://github.com/jdmanring/odysseus/issues/2) | Bug | **More-complete alternative to open upstream PR #4661, with an independent architecture** authored nine days before #4661 opened (plan Part 1.2 is the settled provenance framing, use it verbatim, everywhere). Ours adds bidirectional scroll-up and releases StreamRenderer/IntersectionObserver/hljs-defer refs; #4661 is smaller. Offer on merits, acknowledging #4661 as parallel work on the same problem. Branch contamination (PR-draft .md) removed. **Plan: `docs/fork/plans/dom-oom-virtualization-upstream-plan.md`, its Part 4.5 is mandatory: the server-paging fold must carry the #129 chIdx-retag fix (`ac18291a`) and its regression test, or the filed PR ships a measured unbounded-DOM defect. Fork #129 stays open until this PR is filed.** **Wipe-guard completeness ([#164](https://github.com/jdmanring/odysseus/issues/164)):** #2's `reset()`-before-wipe invariant was missing at four clear paths (`createDirectChat`/New Chat, `_cmdSessionClear`/`/clear`, `_arcPeekOpen`/archived-view, group-chat start), a restored session left `_serverTotal` alive so the header showed a stale "New Chat · N msgs". A repo-wide sweep of every `getElementById('chat-history')` acquisition confirmed the set. Fixed on the branch (`e82945fe`), cherry-picked to develop, with source-assertion guard `tests/test_chat_history_reset_before_wipe_js.py`. Folds into #2: no separate PR. |
