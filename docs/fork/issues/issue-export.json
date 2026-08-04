@@ -6487,5 +6487,101 @@
   ],
   "title": "Tool payloads are pretty-printed before truncation, so real data is cut off to make room for whitespace",
   "body": "## Problem\n\nThree places serialize a payload with `json.dumps(..., indent=2)` and feed the\nresult to the model, then truncate it at a character cap. The indentation is\npure whitespace: it costs tokens, tells the model nothing, and eats the budget\nthat would otherwise carry real data.\n\n| site (`upstream-mirror`) | cap | what it carries |\n|---|---|---|\n| `src/tool_execution.py:1033` | 8000 chars | the `extra` payload of every tool result (events, tasks, notes, documents, attachments) |\n| `src/integrations.py:475` | 12000 chars | HTTP integration response bodies |\n| `src/tools/system.py:714` | 4000 chars | API-call preview |\n\n## This is data loss, not a cost nicety\n\nMeasured with `tiktoken` (`cl100k_base`) on payload shapes these formatters\nactually surface:\n\n| payload | `indent=2` | compact | saving |\n|---|---:|---:|---:|\n| calendar events (40) | 3584 tok | 2499 tok | **30.3%** |\n| memories (40) | 2578 tok | 1613 tok | **37.4%** |\n| tasks (40) | 2449 tok | 1443 tok | **41.1%** |\n| nested report (non-uniform) | 119 tok | 58 tok | **51.3%** |\n\nAgainst the 8000-char cap in `format_tool_result`:\n\n```\ncalendar events (40)   indent=2  9905 chars  TRUNCATED  |  compact  6937  fits\nmemories (40)          indent=2  8182 chars  TRUNCATED  |  compact  5534  fits\ntasks (40)             indent=2  7449 chars             |  compact  4481\n```\n\nSo a 40-event calendar query is **cut off mid-JSON today** and is not cut off\nonce the whitespace is gone. The model receives a truncated structure plus a\n\"... (truncated)\" note, and answers from partial data. Two of four realistic\npayloads cross the cap purely on indentation.\n\n`src/integrations.py` is the sharpest case, because it already does careful\nwork that the encoding then undermines: it binary-searches for the largest\narray prefix that fits the cap, so it truncates at item boundaries rather than\nmid-object. That is a good design. Feeding it pretty-printed input just means\nit fits ~30-40% fewer items than it could.\n\n## Fix\n\nSerialize compactly: `json.dumps(obj, separators=(\",\", \":\"), ...)`.\n\nBit-exact lossless — verified `json.loads(compact) == original` on every case\nabove. No new dependency, no format change the model has to learn: it is the\nsame JSON, and models parse minified JSON without difficulty (it is most of\ntheir training data).\n\n## Deliberately not proposed here\n\nA token-oriented format such as TOON, which reaches 52-62% on the uniform\narrays above. Two reasons to keep it separate: it is a new dependency and a\nformat change, and it is **not** uniformly better -- on the `tasks` payload,\nwhose rows carry a `tags` list, it fell out of the tabular form and scored\n24.8% against compact JSON's 41.1%. Worth its own measurement against the real\nlibrary rather than folding into a one-line whitespace fix.\n\n## Measurement provenance\n\n`tiktoken` `cl100k_base`, four payload shapes built to match what\n`_FORMATTER_HANDLED_KEYS` leaves in `extra`. The TOON figures cited above came\nfrom a ~60-line local approximation, not the published library, and are\nindicative only; the compact-JSON figures are exact and reproduced by the test\nadded with the fix.\n\n---\n\n> **FIXED 2026-08-04** on `fix/compact-json-for-model-payloads` (`8be59552`),\n> cherry-picked to develop as `896f6c2b` (patch-id `155bbe75`, identical).\n>\n> All three sites now use `separators=(\",\", \":\")`. The five `json.dumps` calls\n> in `integrations.py` moved together, because the binary search has to measure\n> the encoding it emits; on a 400-event response it now fits 69 items in 11845\n> chars where it managed 53.\n>\n> `tests/test_model_payload_encoding.py` (8 tests) asserts on the emitted\n> string and drives the real `execute_api_call`. Six mutations verified to\n> fail, including both halves of a measure/emit mismatch — which parsing alone\n> does NOT catch, since a pretty-printed body still parses and still reports\n> the right item count. That gap was found by running the mutations, not by\n> reading the test.\n>\n> Correction to the plan stated when this was filed: the under-fill bound was\n> first set by guess at 9000 chars, and the mutant slipped through by 109. It\n> is now derived from both measurements (correct 11845, mutant 9109).\n>\n> Full suite 4797 passed, 1 skipped on the branch. Stays OPEN: upstream-candidate\n> issues close when the PR is filed, not when the fix lands."
+ },
+ {
+  "number": 191,
+  "state": "OPEN",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-08-05T00:30:00Z",
+  "url": null,
+  "labels": [
+   {
+    "color": "d73a4a",
+    "description": "",
+    "id": "",
+    "name": "bug"
+   },
+   {
+    "color": "0e8a16",
+    "description": "",
+    "id": "",
+    "name": "upstream-candidate"
+   },
+   {
+    "color": "c5def5",
+    "description": "",
+    "id": "",
+    "name": "ux"
+   }
+  ],
+  "title": "Login picks a random background pattern, discarding the theme map written for it",
+  "body": "## Problem\n\n*Line numbers against `upstream-mirror` (`fb8c391a`); `static/login.html` is\nbyte-identical on `develop`.*\n\n`static/login.html` goes to real lengths to look like the app the user just\nleft: it reads the saved theme from `localStorage` and replays the base palette\nplus thirteen advanced overrides, keyed to the same `ADV_KEYS` map the main app\nuses (`:26-57`).\n\nThen it throws away the one property the user would actually notice moving:\n\n```js\n// :68\nvar PATTERNS = ['dots','synapse','rain','constellations','petals','sparkles','embers'];\nvar pattern = PATTERNS[Math.floor(Math.random() * PATTERNS.length)];\n```\n\nThe background pattern is **randomised on every page load**. A user whose theme\nis `terminal` gets petals; a user on `cute` gets embers.\n\n## The map it should be reading already exists and is dead\n\n```js\n// :15-20\nvar THEME_DEFAULT_PATTERN = {\n  dark:'none', light:'dots', midnight:'rain', paper:'dots',\n  cyberpunk:'synapse', retrowave:'embers', forest:'petals',\n  ocean:'constellations', terminal:'perlin-flow', organs:'rain',\n  ume:'petals', cute:'sparkles'\n};\n```\n\n`grep -n THEME_DEFAULT_PATTERN static/login.html` returns **exactly one line**:\nits own definition. It is never read.\n\nIts sibling `THEME_DEFAULT_EFFECT_COLOR` **is** read, on the very next line\n(`:69`), which is what makes this look like a refactor casualty rather than a\ndecision.\n\n## Fix\n\nPrefer the user's saved `bgPattern`, fall back to the map:\n\n```js\nvar pattern = (t && t.bgPattern) || THEME_DEFAULT_PATTERN[name] || 'dots';\n```\n\nOne caveat the current code documents and the map does not honour: the comment\nat `:66` excludes `perlin-flow` as \"too visually intense for a login screen\",\nwhile `THEME_DEFAULT_PATTERN.terminal` is `perlin-flow`. Decide which wins\nbefore wiring it, rather than reintroducing the thing the comment excluded.\n\nFound by a design review of the login surface, 2026-08-04. Verified by reading\nthe file, not by the reviewer's report."
+ },
+ {
+  "number": 192,
+  "state": "OPEN",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-08-05T00:30:00Z",
+  "url": null,
+  "labels": [
+   {
+    "color": "d73a4a",
+    "description": "",
+    "id": "",
+    "name": "bug"
+   },
+   {
+    "color": "0e8a16",
+    "description": "",
+    "id": "",
+    "name": "upstream-candidate"
+   },
+   {
+    "color": "5319e7",
+    "description": "",
+    "id": "",
+    "name": "privacy"
+   },
+   {
+    "color": "0e8a16",
+    "description": "",
+    "id": "",
+    "name": "accessibility"
+   }
+  ],
+  "title": "Login \"remember me\" is on by default, writes the username to localStorage, and has no visible label",
+  "body": "## Problem\n\n*Line numbers against `upstream-mirror` (`fb8c391a`).*\n\n```html\n<!-- :267 -->\n<input type=\"checkbox\" class=\"remember-check\" id=\"remember\" checked aria-label=\"Remember me\">\n<span class=\"remember-dot\" aria-hidden=\"true\"></span>\n```\n\nThree facts together:\n\n1. It is **`checked` by default**.\n2. When checked, the username is persisted to `localStorage` (`:474`).\n3. The only thing a sighted user sees is a **10x10px unlabelled dot inside the\n   username field**. There is no visible text label anywhere. The sole\n   explanation is a `title` attribute on the wrapping label (`:266`), which\n   never appears on touch and never for keyboard users.\n\nSo a privacy-affecting setting is on by default and is controlled by an\naffordance that is not discoverable by looking at it.\n\n## Who this fails\n\nThe user on a shared machine who wants their username not to persist. They\ncannot find the control, because from their point of view there isn't one.\n\n## What the file gets right, and why that makes this odd\n\nThe same block is *deliberately* accessible in other respects, with a comment\nexplaining it: the checkbox is opacity-hidden rather than `display:none`\nspecifically to keep it in the tab order and the accessibility tree (`:206-213`),\nand there is a focus ring on the adjacent dot (`:214-216`). The accessible name\nexists (`aria-label`). The **visual** label is the thing that was never added.\n\n## Fix\n\nPromote it to a labelled row below the password field: a real checkbox with\nvisible \"Remember my username\" text, and default **off**. A privacy default the\nuser cannot see is not a default.\n\nIf the inline treatment has to stay for layout reasons, it still needs visible\ntext; `title` is not a label.\n\nRelated but separate, same block: `.pw-toggle` carries `tabindex=\"-1\"` (`:275`,\n`:284`), so a keyboard user cannot reach the password-reveal control at all. The\nmobile focus-stealing concern that motivates it is already handled by the\n`touchstart` preventDefault at `:551-557`. Worth fixing in the same pass, or\nfiling separately if that reading is wrong."
+ },
+ {
+  "number": 193,
+  "state": "OPEN",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-08-05T00:30:00Z",
+  "url": null,
+  "labels": [
+   {
+    "color": "d73a4a",
+    "description": "",
+    "id": "",
+    "name": "bug"
+   },
+   {
+    "color": "0e8a16",
+    "description": "",
+    "id": "",
+    "name": "upstream-candidate"
+   },
+   {
+    "color": "c5def5",
+    "description": "",
+    "id": "",
+    "name": "ux"
+   }
+  ],
+  "title": "Login shows raw fetch errors, cannot distinguish \"server is down\" from \"wrong password\", and shifts the layout when it speaks",
+  "body": "## Problem\n\n*Line numbers against `upstream-mirror` (`fb8c391a`).*\n\nThree error paths each render whatever they caught, verbatim:\n\n```js\n// :420 (TOTP), :463 (account creation), :522 (login)\nerrEl.textContent = err.message;\nerrEl.style.display = 'block';\n```\n\nFor an HTTP failure that is the server's `detail`, which is fine. For a\n**network-level** rejection it is the browser's own string, so the user sees:\n\n```\nFailed to fetch\n```\n\nOn a local-first application the most likely cause of that is **the user's own\nOdysseus server is not running**. \"Failed to fetch\" does not say so, and to a\nnon-technical reader it reads like their data went somewhere and got lost.\nThere is no retry, and nothing distinguishes it from a wrong password.\n\n## It also moves the page\n\n`.error` is `display: none` with no reserved space (`:182`). On failure the\nelement appears, the card grows, and every field plus the submit button jumps\ndownward, out from under the pointer, at exactly the moment the user is about to\nclick again.\n\n## Fix\n\nA rejected `fetch` throws `TypeError` and never reached the server; an HTTP\nerror was thrown by the page itself with a server-supplied message. That is\nenough to tell them apart:\n\n```js\nfunction showError(err) {\n  errEl.textContent = '';\n  if (!(err instanceof TypeError)) { errEl.textContent = err.message || 'Login failed'; return; }\n  errEl.textContent = \"Can't reach the Odysseus server.\";\n  // + hint: \"Nothing left this machine. Start Odysseus and try again.\"\n  // + a Retry button that resubmits the form\n}\n```\n\nand keep `.error` permanently in flow with a `min-height`, using emptiness\nrather than `display` to hide it, so nothing moves.\n\n**Note for whoever implements this:** the `min-height` alone does not work.\nThere are **seven** inline `errEl.style.display` assignments in the file, and\nany one of them overrides the reservation and reinstates the jump. They all have\nto become `errEl.textContent = ''`. A prototype that changed only the CSS looked\ncorrect and fixed nothing.\n\nPrototyped and behaviourally verified (both branches, plus the retry clearing\nthe error and resubmitting) 2026-08-04; not yet applied to a branch."
  }
 ]
