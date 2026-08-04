@@ -62,8 +62,23 @@ fork-only (`fork/`, `backup/`, `sync/`, `preingest`), so they are not filing
 candidates. **None of the 91 has been superseded by the ingest** — no staged
 branch's commits are already in upstream by patch-id.
 
-**Draft coverage: 58 of 91 have a PR draft, 33 do not.** The 33 are listed in
-`docs/fork/issues/` #177. Two are covered under a different filename
+**Draft coverage: 89 of 89 rebased branches now have a PR draft** (2026-08-03).
+Two branches were deleted rather than drafted: `test/upstream-pr-4366` (snapshot
+of a CLOSED upstream PR) and `perf/renderer-memory-reclaim` (strict subset of
+`perf/qt-psi-graduated-reclaim`: zero unique commits). Both preserved under
+`refs/deleted/`.
+
+Every draft carries a test count **run on 2026-08-03**, not one recalled from a
+commit message. Five branches have no test files and say so explicitly rather
+than implying coverage. Three branches were RED when measured and were fixed
+first, all three being stale source-assertion tests rather than regressions:
+`perf/qt-psi-graduated-reclaim` (2), `feat/qt-native-macos-app` (1).
+
+Filing-order dependencies recorded in the drafts: the four platform wrappers and
+both reclaim branches stack on `feat/qt-native-linux-app`;
+`perf/gc-rendertail-instrumentation` must precede `perf/rendertail-raf-throttle`
+so the counter exists to demonstrate the throttle; `feat/memory-qdrant-nomic` is
+marked **HOLD** behind #172. Two are covered under a different filename
 (`fix/gguf-quality-scored` -> `feat-gguf-discovery.md`,
 `fix/test-temp-db-leak` -> `fix-test-temp-file-leak.md`).
 
