@@ -41,7 +41,10 @@ and a 2-commit branch tries to replay ~1,900 commits. Use
 | `fix/model-context-org-prefix` | **NEW branch (#173)**, staged 2026-08-03. We are ahead of upstream: their longest-key rule lets `moonshot` (len 8) beat `kimi-k2` (len 7) by matching the ORG portion of `moonshotai/kimi-k2.6`, budgeting 128k for a model served at 256k. Basename-weighted scoring fixes it. 3 regression tests, the two org-prefix ones mutation-checked against the old implementation. |
 | `fix/dom-oom-virtualization`, `feat/aria2c-downloader` | Re-converged 2026-08-03 (`9f415298`, `8e1c18a8`). Guard #131 caught `static/app.js` and `static/js/cookbookRunning.js` lagging develop. Both green. |
 
-**PR drafts:** #172 written (`pr-drafts/feat-memory-hybrid-recall.md`). #173 not yet.
+| `fix/test-temp-db-leak` | **NEW branch (#174)**, staged 2026-08-03. The suite never removes its temp databases or directories: 3,790 orphaned .db (2.06 GB) and 67,496 orphaned dirs accumulated since 2026-07-19, filling a RAM-backed /tmp until 10 Playwright tests failed with "Page crashed" and read as a code regression. Full-suite leak 29/23/8 -> 0/0/0. Defect is upstream's (files byte-identical to `upstream-mirror`); origin is upstream #2930, which scoped cleanup out of a proving slice. PR + issue drafts written. |
+| `fix/truncate-fork-by-msg-id` | Gained `d75a4acc`: the module's own temp-db leak, the ONLY fork-authored one of 37. Written self-contained so the branch stays independently fileable; now under #131's convergence guard. |
+
+**PR drafts:** #172 and #174 written (#174 also has an upstream issue draft). #173 not yet.
 
 **Do not file #172 from an old checkout.** The branch gained two commits after the
 first cut: `b4f546bd` wires the three remaining recall paths (the module docstring
