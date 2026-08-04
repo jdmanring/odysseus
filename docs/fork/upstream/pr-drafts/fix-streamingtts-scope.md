@@ -33,8 +33,6 @@ catch handler at its first line, so everything after it is skipped: TTS is never
 stopped and the downstream cleanup never runs. An error path that exists
 specifically to tidy up instead leaves audio playing and state stale.
 
-Confirmed against session logs: **6 occurrences on 2026-06-06.**
-
 ### Fix
 
 Declare `let streamingTTS` before the `try`, assign inside as before. Three lines.
@@ -43,13 +41,16 @@ Declare `let streamingTTS` before the `try`, assign inside as before. Three line
 
 ## Verification
 
-The branch carries **no test file**, which should be stated rather than glossed:
-the fix is a two-line scope correction and the failure was identified from
-production logs rather than a reproduction.
+**2 passed**, measured 2026-08-03, in `tests/test_chat_stream_scope.py` - a file
+this repo already has, which already pins `_renderStream`,
+`_cancelThinkingTimer` and `_removeThinkingSpinner` to the outer scope with the
+same hoist-and-assign shape. `streamingTTS` is the fourth member of that family
+and was the only one left out, which is how it regressed.
 
-A regression test is straightforward if wanted - a static guard that the
-declaration precedes the `try`, in the same shape as the suite's other
-source-assertion tests - and can be added before merge on request.
+**Mutation-checked:** the new assertion fails against the current `chat.js` and
+passes against the fixed one, so it is a guard rather than decoration.
+
+Confirmed against session logs: **6 occurrences on 2026-06-06.**
 
 ---
 
