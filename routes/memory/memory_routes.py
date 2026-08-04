@@ -445,7 +445,7 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
             "- Focus on personal, memorable information\n"
             "- If there are no useful facts, return an empty array\n\n"
             "Return a JSON array of objects with 'text' and 'category' fields.\n"
-            "Categories: 'identity', 'preference', 'fact', 'contact', 'project', 'goal'\n\n"
+            "Categories: " + ", ".join(repr(c) for c in MEMORY_CATEGORIES) + "\n\n"
             "Return ONLY valid JSON, no markdown fences."
         )
 
@@ -530,13 +530,8 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
                 _verify_memory_owner(memory, user)
                 all_mem[i]["text"] = text.strip()
                 if category:
-                    # Same allowlist POST /add enforces via MemoryAddRequest.
-                    # Without this the update path accepts any string, so a
-                    # value the rest of the system never expects reaches storage
-                    # and every downstream consumer of it.
-                    all_mem[i]["category"] = (
-                        category if category in MEMORY_CATEGORIES else "fact"
-                    )
+                    # memory_manager.save() coerces this to the allowlist below.
+                    all_mem[i]["category"] = category
                 all_mem[i]["timestamp"] = int(time.time())
 
                 memory_manager.save(all_mem)

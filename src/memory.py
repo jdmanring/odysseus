@@ -10,6 +10,33 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_CATEGORY = "fact"
+
+
+def coerce_category(category) -> str:
+    """Return `category` if it is one of the allowed values, else the default.
+
+    Every write path funnels through `add_entry` or `save`, so this is the one
+    place a category is checked. Guarding the individual call sites instead
+    leaves each new caller to remember, and the callers that mutate an entry's
+    dict directly (the extractor, the cleanup action) never touch a call site
+    at all.
+
+    Coerces rather than raising, matching what `MemoryAddRequest` has always
+    done on `POST /add`: a client sending a stale value keeps working. The
+    substitution is logged because silently rewriting someone's field is how a
+    client bug stays invisible.
+    """
+    from src.request_models import MEMORY_CATEGORIES  # lazy: keeps core import-light
+
+    if category in MEMORY_CATEGORIES:
+        return category
+    if category is not None:
+        logger.warning("Coercing unrecognised memory category %r to %r",
+                       category, DEFAULT_CATEGORY)
+    return DEFAULT_CATEGORY
+
+
 def tokenize(text: str) -> List[str]:
     """Simple tokenizer that splits on whitespace and removes punctuation."""
     return [word.strip('.,!?";') for word in text.split()]
@@ -159,8 +186,7 @@ class MemoryManager:
                 entry["timestamp"] = int(time.time())
             if "source" not in entry:
                 entry["source"] = "unknown"
-            if "category" not in entry:
-                entry["category"] = "fact"
+            entry["category"] = coerce_category(entry.get("category"))
             if "uses" not in entry:
                 entry["uses"] = 0
             validated.append(entry)
@@ -203,8 +229,7 @@ class MemoryManager:
                 entry["timestamp"] = int(time.time())
             if "source" not in entry:
                 entry["source"] = "user"
-            if "category" not in entry:
-                entry["category"] = "fact"
+            entry["category"] = coerce_category(entry.get("category"))
         
         # Use atomic write
         tmp_file = self.memory_file + ".tmp"
@@ -222,7 +247,7 @@ class MemoryManager:
             "text": text.strip(),
             "timestamp": int(time.time()),
             "source": source,
-            "category": category,
+            "category": coerce_category(category),
             "uses": 0,
         }
         if owner:

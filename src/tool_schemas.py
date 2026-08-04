@@ -444,7 +444,13 @@ FUNCTION_TOOL_SCHEMAS = [
                                "description": "The action to perform"},
                     "text": {"type": "string", "description": "Memory text (for add/edit) or search query (for search)"},
                     "memory_id": {"type": "string", "description": "Memory ID (for edit/delete)"},
-                    "category": {"type": "string", "enum": ["fact", "event", "contact", "preference"],
+                    # Must stay a LITERAL: tests/test_tool_index_schema_parity.py
+                    # ast.literal_eval()s this structure rather than importing the
+                    # module. Kept in step with src.request_models.MEMORY_CATEGORIES
+                    # by test_the_model_schema_matches_the_allowlist.
+                    "category": {"type": "string",
+                                 "enum": ["fact", "contact", "task", "preference",
+                                          "identity", "project", "goal"],
                                  "description": "Memory category (for add/list filter)"}
                 },
                 "required": ["action"]

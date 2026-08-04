@@ -17,6 +17,8 @@ from mcp.types import Tool, TextContent
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.request_models import MEMORY_CATEGORIES  # noqa: E402  (needs the path insert above)
+
 server = Server("memory")
 
 # Late-initialized managers (set during first tool call)
@@ -123,7 +125,7 @@ async def list_tools() -> list[Tool]:
                     "old_ids": {"type": "string", "description": "Comma-separated outdated memory ID(s) the new memory replaces (supersede)"},
                     "category": {
                         "type": "string",
-                        "enum": ["fact", "event", "contact", "preference"],
+                        "enum": list(MEMORY_CATEGORIES),
                         "description": "Memory category (add/list filter)",
                     },
                 },
@@ -169,13 +171,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
     elif action == "add":
         text = arguments.get("text", "")
-        # Same allowlist POST /api/memory/add enforces. This is the agent path
-        # (source="ai_agent"), so the value is model-written: without this, an
-        # arbitrary string reaches storage with no user action at all.
-        from src.request_models import MEMORY_CATEGORIES  # lazy, as _ensure_init does
+        # Model-written value; add_entry() coerces it to the allowlist.
         category = arguments.get("category", "fact")
-        if category not in MEMORY_CATEGORIES:
-            category = "fact"
         if not text:
             return _text_result("Error: Memory text cannot be empty")
         owner, memories, _visible, scope_error = _scope_entries()

@@ -17,6 +17,8 @@ import os
 import re
 from typing import Optional
 
+from src.request_models import MEMORY_CATEGORIES
+
 logger = logging.getLogger(__name__)
 
 
@@ -81,7 +83,7 @@ EXTRACT_SYSTEM_PROMPT = (
     "- If a fact is similar to something likely already known, skip it\n"
     "- If nothing durable was revealed, return []\n\n"
     "Return a JSON array of objects with 'text' and 'category' fields.\n"
-    "Categories: 'identity', 'preference', 'fact', 'contact', 'project', 'goal'\n\n"
+    "Categories: " + ", ".join(repr(c) for c in MEMORY_CATEGORIES) + "\n\n"
     "Return ONLY valid JSON, no markdown fences."
 )
 
