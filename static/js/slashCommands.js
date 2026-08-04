@@ -1133,7 +1133,7 @@ async function _cmdSessionList(args, ctx) {
   if (!active.length) { slashReply('No active sessions'); return true; }
   const lines = active.slice(0, 40).map(s => {
     const current = s.id === ctx.sid ? ' <b>(current)</b>' : '';
-    return `${ctx.esc(s.name || 'Untitled')} <span style="opacity:0.5">${s.id.slice(0,8)}</span>${current}`;
+    return `${ctx.esc(s.name || 'Untitled')} <span style="opacity:0.5">${ctx.esc(s.id.slice(0,8))}</span>${current}`;
   });
   if (active.length > 40) lines.push(`... and ${active.length - 40} more`);
   slashReply(`<pre>${lines.join('\n')}</pre>`);
@@ -1982,7 +1982,7 @@ async function _cmdSearch(args, ctx) {
       const name = ctx.esc(r.session_name || r.name || 'Untitled');
       const snippet = ctx.esc((r.content_snippet || r.content || r.snippet || '').slice(0, 100));
       const sid = r.session_id || '';
-      return `<a href="#${sid}" style="color:var(--red);text-decoration:none">${name}</a>  ${snippet}`;
+      return `<a href="#${ctx.esc(sid)}" style="color:var(--red);text-decoration:none">${name}</a>  ${snippet}`;
     });
     slashReply(`<pre>${lines.join('\n')}</pre>`);
   } else { slashReply('Search failed'); }
