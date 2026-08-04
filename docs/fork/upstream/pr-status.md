@@ -12,7 +12,14 @@ per-action authorization. Agents stage; you file.**
 
 **This supersedes the 2026-07-07 section below. Read this one first.**
 
-`upstream-mirror` advanced to `25c9e735` (upstream/dev, 2026-07-30). The merge into
+**Mirror state:** `upstream-mirror` is at `fb8c391a` (upstream/dev, 2026-08-04)
+after the 2-commit ingest of 2026-08-03 (LKG-20260803-2036), which is on
+`integration` and **not yet promoted to `develop`**. The old mirror for that
+ingest is tagged `preingest-20260803-2028/upstream-mirror` -- that is the
+`--old-mirror` argument for any rebase sweep, and it cannot be recovered if lost.
+
+The 1,957-commit ingest below took `upstream-mirror` to `25c9e735`
+(upstream/dev, 2026-07-30). The merge into
 `develop` was 182 conflicted files — see `docs/fork/ingest-20260802-resume.md`.
 
 **All staged branches were rebased onto the new `upstream-mirror`: 81 done,
