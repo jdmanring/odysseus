@@ -44,7 +44,7 @@ All upstream PRs target `upstream:dev`, never `upstream:main`.
 | `QWebChannel` | Qt mechanism for bidirectional JS↔Python messaging — used to bridge web UI to native OS APIs (e.g. color picker dialog) |
 | `tooling/bin_manager.py` | Manages external binaries (auto-install if missing, path discovery). Currently used for `aria2c`. |
 | `aria2c` | Multi-protocol download utility. Used by the aria2c downloader to fetch HuggingFace model weights with 16 parallel connections and resume support. Replaces the unreliable `hf_transfer` Rust accelerator. |
-| `tooling/aria2c_download.py` | Entry point for the aria2c download feature. Chains BinManager → HfUrlResolver → Aria2Wrapper. |
+| `tooling/aria2c_download.py` | Entry point for the aria2c download feature. Resolves the binary via BinManager, the URL via HfUrlResolver, then builds and runs the aria2c command itself. Invoked as a script from `routes/cookbook_routes.py`, not imported. |
 | `tooling/sync-upstreams/upstream_ingest_pipeline.py` | Syncs `upstream/dev` through 3 gates (syntax, lint, tests) before promoting to `integration` branch. Run this, never cherry-pick upstream directly to `develop`. |
 | `static/js/qt-bridge.js` | Non-module script that sets up QWebChannel and exposes `window.qtBridge` for native OS calls from web JS |
 | `IntersectionObserver` | Browser API used for DOM virtualization — loads older chat messages on scroll, no new dependencies needed |
