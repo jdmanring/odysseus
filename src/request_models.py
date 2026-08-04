@@ -33,6 +33,14 @@ class SessionCreateRequest(BaseModel):
     rag: Optional[bool] = Field(default=False, description="Enable RAG")
 
 
+# The categories a memory entry may carry. Defined once: it was previously
+# spelled out in MemoryAddRequest.validate_category and again in
+# MemoryUpdateRequest's regex, and the two could drift apart silently.
+MEMORY_CATEGORIES = ("fact", "contact", "task", "preference", "identity",
+                     "project", "goal")
+_MEMORY_CATEGORY_PATTERN = "^(" + "|".join(MEMORY_CATEGORIES) + ")$"
+
+
 class MemoryAddRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Memory text")
     category: str = Field(default="fact", description="Memory category")
@@ -42,14 +50,14 @@ class MemoryAddRequest(BaseModel):
     @field_validator('category')
     @classmethod
     def validate_category(cls, v):
-        if v not in ['fact', 'contact', 'task', 'preference', 'identity', 'project', 'goal']:
+        if v not in MEMORY_CATEGORIES:
             return 'fact'  # Default to 'fact' if invalid
         return v
 
 
 class MemoryUpdateRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Updated memory text")
-    category: Optional[str] = Field(default=None, pattern="^(fact|contact|task|preference|identity|project|goal)$", description="Memory category")
+    category: Optional[str] = Field(default=None, pattern=_MEMORY_CATEGORY_PATTERN, description="Memory category")
 
 
 class PresetUpdateRequest(BaseModel):

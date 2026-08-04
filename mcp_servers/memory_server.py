@@ -169,7 +169,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
     elif action == "add":
         text = arguments.get("text", "")
+        # Same allowlist POST /api/memory/add enforces. This is the agent path
+        # (source="ai_agent"), so the value is model-written: without this, an
+        # arbitrary string reaches storage with no user action at all.
+        from src.request_models import MEMORY_CATEGORIES  # lazy, as _ensure_init does
         category = arguments.get("category", "fact")
+        if category not in MEMORY_CATEGORIES:
+            category = "fact"
         if not text:
             return _text_result("Error: Memory text cannot be empty")
         owner, memories, _visible, scope_error = _scope_entries()
