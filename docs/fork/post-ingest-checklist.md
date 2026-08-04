@@ -184,6 +184,25 @@ found, and the branches whose status changed. That document is what PRs are file
 from; an ingest that does not update it leaves the next filing pass working from
 a stale map.
 
+**When you correct an artifact, correct the rows that DESCRIBE it.** The sweep
+above hunts pending/not-yet phrasing and structurally cannot catch this: a
+`pr-status.md` row is grammatically fine while describing a claim that has since
+been retracted. Measured three times, most recently 2026-08-04, when the #182
+drafts were rewritten after a review falsified their central claim and both
+state-doc rows still repeated it verbatim -- along with the tracker entry those
+rows are generated from, which is the source of truth. Same pass, a branch that
+was staged, pushed and drafted (#184) appeared in neither state doc at all.
+
+After any correction or new branch:
+
+```bash
+grep -rn "<branch-name>\|#<issue>" docs/fork/ --include="*.md" | grep -v issues/README
+```
+
+Every hit is a description that may now be stale, and the tracker JSON is one of
+them. Retract in place with a dated banner rather than editing the original text
+away -- a record that erases its own mistakes is not a record.
+
 **Check cited commits for REACHABILITY, not existence.** `git cat-file -e <sha>`
 answers "does this object exist", which is not the property a doc claim needs. A
 rebase leaves the old commit as a loose object, so a citation like "branch X
