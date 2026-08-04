@@ -10,6 +10,14 @@ the published artifact quietly describes a program that no longer exists.
 This test closes that gap. It is skipped wherever the live file is absent --
 which is every branch except the fork's `develop` -- so it never fails an
 upstream checkout that legitimately has no chatHistory.js.
+
+It also pins the two vendored UPSTREAM arms by content hash. Those cannot drift
+from their source (both PRs are closed, so the source is frozen), but they can be
+edited here -- and the first question a PR author asks about a benchmark of their
+own code is "how do I know you did not tweak it?". A hash makes that verifiable
+instead of trusted: the header cites the exact source commit, so anyone can fetch
+it, diff, and confirm the hash below. Changing either file must be a deliberate
+re-vendor that updates this constant and re-runs the benchmark.
 """
 
 import pathlib
@@ -53,3 +61,52 @@ def test_snapshot_matches_live_chat_history():
         "longer exists. Re-vendor the snapshot and re-run the benchmark; do not "
         "just update this test."
     )
+
+
+# sha256 of the vendored upstream arms, as benchmarked for
+# tests/bench/results/bench.md (generated 2026-07-25). These are OTHER PEOPLE'S
+# code, measured to compare against ours, so their integrity is the load-bearing
+# claim in any citation of those results.
+VENDORED_UPSTREAM = {
+    "trimChatHistory_4661.js": (
+        "ae8af6113b3eec96ab5b6654c2b4a0120e1785d466f72f705ec98b55896bfa92",
+        "27f35e1c1303ec9732bae68e8c32c14ebd3e82a6",   # upstream PR #4661
+    ),
+    "chatVirtualizer_4998.js": (
+        "73d55d25725713f03d4781b76ba709702a36eac650ef5c3d658fefc1b15011d0",
+        None,                                          # upstream PR #4998, vendored byte-for-byte
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(VENDORED_UPSTREAM))
+def test_vendored_upstream_arm_is_unmodified(name):
+    """A benchmark of someone else's code is only evidence if their code is intact."""
+    import hashlib
+
+    path = ROOT / "tests/bench/vendor" / name
+    assert path.is_file(), f"vendored upstream arm {name} is missing"
+    expected, _commit = VENDORED_UPSTREAM[name]
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert actual == expected, (
+        f"{name} has been modified since it was benchmarked.\n"
+        f"  expected {expected}\n  actual   {actual}\n"
+        "tests/bench/results/bench.md compares OUR implementation against this "
+        "one; editing it invalidates that comparison and makes the published "
+        "numbers uncitable. If this is a deliberate re-vendor, update the hash "
+        "here AND re-run tests/bench/chat_history_bench.py."
+    )
+
+
+@pytest.mark.parametrize("name", sorted(VENDORED_UPSTREAM))
+def test_vendored_upstream_arm_states_its_provenance(name):
+    """The header is what lets a reviewer verify the hash against the real source."""
+    head = (ROOT / "tests/bench/vendor" / name).read_text(errors="replace")[:1200]
+    assert "VENDORED" in head.upper(), f"{name} must announce that it is vendored"
+    assert "upstream PR #" in head, f"{name} must name the upstream PR it came from"
+    _expected, commit = VENDORED_UPSTREAM[name]
+    if commit:
+        assert commit in head, (
+            f"{name}'s header must cite the source commit {commit} so a reviewer "
+            "can fetch it and diff against this file"
+        )
