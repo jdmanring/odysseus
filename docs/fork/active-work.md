@@ -470,6 +470,44 @@ stripping, route-shadowing guard), `test_chat_history_a11y_js.py` (7), extended 
 with markdown/code/image. Full story + comparison table + when-to-revisit:
 `docs/fork/chat-history-architecture-decision.md`.
 
+## Four-lens adversarial review, 2026-08-04
+
+Four reviewers ran in parallel against the newly staged work, each with a distinct
+mandate and none told what the others were looking at: hostile appsec, adversarial test
+engineer, upstream maintainer under time pressure, and records auditor. Findings became
+#185 through #189.
+
+What it cost to skip: **both freshly staged branches turned out to be unfilable**, and
+the specific artifact built in response to the *previous* adversarial pass -- the rewritten
+escaping guard -- failed to the first attack this one tried.
+
+| # | Finding | Status |
+|---|---------|--------|
+| #185 | 76 staged branches diverged from the remote; the 2026-08-02 rebase exists only locally | Open. Needs authorization (rewrites 76 refs). |
+| #186 | #184 guards 2 of 7 write paths, misses `add_entry`; allowlist exists 4x and one copy disagrees; one vacuous test | Open. Blocks filing #184. |
+| #187 | The rewritten escaping guard passes 7 live XSS variants, including the original defect verbatim | Open. Blocks filing #182. |
+| #188 | Retracted false claims still in commit `91679c3c`'s message, which is public PR content | Open. Blocks filing #182. |
+| #189 | Three more decorative guards, plus a live defect in `draft_file_claims.py` | Open. |
+
+Fixed during the audit, no authorization needed: two cited SHAs (`75f1f01e`, `d620c5b3`)
+were unreachable and unpinned despite the pinning sweep, now at `refs/docsha/*` and
+published (106 local, 106 remote); three `refs/salvage/*` refs this document called
+"preserved" existed only locally, now published; the `feat/unify-llamacpp-embeddings` row
+in `pr-status.md` described a branch that resolves to no ref (work is safe on develop as
+`968e9b98`, identical patch-id to the reflog-only `ba1aaea0`); the #182 tracker **title**
+still carried the falsified XSS framing after its body had been corrected.
+
+**Method note.** Two lenses reached the `add_entry` chokepoint independently, which is why
+that finding is trustworthy rather than merely plausible. A single reviewer converging
+proves one lens is exhausted, not that the work is clean -- convergence within one
+perspective is what produced the decorative guard that #187 just broke.
+
+**Checklist step 7 (full suite + leak count) was skipped for this round.** The measured
+figure available is 6157 passed / 6 skipped / 0 leaked on `fix/memory-category-validation`;
+it is superseded, since #186 and #187 both require rework.
+
+---
+
 ## In Progress
 
 | Issue | Branch | Status |
@@ -526,14 +564,22 @@ with markdown/code/image. Full story + comparison table + when-to-revisit:
 
 ## Staged for Upstream - Ready to File
 
-All branches are built from `upstream-mirror`, contain only their specific changes, and are
-pushed to `origin`. See `docs/fork/upstream/pr-status.md` for
-full status and `docs/fork/upstream/pr-drafts/` for draft descriptions.
+All branches are built from `upstream-mirror` and contain only their specific changes. See
+`docs/fork/upstream/pr-status.md` for full status and `docs/fork/upstream/pr-drafts/` for
+draft descriptions.
+
+> **They are NOT all published. Corrected 2026-08-04 (#185).** This section previously
+> claimed every branch was pushed. An audit found 76 of them diverged from the remote,
+> which still holds the **pre-rebase** tips: sampled remote tips are byte-identical to
+> `refs/prerebase/<branch>`. The 2026-08-02 rebase sweep exists only in this working copy.
+> Publishing it rewrites history on 76 refs and needs explicit authorization, so until #185
+> is closed, treat every "pushed" or "ready to file" claim below as describing the local
+> checkout only.
 
 | Branch | Issue(s) | Notes |
 |--------|----------|-------|
-| `fix/slash-memory-category-escape` | #182 | **Staged 2026-08-03; rewritten 2026-08-04.** Four independent reviews falsified the central claim -- `category` IS validated on `POST /api/memory/add`, so the original reproduction does not fire -- along with "sole output path" and "single-user, local-first". Now a defence-in-depth report over four raw fields, one in an `href` attribute; two of the four were found by the review inside the file the first commit had just edited. Guards rewritten from source literals (which passed a variant with three live XSS holes) to computed-property checks. File after #184. |
-| `fix/memory-category-validation` | #184 | **Staged 2026-08-04. File FIRST -- this is the root cause #182 only hardened the output of.** `category` unvalidated on `PUT /api/memory/{id}` and on the MCP `add` path (the agent path, so model-written). Both now use one shared `MEMORY_CATEGORIES` constant, replacing two divergent copies. The `require_privilege` gap I recorded was retracted on reading the router: privilege gates creation, ownership gates mutating your own entries, and `PUT` matches `DELETE`/pin. |
+| `fix/slash-memory-category-escape` | #182, **blocked by #187 and #188** | **DO NOT FILE.** A second adversarial pass on 2026-08-04 broke the rewritten guard on the first attack: seven live XSS variants pass all six tests, including the original defect re-introduced verbatim as `${m['category']}` (bracket notation has no dot, so `_SAFE`'s `[^.]*` alternative reads a raw property as a literal). See #187. Separately, the retracted false claims are still in commit `91679c3c`'s message, which is public PR content: see #188. **Staged 2026-08-03; rewritten 2026-08-04.** Four independent reviews falsified the central claim -- `category` IS validated on `POST /api/memory/add`, so the original reproduction does not fire -- along with "sole output path" and "single-user, local-first". Now a defence-in-depth report over four raw fields, one in an `href` attribute; two of the four were found by the review inside the file the first commit had just edited. Guards rewritten from source literals (which passed a variant with three live XSS holes) to computed-property checks. File after #184. |
+| `fix/memory-category-validation` | #184, **blocked by #186** | **DO NOT FILE.** Two blind reviews independently found this guards 2 of at least 7 write paths and misses the chokepoint they all route through, `MemoryManager.add_entry` (`src/memory.py:215`, 6 non-test callers). The paths left open include `src/ai_interaction.py:386`, which is the same `source="ai_agent"` shape the draft argues from -- so the PR does not close its own threat model. The allowlist also exists four times, not two, and `src/tool_schemas.py:447` disagrees (advertises `event` to the model). One of the eight tests is vacuous. See #186. **Staged 2026-08-04.** `category` unvalidated on `PUT /api/memory/{id}` and on the MCP `add` path (the agent path, so model-written). Both now use one shared `MEMORY_CATEGORIES` constant, replacing two divergent copies. The `require_privilege` gap I recorded was retracted on reading the router: privilege gates creation, ownership gates mutating your own entries, and `PUT` matches `DELETE`/pin. |
 | (none - upstream-candidate, unstaged) | #183 | `uiModule.esc()` is `(s || '').replace(...)` and throws on a number; `skills.js`, which its docstring tells to defer to it, already works around it with `String(s ?? '')`. **Latent, not live** - the one call site that looked numeric receives `"168B"`. Deliberately not folded into #182: coercing changes rendering for every falsy caller (`esc(0)` would print `0`), so it needs its own call-site audit. |
 | `fix/memory-panel-listener-leak` | [#89](https://github.com/jdmanring/odysseus/issues/89) | 2 commits: primary fix (`d89d93a6`), abort-on-close correctness fix (`ab8a5f21`). From upstream-mirror. Eliminates three sources of ~956 MiB permanent RSS growth in the Brain memory list: (1) document.addEventListener accumulation: moved from forEach body (N listeners per render) to menuBtn handler with { once: true, signal }; (2) item-level listener closure retention: AbortController per render pass, abort before innerHTML clear; (3) compositor tiles while panel hidden: CSS animation-play-state:paused rule. MutationObserver triggers _closeActiveDropdown() + gc() on panel close. odysseus:modal-closed event added to modalManager.js. Abort-on-close removed (no modal-opened listener -> would leave dead handlers until next memory-refresh). 14 regression tests in `tests/test_memory_panel_listener_leak.py`. PR draft at `docs/fork/upstream/pr-drafts/fix-memory-panel-listener-leak.md`. File upstream issue first. |
 | `fix/brain-panel-oom` | TBD (file before submitting) | 3 commits: fix (`8e3c1674`), comment+test cleanup (`02d98263`), remove will-change (`18dbbd25`). From upstream-mirror. Eliminates raster-tile accumulation from 4 CSS animation patterns in Brain and Notes panels. Pattern A: @property --sweep replaced with transform:translateX(); Pattern B: filter removed from note-ai-shine; Pattern C: animation:none replaced with animation-play-state:paused on notes-quick-add; Pattern D: background-position replaced with transform in notes-drag-shimmer. will-change: transform removed from ::after (transform animation is self-promoting; pre-promoting all list items including off-screen wastes GPU backing textures). 13 regression tests in `tests/test_brain_panel_oom_css.py`. PR draft at `docs/fork/upstream/pr-drafts/fix-brain-panel-oom.md`. File upstream issue first. |

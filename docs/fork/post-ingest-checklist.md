@@ -177,6 +177,59 @@ crashed browsers.
 
 ---
 
+## 8. Attack every guard you wrote. Do not re-read it.
+
+Added 2026-08-04, after a guard that was itself written to replace a decorative
+guard turned out to be decorative in a different way, and was caught only because
+an independent reviewer attacked it instead of reading it.
+
+A test counts as a guard only once you have built the defect it claims to catch and
+watched it fail. Three attacks that have each landed here, none of which re-reading
+would have surfaced:
+
+- **Re-introduce the original defect verbatim, in a form the guard did not
+  anticipate.** `${m['category']}` defeated a scanner whose "no property read"
+  alternative was `[^.]*`: bracket notation has no dot, so a raw read parsed as a
+  literal. If the guard cannot catch the exact bug it was written for, it catches
+  nothing.
+- **Satisfy the assertion with a comment.** Any test asserting a literal is present
+  in source passes when that literal survives in a comment, or inside a function
+  nothing calls. Mutate to a comment, not to a deletion; deletion is the one
+  mutation these always catch.
+- **Invert the guard rather than removing it.** `if x in ALLOWED` instead of
+  `if x not in ALLOWED` keeps every token a source scan looks for while reversing
+  the behaviour.
+
+Then check the other direction: a harmless refactor -- destructuring, renaming,
+extracting a helper -- must not fail the suite. A guard that fires on formatting is
+testing the formatter.
+
+**Prefer executing to scanning.** Where the target is reachable, call it with a
+hostile input. 39 of this repo's 49 `*_js.py` tests already run under node; a source
+scanner is a fallback for what genuinely cannot be executed, not a default.
+
+---
+
+## 9. Use lenses that do not share your premises
+
+The steps above are things you run. This one is a thing you cannot run on yourself.
+
+A single reviewer converging proves one lens is exhausted, not that the work is
+clean -- and rounds that start returning findings about your own audit prose rather
+than the artifact are the signal that you have hit that ceiling, not that you have
+passed. Every load-bearing false claim in the 2026-08 staging round was found by a
+reviewer who did not inherit the author's premises, and none by re-reading.
+
+Run reviewers in parallel with distinct mandates, blind to each other: hostile
+appsec, adversarial test engineer, upstream maintainer under time pressure, records
+auditor. Two lenses landing on the same finding independently is what makes it
+trustworthy; one lens landing on it repeatedly is not.
+
+The cheapest version of this rule: **before filing anything, ask which claim in it
+would be most embarrassing if a stranger checked it, and check that one.**
+
+---
+
 ## Record the result
 
 Update `docs/fork/upstream/pr-status.md` with the rebase state, any supersessions

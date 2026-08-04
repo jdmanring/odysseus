@@ -140,9 +140,13 @@ network I/O paths).
 **Method:** `git log --no-merges -p | git patch-id --stable` per side, two
 processes. Re-run after every ingest; the naive per-commit form would be ~95,000
 subprocesses on this repo. This audit is step 3 of
-`docs/fork/post-ingest-checklist.md`, which carries all seven post-merge checks.
+`docs/fork/post-ingest-checklist.md`, which carries all nine post-merge checks.
 
-**PR drafts:** #172, #173, #174, #175, #176 and #182 written. #174 and #182 also have upstream issue drafts (`docs/fork/upstream/issue-drafts/`).
+**PR drafts:** #172, #173, #174, #175, #176, #182 and #184 written. #174, #182 and #184 also have upstream issue drafts (`docs/fork/upstream/issue-drafts/`).
+
+**Neither #182 nor #184 is filable as written.** A four-lens adversarial review on
+2026-08-04 falsified load-bearing claims in both; see #186, #187 and #188. Do not file
+either until those are closed.
 
 **Do not file #172 from an old checkout.** The branch gained two commits after the
 first cut: `b4f546bd` wires the three remaining recall paths (the module docstring
@@ -234,7 +238,7 @@ been pushed (`fix/cookbook-hf-gguf-repo-nameerror`, `fix/history-route-shadow`,
 | `feat/logging` | [#31](https://github.com/jdmanring/odysseus/issues/31) | Feature | Ready to file: infrastructure and callsites combined in one PR. See pr-drafts/feat-logging.md |
 | `fix/workspace-shell-access` | [#47](https://github.com/jdmanring/odysseus/issues/47) | Bug | **Folded into develop; standalone branch deleted.** The web_search/web_fetch workspace behavior is on develop and `tests/test_workspace_web_search_tools.py` passes there. To file upstream, recreate a clean branch from `upstream-mirror`. Entry was stale. |
 | `fix/untrusted-tool-result-header` | [#48](https://github.com/jdmanring/odysseus/issues/48) | Bug | Ready to file: single clean commit. Fixes false-positive refusals introduced by upstream #1629 (2026-06-16). File upstream issue first. See pr-drafts/fix-untrusted-tool-result-header.md |
-| `feat/unify-llamacpp-embeddings` | #TBD (add to `docs/fork/issues/`) | Feature/Refactor | Draft: retires the onnxruntime/fastembed backend; llama.cpp (GGUF Q8_0) is the default embedder on all platforms, fastembed opt-in. Code complete + full suite green on host. **Not ready to file:** needs multi-platform install verification (wheel-index resolution) + fork issue. Records the onnxruntime baggage removed and the any-GGUF flexibility gained. See pr-drafts/feat-unify-llamacpp-embeddings.md |
+| `feat/unify-llamacpp-embeddings` | #TBD (add to `docs/fork/issues/`) | Feature/Refactor | **No such branch exists; entry was stale.** Corrected 2026-08-04 after an audit found the row describing a live draft that resolves to no ref. The work is on develop as `968e9b98` (originally committed as `ba1aaea0`, which is now reflog-only and unreachable; identical patch-id `c03e2c97`, so nothing was lost). Retires the onnxruntime/fastembed backend; llama.cpp (GGUF Q8_0) is the default embedder on all platforms, fastembed opt-in. **Still not ready to file:** needs multi-platform install verification (wheel-index resolution) + a fork issue, and to file upstream a clean branch must be recreated from `upstream-mirror`. See pr-drafts/feat-unify-llamacpp-embeddings.md |
 | `fix/api-token-utcnow-deprecated` | [#51](https://github.com/jdmanring/odysseus/issues/51) | Bug | Ready to file: single clean commit, 2 lines changed. Follow-up to upstream 790ef81b (missed instance). File upstream issue first. See pr-drafts/fix-api-token-utcnow-deprecated.md |
 | `fix/sqlalchemy-orm-declarative-import` | [#163](https://github.com/jdmanring/odysseus/issues/163) | Bug | Ready to file: single clean commit off `upstream-mirror`, cherry-picked to develop (`30819e02`, `-x`). `core/database.py` imported `declarative_base`/`declared_attr` from the deprecated `sqlalchemy.ext.declarative` (MovedIn20Warning on 2.0); folded into the existing `sqlalchemy.orm` import. Regression guard `tests/test_database_declarative_import.py`; verified warning gone via `-W error`. Sibling to #51. File upstream issue first. See pr-drafts/fix-sqlalchemy-orm-declarative-import.md |
 | `fix/chat-auto-scroll-threshold` | [#49](https://github.com/jdmanring/odysseus/issues/49) | Bug | Ready to file: single clean commit. Adaptive threshold replaces rigid 300px guard in _smoothScrollStep(). File upstream issue first. See pr-drafts/fix-chat-auto-scroll-threshold.md |
