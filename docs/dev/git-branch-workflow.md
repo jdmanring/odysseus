@@ -172,6 +172,12 @@ git push origin develop
 
 This is a manual step: the pipeline does not auto-merge to `develop`. Review what landed on `integration` before merging.
 
+**After the merge lands, work through `docs/fork/post-ingest-checklist.md`.** A
+large ingest invalidates more than the trunk: staged contribution branches need
+rebasing onto the new mirror, their PR drafts can end up naming files that moved,
+and the ranking of which symbols the codebase leans on changes. Each step there
+has a measured failure behind it from the 1,957-commit ingest.
+
 ### What the pipeline protects
 
 The pipeline restores these files to their `integration` state after every upstream merge, preventing upstream from overwriting fork-specific code:
