@@ -6,7 +6,7 @@
 
 | # | State | Title |
 |---|-------|-------|
-| 180 | open | integration carries none of the fork's PROTECTED_FILES, so the pipeline's protection is a no-op (fork-only) |
+| 180 | open | integration has been bypassed since 2026-07-19; the pipeline can no longer advance it (fork-only) |
 | 179 | closed | Post-ingest checklist: the steps that only exist in one session's memory (fork-only) |
 | 178 | open | Two dead artifacts removed: Aria2Wrapper and timed_operation |
 | 177 | open | 33 staged branches have no PR draft (fork-only tracking) |
