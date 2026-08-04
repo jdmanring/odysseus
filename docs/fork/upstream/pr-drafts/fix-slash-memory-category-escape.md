@@ -1,5 +1,19 @@
 # PR Draft: fix/slash-memory-category-escape -> odysseus-dev/odysseus:dev
 
+> **⚠ NOT FILE-READY -- CENTRAL CLAIM FALSIFIED 2026-08-04.**
+> Four independent reviewers checked this. `category` **is** validated on the
+> `POST /api/memory/add` path (`src/request_models.py:42-47` coerces anything
+> outside a 7-value allowlist to `fact`), so the reproduction below DOES NOT
+> FIRE. The `:410` citation is the import *suggestions* payload, which never
+> persists. The real unvalidated writes are `PUT /api/memory/{id}`
+> (`routes/memory/memory_routes.py:512`, raw `Form`, and missing the
+> `require_privilege` guard that `/add` has) and `mcp_servers/memory_server.py:161`.
+> "Sole output path" is also false (`_eggRender` at `slashCommands.js:5319` is a
+> second sink), and "single-user, local-first" is false (real multi-user auth;
+> it is *owner-scoped*, which is the correct reason severity stays low).
+> Do not file until rewritten against verified evidence.
+
+
 **Branch:** `fix/slash-memory-category-escape`
 **Issue:** #182 (fork tracking, `docs/fork/issues/INDEX.md`)
 **Status:** Ready to file
