@@ -36,15 +36,39 @@ def test_temp_db_file_is_registered_for_cleanup():
             temp_cleanup._TEMP_PATHS.remove(f.name)
 
 
+
+def _fds_pointing_at(path):
+    """Open descriptors in this process resolving to `path`.
+
+    Linux-only via /proc; returns [] elsewhere so the assertion degrades to a
+    no-op rather than a false pass on a platform it cannot inspect.
+    """
+    fd_dir = "/proc/self/fd"
+    if not os.path.isdir(fd_dir):
+        return []
+    target = os.path.realpath(path)
+    out = []
+    for name in os.listdir(fd_dir):
+        try:
+            if os.path.realpath(os.path.join(fd_dir, name)) == target:
+                out.append(name)
+        except OSError:
+            continue
+    return out
+
 def test_temp_db_path_is_registered_and_closed():
     path = sqlite_db.temp_db_path()
     try:
         assert os.path.exists(path)
         assert path in temp_cleanup._TEMP_PATHS
         # mkstemp's descriptor must already be closed: the caller binds this
-        # path into DATABASE_URL and never sees the fd.
-        with open(path, "w"):
-            pass
+        # path into DATABASE_URL and never sees the fd, so a leaked descriptor
+        # would accumulate one per temp database across the suite.
+        #
+        # This used to assert `open(path, "w")` succeeds, which detects nothing:
+        # on POSIX that succeeds whether or not the descriptor is still open
+        # (measured). Check the descriptor table directly instead.
+        assert not _fds_pointing_at(path), "mkstemp fd left open"
     finally:
         temp_cleanup._remove_path(path)
         if path in temp_cleanup._TEMP_PATHS:
