@@ -1,5 +1,23 @@
 # PR Draft: perf/chathistory-gc-improvements -> odysseus-dev/odysseus:dev
 
+> **SUPERSEDED (2026-08-03).** `perf/chathistory-gc-improvements` (2 commits,
+> 2026-06-22) was the first implementation of the chat-history message window.
+> `fix/dom-oom-virtualization` (11 commits, 2026-07-18 -> 2026-08-03) is the
+> matured version of the same feature and is the one to file.
+>
+> Verified rather than assumed: every helper this branch introduced
+> (`_attachBottomSentinel`, `_evictLive`, `_histChildCount`, `_initMutObs`,
+> `_deferAll`) is present on `develop` in equal or greater number, so the work
+> landed via the successor. Rebased onto the current mirror it goes from 9 to 23
+> failing source-assertion tests, because its tests pin a `sessions.js`/`chat.js`
+> shape upstream has since restructured.
+>
+> The branch was already deleted once, deliberately. It was restored on
+> 2026-08-03 during a draft audit that saw only "draft exists, branch missing",
+> and re-deleted the same day once the supersession was established. Preserved at
+> `refs/deleted/perf-chathistory-gc-improvements`.
+
+
 **Branch:** `perf/chathistory-gc-improvements`
 **Issue:** [#83](https://github.com/jdmanring/odysseus/issues/83)
 **Base:** `upstream-mirror` (latest upstream commit)
