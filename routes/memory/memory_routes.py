@@ -23,7 +23,7 @@ def _strip_list_prefix(text: str) -> str:
 
 from services.memory import MemoryManager
 from core.session_manager import SessionManager
-from src.request_models import MemoryAddRequest
+from src.request_models import MEMORY_CATEGORIES, MemoryAddRequest
 from core.database import SessionLocal
 from src.llm_core import llm_call_async
 from services.memory.memory_extractor import audit_memories
@@ -518,7 +518,13 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
                 _verify_memory_owner(memory, user)
                 all_mem[i]["text"] = text.strip()
                 if category:
-                    all_mem[i]["category"] = category
+                    # Same allowlist POST /add enforces via MemoryAddRequest.
+                    # Without this the update path accepts any string, so a
+                    # value the rest of the system never expects reaches storage
+                    # and every downstream consumer of it.
+                    all_mem[i]["category"] = (
+                        category if category in MEMORY_CATEGORIES else "fact"
+                    )
                 all_mem[i]["timestamp"] = int(time.time())
 
                 memory_manager.save(all_mem)
